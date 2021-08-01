@@ -9,10 +9,10 @@ class random_num {
     // Hold RNG state as a member variable
     //std::mt19937 eng;
     XoshiroCpp::Xoshiro256PlusPlus eng;
-    std::uniform_real_distribution<double> uni_double;
+    std::uniform_real_distribution<double> uni_double_dist;
+    std::normal_distribution<double> normal_dist;
 public:
-    random_num(const std::uint64_t seed = static_cast<uint64_t>(std::time(nullptr)))
-    {
+    random_num(const std::uint64_t seed = static_cast<uint64_t>(std::time(nullptr))){
 
         //std::random_device rd{};
         //std::seed_seq seq{rd(), rd(),rd(),rd()};
@@ -36,15 +36,17 @@ public:
         return std::accumulate(s.begin(), s.end(), 0.0);
     }
 
-    double randZero_One_Uni()
-    {
-        return uni_double(this->eng);
+    inline double rand_uni_dist(double _min, double _max){
+        //return uni_double_dist(_min, _max)(this->eng);
         //return XoshiroCpp::DoubleFromBits(this->eng());
-        //return std::uniform_real_distribution<double>(0, 1)(this->eng);
+        return std::uniform_real_distribution<double>(_min, _max)(this->eng);
     }
-    int randInt_Uni(int L)
-    {
+    inline int rand_uni_int_dist(int L){
         return std::uniform_int_distribution<>(0, L)(eng);
+    }
+    
+    double rand_norm_dist() {
+        return normal_dist(eng);
     }
 };
 
