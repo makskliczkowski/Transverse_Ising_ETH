@@ -111,6 +111,7 @@ void IsingModel_sym::hamiltonian() {
             /* transverse field */
             temp[j] = ~base_vector[j];
             setHamiltonianElem(k, g, std::move(temp));
+            //dsdsa
 
             /* disorder */
             H(k, k) += this->h * (s_i - 0.5);
