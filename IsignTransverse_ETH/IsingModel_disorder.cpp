@@ -27,25 +27,22 @@ IsingModel_disorder::IsingModel_disorder(IsingModel_disorder&& A) noexcept {
 
 void IsingModel_disorder::setHamiltonianElem(u64& k, double value, std::vector<bool>&& temp) {
     u64 idx = binary_to_int(temp);
-    my_mute_button.lock();
     H(idx, k) += value;
     H(k, idx) += value;
-    my_mute_button.unlock();
 }
 void IsingModel_disorder::hamiltonian() {
     H.zeros();
     this->dh = w * create_random_vec(L);
-#pragma omp parallel for 
+    std::vector<bool> base_vector(L);
+    std::vector<bool> temp(base_vector); // changes under H action
     for (u64 k = 0; k < N; k++) {
-        std::vector<bool> base_vector(L);
         int_to_binary(k, base_vector);
-
-        std::vector<bool> temp(base_vector); // changes under H action
         int s_i, s_j;
         for (int j = 0; j <= L - 1; j++) {
             s_i = static_cast<double>(base_vector[j]);
-
+            
             /* transverse field */
+            temp = base_vector;
             temp[j] = ~base_vector[j];
             setHamiltonianElem(k, g, std::move(temp));
 

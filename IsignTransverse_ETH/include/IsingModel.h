@@ -48,6 +48,7 @@ public:
 class IsingModel_sym : public IsingModel {
 protected: 
 	std::vector<u64> mapping;
+	std::vector<int> periodicity;
 public:
 	/* Constructors */
 	IsingModel_sym() = default;
@@ -58,6 +59,8 @@ public:
 	/* METHODS */
 	void generate_mapping();
 	void mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, int _id);
+
+	void check_periodicity();
 
 	void hamiltonian() override;
 	void setHamiltonianElem(u64& k, double value, std::vector<bool>&& temp) override;

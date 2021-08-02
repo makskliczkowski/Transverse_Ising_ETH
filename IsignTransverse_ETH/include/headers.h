@@ -23,6 +23,7 @@
 #include <utility> // auto, etc. 
 #include <memory> // smart ptr
 #include <thread>
+#include <execution>
 #include<queue>
 #include<mutex>
 #include<condition_variable>
@@ -49,7 +50,7 @@ typedef std::complex<double> cpx;
 // User makros
 #define im cpx(0.0,1.0)
 #define out std::cout << std::setprecision(16) << std::fixed
-#define num_of_threads 16
+#define num_of_threads 1
 
 #define memory_over_performance false // optimized by size --true-- (memory usage shortage) or performance --false--
 /*0 - PBC, 1 - OBC, 2 - ABC,...*/
@@ -85,8 +86,8 @@ template<typename T>
 inline u64 binary_search(vector<u64>& arr, u64 l_point, u64 r_point, T element) {
 	if (r_point >= l_point) {
 		u64 middle = l_point + (r_point - l_point) / 2;
-		if (arr->at(middle) == element) return middle;
-		else if (arr->at(middle) > element) return binary_search(arr, l_point, middle - 1, element);
+		if (arr[middle] == element) return middle;
+		else if (arr[middle] > element) return binary_search(arr, l_point, middle - 1, element);
 		else return binary_search(arr, middle + 1, r_point, element);
 	}
 	//u64 j = findElement(arr, element);
@@ -115,8 +116,10 @@ inline void int_to_binary(u64 idx, std::vector<bool>& vec) {
 /// <returns>unsigned long long integerv </returns>
 inline u64 binary_to_int(vector<bool>& vec) {
 	u64 val = 0;
+	u64 exp = 1;
 	for (int k = 0; k < vec.size(); k++) {
-		val += static_cast<int>(vec[vec.size() - 1 - k]) * (u64)std::pow(2, k);
+		val += static_cast<u64>(vec[vec.size() - 1 - k]) * exp;
+		exp *= 2;
 	}
 	return val;
 }
@@ -150,15 +153,15 @@ std::string to_string_prec(const T a_value, const int n = 3)
 template<typename T>
 std::ostream& operator<<(std::ostream& os, std::vector<T> vec) {
 	if (vec.size() != 0) {
-		std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(os));
-		os << vec.back();
+		std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(os, " "));
+		os << vec.back() << ' ';
 	}
 	return os;
 }
 template<typename T>
 std::ostream& operator<<(std::ostream& os, std::unique_ptr<std::vector<T>> vec) {
 	if (vec->size() != 0) {
-		std::copy(vec->begin(), vec->end() - 1, std::ostream_iterator<T>(os, ""));
+		std::copy(vec->begin(), vec->end() - 1, std::ostream_iterator<T>(os, " "));
 		os << vec->back();
 	}
 	return os;

@@ -2,9 +2,13 @@
 
 IsingModel_sym::IsingModel_sym(int L, vector<double>& J, double g, double h){
 	this->L = L; this->J = J; this->g = g; this->h = h;
+
     this->mapping = std::vector<u64>();
     generate_mapping();
     this->N = this->mapping.size();
+    this->periodicity = std::vector<int>(N);
+    check_periodicity();
+
     try {
         this->H = mat(N, N, fill::zeros); //hamiltonian
     }
@@ -12,10 +16,15 @@ IsingModel_sym::IsingModel_sym(int L, vector<double>& J, double g, double h){
         std::cout << "Memory exceeded" << e.what() << "\n";
         assert(false);
     }
+    //std::vector<bool> temp(L);
+    //for (int k = 0; k < N; k++) {
+    //    int_to_binary(mapping[k], temp);
+    //    out << temp << endl;
+    //}
     set_neighbours();
     hamiltonian();
-}
 
+}
 IsingModel_sym::IsingModel_sym(const IsingModel_sym& A) {
     this->L = A.L; this->J = A.J; this->g = A.g; this->h = A.h;
     this->N = A.N; this->mapping = A.mapping;
@@ -37,30 +46,46 @@ IsingModel_sym::IsingModel_sym(IsingModel_sym&& A) noexcept {
 void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, int _id) {
     int n = 1;
     //out << "A new thread joined tha party! from " << start << " to " << stop << endl;
-    std::vector<bool> temp(L), temp_flipped(L); // temporary dirac-notation base vector
-    u64 min = N, idx = 0;
+    std::vector<bool> temp(L), temp_flipped(L), temp_reversed(L); // temporary dirac-notation base vector
+    u64 minX = INT_MAX, idx = 0, minR = INT_MAX, minRX = INT_MAX, min = INT_MAX;
     for (u64 j = start; j < stop; j++) {
         int_to_binary(j, temp);
-        temp_flipped = temp;
-        temp_flipped.flip();
-        min = binary_to_int(temp_flipped);
-        if (j < min) {
-            while (next_permutation(temp.begin(), temp.end())) { // translation
-                idx = binary_to_int(temp);
-                if (idx < min)
-                    min = idx;
-            }
-            if (min == j)
-                map_threaded.push_back(j);
+
+        u64 min_R_RX;
+        /*if (h == 0) {
+            temp_flipped = temp;
+            temp_reversed = temp;
+            std::reverse(temp_reversed.begin(), temp_reversed.end());
+            //minR = std::min(j, binary_to_int(temp_reversed));
+
+            // check both reverse (R) and flip (X)
+            temp_reversed.flip();
+            minRX = std::min(j, binary_to_int(temp_reversed));
+
+            // check only flip (X)
+            temp_flipped.flip();
+            minX = std::min(j, binary_to_int(temp_flipped));
+            min_R_RX = std::min(minX, minRX);
         }
-        else continue;
+        else*/
+            min_R_RX = j;
+
+        //check transaltion
+         min = j;
+        do {
+            std::rotate(temp.begin(), temp.begin() + 1, temp.end());
+            idx = binary_to_int(temp);
+            if (idx <= min)
+                min = idx;
+        } while (idx != j);
+           
+            
+        if (min == j)//(std::min(min, min_R_RX) == j)
+            map_threaded.push_back(j);
     }
 }
-/// <summary>
-/// 
-/// </summary>
 void IsingModel_sym::generate_mapping() {
-    u64 start = 0, stop = static_cast<u64>(std::pow(2, L - 1)); // because parity reflects the other half
+    u64 start = 0, stop = static_cast<u64>(std::pow(2, L)); // because parity reflects the other half
     if (num_of_threads == 1)
         mapping_kernel(start, stop, mapping, 0);
     else {
@@ -70,8 +95,8 @@ void IsingModel_sym::generate_mapping() {
         std::vector<std::thread> threads;
         threads.reserve(num_of_threads);
         for (int t = 0; t < num_of_threads; t++) {
-            start = (u64)(std::pow(2, L - 1) / (double)num_of_threads * t);
-            stop = ((t + 1) == num_of_threads ? (u64)std::pow(2, L - 1) : u64(std::pow(2, L - 1) / (double)num_of_threads * (double)(t + 1)));
+            start = (u64)(std::pow(2, L) / (double)num_of_threads * t);
+            stop = ((t + 1) == num_of_threads ? (u64)std::pow(2, L) : u64(std::pow(2, L) / (double)num_of_threads * (double)(t + 1)));
             map_threaded[t] = std::vector<u64>();
             threads.emplace_back(&IsingModel_sym::mapping_kernel, this, start, stop, ref(map_threaded[t]), t);
         }
@@ -88,30 +113,69 @@ void IsingModel_sym::generate_mapping() {
 /// <summary>
 /// 
 /// </summary>
+void IsingModel_sym::check_periodicity() {
+#pragma omp parallel for
+    for (int k = 0; k < N; k++) {
+        std::vector<bool> base_vector(L);
+        int_to_binary(mapping[k], base_vector);
+        u64 idx = 0;
+        int period = 0; // because it always eneter do-while loop
+        do {
+            std::rotate(base_vector.begin(), base_vector.begin() + 1, base_vector.end());
+            idx = binary_to_int(base_vector);
+            period++;
+        } while (idx != mapping[k]); 
+        this->periodicity[k] = period;
+    }
+}
+
+/// <summary>
+/// 
+/// </summary>
 /// <param name="k"></param>
 /// <param name="value"></param>
 /// <param name="temp"></param>
 void IsingModel_sym::setHamiltonianElem(u64& k, double value, std::vector<bool>&& temp) {
+    u64 min = INT_MAX, idx = 0;
+    u64 tmp_idx = binary_to_int(temp); // saving the index of current temporary after H action
+    // checking periodicity of left vector
+    do {
+        std::rotate(temp.begin(), temp.begin() + 1, temp.end());
+        idx = binary_to_int(temp);
+        if (idx <= min)
+            min = idx;
+    } while (idx != tmp_idx); // if it is tmp_idx again
+    /*temp.flip();
+    min = std::min(min, binary_to_int(temp));
 
+    std::reverse(temp.begin(), temp.end());
+    min = std::min(min, binary_to_int(temp));
+
+    temp.flip(); */
+    idx = std::min(min, tmp_idx);
+    idx = binary_search(mapping, 0, N - 1, idx);
+
+    value = value * sqrt((double)periodicity[k] / (double)periodicity[idx]);
+    H(idx, k) += value;
+    H(k, idx) += value;
 }
 /// <summary>
 /// 
 /// </summary>
 void IsingModel_sym::hamiltonian() {
     H.zeros();
+    std::vector<bool> base_vector(L);
+    std::vector<bool> temp(base_vector); // changes under H action
     for (u64 k = 0; k < N; k++) {
-        std::vector<bool> base_vector(L);
         int_to_binary(mapping[k], base_vector);
-
-        std::vector<bool> temp(base_vector); // changes under H action
         int s_i, s_j;
         for (int j = 0; j <= L - 1; j++) {
             s_i = static_cast<double>(base_vector[j]);
 
             /* transverse field */
+            temp = base_vector;
             temp[j] = ~base_vector[j];
             setHamiltonianElem(k, g, std::move(temp));
-            //dsdsa
 
             /* disorder */
             H(k, k) += this->h * (s_i - 0.5);
