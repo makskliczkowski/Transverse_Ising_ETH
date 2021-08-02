@@ -16,11 +16,15 @@ IsingModel_sym::IsingModel_sym(int L, vector<double>& J, double g, double h){
         std::cout << "Memory exceeded" << e.what() << "\n";
         assert(false);
     }
-    //std::vector<bool> temp(L);
-    //for (int k = 0; k < N; k++) {
-    //    int_to_binary(mapping[k], temp);
-    //    out << temp << endl;
-    //}
+    std::vector<bool> temp(L);
+    for (int k = 0; k < N; k++) {
+        int_to_binary(mapping[k], temp);
+        int Sz = 0;
+        for (int l = 0; l < L; l++) 
+            Sz += temp[l] == 0 ? -1 : 1;
+        if(Sz == 0)
+            out << temp << endl;
+    }
     set_neighbours();
     hamiltonian();
 
@@ -44,43 +48,69 @@ IsingModel_sym::IsingModel_sym(IsingModel_sym&& A) noexcept {
 /// <param name="map_threaded"></param>
 /// <param name="_id"></param>
 void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, int _id) {
-    int n = 1;
-    //out << "A new thread joined tha party! from " << start << " to " << stop << endl;
-    std::vector<bool> temp(L), temp_flipped(L), temp_reversed(L); // temporary dirac-notation base vector
-    u64 minX = INT_MAX, idx = 0, minR = INT_MAX, minRX = INT_MAX, min = INT_MAX;
+    std::vector<bool> base_vector(L), temp(L); // temporary dirac-notation base vector
+    u64 idx = 0, min = INT_MAX;
+
     for (u64 j = start; j < stop; j++) {
-        int_to_binary(j, temp);
-
-        u64 min_R_RX;
-        /*if (h == 0) {
-            temp_flipped = temp;
-            temp_reversed = temp;
-            std::reverse(temp_reversed.begin(), temp_reversed.end());
-            //minR = std::min(j, binary_to_int(temp_reversed));
-
-            // check both reverse (R) and flip (X)
-            temp_reversed.flip();
-            minRX = std::min(j, binary_to_int(temp_reversed));
-
-            // check only flip (X)
-            temp_flipped.flip();
-            minX = std::min(j, binary_to_int(temp_flipped));
-            min_R_RX = std::min(minX, minRX);
-        }
-        else*/
-            min_R_RX = j;
-
+        int_to_binary(j, base_vector);
+        
         //check transaltion
-         min = j;
+        min = j;
         do {
-            std::rotate(temp.begin(), temp.begin() + 1, temp.end());
-            idx = binary_to_int(temp);
+            std::rotate(base_vector.begin(), base_vector.begin() + 1, base_vector.end());
+            idx = binary_to_int(base_vector);
             if (idx <= min)
                 min = idx;
         } while (idx != j);
-           
+        int_to_binary(j, base_vector);
+
+        u64 min_R_RX = INT_MAX;
+        if (min == j) {
+            temp = base_vector;
+            std::reverse(temp.begin(), temp.end());
+            u64 minR = binary_to_int(temp), idx_R = minR;
+            if (minR < min) continue;
+            do {
+                std::rotate(temp.begin(), temp.begin() + 1, temp.end());
+                idx = binary_to_int(temp);
+                if (idx <= minR)
+                    minR = idx;
+            } while (idx != idx_R);
+            if (minR < min) continue;
+
+            if (h == 0) {
+                temp = base_vector;
+                // check flip and reverse
+                temp.flip();
+                u64 minRX = binary_to_int(temp), idx_RX = minRX;
+                if (minRX < min) continue;
+                do {
+                    std::rotate(temp.begin(), temp.begin() + 1, temp.end());
+                    idx = binary_to_int(temp);
+                    if (idx <= minRX)
+                        minRX = idx;
+                } while (idx != idx_RX);
+                if (minRX < min) continue;
+
+                // check flip
+                std::reverse(temp.begin(), temp.end());
+                u64 minX = binary_to_int(temp), idx_X = minX;
+                if (minX < min) continue;
+                do {
+                    std::rotate(temp.begin(), temp.begin() + 1, temp.end());
+                    idx = binary_to_int(temp);
+                    if (idx <= minX)
+                        minX = idx;
+                } while (idx != idx_X);
+
+                min_R_RX = std::min(minX, minRX);
+            }
+            else
+                min_R_RX = j;
+            min_R_RX = std::min(minR, min_R_RX);
+        }
             
-        if (min == j)//(std::min(min, min_R_RX) == j)
+        if (std::min(min, min_R_RX) == j)
             map_threaded.push_back(j);
     }
 }
@@ -116,16 +146,58 @@ void IsingModel_sym::generate_mapping() {
 void IsingModel_sym::check_periodicity() {
 #pragma omp parallel for
     for (int k = 0; k < N; k++) {
-        std::vector<bool> base_vector(L);
+        std::vector<bool> base_vector(L), temp(L);
         int_to_binary(mapping[k], base_vector);
         u64 idx = 0;
-        int period = 0; // because it always eneter do-while loop
+        int period_EC = 0; // because it always eneter do-while loop
+        int multiplicity_in_SEC = 1;
         do {
             std::rotate(base_vector.begin(), base_vector.begin() + 1, base_vector.end());
             idx = binary_to_int(base_vector);
-            period++;
+            period_EC++;
         } while (idx != mapping[k]); 
-        this->periodicity[k] = period;
+
+        int_to_binary(mapping[k], base_vector);
+        temp = base_vector;
+        u64 min_R_RX = INT_MAX;
+        std::reverse(temp.begin(), temp.end());
+        u64 minR = binary_to_int(temp), idx_R = minR;
+        do {
+            std::rotate(temp.begin(), temp.begin() + 1, temp.end());
+            idx = binary_to_int(temp);
+            if (idx <= minR)
+                minR = idx;
+        } while (idx != idx_R);
+        u64 minX = INT_MAX, minRX = INT_MAX;
+        if (h == 0) {
+            temp = base_vector;
+            // check flip and reverse
+            temp.flip();
+            minRX = binary_to_int(temp);
+            u64 idx_RX = minRX;
+            do {
+                std::rotate(temp.begin(), temp.begin() + 1, temp.end());
+                idx = binary_to_int(temp);
+                if (idx <= minRX)
+                    minRX = idx;
+            } while (idx != idx_RX);
+
+            // check flip
+            std::reverse(temp.begin(), temp.end());
+            minX = binary_to_int(temp);
+            u64 idx_X = minX;
+            do {
+                std::rotate(temp.begin(), temp.begin() + 1, temp.end());
+                idx = binary_to_int(temp);
+                if (idx <= minX)
+                    minX = idx;
+            } while (idx != idx_X);
+
+        }
+        else
+            multiplicity_in_SEC = 1;
+        if (mapping[k] == minRX) multiplicity_in_SEC++;
+        this->periodicity[k] = period_EC * multiplicity_in_SEC;
     }
 }
 
@@ -144,15 +216,50 @@ void IsingModel_sym::setHamiltonianElem(u64& k, double value, std::vector<bool>&
         idx = binary_to_int(temp);
         if (idx <= min)
             min = idx;
-    } while (idx != tmp_idx); // if it is tmp_idx again
-    /*temp.flip();
-    min = std::min(min, binary_to_int(temp));
+    } while (idx != tmp_idx);
 
+    u64 min_R_RX = INT_MAX;
+    std::vector<bool> base_vector(L);
+    int_to_binary(tmp_idx, temp);
+    base_vector = temp;
     std::reverse(temp.begin(), temp.end());
-    min = std::min(min, binary_to_int(temp));
+    u64 minR = binary_to_int(temp), idx_R = minR;
+    do {
+        std::rotate(temp.begin(), temp.begin() + 1, temp.end());
+        idx = binary_to_int(temp);
+        if (idx <= minR)
+            minR = idx;
+    } while (idx != idx_R);
 
-    temp.flip(); */
+    if (h == 0) {
+        temp = base_vector;
+        // check flip and reverse
+        temp.flip();
+        u64 minRX = binary_to_int(temp), idx_RX = minRX;
+        do {
+            std::rotate(temp.begin(), temp.begin() + 1, temp.end());
+            idx = binary_to_int(temp);
+            if (idx <= minRX)
+                minRX = idx;
+        } while (idx != idx_RX);
+
+        // check flip
+        std::reverse(temp.begin(), temp.end());
+        u64 minX = binary_to_int(temp), idx_X = minX;
+        do {
+            std::rotate(temp.begin(), temp.begin() + 1, temp.end());
+            idx = binary_to_int(temp);
+            if (idx <= minX)
+                minX = idx;
+        } while (idx != idx_X);
+
+        min_R_RX = std::min(minX, minRX);
+    }
+    else
+        min_R_RX = tmp_idx;
+    min_R_RX = std::min(minR, min_R_RX);
     idx = std::min(min, tmp_idx);
+    idx = std::min(idx, min_R_RX);
     idx = binary_search(mapping, 0, N - 1, idx);
 
     value = value * sqrt((double)periodicity[k] / (double)periodicity[idx]);

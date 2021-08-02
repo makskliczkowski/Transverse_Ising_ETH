@@ -21,7 +21,7 @@ int main(const int argc, char* argv[]) {
 
 	int L = 8;
 	double g = 0.5;
-	double h = 0.2;
+	double h = 0.0;
 	std::vector<double> J(L);
 	std::fill(J.begin(), J.end(), 1.0);
 	int averages = 1;

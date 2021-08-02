@@ -50,7 +50,7 @@ typedef std::complex<double> cpx;
 // User makros
 #define im cpx(0.0,1.0)
 #define out std::cout << std::setprecision(16) << std::fixed
-#define num_of_threads 1
+#define num_of_threads 16
 
 #define memory_over_performance false // optimized by size --true-- (memory usage shortage) or performance --false--
 /*0 - PBC, 1 - OBC, 2 - ABC,...*/
