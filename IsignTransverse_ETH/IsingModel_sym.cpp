@@ -98,25 +98,28 @@ void IsingModel_sym::setHamiltonianElem(u64& k, double value, std::vector<bool>&
 /// 
 /// </summary>
 void IsingModel_sym::hamiltonian() {
-    std::vector<bool> base_vector(L);
-    std::vector<bool> temp(base_vector);
+    H.zeros();
     for (u64 k = 0; k < N; k++) {
+        std::vector<bool> base_vector(L);
         int_to_binary(mapping[k], base_vector);
-        temp = base_vector;
+
+        std::vector<bool> temp(base_vector); // changes under H action
         int s_i, s_j;
-        int next_j;
         for (int j = 0; j <= L - 1; j++) {
-            if (j == L - 1) next_j = 0;
-            else next_j = j + 1;
+            s_i = static_cast<double>(base_vector[j]);
 
-            // Diagonal spin part
-            s_i = (double)base_vector[j];
+            /* transverse field */
+            temp[j] = ~base_vector[j];
+            setHamiltonianElem(k, g, std::move(temp));
 
-            // PBC = i+1 : (L-1)+1 = 0
-            s_j = (double)base_vector[next_j];
-            H(k, k) += this->J[j] * (s_i - 0.5) * (s_j - 0.5);
+            /* disorder */
+            H(k, k) += this->h * (s_i - 0.5);
 
-
+            if (nearest_neighbours[j] >= 0) {
+                /* Ising-like spin correlation */
+                s_j = static_cast<double>(base_vector[nearest_neighbours[j]]);
+                H(k, k) += this->J[j] * (s_i - 0.5) * (s_j - 0.5);
+            }
         }
     }
 }
