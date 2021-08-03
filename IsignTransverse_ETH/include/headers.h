@@ -31,6 +31,7 @@
 #include<future>    
 #include <bitset> // binary data type
 #include "random.h"
+#include <filesystem>
 
 using namespace std;
 using namespace arma;
@@ -60,7 +61,8 @@ extern double pi;
 extern double T; // temperature for Sq calculations
 extern double dT; // temperature increment
 extern double T_end; // temperature range (dT, T_end)
-extern double w; // disorder strength
+extern double disorder_strength; // disorder strength
+
 //static random_num* rn; // random number class instance
 extern std::random_device rd;
 extern std::mt19937::result_type seed;
@@ -77,10 +79,10 @@ template <typename T> int sgn(T val) {
 /// Fiunding index of base vector in mapping to reduced basis
 /// </summary>
 /// <typeparam name="T"></typeparam>
-/// <param name="arr">arary/vector conataing the mapping to the reduced basis</param> 
-/// <param name="l_point">left maring for binary search</param>
-/// <param name="r_point">right margin for binary search</param>
-/// <param name="element">element to search in the array</param>
+/// <param name="arr"> arary/vector conataing the mapping to the reduced basis </param> 
+/// <param name="l_point"> left maring for binary search </param>
+/// <param name="r_point"> right margin for binary search </param>
+/// <param name="element"> element to search in the array </param>
 /// <returns></returns>
 template<typename T>
 inline u64 binary_search(vector<u64>& arr, u64 l_point, u64 r_point, T element) {
@@ -90,7 +92,6 @@ inline u64 binary_search(vector<u64>& arr, u64 l_point, u64 r_point, T element) 
 		else if (arr[middle] > element) return binary_search(arr, l_point, middle - 1, element);
 		else return binary_search(arr, middle + 1, r_point, element);
 	}
-	//u64 j = findElement(arr, element);
 	out << "Element " << element << " not present in the array" << endl;
 	assert(false);
 	return -1;
@@ -99,8 +100,8 @@ inline u64 binary_search(vector<u64>& arr, u64 l_point, u64 r_point, T element) 
 /// <summary>
 /// Conversion to binary system
 /// </summary>
-/// <param name="idx">numner for conversion</param>
-/// <param name="vec">vector containing the binary string</param>
+/// <param name="idx"> numner for conversion </param>
+/// <param name="vec"> vector containing the binary string </param>
 inline void int_to_binary(u64 idx, std::vector<bool>& vec) {
 	u64 temp = idx;
 	for (int k = 0; k < vec.size(); k++) {
@@ -112,8 +113,8 @@ inline void int_to_binary(u64 idx, std::vector<bool>& vec) {
 /// <summary>
 /// conversion from binary to integer
 /// </summary>
-/// <param name="vec">binary string</param>
-/// <returns>unsigned long long integerv </returns>
+/// <param name="vec"> binary string </param>
+/// <returns> unsigned long long integer </returns>
 inline u64 binary_to_int(vector<bool>& vec) {
 	u64 val = 0;
 	u64 exp = 1;
@@ -125,10 +126,10 @@ inline u64 binary_to_int(vector<bool>& vec) {
 }
 
 /// <summary>
-/// 
+/// Creates a random vector of custom length using the random library and the merson-twister (?) engine
 /// </summary>
-/// <param name="N"></param>
-/// <returns></returns>
+/// <param name="N"> length of the generated random vector </param>
+/// <returns> returns the custom-length random vector </returns>
 inline vec create_random_vec(u64 N) {
 	vec random_vec(N, fill::zeros);
 	std::uniform_real_distribution<double> distribute(-1.0, 1.0);
