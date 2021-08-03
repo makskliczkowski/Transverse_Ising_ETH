@@ -72,7 +72,7 @@ void IsingModel::diagonalization() {
 /// <returns> returns the IPR value</returns>
 double IsingModel::ipr(int state_idx) {
     double ipr = 0;
-#pragma omp parallel for shared (ipr) reduction(+: ipr)
+#pragma omp parallel for reduction(+: ipr)
     for (int n = 0; n < N; n++) {
         ipr += std::pow(eigenvectors.col(state_idx)(n), 4);
     }
