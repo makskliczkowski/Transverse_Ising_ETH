@@ -51,17 +51,17 @@ typedef std::complex<double> cpx;
 // User makros
 #define im cpx(0.0,1.0)
 #define out std::cout << std::setprecision(16) << std::fixed
-#define num_of_threads 16
 
-#define memory_over_performance false // optimized by size --true-- (memory usage shortage) or performance --false--
-/*0 - PBC, 1 - OBC, 2 - ABC,...*/
-#define _BC 0 // flag to choose boundary condition
+
+#define memory_over_performance false		// optimized by size --true-- (memory usage shortage) or performance --false--
+#define num_of_threads 16					// number of threads
+#define _BC 0							
 
 extern double pi;
-extern double T; // temperature for Sq calculations
-extern double dT; // temperature increment
-extern double T_end; // temperature range (dT, T_end)
-extern double disorder_strength; // disorder strength
+extern double T;							// temperature for Sq calculations
+extern double dT;							// temperature increment
+extern double T_end;						// temperature range (dT, T_end)
+extern double disorder_strength;			// disorder strength
 
 //static random_num* rn; // random number class instance
 extern std::random_device rd;
@@ -69,12 +69,20 @@ extern std::mt19937::result_type seed;
 extern std::mt19937_64 gen;
 
 
-//----------------------------------------------------------------------------------------------
-//--------------------------------------------------TOOLS---------------------------------------
+
+//--------------------------------------------------TOOLS--------------------------------------------------
 template <typename T> int sgn(T val) {
 	return (T(0) < val) - (val < T(0));
 }
 
+/* STRING BASED TOOLS DECLARATIONS */
+bool isNumber(const string& str);
+std::vector<std::string> split_str(std::string s, std::string delimiter);
+
+template <typename T>
+std::string to_string_prec(const T a_value, const int n = 3);
+
+/* DEFINITIONS */
 /// <summary>
 /// Fiunding index of base vector in mapping to reduced basis
 /// </summary>
@@ -138,19 +146,23 @@ inline vec create_random_vec(u64 N) {
 	}
 	return random_vec;
 }
-
-template <typename T>
-std::string to_string_prec(const T a_value, const int n = 3)
-{
-	std::ostringstream outie;
-	outie.precision(n);
-	outie << std::fixed << a_value;
-	return outie.str();
+inline std::vector<double> create_random_vec_std(u64 N) {
+	std::vector<double> random_vec(N, 0);
+	std::uniform_real_distribution<double> distribute(-1.0, 1.0);
+	for (u64 j = 0; j < N; j++) {
+		random_vec[j] = distribute(gen);
+	}
+	return random_vec;
 }
 
-/**
- * Overriding the ostream operator for pretty printing vectors.
- */
+
+/// <summary>
+/// Overriding the ostream operator for pretty printing vectors.
+/// </summary>
+/// <typeparam name="T"> writing out </typeparam>
+/// <param name="os"></param>
+/// <param name="vec"></param>
+/// <returns></returns>
 template<typename T>
 std::ostream& operator<<(std::ostream& os, std::vector<T> vec) {
 	if (vec.size() != 0) {

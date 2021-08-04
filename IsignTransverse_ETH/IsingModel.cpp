@@ -1,16 +1,18 @@
 #include "include/IsingModel.h"
 
+IsingModel::~IsingModel(){
+}
 /* GETTERS and SETTERS*/
-u64 IsingModel::get_hilbert_size() {
+u64 IsingModel::get_hilbert_size() const {
     return N;
 }
-mat IsingModel::get_hamiltonian() {
+mat IsingModel::get_hamiltonian() const {
     return H;
 }
-vec IsingModel::get_eigenvalues() {
+vec IsingModel::get_eigenvalues() const {
     return eigenvalues;
 }
-mat IsingModel::get_eigenvectors() {
+mat IsingModel::get_eigenvectors() const {
     return eigenvectors;
 }
 
@@ -35,19 +37,26 @@ void IsingModel::print_base_spin_sector(int Sz) {
 /// <summary>
 /// Sets the neigbours depending on the Boundary condition (BC) defined as a makro in the 'headers.h' file
 /// </summary>
-void IsingModel::set_neighbours() {
-    this->nearest_neighbours = std::vector<int>(L);
+void IsingModel::set_neighbors() {
+    this->nearest_neighbors = std::vector<int>(L);
     switch (_BC) {
     case 0:
-        std::iota(nearest_neighbours.begin(), nearest_neighbours.end(), 1);
-        nearest_neighbours[L - 1] = 0;
+    // periodic boundary conditions
+        std::iota(nearest_neighbors.begin(), nearest_neighbors.end(), 1);
+        nearest_neighbors[L - 1] = 0;
         break;
 
     case 1:
-        std::iota(nearest_neighbours.begin(), nearest_neighbours.end(), 1);
-        nearest_neighbours[L - 1] = -1;
+    // open boundary conditions
+        std::iota(nearest_neighbors.begin(), nearest_neighbors.end(), 1);
+        nearest_neighbors[L - 1] = -1;
+        break;
+    default:
+        std::iota(nearest_neighbors.begin(), nearest_neighbors.end(), 1);
+        nearest_neighbors[L - 1] = 0;
         break;
     }
+
 }
 
 /// <summary>

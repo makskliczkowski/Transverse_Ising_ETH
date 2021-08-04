@@ -19,7 +19,7 @@ IsingModel_sym::IsingModel_sym(int L, vector<double>& J, double g, double h){
         assert(false);
     }
     //print_base_spin_sector(0);
-    set_neighbours(); // generate neighbours
+    set_neighbors(); // generate neighbors
     hamiltonian();
 }
 IsingModel_sym::IsingModel_sym(const IsingModel_sym& A) {
@@ -32,7 +32,10 @@ IsingModel_sym::IsingModel_sym(IsingModel_sym&& A) noexcept {
     this->N = A.N; this->mapping = A.mapping;
     this->H = A.H; this->eigenvectors = A.eigenvectors; this->eigenvalues = A.eigenvalues;
 }
-
+IsingModel_sym::~IsingModel_sym()
+{
+	//out << "Destroying the Ising model with symmetries\n";
+}
 /* BASE GENERATION, SEC CLASSES AND RAPPING*/
 /// <summary>
 /// Finds the representative of the equivalent class after vector rotation (mainly used after applied another symmetry)
@@ -56,7 +59,7 @@ u64 IsingModel_sym::find_translation_representative(std::vector<bool>& base_vect
 /// <param name="base_vector"> current base vector to act with symmetries </param>
 /// <param name="min"> index of EC class representative by translation symmetry </param>
 /// <returns></returns>
-std::vector<u64> IsingModel_sym::find_SEC_representative(std::vector<bool>& base_vector, u64 min) {
+std::vector<u64> IsingModel_sym::find_SEC_representative(std::vector<bool>& base_vector) {
     std::vector<u64> minima;
     std::vector<bool> temp = base_vector;
 
@@ -101,7 +104,7 @@ void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_t
 
         u64 min_R_RX = INT_MAX;
         if (min == j) {
-            auto minima = find_SEC_representative(base_vector, min);
+            auto minima = find_SEC_representative(base_vector );
             min_R_RX = *std::min_element(minima.begin(), minima.end());
             if (min_R_RX < j) continue;
         }
@@ -158,7 +161,7 @@ void IsingModel_sym::check_periodicity() {
             period_EC++;
         } while (idx != mapping[k]); 
 
-        auto SEC = find_SEC_representative(base_vector, mapping[k]);
+        auto SEC = find_SEC_representative(base_vector);
         SEC.push_back(mapping[k]);
         std::sort(SEC.begin(), SEC.end());
         SEC.erase(unique(SEC.begin(), SEC.end()), SEC.end());
@@ -181,7 +184,7 @@ void IsingModel_sym::setHamiltonianElem(u64& k, double value, std::vector<bool>&
 
     u64 min = find_translation_representative(temp);
 
-    auto minima = find_SEC_representative(temp, min);
+    auto minima = find_SEC_representative(temp);
 
     //finding index in reduced Hilbert space
     u64 idx = binary_search(mapping, 0, N - 1,\
@@ -213,9 +216,9 @@ void IsingModel_sym::hamiltonian() {
             /* disorder */
             H(k, k) += this->h * (s_i - 0.5);
 
-            if (nearest_neighbours[j] >= 0) {
+            if (nearest_neighbors[j] >= 0) {
                 /* Ising-like spin correlation */
-                s_j = base_vector[nearest_neighbours[j]];
+                s_j = base_vector[nearest_neighbors[j]];
                 H(k, k) += this->J[j] * (s_i - 0.5) * (s_j - 0.5);
             }
         }
@@ -241,7 +244,7 @@ double IsingModel_sym::av_sigma_x(int state_id, int site) {
         // FIND SEC represetnative!!!
         u64 min = find_translation_representative(temp);
 
-        auto minima = find_SEC_representative(temp, min);
+        auto minima = find_SEC_representative(temp);
 
         //finding index in reduced Hilbert space
         u64 idx = binary_search(mapping, 0, N - 1, \

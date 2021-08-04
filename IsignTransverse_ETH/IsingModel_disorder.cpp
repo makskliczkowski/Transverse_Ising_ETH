@@ -12,7 +12,7 @@ IsingModel_disorder::IsingModel_disorder(int L, vector<double>& J, double g, dou
         std::cout << "Memory exceeded" << e.what() << "\n";
         assert(false);
     }
-    set_neighbours();
+    set_neighbors();
     //print_base_spin_sector(0);
     hamiltonian();
     //out << H;
@@ -25,7 +25,10 @@ IsingModel_disorder::IsingModel_disorder(IsingModel_disorder&& A) noexcept {
     this->L = A.L; this->J = A.J; this->g = A.g; this->h = A.h; this->N = A.N;
     this->H = A.H; this->eigenvectors = A.eigenvectors; this->eigenvalues = A.eigenvalues;
 }
-
+IsingModel_disorder::~IsingModel_disorder()
+{
+	//out << "Destroying the disordered Ising model\n";
+}
 /* HELPER FUNCTIONS */
 
 /* BUILDING HAMILTONIAN */
@@ -64,9 +67,9 @@ void IsingModel_disorder::hamiltonian() {
             /* disorder */
             H(k, k) += (this->h + dh(j)) * (s_i - 0.5);
 
-            if (nearest_neighbours[j] >= 0) {
+            if (nearest_neighbors[j] >= 0) {
                 /* Ising-like spin correlation */
-                s_j = base_vector[nearest_neighbours[j]];
+                s_j = base_vector[nearest_neighbors[j]];
                 H(k, k) += this->J[j] * (s_i - 0.5) * (s_j - 0.5);
             }
         }
