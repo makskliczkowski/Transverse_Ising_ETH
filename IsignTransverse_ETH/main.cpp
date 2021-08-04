@@ -21,7 +21,7 @@ int main(const int argc, char* argv[]) {
 
 	int L = 12;
 	double g = 0.9045;
-	double h = 0.8090;
+	double h = 0.0;
 	std::vector<double> J(L);
 	std::fill(J.begin(), J.end(), 1.0);
 	int averages = 1;
@@ -32,9 +32,9 @@ int main(const int argc, char* argv[]) {
 
 	std::unique_ptr<IsingModel> A(new IsingModel_disorder(L, J, g, h));
 	A->diagonalization();
-	out << "Ground state energy: "<< A->get_eigenvalues()(0) << endl;
+	out << "Ground state energy: " << A->get_eigenvalues()(0) << endl;
 
-	A->operator_av_in_eigenstates(&IsingModel::av_sigma_x, *A, 1, "results/sigma_x_average.txt", "\t\t");
+	//A->operator_av_in_eigenstates(&IsingModel::av_sigma_x, *A, 1, "results/sigma_x_average.txt", "\t\t");
 
 	/*for (int L = 2; L <= 20; L += 2) {
 		std::vector<double> J(L);
