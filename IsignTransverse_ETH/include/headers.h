@@ -93,7 +93,7 @@ std::string to_string_prec(const T a_value, const int n = 3);
 /// <param name="element"> element to search in the array </param>
 /// <returns></returns>
 template<typename T>
-inline u64 binary_search(vector<u64>& arr, u64 l_point, u64 r_point, T element) {
+inline u64 binary_search(vector<T>& arr, u64 l_point, u64 r_point, T element) {
 	if (r_point >= l_point) {
 		u64 middle = l_point + (r_point - l_point) / 2;
 		if (arr[middle] == element) return middle;

@@ -62,7 +62,7 @@ void IsingModel_disorder::hamiltonian() {
             /* transverse field */
             temp = base_vector;
             temp[j] = !base_vector[j];
-            setHamiltonianElem(k, g, std::move(temp));
+            setHamiltonianElem(k, 0.5 * g, std::move(temp));
 
             /* disorder */
             H(k, k) += (this->h + dh(j)) * (s_i - 0.5);
@@ -92,7 +92,7 @@ double IsingModel_disorder::av_sigma_x(int state_id, int site) {
         temp = base_vector;
         temp[site] = !base_vector[site];
         u64 idx = binary_to_int(temp);
-        value += state(idx) * state(k);
+        value += 0.5 * state(idx) * state(k);
     }
     return value;
 }

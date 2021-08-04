@@ -36,6 +36,7 @@ IsingModel_sym::~IsingModel_sym()
 {
 	//out << "Destroying the Ising model with symmetries\n";
 }
+
 /* BASE GENERATION, SEC CLASSES AND RAPPING*/
 /// <summary>
 /// Finds the representative of the equivalent class after vector rotation (mainly used after applied another symmetry)
@@ -211,7 +212,7 @@ void IsingModel_sym::hamiltonian() {
             /* transverse field */
             temp = base_vector;
             temp[j] = !base_vector[j];
-            setHamiltonianElem(k, g, std::move(temp));
+            setHamiltonianElem(k, 0.5 * g, std::move(temp));
 
             /* disorder */
             H(k, k) += this->h * (s_i - 0.5);
@@ -251,7 +252,7 @@ double IsingModel_sym::av_sigma_x(int state_id, int site) {
             std::min(min, *std::min_element(minima.begin(), minima.end())));
         //u64 idx = binary_to_int(temp);
 
-        value += state(idx) * state(k) * sqrt((double)periodicity[k] / (double)periodicity[idx]);
+        value += 0.5 * state(idx) * state(k) * sqrt((double)periodicity[k] / (double)periodicity[idx]);
     }
     return value;
 }

@@ -76,9 +76,11 @@ public:
 
 	/* PHYSICAL QUANTITIES */
 	double ipr(int state_idx);							// calculate the ipr coeffincient
+
 	/* PHYSICAL OPERATORS (model states dependent) */
 	virtual double av_sigma_x(int state_id, int site) = 0;
 
+	/* USING PHYSICAL QUANTITES FOR PARAMTER RANGES, ETC.*/
 	static void operator_av_in_eigenstates(double (IsingModel::* op)(int, int), IsingModel& A, int site, \
 		std::string name = "operator_averaged.txt", string separator = "\t\t");
 	static double spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site);
@@ -96,6 +98,7 @@ public:
 	IsingModel_sym(const IsingModel_sym& A);
 	IsingModel_sym(IsingModel_sym&& A) noexcept;
 	~IsingModel_sym();
+
 	/* METHODS */
 private:
 	void generate_mapping();
