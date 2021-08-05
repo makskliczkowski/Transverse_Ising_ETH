@@ -18,24 +18,50 @@ double disorder_strength = 5.0;
 
 int main(const int argc, char* argv[]) {
 	auto start = std::chrono::high_resolution_clock::now();
+	int bucket_num = 16;
+	int average_num = 10;
 
-	int L = 10;
+	int L = 12;
 	double g = 0.5;
 	double h = 0.02;
+
+	ofstream file_Sx;
+	ofstream colorMap_r;
+
+	colorMap_r.open("results" + std::string(kPathSeparator) + "PhaseDiagram_L="+to_string(L)+",g="+to_string_prec(g,2)+",h="+to_string_prec(h,2)+ ".txt");
+	if(!colorMap_r.is_open())
+		throw "Not open color map file *sadface* \n";
+
 	std::vector<double> J(L);
 	std::fill(J.begin(), J.end(), 1.0);
 
-	for (h = 0.0; h <= 5.0; h += 0.1) {
+	for (disorder_strength = 0.1; disorder_strength <= 5.0; disorder_strength += 0.1) {
+
+		file_Sx.open("results" + std::string(kPathSeparator) + "Sx_L="+to_string(L)+",g="+to_string_prec(g,2)+",h="+to_string_prec(h,2)+",w=" + to_string_prec(disorder_strength,2)+ ".txt");
+		if(!file_Sx.is_open())
+			throw "Not open Sx file *sadface* \n";
+
 		std::unique_ptr<IsingModel> B(new IsingModel_sym(L, J, g, h));
 		u64 N = B->get_hilbert_size();
-		double r = 0;
-		for (int av = 0; av < 10; av++) {
+		vec r(bucket_num,fill::zeros);								// save r for each bucket
+		vec average(N,arma::fill::zeros);							// for sigma_x average
+		for (int av = 0; av < average_num; av++) {
 			B->hamiltonian();
 			B->diagonalization();
-			r += B->eigenlevel_statistics(N / 2, 6 * N / 10);
+			for(int bucket = 0; bucket < bucket_num - 1; bucket++){
+				r(bucket) += B->eigenlevel_statistics(bucket*N/bucket_num + 1, (bucket + 1)* N / bucket_num - 1);
+			}
+			average += B->operator_av_in_eigenstates_return(&IsingModel::av_sigma_x,*B,1);
 		}
-		out << h << "\t\t" << r / 10.0 << endl;
+		for(int state = 0; state < N; state++)
+			file_Sx << B->get_eigenEnergy(state)/(double)L << "\t\t" << average(state) / (double)average_num << endl;
+		for(int bucket = 0; bucket < bucket_num; bucket++)
+			colorMap_r << disorder_strength << "\t\t" << (double)bucket/(double)bucket_num << "\t\t" << r(bucket)/(double)average_num << endl;
+
+		colorMap_r << endl;
+		file_Sx.close();
 	}
+	colorMap_r.close();
 
 	//A->operator_av_in_eigenstates(&IsingModel::av_sigma_x, *A, 1, "results/sigma_x_average.txt", "\t\t");
 

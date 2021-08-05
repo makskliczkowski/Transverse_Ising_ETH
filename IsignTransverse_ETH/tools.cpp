@@ -46,12 +46,3 @@ std::vector<std::string> split_str(std::string s, std::string delimiter)
 	return res;
 }
 
-
-template <typename T>
-std::string to_string_prec(const T a_value, const int n)
-{
-	std::ostringstream outie;
-	outie.precision(n);
-	outie << std::fixed << a_value;
-	return outie.str();
-}

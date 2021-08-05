@@ -65,6 +65,8 @@ public:
 	vec get_eigenvalues() const;
 	mat get_eigenvectors() const;
 
+	double get_eigenEnergy(int idx) const;
+
 	/* METHODS */
 	void print_base_spin_sector(int Sz = 0);			// print basis state with a given total spin
 
@@ -84,6 +86,8 @@ public:
 	/* USING PHYSICAL QUANTITES FOR PARAMTER RANGES, ETC.*/
 	static void operator_av_in_eigenstates(double (IsingModel::* op)(int, int), IsingModel& A, int site, \
 		std::string name = "operator_averaged.txt", string separator = "\t\t");
+	static vec operator_av_in_eigenstates_return(double (IsingModel::* op)(int, int), IsingModel& A, int site);
+
 	static double spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 
 };

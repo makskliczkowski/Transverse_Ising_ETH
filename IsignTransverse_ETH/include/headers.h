@@ -80,7 +80,12 @@ bool isNumber(const string& str);
 std::vector<std::string> split_str(std::string s, std::string delimiter);
 
 template <typename T>
-std::string to_string_prec(const T a_value, const int n = 3);
+std::string to_string_prec(const T a_value, const int n = 3){
+	std::ostringstream outie;
+	outie.precision(n);
+	outie << std::fixed << a_value;
+	return outie.str();
+}
 
 /* DEFINITIONS */
 /// <summary>

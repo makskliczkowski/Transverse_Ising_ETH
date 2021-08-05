@@ -15,6 +15,15 @@ vec IsingModel::get_eigenvalues() const {
 mat IsingModel::get_eigenvectors() const {
     return eigenvectors;
 }
+/// <summary>
+/// Return given eigenenergy at index idx
+/// </summary>
+/// <param name="idx"> index of eigenvalue </param>
+/// <returns></returns>
+double IsingModel::get_eigenEnergy(int idx) const
+{
+    return this->eigenvalues(idx);
+}
 
 /* HELPER FUNCTIONS */
 
@@ -134,7 +143,6 @@ double IsingModel::spectrum_repulsion(double (IsingModel::* op)(int, int), Ising
 /// <summary>
 /// Prints to file the average of a given operator in each eigenstate as a function of eigenenergies
 /// </summary>
-/// <typeparam name="T"> typename as class: model with disorder or symmetries </typeparam>
 /// <param name="op"> operator as function acting on a specific eigenstate </param>
 /// <param name="A"> class instance </param>
 /// <param name="site"> position of the spin, where the operator is acted upon </param>
@@ -149,4 +157,17 @@ void IsingModel::operator_av_in_eigenstates(double (IsingModel::* op)(int, int),
     for (int k = 0; k < A.N; k++)
         file << A.eigenvalues(k) / (double)A.L << separator << (A.*op)(k, site) << endl;
     file.close();
+}
+/// <summary>
+/// Prints to vector the average of a given operator in each eigenstate as a function of eigenenergies
+/// </summary>
+/// <param name="op"> operator as function acting on a specific eigenstate </param>
+/// <param name="A"> class instance </param>
+/// <param name="site"> position of the spin, where the operator is acted upon </param>
+/// <param name="separator"> separator between columns in file </param>
+vec IsingModel::operator_av_in_eigenstates_return(double (IsingModel::* op)(int, int), IsingModel& A, int site) {
+    vec temp(A.get_hilbert_size(),fill::zeros);
+    for (int k = 0; k < A.get_hilbert_size(); k++)
+        temp[k] = (A.*op)(k, site);
+    return temp;
 }
