@@ -19,7 +19,7 @@ double disorder_strength = 5.0;
 int main(const int argc, char* argv[]) {
 	auto start = std::chrono::high_resolution_clock::now();
 
-	int L = 10;
+	int L = 8;
 	double g = 0.5;
 	double h = 0.02;
 	std::vector<double> J(L);
@@ -30,7 +30,6 @@ int main(const int argc, char* argv[]) {
 	for (disorder_strength = 0.4; disorder_strength <= 5.0; disorder_strength += 0.2) {
 		double r = 0;
 		for (int av = 0; av < 100; av++) {
-			B.reset(new IsingModel_disorder(L, J, g, h));
 			B->hamiltonian();
 			B->diagonalization();
 			r += B->eigenlevel_statistics(N / 2, 6 * N / 10);

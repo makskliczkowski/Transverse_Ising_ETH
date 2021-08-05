@@ -105,7 +105,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\RafałŚwiętek%28236668%29\source\repos\Libraries\mkl\include;C:\Users\RafałŚwiętek%28236668%29\source\repos\Libraries\arma\armadillo-10.6.1\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\RafałŚwiętek%28236668%29\source\repos\Libraries\mkl\include;C:\Users\RafałŚwiętek%28236668%29\source\repos\Libraries\arma\armadillo-9.850.1\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <Optimization>MaxSpeed</Optimization>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -126,7 +126,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\RafałŚwiętek%28236668%29\source\repos\Libraries\mkl\include;C:\Users\RafałŚwiętek%28236668%29\source\repos\Libraries\arma\armadillo-10.6.1\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\RafałŚwiętek%28236668%29\source\repos\Libraries\mkl\include;C:\Users\RafałŚwiętek%28236668%29\source\repos\Libraries\arma\armadillo-9.850.1\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <Optimization>MaxSpeed</Optimization>
@@ -146,7 +146,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\RafałŚwiętek%28236668%29\source\repos\Libraries\mkl\include;C:\Users\RafałŚwiętek%28236668%29\source\repos\Libraries\arma\armadillo-10.6.1\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\RafałŚwiętek%28236668%29\source\repos\Libraries\mkl\include;C:\Users\RafałŚwiętek%28236668%29\source\repos\Libraries\arma\armadillo-9.850.1\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <Optimization>MaxSpeed</Optimization>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -167,7 +167,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\RafałŚwiętek%28236668%29\source\repos\Libraries\mkl\include;C:\Users\RafałŚwiętek%28236668%29\source\repos\Libraries\arma\armadillo-10.6.1\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\RafałŚwiętek%28236668%29\source\repos\Libraries\mkl\include;C:\Users\RafałŚwiętek%28236668%29\source\repos\Libraries\arma\armadillo-9.850.1\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <Optimization>MaxSpeed</Optimization>
