@@ -19,22 +19,22 @@ double disorder_strength = 5.0;
 int main(const int argc, char* argv[]) {
 	auto start = std::chrono::high_resolution_clock::now();
 
-	int L = 8;
+	int L = 10;
 	double g = 0.5;
 	double h = 0.02;
 	std::vector<double> J(L);
 	std::fill(J.begin(), J.end(), 1.0);
 
-	std::unique_ptr<IsingModel> B(new IsingModel_disorder(L, J, g, h));
-	u64 N = B->get_hilbert_size();
-	for (disorder_strength = 0.4; disorder_strength <= 5.0; disorder_strength += 0.2) {
+	for (h = 0.0; h <= 5.0; h += 0.1) {
+		std::unique_ptr<IsingModel> B(new IsingModel_sym(L, J, g, h));
+		u64 N = B->get_hilbert_size();
 		double r = 0;
-		for (int av = 0; av < 100; av++) {
+		for (int av = 0; av < 10; av++) {
 			B->hamiltonian();
 			B->diagonalization();
 			r += B->eigenlevel_statistics(N / 2, 6 * N / 10);
 		}
-		out << disorder_strength << "\t\t" << r / 100.0 << endl;
+		out << h << "\t\t" << r / 10.0 << endl;
 	}
 
 	//A->operator_av_in_eigenstates(&IsingModel::av_sigma_x, *A, 1, "results/sigma_x_average.txt", "\t\t");
