@@ -205,7 +205,7 @@ void IsingModel_sym::hamiltonian() {
     std::vector<bool> temp(base_vector); // changes under H action
     for (u64 k = 0; k < N; k++) {
         int_to_binary(mapping[k], base_vector);
-        int s_i, s_j;
+        double s_i, s_j;
         for (int j = 0; j <= L - 1; j++) {
             s_i = base_vector[j];
 

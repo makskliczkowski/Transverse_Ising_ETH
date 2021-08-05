@@ -13,26 +13,30 @@ std::mt19937::result_type seed = rd() ^ (
 		).count());
 std::mt19937_64 gen(seed);
 
-double disorder_strength = 0.0;
+double disorder_strength = 5.0;
 
 
 int main(const int argc, char* argv[]) {
 	auto start = std::chrono::high_resolution_clock::now();
 
-	int L = 12;
-	double g = 0.9045;
-	double h = 0.0;
+	int L = 10;
+	double g = 0.5;
+	double h = 0.02;
 	std::vector<double> J(L);
 	std::fill(J.begin(), J.end(), 1.0);
-	int averages = 1;
 
-	std::unique_ptr<IsingModel> B(new IsingModel_sym(L, J, g, h));
-	B->diagonalization();
-	out << "Ground state energy: " << B->get_eigenvalues()(0) << endl;
-
-	std::unique_ptr<IsingModel> A(new IsingModel_disorder(L, J, g, h));
-	A->diagonalization();
-	out << "Ground state energy: " << A->get_eigenvalues()(0) << endl;
+	std::unique_ptr<IsingModel> B(new IsingModel_disorder(L, J, g, h));
+	u64 N = B->get_hilbert_size();
+	for (disorder_strength = 0.4; disorder_strength <= 5.0; disorder_strength += 0.2) {
+		double r = 0;
+		for (int av = 0; av < 100; av++) {
+			B.reset(new IsingModel_disorder(L, J, g, h));
+			B->hamiltonian();
+			B->diagonalization();
+			r += B->eigenlevel_statistics(N / 2, 6 * N / 10);
+		}
+		out << disorder_strength << "\t\t" << r / 100.0 << endl;
+	}
 
 	//A->operator_av_in_eigenstates(&IsingModel::av_sigma_x, *A, 1, "results/sigma_x_average.txt", "\t\t");
 

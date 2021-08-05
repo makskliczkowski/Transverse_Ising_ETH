@@ -76,6 +76,7 @@ public:
 
 	/* PHYSICAL QUANTITIES */
 	double ipr(int state_idx);							// calculate the ipr coeffincient
+	double eigenlevel_statistics(u64 _min, u64 _max);
 
 	/* PHYSICAL OPERATORS (model states dependent) */
 	virtual double av_sigma_x(int state_id, int site) = 0;
@@ -135,7 +136,7 @@ public:
 	void setHamiltonianElem(u64& k, double value, std::vector<bool>&& temp) override;
 
 	double av_sigma_x(int state_id, int site) override; 
-	
+
 };
 
 

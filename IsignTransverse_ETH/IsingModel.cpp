@@ -89,6 +89,29 @@ double IsingModel::ipr(int state_idx) {
 }
 
 /// <summary>
+/// Calculates the energy-level statistics within the energy window denoted by the indices _min and _max
+/// computed as in: PHYSICAL REVIEW B 91, 081103(R) (2015)
+/// </summary>
+/// <param name="_min"> index of eigenenergy, being the lower bound of energy window </param>
+/// <param name="_max"> index of eigenenergy, being the upper bound of energy window </param>
+/// <returns></returns>
+double IsingModel::eigenlevel_statistics(u64 _min, u64 _max) {
+    double r = 0;
+    if (_min <= 0) throw "too low index";
+    if (_max >= N) throw "index exceeding Hilbert space";
+    double delta_n = eigenvalues(_min) - eigenvalues(_min - 1);
+    double delta_n_next = 0;
+    for (int k = _min + 1; k < _max; k++) {
+        delta_n_next = eigenvalues(k) - eigenvalues(k - 1);
+        double min = std::min(delta_n, delta_n_next), max = std::max(delta_n, delta_n_next);
+        if (max == 0) throw "Degeneracy!!!\n";
+        r += min / max;
+        delta_n = delta_n_next;
+    }
+    return r / double(_max - _min);
+}
+
+/// <summary>
 /// Calculates the average spectrum repulsion in the system as the average of
 /// the x-component spin matrix in the eigenstates
 /// </summary>

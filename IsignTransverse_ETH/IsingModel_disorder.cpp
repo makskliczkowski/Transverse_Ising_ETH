@@ -48,14 +48,14 @@ void IsingModel_disorder::setHamiltonianElem(u64& k, double value, std::vector<b
 /// while the non-diagonal terms need the specialized setHamiltonainElem(...) function
 /// </summary>
 void IsingModel_disorder::hamiltonian() {
-    H.zeros();
+    H = mat(N, N, fill::zeros);
     this->dh = disorder_strength * create_random_vec(L);
     //out << dh.t();
     std::vector<bool> base_vector(L);
     std::vector<bool> temp(base_vector); // changes under H action
     for (u64 k = 0; k < N; k++) {
         int_to_binary(k, base_vector);
-        int s_i, s_j;
+        double s_i, s_j;
         for (int j = 0; j <= L - 1; j++) {
             s_i = base_vector[j];
             
