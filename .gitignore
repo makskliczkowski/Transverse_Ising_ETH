@@ -11,6 +11,9 @@
 *.sln.docstates
 *.sln
 *.vcxproj
+*.png
+*.dat
+*.txt
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
