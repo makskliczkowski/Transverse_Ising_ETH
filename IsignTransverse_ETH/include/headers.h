@@ -55,13 +55,13 @@ typedef std::complex<double> cpx;
 
 #define memory_over_performance false		// optimized by size --true-- (memory usage shortage) or performance --false--
 #define num_of_threads 16					// number of threads
-#define _BC 0							
+#define _BC 0
 
-extern double pi;
+constexpr double pi = 3.141596653;			// it is me, pi
+
 extern double T;							// temperature for Sq calculations
 extern double dT;							// temperature increment
 extern double T_end;						// temperature range (dT, T_end)
-extern double disorder_strength;			// disorder strength
 
 //static random_num* rn; // random number class instance
 extern std::random_device rd;
@@ -165,22 +165,16 @@ inline std::vector<double> create_random_vec_std(u64 N) {
 /// Overriding the ostream operator for pretty printing vectors.
 /// </summary>
 /// <typeparam name="T"> writing out </typeparam>
-/// <param name="os"></param>
-/// <param name="vec"></param>
+/// <param name="os"> designed outstream </param>
+/// <param name="vec"> vector variable to print </param>
 /// <returns></returns>
 template<typename T>
 std::ostream& operator<<(std::ostream& os, std::vector<T> vec) {
 	if (vec.size() != 0) {
-		std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(os, " "));
+		std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(os, "\n"));
 		os << vec.back() << ' ';
 	}
-	return os;
-}
-template<typename T>
-std::ostream& operator<<(std::ostream& os, std::unique_ptr<std::vector<T>> vec) {
-	if (vec->size() != 0) {
-		std::copy(vec->begin(), vec->end() - 1, std::ostream_iterator<T>(os, " "));
-		os << vec->back();
-	}
+	else
+		os << "Empty container!" << endl;
 	return os;
 }

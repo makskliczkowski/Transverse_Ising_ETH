@@ -15,6 +15,10 @@ vec IsingModel::get_eigenvalues() const {
 mat IsingModel::get_eigenvectors() const {
     return eigenvectors;
 }
+std::vector<u64> IsingModel::get_mapping() const{
+    return this->mapping;
+}
+
 /// <summary>
 /// Return given eigenenergy at index idx
 /// </summary>
@@ -28,18 +32,18 @@ double IsingModel::get_eigenEnergy(int idx) const
 /* HELPER FUNCTIONS */
 
 /// <summary>
-/// 
+/// prints the basis vector in the given spin-symmetry block
 /// </summary>
-/// <param name="Sz"></param>
+/// <param name="Sz"> custom spin symmetry block </param>
 void IsingModel::print_base_spin_sector(int Sz) {
     std::vector<bool> temp(L);
     for (int k = 0; k < N; k++) {
-        int_to_binary((use_mapping)? mapping[k] : k, temp);
+        int_to_binary(map(k), temp);
         int Sz = 0;
         for (int l = 0; l < L; l++)
             Sz += temp[l] == 0 ? -1 : 1;
         if (Sz == 0)
-            out << temp << "\t\t" << ((use_mapping)? periodicity[k] : 1) << std::endl;
+            out << temp << std::endl;
     }
 }
 
@@ -82,6 +86,54 @@ void IsingModel::diagonalization() {
     }
 }
 
+bool IsingModel::commutator(IsingModel ::operators A, IsingModel::operators B) {
+    sp_mat A1, A2;
+    switch (A) {
+    case IsingModel::operators::H:
+        A1 = sp_mat(this->H); break;
+    case IsingModel::operators::X:
+        A1 = X; break;
+    case IsingModel::operators::P:
+        A1 = P; break;
+    case IsingModel::operators::T:
+        A1 = T; break;
+    default:
+        A1 = eye(N, N);
+    }
+    switch (B) {
+    case IsingModel::operators::H:
+        A2 = sp_mat(this->H); break;
+    case IsingModel::operators::X:
+        A2 = X; break;
+    case IsingModel::operators::P:
+        A2 = P; break;
+    case IsingModel::operators::T:
+        A2 = T; break;
+    default:
+        A2 = eye(N, N);
+    }
+    return (A1 * A2 - A2 * A1).is_zero(1e-1);
+}
+
+double IsingModel::total_spin(const mat& corr_mat) {
+    return (sqrt(1 + 4 * arma::accu(corr_mat)) - 1.0) / 2.0;
+}
+
+void IsingModel::print_state(u64 _id) {
+    vec state = eigenvectors.col(_id);
+    create_X_matrix();
+    vec state2 = this->X * state;
+    double max = arma::max(state);
+    std::vector<bool> base_vector(L);
+    for (int k = 0; k < N; k++) {
+        int_to_binary(map(k), base_vector);
+        if (abs(state(k)) >= 0.2 * max) {
+            //out << state(k) << " * |" << base_vector << ">" << endl;
+        }
+    }
+    out << this->g << "\t\t" << arma::norm(state2 - state) << endl;
+}
+
 /// <summary>
 /// The IPR, also called the participation ratio, quantifies how delocalized a state is in a certain basis. 
 /// The state is completely delocalized, when:    IPR=dim(hilbert space)
@@ -90,7 +142,6 @@ void IsingModel::diagonalization() {
 /// <returns> returns the IPR value</returns>
 double IsingModel::ipr(int state_idx) {
     double ipr = 0;
-#pragma omp parallel for reduction(+: ipr)
     for (int n = 0; n < N; n++) {
         ipr += std::pow(eigenvectors.col(state_idx)(n), 4);
     }
@@ -154,8 +205,12 @@ void IsingModel::operator_av_in_eigenstates(double (IsingModel::* op)(int, int),
     if (!file.is_open()) {
         throw "Can't open file " + name + "\n Choose another file\n";
     }
-    for (int k = 0; k < A.N; k++)
-        file << A.eigenvalues(k) / (double)A.L << separator << (A.*op)(k, site) << endl;
+    vec res(A.get_hilbert_size(), fill::zeros);
+#pragma omp parallel for
+    for (int k = 0; k < A.get_hilbert_size(); k++)
+        res(k) = (A.*op)(k, site);
+    for (int k = 0; k < A.get_hilbert_size(); k++)
+        file << A.eigenvalues(k) / (double)A.L << separator << res(k) << endl;
     file.close();
 }
 /// <summary>
@@ -167,7 +222,36 @@ void IsingModel::operator_av_in_eigenstates(double (IsingModel::* op)(int, int),
 /// <param name="separator"> separator between columns in file </param>
 vec IsingModel::operator_av_in_eigenstates_return(double (IsingModel::* op)(int, int), IsingModel& A, int site) {
     vec temp(A.get_hilbert_size(),fill::zeros);
+#pragma omp parallel for
     for (int k = 0; k < A.get_hilbert_size(); k++)
-        temp[k] = (A.*op)(k, site);
+        temp(k) = (A.*op)(k, site);
     return temp;
+}
+
+std::vector<double> quantum_fidelity(u64 _min, u64 _max, int L, std::vector<double> J, double g, double h, double dw){
+    std::vector<double> fidelity;
+    if (_min < 0) throw "too low index";
+    if (_max > std::pow(2, L)) throw "index exceeding Hilbert space";
+    std::ofstream file("results/data.txt");
+    int realisations = 100;
+    for (double w = 0; w < 5.0; w += dw) {
+        double value = 0;
+        double entropy = 0;
+        for (int r = 0; r < realisations; r++) {
+            std::unique_ptr<IsingModel_disorder> Hamil(new IsingModel_disorder(L, J, g, h, w));
+            Hamil->diagonalization();
+
+            std::unique_ptr<IsingModel_disorder> Hamil2(new IsingModel_disorder(L, J, g, h, w + dw));
+            Hamil2->diagonalization();
+            for (u64 k = _min; k < _max; k++) 
+                value += overlap(*Hamil, *Hamil2, k, k) / double(_max - _min);
+            entropy += Hamil->entaglement_entropy(10, L / 2.);
+        }
+        value /= double(realisations);
+        entropy /= double(realisations);
+        fidelity.push_back(value);
+        file << w << "\t\t" << entropy << endl;
+    }
+    file.close();
+    return fidelity;
 }
