@@ -14,20 +14,20 @@
  * with translational invariance is creating the degeneracy in the eigenstates, an ETH *
  * is impossible to be tested without symmetry sectors. To deal with it, perturbation  *
  * in the perpendicular magnetic field is introduced. For more information, please ref *
- * to:																		 *
- * -> https://github.com/makskliczkowski/Transverse_Ising_ETH						 *
- * The context is partially based on:											 *
- * -> arXiv:2009.09208v1														 *
- * -> 10.1103/PhysRevE.90.052105												 *
+ * to:																				   *
+ * -> https://github.com/makskliczkowski/Transverse_Ising_ETH						   *
+ * The context is partially based on:												   *
+ * -> arXiv:2009.09208v1															   *
+ * -> 10.1103/PhysRevE.90.052105													   *
  * ------------------------------ All rights reserved -------------------------------- *
- * Authors:																	 *
- * - Rafa³ Œwiêtek, soon to be Phd student										 *
- *	- email: 77swietek77.at.gmail.com											 *	  
+ * Authors:																			   *
+ * - Rafa³ Œwiêtek, soon to be Phd student											   *
+ *	- email: 77swietek77.at.gmail.com												   *	  
  * - Maksymilian Kliczkowski Phd student, Wroc³aw University of Science and Technology *		   
- *	- email: maxgrom97.at.gmail.com												 *
+ *	- email: maxgrom97.at.gmail.com													   *
  * ----------------------------------------------------------------------------------- *
  * Special thanks to dr Lev Vidmar at Institute Josef Stefan, with whose support       *
- * the work has been done, while staying in Ljubljana, Slovenia.					 *
+ * the work has been done, while staying in Ljubljana, Slovenia.					  *
  * ---------------------------------------------------------------------------------- */
 
 
@@ -40,11 +40,24 @@ protected:
 	std::vector<int> nearest_neighbors;					// vector of nearest neighbors dependend on BC
 	std::mutex my_mute_button;							// thread mutex
 
-	bool use_mapping;									// if the mapping is used (generralization parameter)
 	std::vector<u64> mapping;							// mapping for the reduced Hilbert space
 	std::vector<int> periodicity;						// used for normalization in the symmetry case
-public:
 
+	virtual u64 map(u64 index) = 0;						// function returning either the mapping(symmetries) or the input index (no-symmetry: 1to1 correspondance)
+
+	/* SYMMETRY MATRICES */
+	sp_mat X;
+	sp_mat P;
+	sp_mat T;
+
+	
+public:
+	enum class operators {
+		H,
+		X,
+		P,
+		T
+	};
 	/* MODEL BASED PARAMETERS */
 	int L;												// chain length
 	vector<double> J;									// spin exchange
@@ -64,6 +77,7 @@ public:
 	mat get_hamiltonian() const;
 	vec get_eigenvalues() const;
 	mat get_eigenvectors() const;
+	std::vector<u64> get_mapping() const;
 
 	double get_eigenEnergy(int idx) const;
 
@@ -76,9 +90,15 @@ public:
 	void set_neighbors();								// create nearest neighbors list
 	void diagonalization();								// diagonalize the Hamiltonian
 
+	virtual void create_X_matrix() = 0;					// create spin-flip symmetry matrix via Pauli x-matrices
+	bool commutator(IsingModel::operators A, IsingModel::operators B);
+
 	/* PHYSICAL QUANTITIES */
 	double ipr(int state_idx);							// calculate the ipr coeffincient
 	double eigenlevel_statistics(u64 _min, u64 _max);
+	virtual mat correlation_matrix(u64 state_id) = 0;
+	static double total_spin(const mat& corr_mat);
+	void print_state(u64 _id);
 
 	/* PHYSICAL OPERATORS (model states dependent) */
 	virtual double av_sigma_x(int state_id, int site) = 0;
@@ -89,6 +109,10 @@ public:
 	static vec operator_av_in_eigenstates_return(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 
 	static double spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site);
+
+	friend double overlap(const IsingModel& A, const IsingModel& B, int n_a, int n_b) {		
+		return arma::dot(A.eigenvectors.col(n_a), B.eigenvectors.col(n_b));
+	}
 
 };
 
@@ -113,11 +137,18 @@ private:
 	std::vector<u64> find_SEC_representative(std::vector<bool>& base_vector);
 	u64 find_translation_representative(std::vector<bool>& base_vector);
 
+	u64 map(u64 index) override;
+
 public:
 	void hamiltonian() override;
 	void setHamiltonianElem(u64& k, double value, std::vector<bool>&& temp) override;
 
+	void create_X_matrix() override {};
+
 	double av_sigma_x(int state_id, int site) override;	
+	mat correlation_matrix(u64 state_id) override {
+		return mat();
+	};
 };  
 
 
@@ -127,21 +158,35 @@ public:
 class IsingModel_disorder : public IsingModel {
 protected:
 	vec dh; // disorder in the system - deviation from a constant h value
+	double disorder_strength;
 public:
 	/* Constructors */
 	IsingModel_disorder() = default;
-	IsingModel_disorder(int L, vector<double>& J, double g, double h);
+	IsingModel_disorder(int L, vector<double>& J, double g, double h, double disorder_strength);
 	IsingModel_disorder(const IsingModel_disorder& A);
 	IsingModel_disorder(IsingModel_disorder&& A) noexcept;
 	~IsingModel_disorder();
 
+private:
+	void generate_mapping();
+	u64 map(u64 index) override;
+
+public:
 	/* METHODS */
 	void hamiltonian() override;
 	void setHamiltonianElem(u64& k, double value, std::vector<bool>&& temp) override;
 
-	double av_sigma_x(int state_id, int site) override; 
+	void create_X_matrix() override;
+
+	double av_sigma_x(int state_id, int site) override;
+	mat correlation_matrix(u64 state_id) override;
+
+	double entaglement_entropy(u64 state_id, int subsystem_size);
 
 };
+std::vector<double> quantum_fidelity(u64 _min, u64 _max, int L, std::vector<double> J, double g, double h, double dw = 0.05);
+
+
 
 
 #endif

@@ -2,22 +2,12 @@
 
 /* CONSTRUCTORS */
 IsingModel_sym::IsingModel_sym(int L, vector<double>& J, double g, double h){
-    use_mapping = true;
     this->L = L; this->J = J; this->g = g; this->h = h;
 
     this->mapping = std::vector<u64>();
     generate_mapping();
-    this->N = this->mapping.size();
     this->periodicity = std::vector<int>(N);
     check_periodicity(); // generate the periodicity of the basis states
-
-    try {
-        this->H = mat(N, N, fill::zeros); //hamiltonian
-    }
-    catch (const bad_alloc& e) {
-        std::cout << "Memory exceeded" << e.what() << "\n";
-        assert(false);
-    }
     //print_base_spin_sector(0);
     set_neighbors(); // generate neighbors
     hamiltonian();
@@ -38,6 +28,10 @@ IsingModel_sym::~IsingModel_sym()
 }
 
 /* BASE GENERATION, SEC CLASSES AND RAPPING*/
+u64 IsingModel_sym::map(u64 index) {
+    if (index < 0 || index >= this->N) throw "Element out of range\n No such index in map\n";
+    return mapping[index];
+}
 /// <summary>
 /// Finds the representative of the equivalent class after vector rotation (mainly used after applied another symmetry)
 /// </summary>
@@ -71,11 +65,11 @@ std::vector<u64> IsingModel_sym::find_SEC_representative(std::vector<bool>& base
     if (h == 0) {
         temp = base_vector;
         
-        // check spin-flip
+        // check spin-flip and reflection
         temp.flip();
         minima.push_back(find_translation_representative(temp));
 
-        // check spin-flip and reflection
+        // check spin-flip
         std::reverse(temp.begin(), temp.end());
         minima.push_back(find_translation_representative(temp));
 
@@ -141,6 +135,7 @@ void IsingModel_sym::generate_mapping() {
         mapping.shrink_to_fit();
         sort(mapping.begin(), mapping.end());
     }
+    this->N = this->mapping.size();
     assert(mapping.size() > 0 && "Not possible number of electrons - no. of states < 1");
 }
 
@@ -200,8 +195,13 @@ void IsingModel_sym::setHamiltonianElem(u64& k, double value, std::vector<bool>&
 /// while the non-diagonal terms need the specialized setHamiltonainElem(...) function
 /// </summary>
 void IsingModel_sym::hamiltonian() {
-    H.zeros();
-    std::vector<bool> base_vector(L);
+    try {
+        this->H = mat(N, N, fill::zeros); //hamiltonian
+    }
+    catch (const bad_alloc& e) {
+        std::cout << "Memory exceeded" << e.what() << "\n";
+        assert(false);
+    }    std::vector<bool> base_vector(L);
     std::vector<bool> temp(base_vector); // changes under H action
     for (u64 k = 0; k < N; k++) {
         int_to_binary(mapping[k], base_vector);
@@ -235,9 +235,10 @@ void IsingModel_sym::hamiltonian() {
 /// <returns> return the average in the eigenstate </returns>
 double IsingModel_sym::av_sigma_x(int state_id, int site) {
     vec state = eigenvectors.col(state_id);
-    std::vector<bool> base_vector(L), temp;
     double value = 0;
+#pragma omp parallel for reduction(+: value)
     for (int k = 0; k < N; k++) {
+        std::vector<bool> base_vector(L), temp;
         int_to_binary(k, base_vector);
         temp = base_vector;
         temp[site] = !base_vector[site];
