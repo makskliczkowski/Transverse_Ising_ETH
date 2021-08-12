@@ -20,6 +20,7 @@
 #include <cassert> // assert terminates program
 #include <omp.h>
 #include <time.h>
+#include <ctime>
 #include <utility> // auto, etc. 
 #include <memory> // smart ptr
 #include <thread>

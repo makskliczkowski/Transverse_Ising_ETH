@@ -17,16 +17,11 @@ std::mt19937_64 gen(seed);
 int main(const int argc, char* argv[]) {
 	auto start = std::chrono::high_resolution_clock::now();
 
-<<<<<<< HEAD
-	int L = 10;
-	double g = 0.0;
-	double h = 0.0;
-=======
 	int L = 6;
 	double g = 0.5;
 	double h = 0.0;
 	double w = 0.0;
->>>>>>> Symmetry
+
 
 	std::vector<double> J(L, 1);
 		std::unique_ptr<IsingModel> Hamil(new IsingModel_disorder(L, J, g, h, w));
@@ -63,76 +58,3 @@ int main(const int argc, char* argv[]) {
 	return 0;
 }
 
-<<<<<<< HEAD
-	colorMap_r.open("results"+ std::string(kPathSeparator)+"disorder" + std::string(kPathSeparator) + "PhaseDiagram_L="+to_string(L)+",g="+to_string_prec(g,2)+",h="+to_string_prec(h,2)+ ".txt");
-=======
-
-
-/*
-	int bucket_num = L;
-	int average_num = 1;
-
-	ofstream file_Sx;
-	ofstream colorMap_r;colorMap_r.open("results" + std::string(kPathSeparator) + "PhaseDiagram_L=" + to_string(L) + ",g=" + to_string_prec(g, 2) + ",h=" + to_string_prec(h, 2) + ".txt");
->>>>>>> Symmetry
-	if(!colorMap_r.is_open())
-		throw "Not open color map file *sadface* \n";
-
-	std::vector<double> J(L);
-	std::fill(J.begin(), J.end(), 1.0);
-<<<<<<< HEAD
-
-	for (disorder_strength = 0.01; disorder_strength <= 2.0; disorder_strength += 0.02) {
-=======
-	//for (h = 0.1; h <= 5.0; h += 0.1) {
->>>>>>> Symmetry
-
-		file_Sx.open("results"+ std::string(kPathSeparator)+"disorder" + std::string(kPathSeparator) + "Sx_L="+to_string(L)+",g="+to_string_prec(g,2)+",h="+to_string_prec(h,2)+",w=" + to_string_prec(disorder_strength,2)+ ".txt");
-		if(!file_Sx.is_open())
-			throw "Not open Sx file *sadface* \n";
-
-		std::unique_ptr<IsingModel> B(new IsingModel_disorder(L, J, g, h));
-		u64 N = B->get_hilbert_size();
-<<<<<<< HEAD
-		vec r(bucket_num-1,fill::zeros);								// save r for each bucket
-=======
-		vec r(bucket_num - 1,fill::zeros);								// save r for each bucket
->>>>>>> Symmetry
-		vec average(N,arma::fill::zeros);							// for sigma_x average
-		for (int av = 0; av < average_num; av++) {
-			B->hamiltonian();
-			B->diagonalization();
-			for(int bucket = 0; bucket < bucket_num - 1; bucket++){
-				r(bucket) += B->eigenlevel_statistics(bucket*N/bucket_num + 1, (bucket + 1)* N / bucket_num - 1);
-			}
-			average += B->operator_av_in_eigenstates_return(&IsingModel::av_sigma_x,*B,1);
-		}
-		for(int state = 0; state < N; state++)
-			file_Sx << B->get_eigenEnergy(state)/(double)L << "\t\t" << average(state) / (double)average_num << endl;
-<<<<<<< HEAD
-		for(int bucket = 0; bucket < bucket_num-1; bucket++)
-			colorMap_r << disorder_strength << "\t\t" << (double)bucket/(double)bucket_num << "\t\t" << r(bucket)/(double)average_num << endl;
-		out << "finished w =" << disorder_strength << endl; 
-		colorMap_r << endl;
-		file_Sx.close();
-	}
-	colorMap_r.close();
-=======
-		//for(int bucket = 0; bucket < bucket_num - 1; bucket++)
-			//colorMap_r << h << "\t\t" << (double)bucket/(double)bucket_num << "\t\t" << r(bucket)/(double)average_num << endl;
-		out << h << "\t\t" << r.t();
-		//colorMap_r << endl;
-		file_Sx.close();*/
-		//}
-		//colorMap_r.close();
->>>>>>> Symmetry
-
-		//A->operator_av_in_eigenstates(&IsingModel::av_sigma_x, *A, 1, "results/sigma_x_average.txt", "\t\t");
-
-		/*for (int L = 2; L <= 20; L += 2) {
-			std::vector<double> J(L);
-			std::fill(J.begin(), J.end(), 1.0);
-			std::unique_ptr<IsingModel> A(new IsingModel_disorder(L, J, g, h));
-			A->diagonalization();
-			out << L << "\t\t" << A->spectrum_repulsion(&IsingModel::av_sigma_x, *A, 1) << endl;
-		}*/

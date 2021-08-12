@@ -11,6 +11,7 @@
 *.sln.docstates
 *.sln
 *.vcxproj
+*.vcxproj.filters
 *.png
 *.dat
 *.txt
