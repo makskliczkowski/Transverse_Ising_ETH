@@ -50,14 +50,10 @@ protected:
 	sp_mat P;
 	sp_mat T;
 
-	
 public:
-	enum class operators {
-		H,
-		X,
-		P,
-		T
-	};
+	enum class operators { H, X, P, T };
+	enum class symmetries { T, P, X };
+
 	/* MODEL BASED PARAMETERS */
 	int L;												// chain length
 	vector<double> J;									// spin exchange
@@ -80,6 +76,7 @@ public:
 	std::vector<u64> get_mapping() const;
 
 	double get_eigenEnergy(int idx) const;
+	vec get_eigenState(int idx) const;
 
 	/* METHODS */
 	void print_base_spin_sector(int Sz = 0);			// print basis state with a given total spin
@@ -91,6 +88,7 @@ public:
 	void diagonalization();								// diagonalize the Hamiltonian
 
 	virtual void create_X_matrix() = 0;					// create spin-flip symmetry matrix via Pauli x-matrices
+	sp_mat choose_operator(IsingModel::operators A);
 	bool commutator(IsingModel::operators A, IsingModel::operators B);
 
 	/* PHYSICAL QUANTITIES */
@@ -102,6 +100,7 @@ public:
 
 	/* PHYSICAL OPERATORS (model states dependent) */
 	virtual double av_sigma_x(int state_id, int site) = 0;
+	virtual double entaglement_entropy(u64 state_id, int subsystem_size) = 0;
 
 	/* USING PHYSICAL QUANTITES FOR PARAMTER RANGES, ETC.*/
 	static void operator_av_in_eigenstates(double (IsingModel::* op)(int, int), IsingModel& A, int site, \
@@ -109,13 +108,15 @@ public:
 	static vec operator_av_in_eigenstates_return(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 
 	static double spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site);
-
-	friend double overlap(const IsingModel& A, const IsingModel& B, int n_a, int n_b) {		
-		return arma::dot(A.eigenvectors.col(n_a), B.eigenvectors.col(n_b));
-	}
-
 };
 
+inline double overlap(const std::unique_ptr<IsingModel>& A, const std::unique_ptr<IsingModel>& B, int n_a, int n_b) {
+	return abs(arma::dot(A->get_eigenState(n_a), B->get_eigenState(n_b)));
+}
+
+
+//-------------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
 /// <summary>
 /// Model with included symmetries and uniform perpendicular magnetic field
 /// </summary>
@@ -144,6 +145,9 @@ public:
 	void setHamiltonianElem(u64& k, double value, std::vector<bool>&& temp) override;
 
 	void create_X_matrix() override {};
+	double entaglement_entropy(u64 state_id, int subsystem_size) override {
+		return 0;
+	};
 
 	double av_sigma_x(int state_id, int site) override;	
 	mat correlation_matrix(u64 state_id) override {
@@ -152,6 +156,8 @@ public:
 };  
 
 
+//-------------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
 /// <summary>
 /// Model with disorder with no symmetries
 /// </summary>
@@ -181,10 +187,10 @@ public:
 	double av_sigma_x(int state_id, int site) override;
 	mat correlation_matrix(u64 state_id) override;
 
-	double entaglement_entropy(u64 state_id, int subsystem_size);
+	double entaglement_entropy(u64 state_id, int subsystem_size) override;
 
 };
-std::vector<double> quantum_fidelity(u64 _min, u64 _max, int L, std::vector<double> J, double g, double h, double dw = 0.05);
+double quantum_fidelity(u64 _min, u64 _max, const std::unique_ptr<IsingModel>& Hamil, vector<double>& J, double g, double h, double w = 0);
 
 
 

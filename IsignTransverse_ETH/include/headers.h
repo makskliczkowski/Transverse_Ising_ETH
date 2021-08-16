@@ -56,7 +56,7 @@ typedef std::complex<double> cpx;
 
 #define memory_over_performance false		// optimized by size --true-- (memory usage shortage) or performance --false--
 #define num_of_threads 16					// number of threads
-#define _BC 0
+#define _BC 1
 
 constexpr double pi = 3.141596653;			// it is me, pi
 
@@ -144,9 +144,9 @@ inline u64 binary_to_int(vector<bool>& vec) {
 /// </summary>
 /// <param name="N"> length of the generated random vector </param>
 /// <returns> returns the custom-length random vector </returns>
-inline vec create_random_vec(u64 N) {
+inline vec create_random_vec(u64 N, double h = 1.0) {
 	vec random_vec(N, fill::zeros);
-	std::uniform_real_distribution<double> distribute(-1.0, 1.0);
+	std::uniform_real_distribution<double> distribute(-h, h);
 	for (u64 j = 0; j < N; j++) {
 		random_vec(j) = distribute(gen);
 	}
@@ -172,7 +172,7 @@ inline std::vector<double> create_random_vec_std(u64 N) {
 template<typename T>
 std::ostream& operator<<(std::ostream& os, std::vector<T> vec) {
 	if (vec.size() != 0) {
-		std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(os, "\n"));
+		std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(os, ""));
 		os << vec.back() << ' ';
 	}
 	else

@@ -23,13 +23,19 @@ std::vector<u64> IsingModel::get_mapping() const{
 /// Return given eigenenergy at index idx
 /// </summary>
 /// <param name="idx"> index of eigenvalue </param>
-/// <returns></returns>
+/// <returns> eigenvalue at idx </returns>
 double IsingModel::get_eigenEnergy(int idx) const
 {
     return this->eigenvalues(idx);
 }
-
-/* HELPER FUNCTIONS */
+/// <summary>
+/// Returns given eigenstate at index idx
+/// </summary>
+/// <param name="idx"> index of eigenstate </param>
+/// <returns> eigenstate at idx </returns>
+vec IsingModel::get_eigenState(int idx) const {
+    return this->eigenvectors.col(idx);
+}
 
 /// <summary>
 /// prints the basis vector in the given spin-symmetry block
@@ -86,52 +92,59 @@ void IsingModel::diagonalization() {
     }
 }
 
+/// <summary>
+/// calculates the commutator of two operatos (one of the symmetry operators or hamiltonian) defined in enum: oeprators
+/// </summary>
+/// <param name="A"> first operator </param>
+/// <param name="B"> second operator</param>
+/// <returns> false if commute and true otherwise </returns>
 bool IsingModel::commutator(IsingModel ::operators A, IsingModel::operators B) {
-    sp_mat A1, A2;
+    sp_mat A1 = choose_operator(A);
+    sp_mat A2 = choose_operator(B);
+    if (A1.is_zero(1e-12)) throw "First operator matrix is empty:\n either not created or wrong parameters\n";
+    if (A2.is_zero(1e-12)) throw "Second operator matrix is empty:\n either not created or wrong parameters\n";
+    return (A1 * A2 - A2 * A1).is_zero(1e-10);
+}
+sp_mat IsingModel::choose_operator(IsingModel::operators A) {
     switch (A) {
     case IsingModel::operators::H:
-        A1 = sp_mat(this->H); break;
+         return sp_mat(this->H); break;
     case IsingModel::operators::X:
-        A1 = X; break;
+        return this->X; break;
     case IsingModel::operators::P:
-        A1 = P; break;
+        return this->P; break;
     case IsingModel::operators::T:
-        A1 = T; break;
+        return this->T; break;
     default:
-        A1 = eye(N, N);
+        out << "Wrong input value:\nSetting by default unit matrix!!!" << endl;
+        return (sp_mat)eye(N, N);
     }
-    switch (B) {
-    case IsingModel::operators::H:
-        A2 = sp_mat(this->H); break;
-    case IsingModel::operators::X:
-        A2 = X; break;
-    case IsingModel::operators::P:
-        A2 = P; break;
-    case IsingModel::operators::T:
-        A2 = T; break;
-    default:
-        A2 = eye(N, N);
-    }
-    return (A1 * A2 - A2 * A1).is_zero(1e-1);
 }
 
+/// <summary>
+/// calculates the total spin from the correlation matrix
+/// </summary>
+/// <param name="corr_mat"> spin correlation matrix </param>
+/// <returns></returns>
 double IsingModel::total_spin(const mat& corr_mat) {
     return (sqrt(1 + 4 * arma::accu(corr_mat)) - 1.0) / 2.0;
 }
 
+/// <summary>
+/// prints the state in the regular basis (only the highest coefficients are present)
+/// </summary>
+/// <param name="_id"> index of the printed state </param>
 void IsingModel::print_state(u64 _id) {
     vec state = eigenvectors.col(_id);
-    create_X_matrix();
-    vec state2 = this->X * state;
     double max = arma::max(state);
     std::vector<bool> base_vector(L);
     for (int k = 0; k < N; k++) {
         int_to_binary(map(k), base_vector);
-        if (abs(state(k)) >= 0.2 * max) {
-            //out << state(k) << " * |" << base_vector << ">" << endl;
+        if (abs(state(k)) >= 0.1 * max) {
+            out << state(k) << " * |" << base_vector << "> + ";
         }
     }
-    out << this->g << "\t\t" << arma::norm(state2 - state) << endl;
+    out << endl;
 }
 
 /// <summary>
@@ -142,6 +155,7 @@ void IsingModel::print_state(u64 _id) {
 /// <returns> returns the IPR value</returns>
 double IsingModel::ipr(int state_idx) {
     double ipr = 0;
+#pragma omp parallel for reduction(+: ipr)
     for (int n = 0; n < N; n++) {
         ipr += std::pow(eigenvectors.col(state_idx)(n), 4);
     }
@@ -213,6 +227,7 @@ void IsingModel::operator_av_in_eigenstates(double (IsingModel::* op)(int, int),
         file << A.eigenvalues(k) / (double)A.L << separator << res(k) << endl;
     file.close();
 }
+
 /// <summary>
 /// Prints to vector the average of a given operator in each eigenstate as a function of eigenenergies
 /// </summary>
@@ -228,30 +243,27 @@ vec IsingModel::operator_av_in_eigenstates_return(double (IsingModel::* op)(int,
     return temp;
 }
 
-std::vector<double> quantum_fidelity(u64 _min, u64 _max, int L, std::vector<double> J, double g, double h, double dw){
-    std::vector<double> fidelity;
+/// <summary>
+/// Calculates the quantum fidelity of two eigenstates with slightly different parameters
+/// </summary>
+/// <param name="_min"> lower bound of averaging bucket (over energy) </param>
+/// <param name="_max"> upper bound of averaging bucket (over energy) </param>
+/// <param name="Hamil"> Hamiltonian with given set of parameters </param>
+/// <param name="J"> new exchange integral </param>
+/// <param name="g"> new trasnverse field </param>
+/// <param name="h"> new uniform perpendicular field </param>
+/// <param name="w"> new disorder stregth </param>
+/// <returns></returns>
+double quantum_fidelity(u64 _min, u64 _max, const std::unique_ptr<IsingModel>& Hamil, vector<double>& J, double g, double h, double w){
     if (_min < 0) throw "too low index";
-    if (_max > std::pow(2, L)) throw "index exceeding Hilbert space";
-    std::ofstream file("results/data.txt");
-    int realisations = 100;
-    for (double w = 0; w < 5.0; w += dw) {
-        double value = 0;
-        double entropy = 0;
-        for (int r = 0; r < realisations; r++) {
-            std::unique_ptr<IsingModel_disorder> Hamil(new IsingModel_disorder(L, J, g, h, w));
-            Hamil->diagonalization();
+    if (_max > std::pow(2, Hamil->L)) throw "index exceeding Hilbert space";
 
-            std::unique_ptr<IsingModel_disorder> Hamil2(new IsingModel_disorder(L, J, g, h, w + dw));
-            Hamil2->diagonalization();
-            for (u64 k = _min; k < _max; k++) 
-                value += overlap(*Hamil, *Hamil2, k, k) / double(_max - _min);
-            entropy += Hamil->entaglement_entropy(10, L / 2.);
-        }
-        value /= double(realisations);
-        entropy /= double(realisations);
-        fidelity.push_back(value);
-        file << w << "\t\t" << entropy << endl;
-    }
-    file.close();
-    return fidelity;
+    std::unique_ptr<IsingModel> Hamil2(new IsingModel_disorder(Hamil->L, J, g, h, w));
+    Hamil2->diagonalization();
+
+    double fidelity = 0;
+#pragma omp parallel for reduction(+: fidelity)
+    for (int k = _min; k < _max; k++)
+        fidelity += overlap(Hamil, Hamil2, k, k);
+    return fidelity / double(_max - _min);
 }

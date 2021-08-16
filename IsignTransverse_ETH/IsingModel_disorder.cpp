@@ -14,12 +14,12 @@ IsingModel_disorder::IsingModel_disorder(int L, vector<double>& J, double g, dou
     this->T = sp_mat(N, N);
 }
 IsingModel_disorder::IsingModel_disorder(const IsingModel_disorder& A) {
-    this->L = A.L; this->J = A.J; this->g = A.g; this->h = A.h; this->disorder_strength = disorder_strength;
+    this->L = A.L; this->J = A.J; this->g = A.g; this->h = A.h; this->disorder_strength = A.disorder_strength;
     this->N = A.N; this->mapping = A.mapping;
     this->H = A.H; this->eigenvectors = A.eigenvectors; this->eigenvalues = A.eigenvalues;
 }
 IsingModel_disorder::IsingModel_disorder(IsingModel_disorder&& A) noexcept {
-    this->L = A.L; this->J = A.J; this->g = A.g; this->h = A.h; this->disorder_strength = disorder_strength;
+    this->L = A.L; this->J = A.J; this->g = A.g; this->h = A.h; this->disorder_strength = A.disorder_strength;
     this->N = A.N; this->mapping = A.mapping;
     this->H = A.H; this->eigenvectors = A.eigenvectors; this->eigenvalues = A.eigenvalues;
 }
@@ -43,6 +43,7 @@ void IsingModel_disorder::generate_mapping() {
 }
 
 
+//-------------------------------------------------------------------------------------------------------------------------------
 /* SYMMETRY FUNCTIONS */
 
 void IsingModel_disorder::create_X_matrix() {
@@ -55,10 +56,9 @@ void IsingModel_disorder::create_X_matrix() {
     }
 }
 
-/* HELPER FUNCTIONS */
 
 
-
+//-------------------------------------------------------------------------------------------------------------------------------
 /* BUILDING HAMILTONIAN */
 /// <summary>
 /// Sets the non-diagonal elements of the Hamimltonian matrix, by acting with the operator on the k-th state
@@ -83,7 +83,7 @@ void IsingModel_disorder::hamiltonian() {
         std::cout << "Memory exceeded" << e.what() << "\n";
         assert(false);
     }
-    this->dh = this->disorder_strength * create_random_vec(L);
+    this->dh = create_random_vec(L, this->disorder_strength);
     //out << dh.t();
     std::vector<bool> base_vector(L);
     std::vector<bool> temp(base_vector); // changes under H action
@@ -110,6 +110,8 @@ void IsingModel_disorder::hamiltonian() {
     }
 }
 
+
+//-------------------------------------------------------------------------------------------------------------------------------
 /* PHYSICAL QUANTITES */
 /// <summary>
 /// Calculates the matrix element of the x-component spin matrix within the eigenstate state_id
@@ -132,10 +134,10 @@ double IsingModel_disorder::av_sigma_x(int state_id, int site) {
 }
 
 /// <summary>
-/// 
+/// Calculates the spin correlation matrix within a given state (non-equilibrium average)
 /// </summary>
-/// <param name="state_id"></param>
-/// <returns></returns>
+/// <param name="state_id"> index of given state </param>
+/// <returns> correlation matrix </returns>
 mat IsingModel_disorder::correlation_matrix(u64 state_id) {
     mat corr_mat(L, L, fill::zeros); 
     u64 idx;
@@ -185,6 +187,12 @@ mat IsingModel_disorder::correlation_matrix(u64 state_id) {
     return corr_mat;
 }
 
+/// <summary>
+/// Calculates the entropy of the system via the mixed density matrix
+/// </summary>
+/// <param name="state_id"> state index to produce the density matrix </param>
+/// <param name="A_size"> size of subsystem </param>
+/// <returns> entropy of considered systsem </returns>
 double IsingModel_disorder::entaglement_entropy(u64 state_id, int A_size) {
     std::vector<bool> base_vector(L);
     vec state = this->eigenvectors.col(state_id);
@@ -201,6 +209,7 @@ double IsingModel_disorder::entaglement_entropy(u64 state_id, int A_size) {
     vec probabilities;
     eig_sym(probabilities, rho);
     double entropy = 0;
+#pragma omp parallel for reduction(+: entropy)
     for (int some_index = 0; some_index < dimA; some_index++) {
         auto value = probabilities(some_index);
         entropy += (abs(value) < 1e-12)? 0 : -value * log(abs(value));

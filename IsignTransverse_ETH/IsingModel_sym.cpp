@@ -201,7 +201,8 @@ void IsingModel_sym::hamiltonian() {
     catch (const bad_alloc& e) {
         std::cout << "Memory exceeded" << e.what() << "\n";
         assert(false);
-    }    std::vector<bool> base_vector(L);
+    }    
+    std::vector<bool> base_vector(L);
     std::vector<bool> temp(base_vector); // changes under H action
     for (u64 k = 0; k < N; k++) {
         int_to_binary(mapping[k], base_vector);

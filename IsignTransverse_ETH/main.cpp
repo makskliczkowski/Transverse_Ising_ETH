@@ -17,36 +17,58 @@ std::mt19937_64 gen(seed);
 int main(const int argc, char* argv[]) {
 	auto start = std::chrono::high_resolution_clock::now();
 
-	int L = 6;
-	double g = 0.5;
+	int L = 8;
+	double g = 2.0;
 	double h = 0.0;
 	double w = 0.0;
-
-
 	std::vector<double> J(L, 1);
-		std::unique_ptr<IsingModel> Hamil(new IsingModel_disorder(L, J, g, h, w));
-		Hamil->diagonalization();
-		u64 N = Hamil->get_hilbert_size();
-		std::vector<double> vectttt = quantum_fidelity(0 * N / 20.0, 0 * N / 20.0+1, L, J, g, h, 0.02);
-	mat corr_mat = Hamil->correlation_matrix(0);
-	out << "<Sz(i)Sz(j)> = \n" << corr_mat << endl << endl;
-	out << "S = " << Hamil->total_spin(corr_mat) << endl;
-	out << "S^2 = " << arma::accu(corr_mat) << endl;
-	vec Sq(L + 1, fill::zeros);
-#pragma omp parallel for shared (Sq)
-	for (int k = 0; k <= L; k++) {
-		double q;
-		if (!_BC) q = 2 * k * pi / (double)L;
-		else q = k * pi / ((double)L + 1.0);
-		cpx Sq_temp;
-		for (int i = 0; i < L; i++) {
-			for (int j = 0; j < L; j++) {
-				Sq_temp += std::exp(1i * q * double(j - i)) * corr_mat(i, j);
+
+	int realisations = 1000;
+	int bucket_num = 10;
+
+	std::unique_ptr<IsingModel> Hamil(new IsingModel_disorder(L, J, g, h, w));
+	Hamil->diagonalization();
+	u64 N = Hamil->get_hilbert_size();
+	double dw = 0.02;
+
+	std::ofstream fidel("results/Fidelity_L=" + std::to_string(L) + "_g=" + to_string_prec(g, 2)\
+		+ "_h=" + to_string_prec(h, 2) + "_BC=" + std::to_string(_BC) + ".dat");
+	std::ofstream level("results/level_stat_L=" + std::to_string(L) + "_g=" + to_string_prec(g, 2)\
+		+ "_h=" + to_string_prec(h, 2) + "_BC=" + std::to_string(_BC) + ".dat");
+	std::ofstream file_entropy("results/entropy_L=" + std::to_string(L) + "_g=" + to_string_prec(g, 2)\
+		+ "_h=" + to_string_prec(h, 2) + "_BC=" + std::to_string(_BC) + ".dat");
+	std::ofstream file_ipr("results/ipr_L=" + std::to_string(L) + "_g=" + to_string_prec(g, 2)\
+		+ "_h=" + to_string_prec(h, 2) + "_BC=" + std::to_string(_BC) + ".dat");
+
+	for (w = dw; w <= 5.0; w+=dw) {
+		std::string name = "results/sigma_x_L=" + std::to_string(L) + "_g=" + to_string_prec(g, 2)\
+			+ "_h=" + to_string_prec(h, 2) + "_w=" + to_string_prec(w, 2) + "_BC=" + std::to_string(_BC) + ".dat";
+		vec fidelity(bucket_num - 1, fill::zeros);		
+		vec level_stat(bucket_num - 1, fill::zeros);
+		vec entropy(bucket_num - 1, fill::zeros);
+		vec ipr(bucket_num - 1, fill::zeros);
+		for (int k = 0; k < bucket_num - 1; k++) {
+			u64 bucket_left = k * N / double(bucket_num);
+			u64 bucket_right = (k + 1) * N / double(bucket_num);
+			for (int r = 0; r < realisations; r++) {
+				Hamil.reset(new IsingModel_disorder(L, J, g, h, w));
+				Hamil->diagonalization();
+				fidelity(k) += quantum_fidelity(bucket_left, bucket_right, Hamil, J, g, h, w + 1e-4) / double(realisations);
+				level_stat(k) += Hamil->eigenlevel_statistics(bucket_left + 1, bucket_right) / double(realisations);
+				for (u64 n = bucket_left; n < bucket_right; n++) {
+					entropy(k) += Hamil->entaglement_entropy(n, L / 2) / double(bucket_right - bucket_left) / double(realisations);
+					ipr(k) += Hamil->ipr(n) / double(bucket_right - bucket_left) / double(realisations);
+				}
 			}
 		}
-		Sq(k) = real(2.0 * Sq_temp / pi / (L + 1.0));
+		for (int k = 0; k < bucket_num - 1; k++) {
+			fidel << w << "\t\t" << k / double(bucket_num) << "\t\t" << fidelity(k) << endl;
+			level << w << "\t\t" << k / double(bucket_num) << "\t\t" << level_stat(k) << endl;
+			file_entropy << w << "\t\t" << k / double(bucket_num) << "\t\t" << entropy(k) << endl;
+			file_ipr << w << "\t\t" << k / double(bucket_num) << "\t\t" << ipr(k) << endl;
+		}
+		Hamil->operator_av_in_eigenstates(&IsingModel::av_sigma_x, *Hamil, 0, name, "\t\t");
 	}
-	out << Sq << endl;
 
 
 	auto stop1 = std::chrono::high_resolution_clock::now();
