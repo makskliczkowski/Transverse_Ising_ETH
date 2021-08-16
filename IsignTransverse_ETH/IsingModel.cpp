@@ -3,8 +3,7 @@
 IsingModel::~IsingModel(){
 }
 /* GETTERS and SETTERS*/
-std::string IsingModel::get_info() const
-{
+std::string IsingModel::get_info() const{
     return this->info;
 }
 u64 IsingModel::get_hilbert_size() const {
@@ -49,7 +48,7 @@ void IsingModel::print_base_spin_sector(int Sz) {
     std::vector<bool> temp(L);
     for (int k = 0; k < N; k++) {
         int_to_binary(map(k), temp);
-        const int sum = std::accumulate(temp.begin(),temp.end(),0);
+        const int sum = std::accumulate(temp.begin(), temp.end(), 0);
             //,[](int a, bool b)
             //{return a + ((b) ? 1:-1);});
         //for (int l = 0; l < L; l++)
@@ -188,11 +187,11 @@ double IsingModel::eigenlevel_statistics(u64 _min, u64 _max) {
     if (_max >= N) throw "index exceeding Hilbert space";
     //double delta_n = eigenvalues(_min) - eigenvalues(_min - 1);
     //double delta_n_next = 0;
-#pragma omp parallel for shared(r) reduction(+:r)
-    for (auto k = _min; k < _max - 1; k++) {
+#pragma omp parallel for reduction(+: r)
+    for (int k = _min; k < _max - 1; k++) {
         const double delta_n = eigenvalues(k) - eigenvalues(k-1);
         const double delta_n_next = eigenvalues(k+1) - eigenvalues(k);
-        const double min = std::min(delta_n, delta_n_next),
+        const double min = std::min(delta_n, delta_n_next);
         const double max = std::max(delta_n, delta_n_next);
         if (max == 0) throw "Degeneracy!!!\n";
         r += min / max;
@@ -213,7 +212,7 @@ double IsingModel::eigenlevel_statistics(u64 _min, u64 _max) {
 double IsingModel::spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site) {
     //double rn_next = 0, rn = (A.*op)(0, 1);
     double average = 0;
-#pragma omp parallel for shared(average) reduction(+:average)
+#pragma omp parallel for reduction(+:average)
     for (int k = 1; k < A.N; k++) {
         const double rn = (A.*op)(k-1,1);
         const double rn_next = (A.*op)(k, 1);
@@ -276,14 +275,16 @@ vec IsingModel::operator_av_in_eigenstates_return(double (IsingModel::* op)(int,
 /// <returns></returns>
 double quantum_fidelity(u64 _min, u64 _max, const std::unique_ptr<IsingModel>& Hamil, vector<double>& J, double g, double h, double w){
     if (_min < 0) throw "too low index";
-    if (_max > std::pow(2, Hamil->L)) throw "index exceeding Hilbert space";
+    if (_max >= Hamil->get_hilbert_size()) throw "index exceeding Hilbert space";
 
-    std::unique_ptr<IsingModel> Hamil2 = std::make_unique<IsingModel_disorder>(Hamil->L, J, g, h, w);
-    Hamil2->diagonalization();
+    std::unique_ptr<IsingModel> Hamil2;
+    if (typeid(Hamil) == typeid(IsingModel_disorder)) Hamil2.reset(new IsingModel_disorder(Hamil->L, J, g, h, w));
+    else Hamil2.reset(new IsingModel_sym(Hamil->L, J, g, h));
+
 
     double fidelity = 0;
 #pragma omp parallel for reduction(+: fidelity)
-    for (auto k = _min; k < _max; k++)
+    for (long int k = _min; k < _max; k++)
         fidelity += overlap(Hamil, Hamil2, k, k);
     return fidelity / double(_max - _min);
 }

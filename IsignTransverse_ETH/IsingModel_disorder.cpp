@@ -78,7 +78,7 @@ void IsingModel_disorder::create_X_matrix() {
 /// <param name="k"> index of the basis state acted upon with the Hamiltonian </param>
 /// <param name="value"> value of the given matrix element to be set </param>
 /// <param name="temp"> resulting vector form acting with the Hamiltonian operator on the k-th basis state </param>
-void IsingModel_disorder::setHamiltonianElem(u64& k, double value, std::vector<bool>&& temp) {
+void IsingModel_disorder::setHamiltonianElem(u64 k, double value, std::vector<bool>&& temp) {
     u64 idx = binary_to_int(temp);
     H(idx, k) += value;
     //H(k, idx) += value;
@@ -104,7 +104,7 @@ void IsingModel_disorder::hamiltonian() {
     std::vector<bool> base_vector(L);
     std::vector<bool> temp(base_vector);                                        // changes under H action
 #pragma omp for 
-        for (u64 k = 0; k < N; k++) {
+        for (long int k = 0; k < N; k++) {
             int_to_binary(k, base_vector);                                      // check state number
             double s_i, s_j;
             for (int j = 0; j <= L - 1; j++) {
@@ -221,7 +221,7 @@ double IsingModel_disorder::entaglement_entropy(u64 state_id, int A_size) {
     u64 dimB = std::pow(2, L - A_size);
     mat rho(dimA, dimA, fill::zeros);
 #pragma omp parallel for shared(rho,state, dimA, dimB)
-    for (u64 n = 0; n < N; n++) {
+    for (long int n = 0; n < N; n++) {
         if(abs(state(n)) < 1e-10) continue;
         u64 counter = 0;
         for (u64 m = n % dimB; m < N; m += dimB) {

@@ -41,7 +41,7 @@ u64 IsingModel_sym::map(u64 index) {
 /// </summary>
 /// <param name="base_vector"> vector from EC to find representative </param>
 /// <returns> index of the representative state in the EC </returns>
-u64 IsingModel_sym::find_translation_representative(const std::vector<bool>& base_vector) {
+u64 IsingModel_sym::find_translation_representative(std::vector<bool>& base_vector) {
     u64 EC_symmetry = binary_to_int(base_vector);
     u64 current_idx = EC_symmetry;
     u64 idx = INT_MAX;
@@ -181,7 +181,7 @@ void IsingModel_sym::check_periodicity() {
 /// <param name="k"> index of the basis state acted upon with the Hamiltonian </param>
 /// <param name="value"> value of the given matrix element to be set </param>
 /// <param name="temp"> resulting vector form acting with the Hamiltonian operator on the k-th basis state </param>
-void IsingModel_sym::setHamiltonianElem(u64& k, double value, std::vector<bool>&& temp) {
+void IsingModel_sym::setHamiltonianElem(u64 k, double value, std::vector<bool>&& temp) {
 
     u64 min = find_translation_representative(temp);
 
@@ -206,27 +206,31 @@ void IsingModel_sym::hamiltonian() {
     catch (const bad_alloc& e) {
         std::cout << "Memory exceeded" << e.what() << "\n";
         assert(false);
-    }    
-    std::vector<bool> base_vector(L);
-    std::vector<bool> temp(base_vector); // changes under H action
-    for (u64 k = 0; k < N; k++) {
-        int_to_binary(mapping[k], base_vector);
-        double s_i, s_j;
-        for (int j = 0; j <= L - 1; j++) {
-            s_i = base_vector[j];
+    }
+#pragma omp parallel
+    {
+        std::vector<bool> base_vector(L);
+        std::vector<bool> temp(base_vector); // changes under H action
+#pragma omp for
+        for (long int k = 0; k < N; k++) {
+            int_to_binary(mapping[k], base_vector);
+            double s_i, s_j;
+            for (int j = 0; j <= L - 1; j++) {
+                s_i = base_vector[j];
 
-            /* transverse field */
-            temp = base_vector;
-            temp[j] = !base_vector[j];
-            setHamiltonianElem(k, 0.5 * g, std::move(temp));
+                /* transverse field */
+                temp = base_vector;
+                temp[j] = !base_vector[j];
+                setHamiltonianElem(k, 0.5 * g, std::move(temp));
 
-            /* disorder */
-            H(k, k) += this->h * (s_i - 0.5);
+                /* disorder */
+                H(k, k) += this->h * (s_i - 0.5);
 
-            if (nearest_neighbors[j] >= 0) {
-                /* Ising-like spin correlation */
-                s_j = base_vector[nearest_neighbors[j]];
-                H(k, k) += this->J[j] * (s_i - 0.5) * (s_j - 0.5);
+                if (nearest_neighbors[j] >= 0) {
+                    /* Ising-like spin correlation */
+                    s_j = base_vector[nearest_neighbors[j]];
+                    H(k, k) += this->J[j] * (s_i - 0.5) * (s_j - 0.5);
+                }
             }
         }
     }

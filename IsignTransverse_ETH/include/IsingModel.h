@@ -88,13 +88,13 @@ public:
 	void set_neighbors();																		// create neighbors list according to the boundary conditions
 
 	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
-	virtual void setHamiltonianElem(u64& k, double value, std::vector<bool>&& temp) = 0;
+	virtual void setHamiltonianElem(u64 k, double value, std::vector<bool>&& temp) = 0;
 
 	void diagonalization();																		// diagonalize the Hamiltonian
 
 	// VIRTUALS
 	virtual void create_X_matrix() = 0;															// create spin-flip symmetry matrix via Pauli x-matrices
-	virtual mat correlation_matrix(u64 state_id) = 0;									// create the spin correlation matrix at a given state
+	virtual mat correlation_matrix(u64 state_id) = 0;											// create the spin correlation matrix at a given state
 	static double total_spin(const mat& corr_mat);												// the diagonal part of a spin correlation matrix
 
 	// COMMUTATION
@@ -151,24 +151,24 @@ private:
 
 	void check_periodicity();
 	std::vector<u64> find_SEC_representative(const std::vector<bool>& base_vector);
-	u64 find_translation_representative(const std::vector<bool>& base_vector);
+	u64 find_translation_representative(std::vector<bool>& base_vector);
 
 	u64 map(u64 index) override;
 
 public:
 	void hamiltonian() override;
-	void setHamiltonianElem(u64& k, double value, std::vector<bool>&& temp) override;
+	void setHamiltonianElem(u64 k, double value, std::vector<bool>&& temp) override;
 
 	void create_X_matrix() override {};
 	double entaglement_entropy(u64 state_id, int subsystem_size) override {
 		return 0;
 	};
 
-	double av_sigma_x(int state_id, int site) override;	
+	double av_sigma_x(int state_id, int site) override;
 	mat correlation_matrix(u64 state_id) override {
 		return mat();
 	};
-};  
+};
 
 
 //-------------------------------------------------------------------------------------------------------------------------------
@@ -194,7 +194,7 @@ private:
 public:
 	// METHODS
 	void hamiltonian() override;
-	void setHamiltonianElem(u64& k, double value, std::vector<bool>&& temp) override;
+	void setHamiltonianElem(u64 k, double value, std::vector<bool>&& temp) override;
 
 	// MATRICES
 	void create_X_matrix() override;

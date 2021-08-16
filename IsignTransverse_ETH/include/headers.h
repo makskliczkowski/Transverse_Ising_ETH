@@ -46,7 +46,7 @@ static const char* kPathSeparator =
 "/";
 #endif
 
-typedef uint64_t u64;
+typedef unsigned long long u64;
 typedef std::complex<double> cpx;
 
 // User makros
