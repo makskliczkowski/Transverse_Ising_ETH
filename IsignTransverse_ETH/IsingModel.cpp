@@ -3,22 +3,25 @@
 IsingModel::~IsingModel(){
 }
 /* GETTERS and SETTERS*/
+std::string IsingModel::get_info() const
+{
+    return this->info;
+}
 u64 IsingModel::get_hilbert_size() const {
-    return N;
+    return this->N;
 }
-mat IsingModel::get_hamiltonian() const {
-    return H;
+const mat& IsingModel::get_hamiltonian() const {
+    return this->H;
 }
-vec IsingModel::get_eigenvalues() const {
-    return eigenvalues;
+const vec& IsingModel::get_eigenvalues() const {
+    return this->eigenvalues;
 }
-mat IsingModel::get_eigenvectors() const {
-    return eigenvectors;
+const mat& IsingModel::get_eigenvectors() const {
+    return this->eigenvectors;
 }
-std::vector<u64> IsingModel::get_mapping() const{
+const std::vector<u64>& IsingModel::get_mapping() const{
     return this->mapping;
 }
-
 /// <summary>
 /// Return given eigenenergy at index idx
 /// </summary>
@@ -33,10 +36,11 @@ double IsingModel::get_eigenEnergy(int idx) const
 /// </summary>
 /// <param name="idx"> index of eigenstate </param>
 /// <returns> eigenstate at idx </returns>
-vec IsingModel::get_eigenState(int idx) const {
+const vec& IsingModel::get_eigenState(int idx) const {
     return this->eigenvectors.col(idx);
 }
 
+// ---- PRINTERS
 /// <summary>
 /// prints the basis vector in the given spin-symmetry block
 /// </summary>
@@ -45,10 +49,12 @@ void IsingModel::print_base_spin_sector(int Sz) {
     std::vector<bool> temp(L);
     for (int k = 0; k < N; k++) {
         int_to_binary(map(k), temp);
-        int Sz = 0;
-        for (int l = 0; l < L; l++)
-            Sz += temp[l] == 0 ? -1 : 1;
-        if (Sz == 0)
+        const int sum = std::accumulate(temp.begin(),temp.end(),0);
+            //,[](int a, bool b)
+            //{return a + ((b) ? 1:-1);});
+        //for (int l = 0; l < L; l++)
+        //    Sz += temp[l] == 0 ? -1 : 1;
+        if(sum == Sz)
             out << temp << std::endl;
     }
 }
@@ -105,6 +111,12 @@ bool IsingModel::commutator(IsingModel ::operators A, IsingModel::operators B) {
     if (A2.is_zero(1e-12)) throw "Second operator matrix is empty:\n either not created or wrong parameters\n";
     return (A1 * A2 - A2 * A1).is_zero(1e-10);
 }
+
+/// <summary>
+/// Choosing the right operator
+/// </summary>
+/// <param name="A">the option</param>
+/// <returns>sparse operator</returns>
 sp_mat IsingModel::choose_operator(IsingModel::operators A) {
     switch (A) {
     case IsingModel::operators::H:
@@ -140,7 +152,7 @@ void IsingModel::print_state(u64 _id) {
     std::vector<bool> base_vector(L);
     for (int k = 0; k < N; k++) {
         int_to_binary(map(k), base_vector);
-        if (abs(state(k)) >= 0.1 * max) {
+        if (abs(state(k)) >= 0.01 * max) {
             out << state(k) << " * |" << base_vector << "> + ";
         }
     }
@@ -149,7 +161,8 @@ void IsingModel::print_state(u64 _id) {
 
 /// <summary>
 /// The IPR, also called the participation ratio, quantifies how delocalized a state is in a certain basis. 
-/// The state is completely delocalized, when:    IPR=dim(hilbert space)
+/// The state is completely delocalized, when:    
+/// IPR=dim(hilbert space)
 /// </summary>
 /// <param name="state_idx"> index of the eigenvector used to calculate this quantity </param>
 /// <returns> returns the IPR value</returns>
@@ -173,14 +186,17 @@ double IsingModel::eigenlevel_statistics(u64 _min, u64 _max) {
     double r = 0;
     if (_min <= 0) throw "too low index";
     if (_max >= N) throw "index exceeding Hilbert space";
-    double delta_n = eigenvalues(_min) - eigenvalues(_min - 1);
-    double delta_n_next = 0;
-    for (int k = _min + 1; k < _max; k++) {
-        delta_n_next = eigenvalues(k) - eigenvalues(k - 1);
-        double min = std::min(delta_n, delta_n_next), max = std::max(delta_n, delta_n_next);
+    //double delta_n = eigenvalues(_min) - eigenvalues(_min - 1);
+    //double delta_n_next = 0;
+#pragma omp parallel for shared(r) reduction(+:r)
+    for (auto k = _min; k < _max - 1; k++) {
+        const double delta_n = eigenvalues(k) - eigenvalues(k-1);
+        const double delta_n_next = eigenvalues(k+1) - eigenvalues(k);
+        const double min = std::min(delta_n, delta_n_next),
+        const double max = std::max(delta_n, delta_n_next);
         if (max == 0) throw "Degeneracy!!!\n";
         r += min / max;
-        delta_n = delta_n_next;
+        //delta_n = delta_n_next;
     }
     return r / double(_max - _min);
 }
@@ -195,12 +211,14 @@ double IsingModel::eigenlevel_statistics(u64 _min, u64 _max) {
 /// <param name="site"> position of the spin, where the operator is acted upon </param>
 /// <returns> returns the average spectrum repulsion </returns>
 double IsingModel::spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site) {
-    double rn_next = 0, rn = (A.*op)(0, 1);
+    //double rn_next = 0, rn = (A.*op)(0, 1);
     double average = 0;
+#pragma omp parallel for shared(average) reduction(+:average)
     for (int k = 1; k < A.N; k++) {
-        rn_next = (A.*op)(k, 1);
+        const double rn = (A.*op)(k-1,1);
+        const double rn_next = (A.*op)(k, 1);
         average += abs(rn_next - rn);
-        rn = rn_next;
+        //rn = rn_next;
     }
     return average / (A.N - 1.0);
 }
@@ -215,16 +233,18 @@ double IsingModel::spectrum_repulsion(double (IsingModel::* op)(int, int), Ising
 /// <param name="separator"> separator between columns in file </param>
 void IsingModel::operator_av_in_eigenstates(double (IsingModel::* op)(int, int),\
     IsingModel& A, int site, std::string name, std::string separator) {
-    std::ofstream file(name);
-    if (!file.is_open()) {
-        throw "Can't open file " + name + "\n Choose another file\n";
-    }
-    vec res(A.get_hilbert_size(), fill::zeros);
+    std::ofstream file(name);                                                                  // file to write the average to
+    if (!file.is_open()) throw "Can't open file " + name + "\n Choose another file\n";
+    // vec res(A.get_hilbert_size(), fill::zeros);
+
 #pragma omp parallel for
-    for (int k = 0; k < A.get_hilbert_size(); k++)
-        res(k) = (A.*op)(k, site);
-    for (int k = 0; k < A.get_hilbert_size(); k++)
-        file << A.eigenvalues(k) / (double)A.L << separator << res(k) << endl;
+    for (int k = 0; k < A.get_hilbert_size(); k++){
+        const double res = (A.*op)(k, site);
+#pragma omp critical
+        file << A.eigenvalues(k) / (double)A.L << separator << res << endl;
+    }
+    //for (int k = 0; k < A.get_hilbert_size(); k++)
+    //    file << A.eigenvalues(k) / (double)A.L << separator << res(k) << endl;
     file.close();
 }
 
@@ -237,7 +257,7 @@ void IsingModel::operator_av_in_eigenstates(double (IsingModel::* op)(int, int),
 /// <param name="separator"> separator between columns in file </param>
 vec IsingModel::operator_av_in_eigenstates_return(double (IsingModel::* op)(int, int), IsingModel& A, int site) {
     vec temp(A.get_hilbert_size(),fill::zeros);
-#pragma omp parallel for
+#pragma omp parallel for shared(temp)
     for (int k = 0; k < A.get_hilbert_size(); k++)
         temp(k) = (A.*op)(k, site);
     return temp;
@@ -258,12 +278,12 @@ double quantum_fidelity(u64 _min, u64 _max, const std::unique_ptr<IsingModel>& H
     if (_min < 0) throw "too low index";
     if (_max > std::pow(2, Hamil->L)) throw "index exceeding Hilbert space";
 
-    std::unique_ptr<IsingModel> Hamil2(new IsingModel_disorder(Hamil->L, J, g, h, w));
+    std::unique_ptr<IsingModel> Hamil2 = std::make_unique<IsingModel_disorder>(Hamil->L, J, g, h, w);
     Hamil2->diagonalization();
 
     double fidelity = 0;
 #pragma omp parallel for reduction(+: fidelity)
-    for (int k = _min; k < _max; k++)
+    for (auto k = _min; k < _max; k++)
         fidelity += overlap(Hamil, Hamil2, k, k);
     return fidelity / double(_max - _min);
 }

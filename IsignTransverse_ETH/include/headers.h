@@ -118,8 +118,9 @@ inline u64 binary_search(vector<T>& arr, u64 l_point, u64 r_point, T element) {
 /// <param name="vec"> vector containing the binary string </param>
 inline void int_to_binary(u64 idx, std::vector<bool>& vec) {
 	u64 temp = idx;
-	for (int k = 0; k < vec.size(); k++) {
-		vec[vec.size() - 1 - k] = static_cast<bool>(temp % 2);
+	const u64 size = vec.size();
+	for (int k = 0; k < size; k++) {
+		vec[size - 1 - k] = static_cast<bool>(temp % 2);
 		temp = static_cast<u64>((double)temp / 2.);
 	}
 }
@@ -129,11 +130,12 @@ inline void int_to_binary(u64 idx, std::vector<bool>& vec) {
 /// </summary>
 /// <param name="vec"> binary string </param>
 /// <returns> unsigned long long integer </returns>
-inline u64 binary_to_int(vector<bool>& vec) {
+inline u64 binary_to_int(const vector<bool>& vec) {
 	u64 val = 0;
 	u64 exp = 1;
-	for (int k = 0; k < vec.size(); k++) {
-		val += static_cast<u64>(vec[vec.size() - 1 - k]) * exp;
+	const u64 size = vec.size();
+	for (int k = 0; k < size; k++) {
+		val += static_cast<u64>(vec[size - 1 - k]) * exp;
 		exp *= 2;
 	}
 	return val;

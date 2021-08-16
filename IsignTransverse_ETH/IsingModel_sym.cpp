@@ -3,6 +3,9 @@
 /* CONSTRUCTORS */
 IsingModel_sym::IsingModel_sym(int L, vector<double>& J, double g, double h){
     this->L = L; this->J = J; this->g = g; this->h = h;
+    this->info = "_L="+std::to_string(this->L) + \
+        ",g=" + to_string_prec(this->g) + \
+        ",h=" + to_string_prec(this->h);
 
     this->mapping = std::vector<u64>();
     generate_mapping();
@@ -12,6 +15,7 @@ IsingModel_sym::IsingModel_sym(int L, vector<double>& J, double g, double h){
     set_neighbors(); // generate neighbors
     hamiltonian();
 }
+/*
 IsingModel_sym::IsingModel_sym(const IsingModel_sym& A) {
     this->L = A.L; this->J = A.J; this->g = A.g; this->h = A.h;
     this->N = A.N; this->mapping = A.mapping;
@@ -26,10 +30,10 @@ IsingModel_sym::~IsingModel_sym()
 {
 	//out << "Destroying the Ising model with symmetries\n";
 }
-
+*/
 /* BASE GENERATION, SEC CLASSES AND RAPPING*/
 u64 IsingModel_sym::map(u64 index) {
-    if (index < 0 || index >= this->N) throw "Element out of range\n No such index in map\n";
+    if (index >= this->N) throw "Element out of range\n No such index in map\n";
     return mapping[index];
 }
 /// <summary>
@@ -37,8 +41,9 @@ u64 IsingModel_sym::map(u64 index) {
 /// </summary>
 /// <param name="base_vector"> vector from EC to find representative </param>
 /// <returns> index of the representative state in the EC </returns>
-u64 IsingModel_sym::find_translation_representative(std::vector<bool>& base_vector) {
-    u64 EC_symmetry = binary_to_int(base_vector), current_idx = EC_symmetry;
+u64 IsingModel_sym::find_translation_representative(const std::vector<bool>& base_vector) {
+    u64 EC_symmetry = binary_to_int(base_vector);
+    u64 current_idx = EC_symmetry;
     u64 idx = INT_MAX;
     do {
         std::rotate(base_vector.begin(), base_vector.begin() + 1, base_vector.end());
@@ -54,7 +59,7 @@ u64 IsingModel_sym::find_translation_representative(std::vector<bool>& base_vect
 /// <param name="base_vector"> current base vector to act with symmetries </param>
 /// <param name="min"> index of EC class representative by translation symmetry </param>
 /// <returns></returns>
-std::vector<u64> IsingModel_sym::find_SEC_representative(std::vector<bool>& base_vector) {
+std::vector<u64> IsingModel_sym::find_SEC_representative(const std::vector<bool>& base_vector) {
     std::vector<u64> minima;
     std::vector<bool> temp = base_vector;
 
