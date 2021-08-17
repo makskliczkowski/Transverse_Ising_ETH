@@ -51,6 +51,7 @@ void IsingModel::print_base_spin_sector(int Sz) {
     int summm = 0;
     int p = +1;
     int z = +1;
+    //Col<int> map
     for (int k = 0; k < N; k++) {
         int_to_binary(map(k), temp);
         const int sum = std::accumulate(temp.begin(), temp.end(), 0);
@@ -64,27 +65,26 @@ void IsingModel::print_base_spin_sector(int Sz) {
             temp_int[p] = temp[p]? 1 : -1;
         }
             
-        std::vector<int> PT = temp_int;
-        std::vector<int> ZT = temp_int;
-        std::vector<int> PZT = temp_int;
-        std::vector<int> v(L, 0);
+        std::vector<int> PT(temp_int);
+        std::vector<int> ZT(temp_int);
+        std::vector<int> PZT(temp_int);
+        arma::vec v(L, arma::fill::zeros);
         std::reverse(PT.begin(), PT.end());
         for (int o = 0; o < L; o++)
             ZT[o] = (temp_int[o] > 0) ? -1 : 1;
         PZT = ZT;
         std::reverse(PZT.begin(), PZT.end());
-        for (int l = 0; l < L; l++) {
+        for (int l = 0; l < periodicity[k]; l++) {
             //out << "|" << temp_int << "> " << ((p < 0) ? "-" : "+") << " | " << PT << "> " << ((z < 0) ? "-" : "+") << "| " << ZT << "> " << \
                 ((p * z < 0) ? "-" : "+") << " |" << PZT << "> + ";
-            v = v + p * PT;
-            v = v + temp_int;// +z * ZT + (z * p) * PZT;
+            v = v + p * Col<int>(PT) + Col<int>(temp_int) + z * Col<int>(ZT) + (z * p) * Col<int>(PZT);
             std::rotate(temp_int.begin(), temp_int.begin() + 1, temp_int.end());
             std::rotate(PT.begin(), PT.begin() + 1, PT.end());
             std::rotate(ZT.begin(), ZT.begin() + 1, ZT.end());
             std::rotate(PZT.begin(), PZT.begin() + 1, PZT.end());
         }
-        bool jj = std::all_of(v.begin(), v.end(), [](int i) { return i == 0; });
-        summm += !jj;
+        //out << temp << "\t" << v.t() << endl;
+        summm += !(v.is_zero(1e-2));
         //out << " ---> is_zero? ----> " << jj << std::endl;
     }
     out << summm << std::endl;
