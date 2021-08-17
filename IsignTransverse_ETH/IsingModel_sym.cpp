@@ -66,8 +66,8 @@ std::vector<u64> IsingModel_sym::find_SEC_representative(const std::vector<bool>
 
     //check reflection symmetry
     std::reverse(temp.begin(), temp.end());
-    minima.push_back(find_translation_representative(temp));
-    //minima.push_back(INT_MAX);
+    //minima.push_back(find_translation_representative(temp));
+    minima.push_back(INT_MAX);
     if (h == 0) {
         temp = base_vector;
         
@@ -170,7 +170,7 @@ void IsingModel_sym::check_periodicity() {
         int multiplicity_in_SEC = SEC.size();
         //if (h == 0) multiplicity_in_SEC = SEC.size();
         //else multiplicity_in_SEC = 1;
-        this->periodicity[k] = period_EC * multiplicity_in_SEC;
+        this->periodicity[k] = period_EC;// *multiplicity_in_SEC;
     }
 }
 
