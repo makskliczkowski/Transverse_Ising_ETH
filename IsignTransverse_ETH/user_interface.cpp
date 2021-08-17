@@ -9,120 +9,114 @@
 std::vector<std::string> change_input_to_vec_of_str(int argc, char** argv)
 {
 	std::vector<std::string> tmp(argc-1,"");															// -1 because first is the name of the file
-	for(int i = 1; i <argc;i++ ){
-		tmp[i] = argv[i];
+	for(int i = 0; i <argc - 1;i++ ){
+		tmp[i] = argv[i + 1];
 	}
 	return tmp;
 }
 
 
+// - - - - - - - - - - - - - - - - - - - USER INTERFACE - - - - - - - - - - - - - - - - - - -  
 
-/* - - - - - - - - - - - - - - - - - - - ISING MODEL - - - - - - - - - - - - - - - - - - -  */
-
-/* Connected with spin exchange */
 /// <summary>
-/// Setting J according to the choosen mode
+/// Find a given option in a vector of string given from cmd parser
 /// </summary>
-/// <param name="mode"> mode - 0 (from file), 1 (random), 2 (constant)</param>
-/// <param name="argument"> can be either number, or "r", or the file </param>
-/// <returns></returns>
-void isingUI::ui::set_J(int mode, std::string argument){
-	using namespace isingUI;
-	std::vector<double> tempJ;
-	std::ifstream file;
-	switch (mode)
-	{
-	case 0:
-	// is choosen from file
-		file.open(argument);
-		if (!file.is_open()){
-			out << "Can't open file " + argument + ".\nSetting J to default.\n";
-			std::fill(tempJ.begin(), tempJ.end(), 1);
-		}
-		else{
-			// we will read the system size first
-			// then the line shoud be separated by spaces
-			std::string line;
-			// get L
-			if(getline(file,line) && isNumber(line)){
-				this->L = stoi(line);
-			}
-			else{
-				out << "Don't understand the file: " + argument +  ". Setting J to default\n";
-				this->set_J(2,"1");
-				break;
-			}
-			// get J
-			if(getline(file,line)){
-				// split string to each element
-				std::vector<string> Jstring = split_str(line," ");
-				for(auto element: Jstring){
-					this->J = std::vector<double>();
-					// pushback element if it can be pushed
-					if(isNumber(element)) this->J.push_back(stod(element));
-				}
-			}
-			correct_J_size(mode);
-		}
-		break;
-	case 1:
-	// is choosen to be random
-		tempJ = create_random_vec_std(this->L);
-		break;
-	// is choosen to be constant
-	case 2:
-		std::fill(tempJ.begin(), tempJ.end(), std::stod(argument));
-		break;
-	default:
-		std::fill(tempJ.begin(), tempJ.end(), 1);
-		break;
-	}
-	this->J = tempJ;
+/// <param name="vec">vector of strings from cmd</param>
+/// <param name="option">the option that we seek</param>
+/// <returns>value for given option if exists, if not an empty string</returns>
+std::string user_interface::getCmdOption(const v_1d<std::string>& vec, std::string option) const
+{
+    if (auto itr = std::find(vec.begin(), vec.end(), option); itr != vec.end() && ++itr != vec.end())
+        return *itr;
+    return std::string();
 }
 /// <summary>
-/// Corrects J size according to the length of the Ising chain isingUI::L
+/// 
 /// </summary>
-/// <param name="mode"> Can be "constant" 1, "random" 2, "file" 0</param>
-void isingUI::ui::correct_J_size(int mode){
-	if(this->J.size() == 0){
-		std::fill(this->J.begin(),this->J.end(),1.0);			// if is empty set to default value according to isingUI::L
-	}
-	else{
-		std::uniform_real_distribution<double> uni_dist(-1.0,1.0);
-		while(this->J.size() < this->L){
-		// while L is bigger we add elements
-			double temp_value = 1;
-			if(mode == 1)
-				temp_value = uni_dist(gen);
-			else
-				temp_value = this->J[0];
-		}
-		while(this->J.size() > this->L && this->J.size() > 0)
-		// while smaller we popback
-			this->J.pop_back();
-	}
+/// <typeparam name="T"></typeparam>
+/// <param name="value"></param>
+/// <param name="argv"></param>
+/// <param name="choosen_option"></param>
+/// <param name="geq_0"></param>
+template<typename T>
+inline void user_interface::set_option(T& value, const v_1d<std::string>& argv, std::string choosen_option, bool geq_0)
+{
+	if(std::string option = this->getCmdOption(argv,choosen_option); option != "")			
+		value = static_cast<T>(stod(option));												// set value to an option
+	if(geq_0 && value < 0)																	// if the variable shall be bigger equal 0
+		this->set_default_msg(value,choosen_option.substr(1),\
+			choosen_option + " cannot be negative\n", isingUI::table);
 }
+/// <summary>
+/// 
+/// </summary>
+/// <typeparam name="T"></typeparam>
+/// <param name="value"></param>
+/// <param name="option"></param>
+/// <param name="message"></param>
+/// <param name="map"></param>
+template<typename T>
+void user_interface::set_default_msg(T & value, std::string option, std::string message, const std::unordered_map<std::string,std::string>& map) const
+{
+	out << message;																			// print warning
+	std::string value_str = "";																// we will set this to value
+	auto it = map.find(option);
+	if (it != map.end()) {
+			value_str = it->second;															// if in table - we take the enum 
+		}
+	value = stod(value_str);
+}
+// - - - - - - - - - - - - - - - - - - - ISING MODEL - - - - - - - - - - - - - - - - - - -  
+
+
+
 /* Connected with the parser */
 /// <summary>
 /// Setting the default parameters for the Ising model
 /// </summary>
 void isingUI::ui::set_default(){
 	using namespace isingUI;
-	saving_dir = "";
-	L = 8;
-	J = std::vector<double>(L,1.0);
-	h = 0;
-	g = 1;
-	w = 0;
-	boundary_conditions = 0;
-	m = 0;
-	p = true;
-	thread_number = 1;
+	this->saving_dir ="." + std::string(kPathSeparator) + "results" + std::string(kPathSeparator);		// directory for the result files to be saved into
+	this->L = 4;
+	
+	this->J = 1.0;
+	this->J0 = 0;
+	this->h = 0;
+	this->w = 0;
+	this->g = 1;
+	this->g0 = 0;
+	
+	this->realisations = 1;
+	this->site = 0;
+	this->mu = 5;
+
+	this->boundary_conditions = 0;
+	this->m = 0;
+	this->p = true;
+	this->thread_number = 1;
+}
+
+// ---- CONSTURCTORS 
+
+/// <summary>
+/// 
+/// </summary>
+/// <param name="argc"></param>
+/// <param name="argv"></param>
+isingUI::ui::ui(int argc, char** argv)
+{
+	auto input = change_input_to_vec_of_str(argc, argv);									// change standard input to vec of strings
+	input = std::vector<std::string>(input.begin()++, input.end());							// skip the first element which is the name of file
+	// plog::init(plog::info, "log.txt");														// initialize logger
+	if(std::string option = this->getCmdOption(input,"-f"); option != ""){
+		input = this->parseInputFile(option);												// parse input from file
+	}
+	this->parseModel(input.size(), input);													// parse input from CMD directly
 }
 /// <summary>
 /// Function that tells how does the parser work
 /// </summary>
-void isingUI::ui::exit_with_help(){
+void isingUI::ui::exit_with_help() const{
 		printf(
 		" Usage: name of executable [options] outputDirectory \n"
 		" The input can be both introduced with [options] described below or with giving the input directory(which also is the flag in the options)\n"
@@ -146,7 +140,7 @@ void isingUI::ui::exit_with_help(){
 		"	1 -- include symmetries - here the parity flag is also working\n"
 		"-p include the parity symmetry : workis only in the model with symmetries (1) (default 1 - with parity symmetry)\n"
 		"-th number of threads to be used for CPU parallelization : depends on the machine specifics, default(1)"
-		"-q quit with help\n"
+		"-h quit with help\n"
 	);
 	std::exit(1);
 }
@@ -157,142 +151,87 @@ void isingUI::ui::exit_with_help(){
 /// <param name="argv"> list of arguments </param>
 void isingUI::ui::parseModel(int argc, std::vector<std::string> argv){
 	using namespace isingUI;
-	bool reading_from_file = false;																		// if reading_from_file is set to true, the loop on argument breaks instantly, it's better to have -f at the beginning then ;)
-	std::vector<std::string> command;																	// if the file for commands is present, then it will be used
-	std::string commandFileName;																		
-	int Jtype = 0;																						// saving the type of J if L doesn't match the J size. Can be "constant" 2, "random" 1, "file" 0
-	this->saving_dir ="." + std::string(kPathSeparator) + "results" + std::string(kPathSeparator);		// directory for the result files to be saved into
-	/* SET DEFAULT VALUES */
+	// SET DEFAULT VALUES 
 	this->set_default();																				// setting default at the very beginning
-	/* STARTING ARGUMENT LOOP */
-	int i = 1;
-	for (i = 1; i < argc; i++)
-	{
-		/* BREAKERS */
-		if (argv[i][0] != '-') break;
-		if (reading_from_file) break;
-		if (++i >= argc)
-			this->exit_with_help();
-		/* PARSE COMANDS */
-		std::string argument = (string(argv[i - 1])).substr(1, string(argv[i - 1]).size() - 1);			// taking the argument to string
-		auto it = table.find(argument);																	// looking for argument iterator in map parser
-		parsers enum_arg;																				// creating an instance of the enum class for switch-case
-		if (it != table.end()) {
-			enum_arg = it->second;																		// if in table - we take the enum 
-		}
-		else {
-			enum_arg = parsers::q;
-			fprintf(stderr, "Unknown option: -%c\n", argv[i - 1][1]);									// exit if item is not in the parser
-			exit_with_help();
-		}
-		/* PARSE THE ARGUMENT */
-		switch (enum_arg)
-		{
-		default:
-			fprintf(stderr, "Unknown option: -%c\n", argv[i - 1][1]);
-			//cout << "Setting default training model parameters\n";
-			exit_with_help();
-			break;
-		case isingUI::parsers::f:
-			reading_from_file = true;
-			commandFileName = argv[i];
-			break;
-		case isingUI::parsers::J:
-			set_J(Jtype, argv[i]);
-			break;
-		case isingUI::parsers::h:
-			
-			if (isNumber(argv[i])) {
-				h = stod(argv[i]);
-			}
-			else{
-				out << "Bad input for h. Setting default\n";
-				h = 0;
-			}
-			break;
-		case isingUI::parsers::L:
-			if (isNumber(argv[i])) {
-				L = stoi(argv[i]);
-			}
-			else{
-				out << "Bad input for L. Setting default\n";
-				L=8;
-			}
-			// checking if is correct for J vector size
-			correct_J_size(Jtype);
-			break;
-		case isingUI::parsers::g:
-			
-			if (isNumber(argv[i])) {
-				g = stod(argv[i]);
-			}
-			else{
-				out << "Bad input for g. Setting default\n";
-				g = 1;
-			}
-			break;
-		case isingUI::parsers::w:
-			
-			if (isNumber(argv[i])) {
-				w = stod(argv[i]);
-			}
-			else{
-				out << "Bad input for h. Setting default\n";
-				w = 0;
-			}
-			break;
-		case isingUI::parsers::b:
-			if (isNumber(argv[i])) {
-				this->boundary_conditions = stoi(argv[i]);
-			}
-			else
-				this->boundary_conditions = 0;
-			break;
-		case isingUI::parsers::m:
-			if (isNumber(argv[i])) {
-				m = stoi(argv[i]);
-			}
-			else
-				m = 0;
-			break;
-		case isingUI::parsers::p:
-			if (isNumber(argv[i])) {
-				p = bool(stoi(argv[i]));
-			}
-			else 
-				p = true;
-			break;
-		case isingUI::parsers::th:
-			if (isNumber(argv[i])) {
-				int thread_num = stoi(argv[i]);
-				if(thread_num > 0 && thread_num <= thread::hardware_concurrency())
-					thread_number = thread_num;
-				else
-					thread_number = 1;
-			}
-			break;
-		case isingUI::parsers::q:
-			this->exit_with_help();
-			break;
+	
+	std::string choosen_option = "";																	// current choosen option
+	std::string str_model = std::string(kPathSeparator) + "disorder" + std::string(kPathSeparator);		// folder for current model
+	//---------- SIMULATION PARAMETERS	
+	// spin coupling
+	choosen_option = "-J";																	
+	this->set_option(this->J,argv,choosen_option);
+	// spin coupling disorder
+	choosen_option = "-J0";																	
+	this->set_option(this->J0,argv,choosen_option);
+	// transverse field
+	choosen_option = "-g";																	
+	this->set_option(this->g,argv,choosen_option);
+	// transverse field disorder
+	choosen_option = "-g0";																	
+	this->set_option(this->g0,argv,choosen_option);
+	// perpendicular field
+	choosen_option = "-h";																	
+	this->set_option(this->h,argv,choosen_option);
+	// perpendicular field disorder
+	choosen_option = "-w";
+	this->set_option(this->w,argv,choosen_option);
 
-		}
-	}
-	if ((!((argv[i]).size()))==0)
+	// chain length
+	choosen_option = "-L";																
+	this->set_option(this->L,argv,choosen_option);
+	// boundary condition
+	choosen_option = "-b";																
+	this->set_option(this->boundary_conditions,argv,choosen_option);
+	if(this->boundary_conditions > 2) this->set_default_msg(this->boundary_conditions,choosen_option.substr(1),\
+		"max boundary condition is 2", table);
+	// model
+	choosen_option = "-m";																
+	this->set_option(this->m,argv,choosen_option);
+	if(this->m > 1) this->set_default_msg(this->m,choosen_option.substr(1),\
+		"max model number is 1", table);
+
+
+
+	// thread number
+	choosen_option = "-th";																
+	this->set_option(this->thread_number,argv,choosen_option);
+	if (this->thread_number > std::thread::hardware_concurrency())
+		this->set_default_msg(this->thread_number ,choosen_option.substr(1),\
+			"Wrong number of threads\n", table);
+	omp_set_num_threads(this->thread_number);
+	// get help
+	choosen_option = "-h";		
+	if(std::string option = this->getCmdOption(argv,choosen_option); option != "")			
+		exit_with_help();
+
+	// make folder based on a model
+	switch (this->m)
 	{
-		saving_dir = string(argv[i]);
-		std::filesystem::create_directories(saving_dir);													// creating the directory for saving the files with results
-		saving_dir = saving_dir + std::string(kPathSeparator);
+	case 0:
+		str_model = std::string(kPathSeparator) + "disorder" + std::string(kPathSeparator);
+		break;
+	case 1:
+		str_model = std::string(kPathSeparator) + "symmetries" + std::string(kPathSeparator);
+	default:
+		str_model = std::string(kPathSeparator) + "disorder" + std::string(kPathSeparator);
+		break;
 	}
-	if(reading_from_file){
-		command = this->parseInputFile(argv[i]);															// turn file into command line - like type
-		if(command.size()==0){
-			out << "Wrong file. Setting default\n";
-			this->set_default();
-		}
-		this->parseModel(command.size(), command);
+	std::string folder = saving_dir + str_model;
+
+	if (!argv[argc-1].empty() && argc % 2 != 0){
+		// only if the last command is non-even
+		folder =  argv[argc-1] + str_model;
+		if(std::filesystem::create_directories(folder));											// creating the directory for saving the files with results
+			this->saving_dir = folder;																// if can create dir this is is
+	}
+	else{
+		if(std::filesystem::create_directories(folder));											// creating the directory for saving the files with results
+			this->saving_dir = folder;																// if can create dir this is is
 	}
 
-	cout << " - - - - - - USING OUTER THREADS : " << thread_number << "- - - - - - " << endl;				// setting the number of threads to be used with omp
+	std::cout << " - - - - - - MAKING ISING INTERFACE AND USING OUTER THREADS : " \
+		<< thread_number << " - - - - - - " << endl;				// setting the number of threads to be used with omp
+	
 	omp_set_num_threads(this->thread_number);
 	return;
 }
@@ -301,18 +240,43 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv){
 /// </summary>
 /// <param name="filename"> the name of the file that contains the command line </param>
 /// <returns></returns>
-std::vector<std::string> user_interface::parseInputFile(std::string filename){
-	std::vector<std::string> commands;
+std::vector<std::string> user_interface::parseInputFile(std::string filename) const{
+	std::vector<std::string> commands(1,"");
 	ifstream inputFile(filename);
 	std::string line = "";
-	if(!inputFile.is_open()){
-		out << "Cannot open a file " + filename + " that I could parse. Setting all parameters to default. Sorry :c \n";
-		this->set_default();
-	}
+	if(!inputFile.is_open())
+		out << "Cannot open a file " + filename + " that I could parse. All parameters are default. Sorry :c \n";
 	else{
 		if(std::getline(inputFile, line)){
-			commands = split_str(line, " ");														// saving lines to out vector if it can be done, then the parser shall treat them normally
+			commands = split_str(line, " ");									// saving lines to out vector if it can be done, then the parser shall treat them normally
 		}
 	}
 	return std::vector<std::string>(commands.begin(),commands.end()); 
+}
+
+
+// ---- SIMULATIONS
+void isingUI::ui::make_sim()
+{	
+	using namespace std::chrono;
+
+
+	auto start = std::chrono::high_resolution_clock::now();																			// simulation start
+	switch (this->m)
+	{
+	case 0:
+		this->model = std::make_unique<IsingModel_disorder>(L,J,J0,g,g0,h,w); break;															// make model with disorder
+	case 1:
+		this->model = std::make_unique<IsingModel_sym>(L, J, g, h);	break;															// make model with symmetries
+	default:
+		this->model = std::make_unique<IsingModel_disorder>(L,J,J0,g,g0,h,w); break;															// make model with disorder
+		break;
+	}
+	model->hamiltonian();
+	model->diagonalization();
+	out << "Ground stacik : " << model->get_eigenEnergy(0) << endl;
+
+	auto stop = std::chrono::high_resolution_clock::now();
+	out << " - - - - - - FINISHED CALCULATIONS IN : " << \
+		double(duration_cast<milliseconds>(duration(stop - start)).count()) / 1000.0 << " seconds - - - - - - " << endl;						// simulation end
 }
