@@ -51,7 +51,7 @@ typedef std::complex<double> cpx;
 
 // User makros
 #define im cpx(0.0,1.0)
-#define out std::cout << std::setprecision(16) << std::fixed
+#define out std::cout << std::setprecision(8) << std::fixed
 
 
 #define memory_over_performance false		// optimized by size --true-- (memory usage shortage) or performance --false--
@@ -174,10 +174,36 @@ inline std::vector<double> create_random_vec_std(u64 N) {
 template<typename T>
 std::ostream& operator<<(std::ostream& os, std::vector<T> vec) {
 	if (vec.size() != 0) {
-		std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(os, ""));
+		std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(os, ", "));
 		os << vec.back() << ' ';
 	}
 	else
 		os << "Empty container!" << endl;
 	return os;
+}
+
+template <typename T>
+inline std::vector<T> operator+(const std::vector<T>& A, const std::vector<T>& B) {
+	std::vector<T> res(A.size());
+	assert(A.size() == B.size() && "stupid cunt, wonrg size of vectors\n");
+	for (int k = 0; k < A.size(); k++)
+		res[k] = A[k] + B[k];
+	return res;
+}
+
+template <typename T>
+inline std::vector<T> operator-(const std::vector<T>& A, const std::vector<T>& B) {
+	std::vector<T> res(A.size());
+	assert(A.size() == B.size() && "stupid cunt, wonrg size of vectors\n");
+	for (int k = 0; k < A.size(); k++)
+		res[k] = A[k] - B[k];
+	return res;
+}
+
+template <typename T, typename T2>
+inline std::vector<T> operator*(const T2 B, const std::vector<T>& A) {
+	std::vector<T> res(A.size());
+	for (int k = 0; k < A.size(); k++)
+		res[k] = B * A[k];
+	return res;
 }

@@ -1,7 +1,7 @@
 #include "include/IsingModel.h"
 
 /* CONSTRUCTORS */
-IsingModel_sym::IsingModel_sym(int L, vector<double>& J, double g, double h){
+IsingModel_sym::IsingModel_sym(int L, double J, double g, double h){
     this->L = L; this->J = J; this->g = g; this->h = h;
     this->info = "_L="+std::to_string(this->L) + \
         ",g=" + to_string_prec(this->g) + \
@@ -11,7 +11,8 @@ IsingModel_sym::IsingModel_sym(int L, vector<double>& J, double g, double h){
     generate_mapping();
     this->periodicity = std::vector<int>(N);
     check_periodicity(); // generate the periodicity of the basis states
-    //print_base_spin_sector(0);
+    out << this->N << std::endl;
+    print_base_spin_sector(0);
     set_neighbors(); // generate neighbors
     hamiltonian();
 }
@@ -41,7 +42,7 @@ u64 IsingModel_sym::map(u64 index) {
 /// </summary>
 /// <param name="base_vector"> vector from EC to find representative </param>
 /// <returns> index of the representative state in the EC </returns>
-u64 IsingModel_sym::find_translation_representative(std::vector<bool>& base_vector) {
+u64 IsingModel_sym::find_translation_representative(std::vector<bool>& base_vector) const {
     u64 EC_symmetry = binary_to_int(base_vector);
     u64 current_idx = EC_symmetry;
     u64 idx = INT_MAX;
@@ -98,7 +99,7 @@ void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_t
     std::vector<bool> base_vector(L); // temporary dirac-notation base vector
     for (u64 j = start; j < stop; j++) {
         int_to_binary(j, base_vector);
-
+        if (std::accumulate(base_vector.begin(), base_vector.end(), 0) != L / 2.) continue;
         //check translation
         u64 min = find_translation_representative(base_vector);
 
@@ -229,7 +230,7 @@ void IsingModel_sym::hamiltonian() {
                 if (nearest_neighbors[j] >= 0) {
                     /* Ising-like spin correlation */
                     s_j = base_vector[nearest_neighbors[j]];
-                    H(k, k) += this->J[j] * (s_i - 0.5) * (s_j - 0.5);
+                    H(k, k) += this->J * (s_i - 0.5) * (s_j - 0.5);
                 }
             }
         }
