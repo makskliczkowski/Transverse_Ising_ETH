@@ -42,7 +42,7 @@ u64 IsingModel_sym::map(u64 index) {
 /// </summary>
 /// <param name="base_vector"> vector from EC to find representative </param>
 /// <returns> index of the representative state in the EC </returns>
-u64 IsingModel_sym::find_translation_representative(std::vector<bool>& base_vector) const {
+u64 IsingModel::find_translation_representative(std::vector<bool>& base_vector) const {
     u64 EC_symmetry = binary_to_int(base_vector);
     u64 current_idx = EC_symmetry;
     u64 idx = INT_MAX;
@@ -60,7 +60,7 @@ u64 IsingModel_sym::find_translation_representative(std::vector<bool>& base_vect
 /// <param name="base_vector"> current base vector to act with symmetries </param>
 /// <param name="min"> index of EC class representative by translation symmetry </param>
 /// <returns></returns>
-std::vector<u64> IsingModel_sym::find_SEC_representative(const std::vector<bool>& base_vector) {
+std::vector<u64> IsingModel::find_SEC_representative(const std::vector<bool>& base_vector) {
     std::vector<u64> minima;
     std::vector<bool> temp = base_vector;
 
