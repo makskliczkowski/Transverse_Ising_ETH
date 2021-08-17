@@ -13,7 +13,6 @@
 *.vcxproj
 *.vcxproj.filters
 *.png
-*.dat
 *.txt
 
 # User-specific files (MonoDevelop/Xamarin Studio)

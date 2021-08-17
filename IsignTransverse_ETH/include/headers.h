@@ -49,6 +49,13 @@ static const char* kPathSeparator =
 typedef unsigned long long u64;
 typedef std::complex<double> cpx;
 
+template<class T>
+using v_3d = std::vector<std::vector<std::vector<T>>>;				// 3d double vector
+template<class T>
+using v_2d = std::vector<std::vector<T>>;							// 2d double vector
+template<class T>
+using v_1d = std::vector<T>;										// 1d double vector
+
 // User makros
 #define im cpx(0.0,1.0)
 #define out std::cout << std::setprecision(8) << std::fixed
