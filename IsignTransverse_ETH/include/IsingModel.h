@@ -57,7 +57,7 @@ public:
 
 	/* MODEL BASED PARAMETERS */
 	int L;												// chain length
-	vector<double> J;									// spin exchange
+	double J;											// spin exchange
 	double g;											// transverse magnetic field
 	double h;											// perpendicular magnetic field
 
@@ -104,11 +104,11 @@ public:
 	// PHYSICAL QUANTITIES 
 	double ipr(int state_idx);																	// calculate the ipr coeffincient
 	double eigenlevel_statistics(u64 _min, u64 _max);											// calculate the statistics based on eigenlevels (r coefficient)
-
-
+	vec eigenlevel_statistics_with_return();
 
 	// PHYSICAL OPERATORS (model states dependent) 
 	virtual double av_sigma_x(int state_id, int site) = 0;
+	double av_sigma_z(int state_id, int site);
 	virtual double entaglement_entropy(u64 state_id, int subsystem_size) = 0;
 
 	// USING PHYSICAL QUANTITES FOR PARAMTER RANGES, ETC.
@@ -117,6 +117,9 @@ public:
 	static vec operator_av_in_eigenstates_return(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 	static double spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 };
+void probability_distribution(std::string dir, std::string name, const arma::vec& data, double _min, double _max, double step = 0.05);
+arma::vec data_fluctuations(const arma::vec& data, int mu = 10);
+arma::vec statistics_average(const arma::vec& data, int num_of_outliers = 3);
 
 /// <summary>
 /// Overlapping of two eigenstates of possibly different matrices A and B
@@ -139,7 +142,7 @@ class IsingModel_sym : public IsingModel {
 public:
 	/* Constructors */
 	IsingModel_sym() = default;
-	IsingModel_sym(int L, vector<double>& J, double g, double h);
+	IsingModel_sym(int L, double J, double g, double h);
 	// IsingModel_sym(const IsingModel_sym& A);
 	// IsingModel_sym(IsingModel_sym&& A) noexcept;
 	// ~IsingModel_sym();
@@ -151,7 +154,7 @@ private:
 
 	void check_periodicity();
 	std::vector<u64> find_SEC_representative(const std::vector<bool>& base_vector);
-	u64 find_translation_representative(std::vector<bool>& base_vector);
+	u64 find_translation_representative(std::vector<bool>& base_vector) const;
 
 	u64 map(u64 index) override;
 
@@ -177,12 +180,16 @@ public:
 /// </summary>
 class IsingModel_disorder : public IsingModel {
 private:
-	vec dh;																									// disorder in the system - deviation from a constant h value
-	double disorder_strength;																				// the distorder strength to set dh in (-disorder_strength, disorder_strength)
+	vec dh;																		// disorder in the system - deviation from a constant h value
+	double w;																	// the distorder strength to set dh in (-disorder_strength, disorder_strength)
+	vec dJ;
+	double J0;
+	vec dg;
+	double g0;
 public:
 	/* Constructors */
 	IsingModel_disorder() = default;
-	IsingModel_disorder(int L, vector<double>& J, double g, double h, double disorder_strength);
+	IsingModel_disorder(int L, double J, double J0, double g, double g0, double h, double w);
 	// IsingModel_disorder(const IsingModel_disorder& A);
 	// IsingModel_disorder(IsingModel_disorder&& A) noexcept;
 	// ~IsingModel_disorder();
@@ -207,7 +214,7 @@ public:
 };
 
 
-double quantum_fidelity(u64 _min, u64 _max, const std::unique_ptr<IsingModel>& Hamil, const vector<double>& J, double g, double h, double w = 0);
+double quantum_fidelity(u64 _min, u64 _max, const std::unique_ptr<IsingModel>& Hamil, double J, double J0, double g, double g0, double h, double w = 0);
 
 
 

@@ -1,15 +1,18 @@
 #include "include/IsingModel.h"
 
 /* CONSTRUCTORS */
-IsingModel_disorder::IsingModel_disorder(int L, vector<double>& J, double g, double h, double disorder_strength) {
+IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, double g0, double h, double w) {
     this->L = L; this->J = J; this->g = g; this->h = h;
-    this->disorder_strength = disorder_strength;
+    this->J0 = J0; this->g0 = g0;  this->w = w;
     this->N = static_cast<u64>(std::pow(2, L));
 
+    //change info
     this->info = "_L="+std::to_string(this->L) + \
-        ",g=" + to_string_prec(this->g) + \
-        ",h=" + to_string_prec(this->h) + \
-        ",w=" + to_string_prec(this->disorder_strength);
+        ",J0=" + to_string_prec(this->J0, 2) + \
+        ",g=" + to_string_prec(this->g, 2) + \
+        ",g0=" + to_string_prec(this->g0, 2) + \
+        ",h=" + to_string_prec(this->h, 2) + \
+        ",w=" + to_string_prec(this->w, 2);
     set_neighbors();
     hamiltonian();
 
@@ -96,8 +99,9 @@ void IsingModel_disorder::hamiltonian() {
         assert(false);
     }
 
-    this->dh = create_random_vec(L, this->disorder_strength);                   // creates random delta vector
-    //out << dh.t();
+    this->dh = create_random_vec(L, this->w);                               // creates random disorder vector
+    this->dJ = create_random_vec(L, this->J0);                              // creates random exchange vector
+    this->dg = create_random_vec(L, this->g0);                              // creates random transverse field vector
 
 #pragma omp parallel
     {
@@ -112,14 +116,14 @@ void IsingModel_disorder::hamiltonian() {
                 /* transverse field */
                 temp = base_vector;                                             
                 temp[j] = !base_vector[j];                                      // negates on that site
-                setHamiltonianElem(k, g, std::move(temp));
+                setHamiltonianElem(k, this->g + this->dg(j), std::move(temp));
                 /* disorder */
                 H(k, k) += (this->h + dh(j)) * s_i;                             // diagonal
 
                 if (nearest_neighbors[j] >= 0) {
                     /* Ising-like spin correlation */
                     s_j = base_vector[nearest_neighbors[j]] ? 1.0 : -1.0;
-                    H(k, k) += this->J[j] * s_i * s_j;
+                    this->H(k, k) += (this->J + this->dJ(j)) * s_i * s_j;
                 }
             }
         }
