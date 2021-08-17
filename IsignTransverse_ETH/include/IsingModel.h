@@ -90,7 +90,9 @@ public:
 	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
 	virtual void setHamiltonianElem(u64 k, double value, std::vector<bool>&& temp) = 0;
 
-	void diagonalization();																		// diagonalize the Hamiltonian
+	void diagonalization();
+	std::vector<u64> find_SEC_representative(const std::vector<bool>& base_vector);
+	u64 find_translation_representative(std::vector<bool>& base_vector) const;																// diagonalize the Hamiltonian
 
 	// VIRTUALS
 	virtual void create_X_matrix() = 0;															// create spin-flip symmetry matrix via Pauli x-matrices
@@ -153,8 +155,6 @@ private:
 	void mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, int _id);
 
 	void check_periodicity();
-	std::vector<u64> find_SEC_representative(const std::vector<bool>& base_vector);
-	u64 find_translation_representative(std::vector<bool>& base_vector) const;
 
 	u64 map(u64 index) override;
 
