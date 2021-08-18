@@ -120,6 +120,7 @@ public:
 	static double spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 };
 void probability_distribution(std::string dir, std::string name, const arma::vec& data, double _min, double _max, double step = 0.05);
+arma::vec probability_distribution_with_return(const arma::vec& data, double _min, double _max, double step = 0.05);
 arma::vec data_fluctuations(const arma::vec& data, int mu = 10);
 arma::vec statistics_average(const arma::vec& data, int num_of_outliers = 3);
 

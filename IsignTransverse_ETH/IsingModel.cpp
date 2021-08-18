@@ -87,9 +87,9 @@ void IsingModel::print_base_spin_sector(int Sz) {
             if (binary_to_int(ZT) == k) counter += z;
             if (binary_to_int(PZT) == k) counter += p * z;
             if (binary_to_int(temp) == k) counter += 1;
-            std::rotate(PT.begin(), PT.begin() + 1, PT.end());
-            std::rotate(ZT.begin(), ZT.begin() + 1, ZT.end());
-            std::rotate(PZT.begin(), PZT.begin() + 1, PZT.end());
+            //std::rotate(PT.begin(), PT.begin() + 1, PT.end());
+            //std::rotate(ZT.begin(), ZT.begin() + 1, ZT.end());
+            //std::rotate(PZT.begin(), PZT.begin() + 1, PZT.end());
             std::rotate(temp.begin(), temp.begin() + 1, temp.end());
             PT = temp;
             std::reverse(PT.begin(), PT.end());
@@ -397,8 +397,21 @@ void probability_distribution(std::string dir, std::string name, const arma::vec
         }
     }
     for (int p = 0; p < size; p++)
-        file << p * step + _min << "\t" << prob_dist(p) << std::endl;
+        file << p * step + _min << "\t" << prob_dist(p) / double(size) << std::endl;
     file.close();
+}
+
+arma::vec probability_distribution_with_return(const arma::vec& data, double _min, double _max, double step) {
+    int size = static_cast<int>((_max - _min) / step + 1);
+    arma::vec prob_dist(size, arma::fill::zeros);
+    for (int k = 1; k < data.size(); k++) {
+        if (data(k) > _min && data(k) < _max) {
+            const int bucket = static_cast<int>((data(k) + abs(_min)) / step);
+            // out << "data(k) + _min: " << data(k) + _min<< "bucket: " << bucket << std::endl;
+            prob_dist(bucket) += 1;
+        }
+    }
+    return prob_dist;
 }
 
 /// <summary>
