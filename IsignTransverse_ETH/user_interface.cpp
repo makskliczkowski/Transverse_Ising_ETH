@@ -39,7 +39,7 @@ std::string user_interface::getCmdOption(const v_1d<std::string>& vec, std::stri
 /// <param name="choosen_option"></param>
 /// <param name="geq_0"></param>
 template<typename T>
-inline void user_interface::set_option(T& value, const v_1d<std::string>& argv, std::string choosen_option, bool geq_0)
+void user_interface::set_option(T& value, const v_1d<std::string>& argv, std::string choosen_option, bool geq_0)
 {
 	if(std::string option = this->getCmdOption(argv,choosen_option); option != "")			
 		value = static_cast<T>(stod(option));												// set value to an option
@@ -56,7 +56,8 @@ inline void user_interface::set_option(T& value, const v_1d<std::string>& argv, 
 /// <param name="message"></param>
 /// <param name="map"></param>
 template<typename T>
-void user_interface::set_default_msg(T & value, std::string option, std::string message, const std::unordered_map<std::string,std::string>& map) const
+void user_interface::set_default_msg(T & value, std::string option, std::string message,\
+	const std::unordered_map<std::string,std::string>& map) const
 {
 	out << message;																			// print warning
 	std::string value_str = "";																// we will set this to value
@@ -76,17 +77,17 @@ void user_interface::set_default_msg(T & value, std::string option, std::string 
 /// </summary>
 void isingUI::ui::set_default(){
 	using namespace isingUI;
-	this->saving_dir ="." + std::string(kPathSeparator) + "results" + std::string(kPathSeparator);		// directory for the result files to be saved into
+	this->saving_dir = "." + std::string(kPathSeparator) + "results" + std::string(kPathSeparator);		// directory for the result files to be saved into
 	this->L = 4;
 	
 	this->J = 1.0;
-	this->J0 = 0;
-	this->h = 0;
-	this->w = 0;
-	this->g = 1;
+	this->J0 = 0.2;
+	this->h = 0.0;
+	this->w = 1.0;
+	this->g = 1.0;
 	this->g0 = 0;
 	
-	this->realisations = 1;
+	this->realisations = 100;
 	this->site = 0;
 	this->mu = 5;
 
@@ -200,7 +201,7 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv){
 			"Wrong number of threads\n", table);
 	omp_set_num_threads(this->thread_number);
 	// get help
-	choosen_option = "-h";		
+	choosen_option = "-help";		
 	if(std::string option = this->getCmdOption(argv,choosen_option); option != "")			
 		exit_with_help();
 
@@ -216,16 +217,28 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv){
 		str_model = std::string(kPathSeparator) + "disorder" + std::string(kPathSeparator);
 		break;
 	}
-	std::string folder = saving_dir + str_model;
+	// make boundary condition folder
+	switch (this->boundary_conditions)
+	{
+	case 0:
+		str_model += "PBC" + std::string(kPathSeparator);
+		break;
+	case 1:
+		str_model += "OBC" + std::string(kPathSeparator);
+	default:
+		str_model += "PBC" + std::string(kPathSeparator);
+		break;
+	}
 
+	std::string folder = saving_dir + str_model;
 	if (!argv[argc-1].empty() && argc % 2 != 0){
 		// only if the last command is non-even
 		folder =  argv[argc-1] + str_model;
-		if(std::filesystem::create_directories(folder));											// creating the directory for saving the files with results
+		if(fs::create_directories(folder))											// creating the directory for saving the files with results
 			this->saving_dir = folder;																// if can create dir this is is
 	}
 	else{
-		if(std::filesystem::create_directories(folder));											// creating the directory for saving the files with results
+		if(fs::create_directories(folder))											// creating the directory for saving the files with results
 			this->saving_dir = folder;																// if can create dir this is is
 	}
 
@@ -259,22 +272,116 @@ std::vector<std::string> user_interface::parseInputFile(std::string filename) co
 void isingUI::ui::make_sim()
 {	
 	using namespace std::chrono;
-
-
-	auto start = std::chrono::high_resolution_clock::now();																			// simulation start
-	switch (this->m)
+	auto start = std::chrono::high_resolution_clock::now();
+	
+	// simulation start
+	/*switch (this->m)
 	{
 	case 0:
-		this->model = std::make_unique<IsingModel_disorder>(L,J,J0,g,g0,h,w); break;															// make model with disorder
+		this->model = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);; break;							// make model with disorder
 	case 1:
-		this->model = std::make_unique<IsingModel_sym>(L, J, g, h);	break;															// make model with symmetries
+		this->model = std::make_unique<IsingModel_sym>(L, J, g, h);	break;											// make model with symmetries
 	default:
-		this->model = std::make_unique<IsingModel_disorder>(L,J,J0,g,g0,h,w); break;															// make model with disorder
+		this->model = std::make_unique<IsingModel_disorder>(L,J,J0,g,g0,h,w); break;								// make model with disorder
 		break;
 	}
-	model->hamiltonian();
-	model->diagonalization();
-	out << "Ground stacik : " << model->get_eigenEnergy(0) << endl;
+	*/
+	std::ofstream file(this->saving_dir + "SpectrumRapScaling_J0=" + to_string_prec(J0, 2) + \
+		",g=" + to_string_prec(g, 2) + \
+		",g0=" + to_string_prec(g0, 2) + \
+		",h=" + to_string_prec(h, 2) + \
+		",w=" + to_string_prec(w, 2) + ".dat");
+
+	// realisations = 100;
+	/*std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
+	std::ofstream file(this->saving_dir + "ProbDistGap" + Hamil->get_info() + ".dat");
+	Hamil->diagonalization();
+	arma::vec prob_dist = probability_distribution_with_return(Hamil->eigenlevel_statistics_with_return(), 0, 1, 0.03);
+	for (int k = 0; k < realisations - 1; k++) {
+		Hamil->hamiltonian();
+		Hamil->diagonalization();
+		prob_dist += probability_distribution_with_return(Hamil->eigenlevel_statistics_with_return(), 0, 1, 0.03);
+		out << k << endl;
+	}
+	prob_dist /= double(realisations * prob_dist.size());
+	for(int p = 0; p < prob_dist.size(); p++)
+		file << p * 0.03 << "\t" << prob_dist(p) << std::endl;
+
+	file.close();
+	for (L = 6; L < 14; L++) {
+		std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
+		//std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_sym>(L, J, g, h);
+		double ipr = 0;
+		u64 N = Hamil->get_hilbert_size();
+		mu = 0.25 * N;
+		for (int r = 0; r < realisations; r++) {
+			Hamil->hamiltonian();
+			Hamil->diagonalization();
+			for (int k = N / 2. - mu; k < N / 2. + mu; k++) {
+				ipr += Hamil->ipr(k);
+			}
+		}
+		file << L << "\t" << ipr / double(realisations * 2 * mu) / double(N) << std::endl;
+	}
+	file.close();*/
+	
+	for (L = 8; L <= 14; L++) {
+		realisations =	1600 - 100 * (L);
+		std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
+
+		out << "\n\n\n --> starting loop for : " << Hamil->get_info() << " <--\n";
+		const u64 N = Hamil->get_hilbert_size();																							// get the Hilbert space size
+		Hamil->hamiltonian();
+		Hamil->diagonalization();
+		
+		std::ofstream file_eigenstat(this->saving_dir + "ProbDistGap" + Hamil->get_info() + ".dat");										// open file for that
+		arma::vec prob_dist_eigenstat = probability_distribution_with_return(Hamil->eigenlevel_statistics_with_return(), 0, 1, 0.03);		// begin to gain the size of the probability distribution
+
+		arma::vec data = Hamil->operator_av_in_eigenstates_return(&IsingModel::av_sigma_x,*Hamil, site);									// initialize Sx_nn
+		arma::vec prob_dist_data = probability_distribution_with_return(data, -2, 2, 0.01);
+
+
+		vec E(N);
+		for (int r = 0; r < realisations; r++) {
+			Hamil->hamiltonian();
+			Hamil->diagonalization();
+			prob_dist_eigenstat += probability_distribution_with_return(Hamil->eigenlevel_statistics_with_return(), 0, 1, 0.03);
+
+			prob_dist_data += probability_distribution_with_return(Hamil->operator_av_in_eigenstates_return(&IsingModel::av_sigma_x, *Hamil, site), -2, 2, 0.01);
+
+			if(r % 5 == 0) out << " \t--> " << r << " - in time : " << \
+				double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" <<  std::endl;
+		}
+
+		out << "--> finished averaging over realizations for : " << Hamil->get_info() << " <--\n";
+
+		prob_dist_data /= double((realisations + 1) * prob_dist_data.size());
+
+		prob_dist_eigenstat /= double((realisations + 1) * prob_dist_eigenstat.size());														// average eigenlevel statistics probability on realizations
+		for(int p = 0; p < prob_dist_eigenstat.size(); p++)
+			file_eigenstat << p * 0.03 << "\t" << prob_dist_eigenstat(p) << std::endl;														// save distribution to a file
+		file_eigenstat.close();
+		// ---
+		out << "--> finished writing the eigenstate statistics for : " << Hamil->get_info() << " <--\n";
+
+		E = Hamil->get_eigenvalues();																										// take the eigenenergies for the x - axis
+
+		arma::vec fluct = data_fluctuations(data, mu);																						// take out the fluctuations
+		std::string name = "ProbDistSpectrumRap" + Hamil->get_info();																		// save distribution of fluctuations to a file
+		probability_distribution(this->saving_dir, name, data, -0.1, 0.1, 0.001);															
+		out << "--> finished writing the fluctuation distribution for : " << Hamil->get_info() << " <--\n";
+		// ---
+		name = this->saving_dir + "sigma_x" + Hamil->get_info() + ".dat";																	// make file for average sigma _x
+		std::ofstream file2(name);
+		for (int k = 0; k < data.size(); k++) {
+			file2 << E(k) / double(L) << "\t" << data(k) << std::endl;																		// save it
+		}
+		file2.close();																														
+		out << "--> finished writing the sigma _x  average for : " << Hamil->get_info() << " <--\n";
+		file << N << "\t" << statistics_average(data, 10).t();																				// save the L scaling
+	}
+	file.close();
+
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	out << " - - - - - - FINISHED CALCULATIONS IN : " << \

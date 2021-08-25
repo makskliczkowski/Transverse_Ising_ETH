@@ -14,8 +14,10 @@
 #define ARMA_64BIT_WORD // enabling 64 integers in armadillo obbjects
 #define ARMA_BLAS_LONG_LONG // using long long inside LAPACK call
 #define ARMA_USE_OPENMP
+#define ARMA_ALLOW_FAKE_GCC
 //-------
 #include <armadillo>
+#include <iterator>
 //#include <mkl.h>
 #include <cassert> // assert terminates program
 #include <omp.h>
@@ -24,19 +26,18 @@
 #include <utility> // auto, etc. 
 #include <memory> // smart ptr
 #include <thread>
-#include <execution>
 #include<queue>
 #include<mutex>
 #include<condition_variable>
 #include<functional>
-#include<future>    
+#include<future>   
 #include <bitset> // binary data type
 #include "random.h"
 #include <filesystem>
 
 using namespace std;
 using namespace arma;
-
+namespace fs = std::filesystem;
 
 //------------Definitions----
 static const char* kPathSeparator =

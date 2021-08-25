@@ -1,7 +1,7 @@
 #pragma once
 #ifndef UI
 #define UI
-#include "headers.h"
+//#include "headers.h"
 #include "IsingModel.h"
 
 std::vector<std::string> change_input_to_vec_of_str(int argc, char** argv);
@@ -51,20 +51,19 @@ namespace isingUI
 	std::unordered_map <std::string, std::string> const table{
 		{"f",""},						// file to read from directory
 		{"J","1.0"},					// spin coupling
-		{"J0","0.0"},					// spin coupling randomness maximum (-J0 to J0)
+		{"J0","0.2"},					// spin coupling randomness maximum (-J0 to J0)
 		{"h","0.0"},					// perpendicular magnetic field constant
-		{"w","0.0"},					// disorder strength
-		{"g","0.0"},					// transverse magnetic field constant
+		{"w","1.0"},					// disorder strength
+		{"g","1.0"},					// transverse magnetic field constant
 		{"g0","0.0"},					// transverse field randomness maximum (-g0 to g0)
 		{"L","4"},						// chain length
 		{"b","0"},						// boundary condition
 		{"m","0"},						// choose model
-		{"r","1"},						// realisations
-		{"mu","5"},						// small bucket for the operator fluctuations to be averaged onto
+		{"r","100"},					// realisations
+		{"mu","8"},						// small bucket for the operator fluctuations to be averaged onto
 		{"s","0"},						// site for operator averages
 		{"p","0"},						// use parity symmetry?
 		{"th","1"},						// number of threads
-		{"h","0"}						// quit with help
 	};
 
 	class ui: public user_interface{
@@ -91,7 +90,7 @@ namespace isingUI
 		void parseModel(int argc, std::vector<std::string> argv) override;				// the function to parse the command line
 
 	// SIMULATION
-		void make_sim();																// make default simulation
+		void make_sim() override;														// make default simulation
 
 	};
 }
