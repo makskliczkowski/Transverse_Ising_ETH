@@ -1,20 +1,25 @@
 #include "include/IsingModel.h"
 
 /* CONSTRUCTORS */
-IsingModel_sym::IsingModel_sym(int L, double J, double g, double h){
+IsingModel_sym::IsingModel_sym(int L, double J, double g, double h, int k_sym, bool p_sym, bool x_sym){
     this->L = L; this->J = J; this->g = g; this->h = h;
     this->info = "_L="+std::to_string(this->L) + \
         ",g=" + to_string_prec(this->g) + \
         ",h=" + to_string_prec(this->h);
+     
+    
+    symmetries.k_sym = k_sym * two_pi / double(L);
+    symmetries.p_sym = (p_sym) ? 1 : -1;
+    symmetries.x_sym = (x_sym) ? 1 : -1;
 
     this->mapping = std::vector<u64>();
     generate_mapping();
+    //std::exit(1);
     this->periodicity = std::vector<int>(N);
-    check_periodicity(); // generate the periodicity of the basis states
-    out << this->N << std::endl;
-    print_base_spin_sector(0);
-    set_neighbors(); // generate neighbors
-    hamiltonian();
+    //check_periodicity(); // generate the periodicity of the basis states
+    //print_base_spin_sector(0);
+    //set_neighbors(); // generate neighbors
+    //hamiltonian();
 }
 /*
 IsingModel_sym::IsingModel_sym(const IsingModel_sym& A) {
@@ -42,7 +47,7 @@ u64 IsingModel_sym::map(u64 index) {
 /// </summary>
 /// <param name="base_vector"> vector from EC to find representative </param>
 /// <returns> index of the representative state in the EC </returns>
-u64 IsingModel::find_translation_representative(std::vector<bool>& base_vector) const {
+u64 IsingModel_sym::find_translation_representative(std::vector<bool>& base_vector) const {
     u64 EC_symmetry = binary_to_int(base_vector);
     u64 current_idx = EC_symmetry;
     u64 idx = INT_MAX;
@@ -60,14 +65,14 @@ u64 IsingModel::find_translation_representative(std::vector<bool>& base_vector) 
 /// <param name="base_vector"> current base vector to act with symmetries </param>
 /// <param name="min"> index of EC class representative by translation symmetry </param>
 /// <returns></returns>
-std::vector<u64> IsingModel::find_SEC_representative(const std::vector<bool>& base_vector) {
+std::vector<u64> IsingModel_sym::find_SEC_representative(const std::vector<bool>& base_vector) {
     std::vector<u64> minima;
     std::vector<bool> temp = base_vector;
 
     //check reflection symmetry
     std::reverse(temp.begin(), temp.end());
-    //minima.push_back(find_translation_representative(temp));
-    minima.push_back(INT_MAX);
+    minima.push_back(find_translation_representative(temp));
+    //minima.push_back(INT_MAX);
     if (h == 0) {
         temp = base_vector;
         
@@ -83,6 +88,30 @@ std::vector<u64> IsingModel::find_SEC_representative(const std::vector<bool>& ba
     return minima;
 }
 
+
+cpx IsingModel_sym::get_symmetry_normalization(std::vector<bool>& base_vector, u64 k) {
+    cpx normalisation = (0, 0);
+    std::vector<bool> PT = base_vector;
+    std::reverse(PT.begin(), PT.end());
+    std::vector<bool> ZT = base_vector;
+    ZT.flip();
+    std::vector<bool> PZT = ZT;
+    std::reverse(PZT.begin(), PZT.end());
+    for (int l = 0; l < L; l++) {
+        if (binary_to_int(base_vector) == k) 
+            normalisation += std::exp(-1i * symmetries.k_sym * double(l));
+        if (abs(symmetries.k_sym) < 1e-8 || abs(symmetries.k_sym - pi) < 1e-8) {
+            if (binary_to_int(PT) == k)  normalisation += cpx((double)symmetries.p_sym, 0.0);
+            if (binary_to_int(ZT) == k)  normalisation += cpx((double)symmetries.x_sym, 0.0);
+            if (binary_to_int(PZT) == k) normalisation += cpx((double)symmetries.p_sym * (double)symmetries.x_sym, 0.0);
+        }
+        std::rotate(base_vector.begin(), base_vector.begin() + 1, base_vector.end());
+        std::rotate(PT.begin(), PT.begin() + 1, PT.end());
+        std::rotate(ZT.begin(), ZT.begin() + 1, ZT.end());
+        std::rotate(PZT.begin(), PZT.begin() + 1, PZT.end());
+    }
+    return std::sqrt(normalisation);
+}
 /// <summary>
 /// Generates the mapping to the reduced Hilbert space (reduced by symmetries: translation, spin-flip and reflection symmetry
 /// adding Sz=0 (total spin) symmetry is straightforward, however, the transverse field breaks the SU(2) symmetry;
@@ -99,19 +128,24 @@ void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_t
     std::vector<bool> base_vector(L); // temporary dirac-notation base vector
     for (u64 j = start; j < stop; j++) {
         int_to_binary(j, base_vector);
-        if (std::accumulate(base_vector.begin(), base_vector.end(), 0) != L / 2.) continue;
+        if (g == 0 && std::accumulate(base_vector.begin(), base_vector.end(), 0) != L / 2.) continue;
         //check translation
         u64 min = find_translation_representative(base_vector);
 
         u64 min_R_RX = INT_MAX;
         if (min == j) {
-            auto minima = find_SEC_representative(base_vector );
+            auto minima = find_SEC_representative(base_vector);
             min_R_RX = *std::min_element(minima.begin(), minima.end());
-            if (min_R_RX < j) continue;
         }
-
-        if (std::min(min, min_R_RX) == j)
-            map_threaded.push_back(j);
+        if (min_R_RX < j) continue;
+        
+        if (std::min(min, min_R_RX) == j) {
+            cpx N = get_symmetry_normalization(base_vector, j);             // normalisation condition -- check wether state in basis
+            if (std::abs(N) > 1e-2) {
+                //out << base_vector << "\t\t" << N << endl;
+                map_threaded.push_back(j);
+            }
+        }
     }
 }
 /// <summary>
@@ -138,11 +172,11 @@ void IsingModel_sym::generate_mapping() {
 
         for (auto& t : map_threaded)
             mapping.insert(mapping.end(), std::make_move_iterator(t.begin()), std::make_move_iterator(t.end()));
-        mapping.shrink_to_fit();
+        //mapping.shrink_to_fit();
         sort(mapping.begin(), mapping.end());
     }
     this->N = this->mapping.size();
-    assert(mapping.size() > 0 && "Not possible number of electrons - no. of states < 1");
+    //assert(mapping.size() > 0 && "Not possible number of electrons - no. of states < 1");
 }
 
 /// <summary>

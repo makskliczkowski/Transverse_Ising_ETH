@@ -62,15 +62,16 @@ using v_1d = std::vector<T>;										// 1d double vector
 #define out std::cout << std::setprecision(8) << std::fixed
 
 
-#define memory_over_performance false		// optimized by size --true-- (memory usage shortage) or performance --false--
-#define num_of_threads 16					// number of threads
+#define memory_over_performance false										// optimized by size --true-- (memory usage shortage) or performance --false--
+#define num_of_threads 1													// number of threads
 #define _BC 1
 
-constexpr double pi = 3.141596653;			// it is me, pi
+constexpr long double pi = 3.141592653589793238462643383279502884L;			// it is me, pi
+constexpr long double two_pi = 2 * 3.141592653589793238462643383279502884L;	// it is me, 2pi
 
-extern double T;							// temperature for Sq calculations
-extern double dT;							// temperature increment
-extern double T_end;						// temperature range (dT, T_end)
+extern double T;															// temperature for Sq calculations
+extern double dT;															// temperature increment
+extern double T_end;														// temperature range (dT, T_end)
 
 //static random_num* rn; // random number class instance
 extern std::random_device rd;
@@ -157,8 +158,12 @@ inline u64 binary_to_int(const vector<bool>& vec) {
 inline vec create_random_vec(u64 N, double h = 1.0) {
 	vec random_vec(N, fill::zeros);
 	std::uniform_real_distribution<double> distribute(-h, h);
-	for (u64 j = 0; j < N; j++) {
-		random_vec(j) = distribute(gen);
+	// create random vector from middle to always append new disorder at lattice endpoint
+	for (u64 j = 0; j <= N / 2.; j++) {
+		u64 idx = N / 2. - j;
+		random_vec(idx) = distribute(gen);
+		idx += 2 * j;
+		if (idx < N) random_vec(idx) = distribute(gen);
 	}
 	return random_vec;
 }
@@ -182,7 +187,7 @@ inline std::vector<double> create_random_vec_std(u64 N) {
 template<typename T>
 std::ostream& operator<<(std::ostream& os, std::vector<T> vec) {
 	if (vec.size() != 0) {
-		std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(os, ", "));
+		std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(os, ""));
 		os << vec.back() << ' ';
 	}
 	else
