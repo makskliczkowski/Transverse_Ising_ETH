@@ -83,10 +83,10 @@ void IsingModel::print_base_spin_sector(int Sz) {
             check_sectors(binary_to_int(PT)) += p;
             check_sectors(binary_to_int(ZT)) += z;
             check_sectors(binary_to_int(PZT)) += p * z;
-            if (binary_to_int(PT) == k) counter += p;
-            if (binary_to_int(ZT) == k) counter += z;
-            if (binary_to_int(PZT) == k) counter += p * z;
-            if (binary_to_int(temp) == k) counter += 1;
+            if (binary_to_int(temp) == map(k)) counter += 1;
+            if (binary_to_int(PT) == map(k)) counter += p;
+            if (binary_to_int(ZT) == map(k)) counter += z;
+            if (binary_to_int(PZT) == map(k)) counter += p * z;
             //std::rotate(PT.begin(), PT.begin() + 1, PT.end());
             //std::rotate(ZT.begin(), ZT.begin() + 1, ZT.end());
             //std::rotate(PZT.begin(), PZT.begin() + 1, PZT.end());
@@ -100,6 +100,8 @@ void IsingModel::print_base_spin_sector(int Sz) {
         }
         //out << temp << "\t" << v.t() << endl;
         summm += (counter != 0);
+        //if (counter != 0)
+            //out << counter << "\t\t" << temp << std::endl;
         //out << " ---> is_zero? ----> " << jj << std::endl;
     }
     //out << check_sectors.t();

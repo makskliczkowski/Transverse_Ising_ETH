@@ -53,7 +53,7 @@ protected:
 
 public:
 	enum class operators { H, X, P, T };				// implemented operators to be given to a function
-	enum class symmetries { T, P, X };					// implemented symmetries
+	enum class symmetry_operators { T, P, X };			// implemented symmetries
 
 	/* MODEL BASED PARAMETERS */
 	int L;												// chain length
@@ -90,9 +90,7 @@ public:
 	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
 	virtual void setHamiltonianElem(u64 k, double value, std::vector<bool>&& temp) = 0;
 
-	void diagonalization();
-	std::vector<u64> find_SEC_representative(const std::vector<bool>& base_vector);
-	u64 find_translation_representative(std::vector<bool>& base_vector) const;																// diagonalize the Hamiltonian
+	void diagonalization();																		// diagonalize the Hamiltonian
 
 	// VIRTUALS
 	virtual void create_X_matrix() = 0;															// create spin-flip symmetry matrix via Pauli x-matrices
@@ -145,20 +143,30 @@ class IsingModel_sym : public IsingModel {
 public:
 	/* Constructors */
 	IsingModel_sym() = default;
-	IsingModel_sym(int L, double J, double g, double h);
+	IsingModel_sym(int L, double J, double g, double h, int k_sym = 0, bool p_sym = 1, bool x_sym = 1);
 	// IsingModel_sym(const IsingModel_sym& A);
 	// IsingModel_sym(IsingModel_sym&& A) noexcept;
 	// ~IsingModel_sym();
 
 	/* METHODS */
 private:
-	void generate_mapping();
+	/* REDUCED BASIS AS SYMMETRY SECTOR */
+	struct {
+		double k_sym;
+		int p_sym;
+		int x_sym;
+	} symmetries;
+
+	u64 find_translation_representative(std::vector<bool>& base_vector) const;
+	std::vector<u64> find_SEC_representative(const std::vector<bool>& base_vector);
+	cpx get_symmetry_normalization(std::vector<bool>& base_vector, u64 k);
 	void mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, int _id);
+	void generate_mapping();
 
 	void check_periodicity();
 
 	u64 map(u64 index) override;
-
+	/*-------------------------------- */
 public:
 	void hamiltonian() override;
 	void setHamiltonianElem(u64 k, double value, std::vector<bool>&& temp) override;

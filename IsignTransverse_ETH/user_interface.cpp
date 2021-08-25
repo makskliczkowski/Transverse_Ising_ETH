@@ -275,6 +275,7 @@ void isingUI::ui::make_sim()
 	auto start = std::chrono::high_resolution_clock::now();
 	
 	// simulation start
+	L = 2;
 	switch (this->m)
 	{
 	case 0:
@@ -282,50 +283,77 @@ void isingUI::ui::make_sim()
 	case 1:
 		this->model = std::make_unique<IsingModel_sym>(L, J, g, h);	break;											// make model with symmetries
 	default:
-		this->model = std::make_unique<IsingModel_disorder>(L,J,J0,g,g0,h,w); break;								// make model with disorder
+		this->model = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w); break;								// make model with disorder
 		break;
 	}
+	for (L = 4; L < 28; L += 2) {
+		int k = 3;
+		std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_sym>(L, J, g, h, k, 1, 1); out << Hamil->get_hilbert_size() << " ";
+		if (k == 0 || k == this->L / 2.) {
+			Hamil = std::make_unique<IsingModel_sym>(L, J, g, h, k, 1, 0); out << Hamil->get_hilbert_size() << " ";
+			Hamil = std::make_unique<IsingModel_sym>(L, J, g, h, k, 0, 1); out << Hamil->get_hilbert_size() << " ";
+			Hamil = std::make_unique<IsingModel_sym>(L, J, g, h, k, 0, 0); out << Hamil->get_hilbert_size() << " ";
+		}
+		out << std::endl;
+	}
+	/*double _min = -2.0;
+	double _max = 2.0;
+	double step = 0.01;
+	realisations = 50;
+	for (this->L = 6; this->L <= 13; this->L += 1) {
+		realisations = 800 - 100 * (L - 6);
+		for (this->w = 0.0; this->w < 10.0; this->w += 0.1) {
+			gen = std::mt19937_64(seed);
 
-	//std::ofstream file(this->saving_dir + "SpectrumRapScaling_J0=" + to_string_prec(J0, 2) + \
+			std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
+			std::ofstream file(this->saving_dir + "sigma_x/ProbDistSigmaX," + Hamil->get_info() + ".dat");
+			Hamil->diagonalization();
+			arma::vec prob_dist = probability_distribution_with_return(Hamil->operator_av_in_eigenstates_return(&IsingModel::av_sigma_x, *Hamil, this->site), _min, _max, step);
+			
+			for (int k = 0; k < realisations - 1; k++) {
+				Hamil->hamiltonian();
+				Hamil->diagonalization();
+				prob_dist += probability_distribution_with_return(Hamil->operator_av_in_eigenstates_return(&IsingModel::av_sigma_x, *Hamil, this->site), _min, _max, step);
+				//out << k << endl;
+			}
+
+			prob_dist /= double(realisations * prob_dist.size());
+			for (int p = 0; p < prob_dist.size(); p++)
+				file << p * step + _min << "\t" << prob_dist(p) << std::endl;
+
+			file.close();
+		}
+	}*/
+	/*std::ofstream file(this->saving_dir + "ipr_scaling_J0=" + to_string_prec(J0, 2) + \
 		",g=" + to_string_prec(g, 2) + \
 		",g0=" + to_string_prec(g0, 2) + \
 		",h=" + to_string_prec(h, 2) + \
 		",w=" + to_string_prec(w, 2) + ".dat");
-
-	realisations = 100;
-	std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
-	std::ofstream file(this->saving_dir + "ProbDistGap" + Hamil->get_info() + ".dat");
-	Hamil->diagonalization();
-	arma::vec prob_dist = probability_distribution_with_return(Hamil->eigenlevel_statistics_with_return(), 0, 1, 0.03);
-	for (int k = 0; k < realisations - 1; k++) {
-		Hamil->hamiltonian();
-		Hamil->diagonalization();
-		prob_dist += probability_distribution_with_return(Hamil->eigenlevel_statistics_with_return(), 0, 1, 0.03);
-		out << k << endl;
-	}
-	prob_dist /= double(realisations * prob_dist.size());
-	for(int p = 0; p < prob_dist.size(); p++)
-		file << p * 0.03 << "\t" << prob_dist(p) << std::endl;
-
-	file.close();
-	/*for (L = 6; L < 14; L++) {
+	for (L = 6; L < 14; L++) {
 		std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
 		//std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_sym>(L, J, g, h);
 		double ipr = 0;
 		u64 N = Hamil->get_hilbert_size();
-		mu = 0.25 * N;
+		mu = 0.1 * N;
 		for (int r = 0; r < realisations; r++) {
 			Hamil->hamiltonian();
 			Hamil->diagonalization();
-			for (int k = N / 2. - mu; k < N / 2. + mu; k++) {
+			for (int k = N / 3. - mu; k < N / 3. + mu; k++) {
 				ipr += Hamil->ipr(k);
 			}
 		}
+		out << L << std::endl << std::endl;
 		file << L << "\t" << ipr / double(realisations * 2 * mu) / double(N) << std::endl;
 	}
 	file.close();*/
-	/*for (L = 6; L <= 14; L++) {
+	/*
+	std::ofstream file(this->saving_dir + "SpectrumRapScaling_L=14_J0=" + to_string_prec(J0, 2) + \
+		",g=" + to_string_prec(g, 2) + \
+		",g0=" + to_string_prec(g0, 2) + \
+		",h=" + to_string_prec(h, 2) + \
+		",w=" + to_string_prec(w, 2) + ".dat");for (L = 14; L <= 14; L++) {
 		realisations = 900 - 100 * (L - 6);
+		out << "Doing L =" << L << " with R = " << realisations << " realisations" << std::endl;
 		std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
 		u64 N = Hamil->get_hilbert_size();
 		arma::vec data(N, arma::fill::zeros);
@@ -334,6 +362,7 @@ void isingUI::ui::make_sim()
 			Hamil->hamiltonian();
 			Hamil->diagonalization();
 			data += Hamil->operator_av_in_eigenstates_return(&IsingModel::av_sigma_x, *Hamil, site);
+			out << r << endl;
 		}
 		data /= double(realisations);
 		E = Hamil->get_eigenvalues();
@@ -349,7 +378,7 @@ void isingUI::ui::make_sim()
 		}
 		file2.close();
 
-		file << N << "\t" << statistics_average(data, 10).t();
+		file << N << "\t" << statistics_average(data, 6).t();
 	}
 	file.close();*/
 
