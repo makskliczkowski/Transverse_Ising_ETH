@@ -228,8 +228,8 @@ double IsingModel::eigenlevel_statistics(u64 _min, u64 _max) {
     //double delta_n_next = 0;
 #pragma omp parallel for reduction(+: r)
     for (int k = _min; k < _max; k++) {
-        const double delta_n = eigenvalues(k) - eigenvalues(k-1);
-        const double delta_n_next = eigenvalues(k+1) - eigenvalues(k);
+        const double delta_n = eigenvalues(k) - eigenvalues(k - 1);
+        const double delta_n_next = eigenvalues(k + 1) - eigenvalues(k);
         const double min = std::min(delta_n, delta_n_next);
         const double max = std::max(delta_n, delta_n_next);
         if (max == 0) throw "Degeneracy!!!\n";

@@ -298,7 +298,7 @@ void isingUI::ui::make_sim()
 		",g0=" + to_string_prec(this->g0, 2) + \
 		",h=" + to_string_prec(this->h, 2) + \
 		",w=" + to_string_prec(this->w, 2) + ".dat", std::ofstream::app);
-	for (L = 6; L <= 8; L += 1) {
+	for (L = 8; L <= 13; L += 1) {
 		realisations = 800 - L * 50;
 
 		std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
@@ -322,11 +322,11 @@ void isingUI::ui::make_sim()
 		scaling_r_sigmaX << N << stat_aver.t() << endl;
 		// outliers and scaling
 
-		probability_distribution(this->saving_dir, Hamil->get_info(), r_sigma_x, -0.5, 0.5, 0.001);
+		probability_distribution(this->saving_dir, "rSigmaXDist" + Hamil->get_info(), r_sigma_x, -0.5, 0.5, 0.01);
 		out << "--> finished writing the probability distribution for r_sigma _x repuslion and outliers for : " << Hamil->get_info() << " <--\n";
 
-		double ipr = 0, entropy = 0;
-		int mu = (L < 9) ? 20 : 100;
+		double ipr = 0, entropy = 0, r = 0;
+		int mu = 100;
 		for (int k = 0; k < realisations; k++) {
 			Hamil->hamiltonian();
 			Hamil->diagonalization();
@@ -334,19 +334,20 @@ void isingUI::ui::make_sim()
 			for (int f = Hamil->E_av_idx - mu / 2.; f < Hamil->E_av_idx + mu / 2.; f++) {
 				ipr += Hamil->ipr(f);
 				entropy += Hamil->information_entropy(f);
+				r += Hamil->eigenlevel_statistics(f, f + 1);
 			}
 			if (k % 5 == 0) out << " \t--> " << k << " - in time : " << \
 				double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 		}
 		out << "--> finished averaging over realizations for : " << Hamil->get_info() << " <--\n\n\t\n\b";
 		double norm = realisations * mu;
-		scaling_ipr << L << "\t\t" << N << "\t\t" << ipr / norm << "\t\t" << entropy / norm << endl;
+		scaling_ipr << L << "\t\t" << N << "\t\t" << ipr / norm / (double)N << "\t\t" << entropy / norm << "\t\t" << r / norm << endl;
 	}
 	scaling_r_sigmaX.close();
 	scaling_ipr.close();
 
 	out << "\n--> starting loop over disorders <--\n";
-	L = 8;
+	L = 12;
 	scaling_ipr.open(this->saving_dir + "iprDisorder" +\
 		"_L=" + std::to_string(this->L) + \
 		",J0=" + to_string_prec(this->J0, 2) + \
@@ -354,7 +355,7 @@ void isingUI::ui::make_sim()
 		",g0=" + to_string_prec(this->g0, 2) + \
 		",h=" + to_string_prec(this->h, 2) + \
 		".dat", std::ofstream::app);
-	for (double w = 0.0; w <= 4.0; w += 0.2) {
+	for (double w = 0.0; w <= 6.0; w += 0.1) {
 		realisations = 400;
 
 		std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
@@ -363,14 +364,15 @@ void isingUI::ui::make_sim()
 
 		vec av_sigma_x = Hamil->operator_av_in_eigenstates_return(&IsingModel::av_sigma_x, *Hamil, 0);
 		vec fluct = data_fluctuations(av_sigma_x);
-		double _min = -0.5, _max = 0.5, step = 1e-3;
+		double _min = -0.5, _max = 0.5, step = 2e-3;
 		out << "--> finished writing the sigma _x fluctuations for w = " << w << " <--\n";
 		
 
 		arma::vec prob_dist = probability_distribution_with_return(fluct, _min, _max, step);
-		arma::vec prob_dist_GOE = probability_distribution_with_return(Hamil->eigenlevel_statistics_with_return(), 0, 1, step);
+		arma::vec prob_dist_GOE = probability_distribution_with_return(Hamil->eigenlevel_statistics_with_return(), 0, 1, 2 * step);
 		double ipr = 0, entropy = 0;
 		int mu = 100;
+		double r = 0;
 		for (int k = 0; k < realisations - 1; k++) {
 			Hamil->hamiltonian();
 			Hamil->diagonalization();
@@ -378,14 +380,15 @@ void isingUI::ui::make_sim()
 			fluct = data_fluctuations(av_sigma_x);
 
 			prob_dist += probability_distribution_with_return(fluct, _min, _max, step);
-			prob_dist_GOE += probability_distribution_with_return(Hamil->eigenlevel_statistics_with_return(), 0, 1, step);
+			prob_dist_GOE += probability_distribution_with_return(Hamil->eigenlevel_statistics_with_return(), 0, 1, 2 * step);
 
 			// average in middle spectrum
 			for (int f = Hamil->E_av_idx - mu / 2.; f < Hamil->E_av_idx + mu / 2.; f++) {
 				ipr += Hamil->ipr(f);
 				entropy += Hamil->information_entropy(f);
+				r += Hamil->eigenlevel_statistics(f, f + 1);
 			}
-			if (k % 5 == 0) out << " \t--> " << k << " - in time : " << \
+			//if (k % 5 == 0) out << " \t--> " << k << " - in time : " << \
 				double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 		}
 		out << "--> finished loop over realisations for w = " << w << " <--\n";
@@ -396,11 +399,13 @@ void isingUI::ui::make_sim()
 
 		std::ofstream ProbDistGap(this->saving_dir + "ProbDistGap" + Hamil->get_info() + ".dat");
 		for (int f = 0; f < prob_dist_GOE.size(); f++)
-			ProbDistGap << f * step << "\t\t" << prob_dist_GOE(f) / double(realisations) << endl;
+			ProbDistGap << f * 2 * step << "\t\t" << prob_dist_GOE(f) / double(realisations) << endl;
 		ProbDistGap.close();
 
 		double norm = realisations * mu;
-		scaling_ipr << w << "\t\t" << ipr / norm << "\t\t" << entropy / norm << endl;
+		scaling_ipr << w << "\t\t" << ipr / norm / (double)N << "\t\t" << entropy / norm << "\t\t" << r / norm << endl;
+		out << " \t--> w = " << w << " - in time : " << \
+			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 	}
 	scaling_ipr.close();
 
