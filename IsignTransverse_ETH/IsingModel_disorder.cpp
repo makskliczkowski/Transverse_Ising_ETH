@@ -15,11 +15,6 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
         ",w=" + to_string_prec(this->w, 2);
     set_neighbors();
     hamiltonian();
-
-    /* SYMMETRY MATRICES */
-    this->X = sp_mat(N, N);
-    this->P = sp_mat(N, N);
-    this->T = sp_mat(N, N);
 }
 /*
 IsingModel_disorder::IsingModel_disorder(const IsingModel_disorder& A) {
@@ -59,21 +54,6 @@ void IsingModel_disorder::generate_mapping() {
 
 
 //-------------------------------------------------------------------------------------------------------------------------------
-/* SYMMETRY FUNCTIONS */
-
-void IsingModel_disorder::create_X_matrix() {
-    for (u64 k = 0; k < N; k++) {
-        std::vector<bool> base_vector(L);
-        int_to_binary(k, base_vector);
-        base_vector.flip();
-        u64 idx = binary_to_int(base_vector);
-        X(idx, k) = 1;
-    }
-}
-
-
-
-//-------------------------------------------------------------------------------------------------------------------------------
 // BUILDING HAMILTONIAN 
 /// <summary>
 /// Sets the non-diagonal elements of the Hamimltonian matrix, by acting with the operator on the k-th state
@@ -92,7 +72,7 @@ void IsingModel_disorder::setHamiltonianElem(u64 k, double value, std::vector<bo
 /// </summary>
 void IsingModel_disorder::hamiltonian() {
     try {
-        this->H = mat(N, N, fill::zeros);                                   //  hamiltonian
+        this->H = cx_mat(N, N, fill::zeros);                                //  hamiltonian
     }
     catch (const bad_alloc& e) {
         std::cout << "Memory exceeded" << e.what() << "\n";
@@ -140,7 +120,7 @@ void IsingModel_disorder::hamiltonian() {
 /// <param name="site"> position of the spin, where the operator is acted upon </param>
 /// <returns> return the average in the eigenstate </returns>
 double IsingModel_disorder::av_sigma_x(int state_id, int site) {
-    const vec state = eigenvectors.col(state_id); 
+    const vec state = real(eigenvectors.col(state_id));
 
     double value = 0;
 #pragma omp parallel
@@ -164,7 +144,7 @@ double IsingModel_disorder::av_sigma_x(int state_id, int site) {
 /// <returns> correlation matrix </returns>
 mat IsingModel_disorder::correlation_matrix(u64 state_id) {
     mat corr_mat(L, L, fill::zeros);
-    const vec state = this->eigenvectors.col(state_id);
+    const cx_vec state = this->eigenvectors.col(state_id);
 #pragma omp parallel shared(state, corr_mat)
     {
         u64 idx;
@@ -179,13 +159,13 @@ mat IsingModel_disorder::correlation_matrix(u64 state_id) {
                 if (vect[m] == 1) Szm = 0.5;
                 else Szm = -0.5;
 
-                S2_tmp = Szm * Szm * state(p) * state(p) + 0.5 * state(p) * state(p); //  <Sz(m) Sz(m)> + 2*( <S(m)^+ S(m)^-> + <S(m)^- S(m)^+> ) on-site
+                S2_tmp = real((Szm * Szm + 0.5) * conj(state(p)) * state(p)); //  <Sz(m) Sz(m)> + 2*( <S(m)^+ S(m)^-> + <S(m)^- S(m)^+> ) on-site
                 corr_mat(m, m) += S2_tmp;
                 for (int k = m + 1; k < L; k++) {
                     double Szk = 0;
                     if (vect[k] == 1) Szk = 0.5;
                     else Szk = -0.5;
-                    S2_tmp = Szm * Szk * (state(p) * state(p)); //  <Sz(m) Sz(k)> for k > m
+                    S2_tmp = Szm * Szk * real(conj(state(p)) * state(p)); //  <Sz(m) Sz(k)> for k > m
 
                     // <S^+ S^->
                     temp = vect;
@@ -193,14 +173,14 @@ mat IsingModel_disorder::correlation_matrix(u64 state_id) {
                         temp[m] = 0;
                         temp[k] = 1;
                         idx = binary_to_int(temp);
-                        S2_tmp += 0.5 * state(idx) * state(p);
+                        S2_tmp += 0.5 * real(conj(state(idx)) * state(p));
                     }
                     //<S^- S^+>
                     else if (vect[m] == 0 && vect[k] == 1) {
                         temp[m] = 1;
                         temp[k] = 0;
                         idx = binary_to_int(temp);
-                        S2_tmp += 0.5 * state(idx) * state(p);
+                        S2_tmp += 0.5 * real(conj(state(idx)) * state(p));
                     }
                     corr_mat(m, k) += S2_tmp;
                     corr_mat(k, m) += S2_tmp;
@@ -220,17 +200,17 @@ mat IsingModel_disorder::correlation_matrix(u64 state_id) {
 /// <returns> entropy of considered systsem </returns>
 double IsingModel_disorder::entaglement_entropy(u64 state_id, int A_size) {
     std::vector<bool> base_vector(L);
-    const vec state = this->eigenvectors.col(state_id);
+    const cx_vec state = this->eigenvectors.col(state_id);
     u64 dimA = std::pow(2, A_size);
     u64 dimB = std::pow(2, L - A_size);
-    mat rho(dimA, dimA, fill::zeros);
+    cx_mat rho(dimA, dimA, fill::zeros);
 #pragma omp parallel for shared(rho,state, dimA, dimB)
     for (long int n = 0; n < N; n++) {
         if(abs(state(n)) < 1e-10) continue;
         u64 counter = 0;
         for (u64 m = n % dimB; m < N; m += dimB) {
             u64 idx = std::floor(1.0*n / dimB);
-            rho(idx, counter) += state(n) * state(m);
+            rho(idx, counter) += conj(state(n)) * state(m);
             counter++;
         }
     }

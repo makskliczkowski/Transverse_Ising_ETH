@@ -124,12 +124,10 @@ void isingUI::ui::exit_with_help() const{
 		" options:\n"
 		"-f input file for all of the options : (default none)\n"
 		"-J spin exchange coefficient : (default 1)\n"
-		"	directory -- (mode 0) -- from file : set coefficients for different lattice sites seperately\n"
-		"		-> file should be prepared giving the system size L in the first line and in the second line the J vector separated by spaces\n"
-		"	(is numeric) -- (mode 2) -- constant value\n"
-		"	r -- (mode 1) -- random value\n"
-		"-h perpendicular (z-) magnetic field constant: (default 0)\n"
+		"-J0 random spin exchange set in uniform distribution [-J0,J0]\n"
 		"-g transverse magnetic field (x-) constant: (default 1)\n"
+		"-g0 random transverse field set in uniform distribution [-g0,g0]\n"	
+		"-h perpendicular (z-) magnetic field constant: (default 0)\n"	
 		"-w disorder strength : (default 0 - no disorder introduced)\n"
 		"-L chain length : bigger than 0 (default 8)\n"
 		"-b boundary conditions : bigger than 0 (default 0 - PBC)\n"
@@ -200,6 +198,7 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv){
 		this->set_default_msg(this->thread_number ,choosen_option.substr(1),\
 			"Wrong number of threads\n", table);
 	omp_set_num_threads(this->thread_number);
+	num_of_threads = this->thread_number;
 	// get help
 	choosen_option = "-help";		
 	if(std::string option = this->getCmdOption(argv,choosen_option); option != "")			
@@ -276,32 +275,134 @@ void isingUI::ui::make_sim()
 	
 	// simulation start
 	/*switch (this->m)
-=======
-	L = 2;
-	switch (this->m)
->>>>>>> symmetries
 	{
 	case 0:
 		this->model = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);; break;							// make model with disorder
 	case 1:
 		this->model = std::make_unique<IsingModel_sym>(L, J, g, h);	break;											// make model with symmetries
 	default:
-<<<<<<< HEAD
 		this->model = std::make_unique<IsingModel_disorder>(L,J,J0,g,g0,h,w); break;								// make model with disorder
 		break;
 	}
 	*/
-	std::ofstream file(this->saving_dir + "SpectrumRapScaling_J0=" + to_string_prec(J0, 2));
-	for (L = 4; L < 28; L += 2) {
-		int k = 3;
-		std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_sym>(L, J, g, h, k, 1, 1); out << Hamil->get_hilbert_size() << " ";
-		if (k == 0 || k == this->L / 2.) {
-			Hamil = std::make_unique<IsingModel_sym>(L, J, g, h, k, 1, 0); out << Hamil->get_hilbert_size() << " ";
-			Hamil = std::make_unique<IsingModel_sym>(L, J, g, h, k, 0, 1); out << Hamil->get_hilbert_size() << " ";
-			Hamil = std::make_unique<IsingModel_sym>(L, J, g, h, k, 0, 0); out << Hamil->get_hilbert_size() << " ";
+	std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
+	std::ofstream scaling_r_sigmaX(this->saving_dir + "SpectrumRapScalingSigmaX" +\
+		",J0=" + to_string_prec(this->J0, 2) + \
+		",g=" + to_string_prec(this->g, 2) + \
+		",g0=" + to_string_prec(this->g0, 2) + \
+		",h=" + to_string_prec(this->h, 2) + \
+		",w=" + to_string_prec(this->w, 2) + ".dat", std::ofstream::app);
+	std::ofstream scaling_ipr(this->saving_dir + "iprScaling" + \
+		",J0=" + to_string_prec(this->J0, 2) + \
+		",g=" + to_string_prec(this->g, 2) + \
+		",g0=" + to_string_prec(this->g0, 2) + \
+		",h=" + to_string_prec(this->h, 2) + \
+		",w=" + to_string_prec(this->w, 2) + ".dat", std::ofstream::app);
+	for (L = 6; L <= 8; L += 1) {
+		realisations = 800 - L * 50;
+
+		std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
+		const u64 N = Hamil->get_hilbert_size();
+		Hamil->diagonalization();
+
+		vec av_sigma_x = Hamil->operator_av_in_eigenstates_return(&IsingModel::av_sigma_x, *Hamil, 0);
+		std::ofstream average_sigma_x(this->saving_dir + "SigmaX" + Hamil->get_info() + ".dat");
+		for (int k = 0; k < N; k++)
+			average_sigma_x << Hamil->get_eigenEnergy(k) / double(L) << "\t\t" << av_sigma_x(k) << endl;
+		average_sigma_x.close();
+		out << "--> finished writing the sigma _x  average for : " << Hamil->get_info() << " <--\n";
+
+		vec r_sigma_x(N - 1);
+#pragma omp parallel for
+		for (int k = 0; k < N - 1; k++)
+			r_sigma_x(k) = av_sigma_x(k + 1) - av_sigma_x(k);
+		// spectrum repulsion for < sigma_0^x >
+		
+		vec stat_aver = statistics_average(r_sigma_x, 10);
+		scaling_r_sigmaX << N << stat_aver.t() << endl;
+		// outliers and scaling
+
+		probability_distribution(this->saving_dir, Hamil->get_info(), r_sigma_x, -0.5, 0.5, 0.001);
+		out << "--> finished writing the probability distribution for r_sigma _x repuslion and outliers for : " << Hamil->get_info() << " <--\n";
+
+		double ipr = 0, entropy = 0;
+		int mu = (L < 9) ? 20 : 100;
+		for (int k = 0; k < realisations; k++) {
+			Hamil->hamiltonian();
+			Hamil->diagonalization();
+			// average in middle spectrum
+			for (int f = Hamil->E_av_idx - mu / 2.; f < Hamil->E_av_idx + mu / 2.; f++) {
+				ipr += Hamil->ipr(f);
+				entropy += Hamil->information_entropy(f);
+			}
+			if (k % 5 == 0) out << " \t--> " << k << " - in time : " << \
+				double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 		}
-		out << std::endl;
+		out << "--> finished averaging over realizations for : " << Hamil->get_info() << " <--\n\n\t\n\b";
+		double norm = realisations * mu;
+		scaling_ipr << L << "\t\t" << N << "\t\t" << ipr / norm << "\t\t" << entropy / norm << endl;
 	}
+	scaling_r_sigmaX.close();
+	scaling_ipr.close();
+
+	out << "\n--> starting loop over disorders <--\n";
+	L = 8;
+	scaling_ipr.open(this->saving_dir + "iprDisorder" +\
+		"_L=" + std::to_string(this->L) + \
+		",J0=" + to_string_prec(this->J0, 2) + \
+		",g=" + to_string_prec(this->g, 2) + \
+		",g0=" + to_string_prec(this->g0, 2) + \
+		",h=" + to_string_prec(this->h, 2) + \
+		".dat", std::ofstream::app);
+	for (double w = 0.0; w <= 4.0; w += 0.2) {
+		realisations = 400;
+
+		std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
+		const u64 N = Hamil->get_hilbert_size();
+		Hamil->diagonalization();
+
+		vec av_sigma_x = Hamil->operator_av_in_eigenstates_return(&IsingModel::av_sigma_x, *Hamil, 0);
+		vec fluct = data_fluctuations(av_sigma_x);
+		double _min = -0.5, _max = 0.5, step = 1e-3;
+		out << "--> finished writing the sigma _x fluctuations for w = " << w << " <--\n";
+		
+
+		arma::vec prob_dist = probability_distribution_with_return(fluct, _min, _max, step);
+		arma::vec prob_dist_GOE = probability_distribution_with_return(Hamil->eigenlevel_statistics_with_return(), 0, 1, step);
+		double ipr = 0, entropy = 0;
+		int mu = 100;
+		for (int k = 0; k < realisations - 1; k++) {
+			Hamil->hamiltonian();
+			Hamil->diagonalization();
+			av_sigma_x = Hamil->operator_av_in_eigenstates_return(&IsingModel::av_sigma_x, *Hamil, 0);
+			fluct = data_fluctuations(av_sigma_x);
+
+			prob_dist += probability_distribution_with_return(fluct, _min, _max, step);
+			prob_dist_GOE += probability_distribution_with_return(Hamil->eigenlevel_statistics_with_return(), 0, 1, step);
+
+			// average in middle spectrum
+			for (int f = Hamil->E_av_idx - mu / 2.; f < Hamil->E_av_idx + mu / 2.; f++) {
+				ipr += Hamil->ipr(f);
+				entropy += Hamil->information_entropy(f);
+			}
+			if (k % 5 == 0) out << " \t--> " << k << " - in time : " << \
+				double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
+		}
+		out << "--> finished loop over realisations for w = " << w << " <--\n";
+		std::ofstream ProbDistSigmaX(this->saving_dir + "ProbDistSigmaX" + Hamil->get_info() + ".dat");
+		for (int f = 0; f < prob_dist.size(); f++)
+			ProbDistSigmaX << _min + f * step << "\t\t" << prob_dist(f) / double(realisations) << endl;
+		ProbDistSigmaX.close();
+
+		std::ofstream ProbDistGap(this->saving_dir + "ProbDistGap" + Hamil->get_info() + ".dat");
+		for (int f = 0; f < prob_dist_GOE.size(); f++)
+			ProbDistGap << f * step << "\t\t" << prob_dist_GOE(f) / double(realisations) << endl;
+		ProbDistGap.close();
+
+		double norm = realisations * mu;
+		scaling_ipr << w << "\t\t" << ipr / norm << "\t\t" << entropy / norm << endl;
+	}
+	scaling_ipr.close();
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	out << " - - - - - - FINISHED CALCULATIONS IN : " << \

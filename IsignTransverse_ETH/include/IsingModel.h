@@ -34,27 +34,22 @@
 class IsingModel {
 protected:
 	std::string info;									// information about the model
-	mat H;												// the Hamiltonian
+
+	Mat<cpx> H;											// the Hamiltonian
+	Mat<cpx> eigenvectors;								// matrix of the eigenvectors in increasing order
 	vec eigenvalues;									// eigenvalues vector
-	mat eigenvectors;									// matrix of the eigenvectors in increasing order
+
 	u64 N;												// the Hilbert space size
 	std::vector<int> nearest_neighbors;					// vector of nearest neighbors dependend on BC
 	std::mutex my_mute_button;							// thread mutex
 
 	std::vector<u64> mapping;							// mapping for the reduced Hilbert space
-	std::vector<int> periodicity;						// used for normalization in the symmetry case
+	std::vector<cpx> normalisation;						// used for normalization in the symmetry case
 
 	virtual u64 map(u64 index) = 0;						// function returning either the mapping(symmetries) or the input index (no-symmetry: 1to1 correspondance)
 
-	/* SYMMETRY MATRICES */
-	sp_mat X;											// sparse construction of Sigma_x Pauli matrix
-	sp_mat P;											// sparse construction of parity matrix
-	sp_mat T;											// sparse construction of translation matrix
-
-public:
-	enum class operators { H, X, P, T };				// implemented operators to be given to a function
-	enum class symmetry_operators { T, P, X };			// implemented symmetries
-
+public:	
+	u64 E_av_idx;										// average energy
 	/* MODEL BASED PARAMETERS */
 	int L;												// chain length
 	double J;											// spin exchange
@@ -72,13 +67,13 @@ public:
 	// GETTERS & SETTERS
 	std::string get_info() const;																// get the information about the model params
 	u64 get_hilbert_size() const;																// get the Hilbert space size 2^N
-	const mat& get_hamiltonian() const;															// get the const reference to a Hamiltonian
+	const cx_mat& get_hamiltonian() const;															// get the const reference to a Hamiltonian
 	const vec& get_eigenvalues() const;															// get the const reference to eigenvalues
-	const mat& get_eigenvectors() const;														// get the const reference to the eigenvectors
+	const cx_mat& get_eigenvectors() const;														// get the const reference to the eigenvectors
 	const std::vector<u64>& get_mapping() const;												// constant reference to the mapping
 
 	double get_eigenEnergy(int idx) const;														// get eigenenergy at a given idx
-	const vec& get_eigenState(int idx) const;													// get an eigenstate at a given idx
+	const cx_vec& get_eigenState(int idx) const;													// get an eigenstate at a given idx
 
 	// PRINTERS
 	void print_base_spin_sector(int Sz = 0);													// print basis state with a given total spin (for clarity purposes)
@@ -93,16 +88,12 @@ public:
 	void diagonalization();																		// diagonalize the Hamiltonian
 
 	// VIRTUALS
-	virtual void create_X_matrix() = 0;															// create spin-flip symmetry matrix via Pauli x-matrices
 	virtual mat correlation_matrix(u64 state_id) = 0;											// create the spin correlation matrix at a given state
 	static double total_spin(const mat& corr_mat);												// the diagonal part of a spin correlation matrix
 
-	// COMMUTATION
-	sp_mat choose_operator(IsingModel::operators A);
-	bool commutator(IsingModel::operators A, IsingModel::operators B);
-
 	// PHYSICAL QUANTITIES 
 	double ipr(int state_idx);																	// calculate the ipr coeffincient
+	double information_entropy(const u64 _id);
 	double eigenlevel_statistics(u64 _min, u64 _max);											// calculate the statistics based on eigenlevels (r coefficient)
 	vec eigenlevel_statistics_with_return();
 
@@ -117,6 +108,7 @@ public:
 	static vec operator_av_in_eigenstates_return(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 	static double spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 };
+
 void probability_distribution(std::string dir, std::string name, const arma::vec& data, double _min, double _max, double step = 0.05);
 arma::vec probability_distribution_with_return(const arma::vec& data, double _min, double _max, double step = 0.05);
 arma::vec data_fluctuations(const arma::vec& data, int mu = 10);
@@ -144,9 +136,6 @@ public:
 	/* Constructors */
 	IsingModel_sym() = default;
 	IsingModel_sym(int L, double J, double g, double h, int k_sym = 0, bool p_sym = 1, bool x_sym = 1);
-	// IsingModel_sym(const IsingModel_sym& A);
-	// IsingModel_sym(IsingModel_sym&& A) noexcept;
-	// ~IsingModel_sym();
 
 	/* METHODS */
 private:
@@ -157,13 +146,12 @@ private:
 		int x_sym;
 	} symmetries;
 
-	u64 find_translation_representative(std::vector<bool>& base_vector) const;
-	std::vector<u64> find_SEC_representative(const std::vector<bool>& base_vector);
+	std::tuple<u64, int> find_translation_representative(std::vector<bool>& base_vector) const;
+	std::tuple<u64, int> find_SEC_representative(const std::vector<bool>& base_vector);
 	cpx get_symmetry_normalization(std::vector<bool>& base_vector, u64 k);
-	void mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, int _id);
+	void mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id);
 	void generate_mapping();
 
-	void check_periodicity();
 
 	u64 map(u64 index) override;
 	/*-------------------------------- */
@@ -171,7 +159,6 @@ public:
 	void hamiltonian() override;
 	void setHamiltonianElem(u64 k, double value, std::vector<bool>&& temp) override;
 
-	void create_X_matrix() override {};
 	double entaglement_entropy(u64 state_id, int subsystem_size) override {
 		return 0;
 	};
@@ -189,6 +176,7 @@ public:
 /// </summary>
 class IsingModel_disorder : public IsingModel {
 private:
+
 	vec dh;																		// disorder in the system - deviation from a constant h value
 	double w;																	// the distorder strength to set dh in (-disorder_strength, disorder_strength)
 	vec dJ;
@@ -199,9 +187,6 @@ public:
 	/* Constructors */
 	IsingModel_disorder() = default;
 	IsingModel_disorder(int L, double J, double J0, double g, double g0, double h, double w);
-	// IsingModel_disorder(const IsingModel_disorder& A);
-	// IsingModel_disorder(IsingModel_disorder&& A) noexcept;
-	// ~IsingModel_disorder();
 
 private:
 	void generate_mapping();
@@ -213,7 +198,6 @@ public:
 	void setHamiltonianElem(u64 k, double value, std::vector<bool>&& temp) override;
 
 	// MATRICES
-	void create_X_matrix() override;
 	double av_sigma_x(int state_id, int site) override;
 
 	mat correlation_matrix(u64 state_id) override;
