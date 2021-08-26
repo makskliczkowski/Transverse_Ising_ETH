@@ -63,7 +63,7 @@ using v_1d = std::vector<T>;										// 1d double vector
 
 
 #define memory_over_performance false										// optimized by size --true-- (memory usage shortage) or performance --false--
-#define num_of_threads 1													// number of threads
+extern int num_of_threads;													// number of threads
 #define _BC 1
 
 constexpr long double pi = 3.141592653589793238462643383279502884L;			// it is me, pi
@@ -109,6 +109,8 @@ std::string to_string_prec(const T a_value, const int n = 3){
 /// <returns></returns>
 template<typename T>
 inline u64 binary_search(vector<T>& arr, u64 l_point, u64 r_point, T element) {
+	if (l_point < 0) assert(false && "What?");
+	if (r_point >= arr.size()) assert(false && "Ah...");
 	if (r_point >= l_point) {
 		u64 middle = l_point + (r_point - l_point) / 2;
 		if (arr[middle] == element) return middle;
@@ -187,7 +189,7 @@ inline std::vector<double> create_random_vec_std(u64 N) {
 template<typename T>
 std::ostream& operator<<(std::ostream& os, std::vector<T> vec) {
 	if (vec.size() != 0) {
-		std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(os, ""));
+		std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(os, " "));
 		os << vec.back() << ' ';
 	}
 	else
