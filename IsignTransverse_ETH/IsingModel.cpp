@@ -129,7 +129,7 @@ void IsingModel::print_state(u64 _id) {
 /// </summary>
 void IsingModel::set_neighbors() {
     this->nearest_neighbors = std::vector<int>(L);
-    switch (_BC) {
+    switch (this->_BC) {
     case 0:
     // periodic boundary conditions
         std::iota(nearest_neighbors.begin(), nearest_neighbors.end(), 1);

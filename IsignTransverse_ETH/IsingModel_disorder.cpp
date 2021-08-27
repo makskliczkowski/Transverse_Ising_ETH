@@ -1,10 +1,11 @@
 #include "include/IsingModel.h"
 
 /* CONSTRUCTORS */
-IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, double g0, double h, double w) {
+IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, double g0, double h, double w, int _BC) {
     this->L = L; this->J = J; this->g = g; this->h = h;
     this->J0 = J0; this->g0 = g0;  this->w = w;
     this->N = static_cast<u64>(std::pow(2, L));
+    this->_BC = _BC;
 
     //change info
     this->info = "_L="+std::to_string(this->L) + \
@@ -61,7 +62,7 @@ void IsingModel_disorder::generate_mapping() {
 /// <param name="k"> index of the basis state acted upon with the Hamiltonian </param>
 /// <param name="value"> value of the given matrix element to be set </param>
 /// <param name="temp"> resulting vector form acting with the Hamiltonian operator on the k-th basis state </param>
-void IsingModel_disorder::setHamiltonianElem(u64 k, double value, std::vector<bool>&& temp) {
+void IsingModel_disorder::setHamiltonianElem(u64 k, double value, std::vector<bool>& temp) {
     u64 idx = binary_to_int(temp);
     H(idx, k) += value;
     //H(k, idx) += value;
@@ -83,28 +84,24 @@ void IsingModel_disorder::hamiltonian() {
     this->dJ = create_random_vec(L, this->J0);                              // creates random exchange vector
     this->dg = create_random_vec(L, this->g0);                              // creates random transverse field vector
 
-#pragma omp parallel
-    {
     std::vector<bool> base_vector(L);
-    std::vector<bool> temp(base_vector);                                        // changes under H action
-#pragma omp for 
-        for (long int k = 0; k < N; k++) {
-            int_to_binary(k, base_vector);                                      // check state number
-            double s_i, s_j;
-            for (int j = 0; j <= L - 1; j++) {
-                s_i = base_vector[j] ? 1.0 : -1.0;                              // true - spin up, false - spin down
-                /* transverse field */
-                temp = base_vector;                                             
-                temp[j] = !base_vector[j];                                      // negates on that site
-                setHamiltonianElem(k, this->g + this->dg(j), std::move(temp));
-                /* disorder */
-                H(k, k) += (this->h + dh(j)) * s_i;                             // diagonal
+    std::vector<bool> temp(base_vector);                                    // changes under H action
+    for (long int k = 0; k < N; k++) {
+        int_to_binary(k, base_vector);                                      // check state number
+        double s_i, s_j;
+        for (int j = 0; j <= L - 1; j++) {
+            s_i = base_vector[j] ? 1.0 : -1.0;                              // true - spin up, false - spin down
+            /* transverse field */
+            temp = base_vector;                                             
+            temp[j] = !base_vector[j];                                      // negates on that site
+            setHamiltonianElem(k, this->g + this->dg(j), temp);
+            /* disorder */
+            H(k, k) += (this->h + dh(j)) * s_i;                             // diagonal
 
-                if (nearest_neighbors[j] >= 0) {
-                    /* Ising-like spin correlation */
-                    s_j = base_vector[nearest_neighbors[j]] ? 1.0 : -1.0;
-                    this->H(k, k) += (this->J + this->dJ(j)) * s_i * s_j;
-                }
+            if (nearest_neighbors[j] >= 0) {
+                /* Ising-like spin correlation */
+                s_j = base_vector[nearest_neighbors[j]] ? 1.0 : -1.0;
+                this->H(k, k) += (this->J + this->dJ(j)) * s_i * s_j;
             }
         }
     }

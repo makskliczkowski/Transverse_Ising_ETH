@@ -1,12 +1,12 @@
 #include "include/IsingModel.h"
 
 /* CONSTRUCTORS */
-IsingModel_sym::IsingModel_sym(int L, double J, double g, double h, int k_sym, bool p_sym, bool x_sym){
+IsingModel_sym::IsingModel_sym(int L, double J, double g, double h, int k_sym, bool p_sym, bool x_sym, int _BC){
     this->L = L; this->J = J; this->g = g; this->h = h;
     this->info = "_L="+std::to_string(this->L) + \
         ",g=" + to_string_prec(this->g) + \
         ",h=" + to_string_prec(this->h);
-     
+    this->_BC = _BC;
     
     symmetries.k_sym = k_sym * two_pi / double(this->L);
     symmetries.p_sym = (p_sym) ? 1.0 : -1.0;
@@ -98,7 +98,7 @@ std::tuple<u64, int> IsingModel_sym::find_SEC_representative(const std::vector<b
 /// <param name="k"></param>
 /// <returns></returns>
 cpx IsingModel_sym::get_symmetry_normalization(std::vector<bool>& base_vector, u64 k) {
-    cpx normalisation = 0.0;
+    cpx normalisation = (0.0, 0.0);
     std::vector<bool> PT = base_vector;
     std::reverse(PT.begin(), PT.end());
     std::vector<bool> ZT = base_vector;
@@ -110,16 +110,18 @@ cpx IsingModel_sym::get_symmetry_normalization(std::vector<bool>& base_vector, u
             normalisation += std::exp(-1i * symmetries.k_sym * double(l));
         if (abs(symmetries.k_sym) < 1e-8 || abs(symmetries.k_sym - pi) < 1e-8) {
             if (binary_to_int(PT) == k)  normalisation += (double)symmetries.p_sym;
-            if (binary_to_int(ZT) == k)  normalisation += (double)symmetries.x_sym;
-            if (binary_to_int(PZT) == k) normalisation += (double)symmetries.p_sym * symmetries.x_sym;
+            if (h == 0) {
+                if (binary_to_int(ZT) == k)  normalisation += (double)symmetries.x_sym;
+                if (binary_to_int(PZT) == k) normalisation += (double)symmetries.p_sym * symmetries.x_sym;
 
+                std::rotate(ZT.begin(), ZT.begin() + 1, ZT.end());
+                std::rotate(PZT.begin(), PZT.begin() + 1, PZT.end());
+            }
             std::rotate(PT.begin(), PT.begin() + 1, PT.end());
-            std::rotate(ZT.begin(), ZT.begin() + 1, ZT.end());
-            std::rotate(PZT.begin(), PZT.begin() + 1, PZT.end());
         }
         std::rotate(base_vector.begin(), base_vector.begin() + 1, base_vector.end());
     }
-    return sqrt(normalisation);
+    return std::sqrt(normalisation);
 }
 
 /// <summary>
@@ -190,7 +192,7 @@ void IsingModel_sym::generate_mapping() {
             normalisation.insert(normalisation.end(), std::make_move_iterator(t.begin()), std::make_move_iterator(t.end()));
     }
     this->N = this->mapping.size();
-    //assert(mapping.size() > 0 && "Not possible number of electrons - no. of states < 1");
+    assert(mapping.size() > 0 && "Not possible number of electrons - no. of states < 1");
 }
 
 
@@ -201,17 +203,16 @@ void IsingModel_sym::generate_mapping() {
 /// <param name="k"> index of the basis state acted upon with the Hamiltonian </param>
 /// <param name="value"> value of the given matrix element to be set </param>
 /// <param name="temp"> resulting vector form acting with the Hamiltonian operator on the k-th basis state </param>
-void IsingModel_sym::setHamiltonianElem(u64 k, double value, std::vector<bool>&& temp) {
+void IsingModel_sym::setHamiltonianElem(u64 k, double value, std::vector<bool>& temp) {
     auto tup_T = find_translation_representative(temp);
     auto tup_S = find_SEC_representative(temp);
     auto [min, sym_eig] = (std::get<0>(tup_T) > std::get<0>(tup_S)) ? tup_S : tup_T;
     //finding index in reduced Hilbert space
 
     u64 idx = binary_search(mapping, 0, N - 1, min);
-
-    cpx value_new = value * sgn(sym_eig) * std::exp(-1i * symmetries.k_sym * (double)abs(sym_eig)) \
+    cpx value_new = value * (double)sgn(sym_eig) * std::exp(-1i * symmetries.k_sym * double(abs(sym_eig) - 1)) \
         * (normalisation[idx] / normalisation[k]);
-    H(idx, k) = value_new;
+    H(idx, k) += value_new;
 }
 /// <summary>
 /// Generates the total Hamiltonian of the system. The diagonal part is straightforward, 
@@ -225,33 +226,29 @@ void IsingModel_sym::hamiltonian() {
         std::cout << "Memory exceeded" << e.what() << "\n";
         assert(false);
     }
-#pragma omp parallel
-    {
-        std::vector<bool> base_vector(L);
-        std::vector<bool> temp(base_vector); // changes under H action
-#pragma omp for
-        for (long int k = 0; k < N; k++) {
-            int_to_binary(mapping[k], base_vector);
-            double s_i, s_j;
-            for (int j = 0; j <= L - 1; j++) {
-                s_i = base_vector[j] ? 1.0 : -1.0;                              // true - spin up, false - spin down
-                /* transverse field */
-                if (g != 0) {
-                    temp = base_vector;
-                    temp[j] = !base_vector[j];                                  // negates on that site
-                    setHamiltonianElem(k, this->g, std::move(temp));
-                }
-                /* disorder */
-                H(k, k) += this->h * s_i;                                       // diagonal
+    std::vector<bool> base_vector(L);
+    std::vector<bool> temp(base_vector); // changes under H action
+    for (long int k = 0; k < N; k++) {
+        int_to_binary(mapping[k], base_vector);
+        double s_i, s_j;
+        for (int j = 0; j <= L - 1; j++) {
+            s_i = base_vector[j] ? 1.0 : -1.0;                              // true - spin up, false - spin down
+            /* transverse field */
+            if (g != 0) {
+                temp = base_vector;
+                temp[j] = !base_vector[j];                                  // negates on that site
+                setHamiltonianElem(k, this->g, temp);
+            }
+            /* disorder */
+            H(k, k) += this->h * s_i;                                       // diagonal
 
-                if (nearest_neighbors[j] >= 0) {
-                    /* Ising-like spin correlation */
-                    s_j = base_vector[nearest_neighbors[j]] ? 1.0 : -1.0;
-                    this->H(k, k) += this->J * s_i * s_j;
-                }
+            if (nearest_neighbors[j] >= 0) {
+                /* Ising-like spin correlation */
+                s_j = base_vector[nearest_neighbors[j]] ? 1.0 : -1.0;
+                this->H(k, k) += this->J * s_i * s_j;
             }
         }
-    }
+    }                                                                                   
 }
 
 /* PHYSICAL QUANTITTIES */
@@ -279,7 +276,7 @@ double IsingModel_sym::av_sigma_x(int state_id, int site) {
         //finding index in reduced Hilbert space
         u64 idx = binary_search(mapping, 0, N - 1, std::min(min, min_sym));
 
-        value += real(0.5 * conj(state(idx)) * state(k));// *sqrt((double)periodicity[k] / (double)periodicity[idx]);
+        value += real(conj(state(idx)) * state(k));// *sqrt((double)periodicity[k] / (double)periodicity[idx]);
     }
     return value;
 }

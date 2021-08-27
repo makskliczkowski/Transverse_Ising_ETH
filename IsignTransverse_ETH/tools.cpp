@@ -1,5 +1,6 @@
 #include "include/headers.h"
 int num_of_threads = 8;
+
 std::random_device rd;
 std::mt19937::result_type seed = 87178291199L; // set constant to maintain same disorder for different sizes etc
 // rd() ^ (\

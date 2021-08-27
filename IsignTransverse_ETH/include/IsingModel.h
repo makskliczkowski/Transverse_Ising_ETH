@@ -55,6 +55,7 @@ public:
 	double J;											// spin exchange
 	double g;											// transverse magnetic field
 	double h;											// perpendicular magnetic field
+	int _BC;											// boundary condition
 
 	// CONSTRUCTOR 
 	virtual ~IsingModel() = 0;
@@ -83,7 +84,7 @@ public:
 	void set_neighbors();																		// create neighbors list according to the boundary conditions
 
 	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
-	virtual void setHamiltonianElem(u64 k, double value, std::vector<bool>&& temp) = 0;
+	virtual void setHamiltonianElem(u64 k, double value, std::vector<bool>& temp) = 0;
 
 	void diagonalization();																		// diagonalize the Hamiltonian
 
@@ -135,7 +136,7 @@ class IsingModel_sym : public IsingModel {
 public:
 	/* Constructors */
 	IsingModel_sym() = default;
-	IsingModel_sym(int L, double J, double g, double h, int k_sym = 0, bool p_sym = 1, bool x_sym = 1);
+	IsingModel_sym(int L, double J, double g, double h, int k_sym = 0, bool p_sym = 1, bool x_sym = 1, int _BC = 0);
 
 	/* METHODS */
 private:
@@ -157,7 +158,7 @@ private:
 	/*-------------------------------- */
 public:
 	void hamiltonian() override;
-	void setHamiltonianElem(u64 k, double value, std::vector<bool>&& temp) override;
+	void setHamiltonianElem(u64 k, double value, std::vector<bool>& temp) override;
 
 	double entaglement_entropy(u64 state_id, int subsystem_size) override {
 		return 0;
@@ -186,7 +187,7 @@ private:
 public:
 	/* Constructors */
 	IsingModel_disorder() = default;
-	IsingModel_disorder(int L, double J, double J0, double g, double g0, double h, double w);
+	IsingModel_disorder(int L, double J, double J0, double g, double g0, double h, double w, int _BC = 0);
 
 private:
 	void generate_mapping();
@@ -195,7 +196,7 @@ private:
 public:
 	// METHODS
 	void hamiltonian() override;
-	void setHamiltonianElem(u64 k, double value, std::vector<bool>&& temp) override;
+	void setHamiltonianElem(u64 k, double value, std::vector<bool>& temp) override;
 
 	// MATRICES
 	double av_sigma_x(int state_id, int site) override;

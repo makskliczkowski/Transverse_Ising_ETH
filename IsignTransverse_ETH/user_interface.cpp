@@ -208,12 +208,12 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv){
 	switch (this->m)
 	{
 	case 0:
-		str_model = std::string(kPathSeparator) + "disorder" + std::string(kPathSeparator);
+		str_model = "disorder" + std::string(kPathSeparator);
 		break;
 	case 1:
-		str_model = std::string(kPathSeparator) + "symmetries" + std::string(kPathSeparator);
+		str_model = "symmetries" + std::string(kPathSeparator);
 	default:
-		str_model = std::string(kPathSeparator) + "disorder" + std::string(kPathSeparator);
+		str_model = "disorder" + std::string(kPathSeparator);
 		break;
 	}
 	// make boundary condition folder
@@ -233,11 +233,11 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv){
 	if (!argv[argc-1].empty() && argc % 2 != 0){
 		// only if the last command is non-even
 		folder =  argv[argc-1] + str_model;
-		if(fs::create_directories(folder))											// creating the directory for saving the files with results
+		if(fs::create_directories(folder) || fs::is_directory(folder))						// creating the directory for saving the files with results
 			this->saving_dir = folder;																// if can create dir this is is
 	}
 	else{
-		if(fs::create_directories(folder))											// creating the directory for saving the files with results
+		if(fs::create_directories(folder) || fs::is_directory(folder))						// creating the directory for saving the files with results
 			this->saving_dir = folder;																// if can create dir this is is
 	}
 
@@ -283,9 +283,21 @@ void isingUI::ui::make_sim()
 	default:
 		this->model = std::make_unique<IsingModel_disorder>(L,J,J0,g,g0,h,w); break;								// make model with disorder
 		break;
+	}*/
+	this->model = std::make_unique<IsingModel_sym>(L, J, g, h, 0, 1, 1, boundary_conditions);
+	this->model->diagonalization();
+
+	std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w, boundary_conditions);
+	Hamil->diagonalization();
+
+	out << this->model->get_info() << endl;
+	out << Hamil->get_info() << endl;
+
+	out << "symmetries\t\tdisorder" << endl;
+	for (int k = 0; k < this->model->get_hilbert_size(); k++) {
+		out << this->model->get_eigenEnergy(k) << "\t\t" << Hamil->get_eigenEnergy(k) << endl;
 	}
-	*/
-	std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
+	/*std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
 	std::ofstream scaling_r_sigmaX(this->saving_dir + "SpectrumRapScalingSigmaX" +\
 		",J0=" + to_string_prec(this->J0, 2) + \
 		",g=" + to_string_prec(this->g, 2) + \
@@ -298,8 +310,8 @@ void isingUI::ui::make_sim()
 		",g0=" + to_string_prec(this->g0, 2) + \
 		",h=" + to_string_prec(this->h, 2) + \
 		",w=" + to_string_prec(this->w, 2) + ".dat", std::ofstream::app);
-	for (L = 8; L <= 13; L += 1) {
-		realisations = 800 - L * 50;
+	for (L = 8; L <= 14; L += 1) {
+		realisations = 1000 - L * 50;
 
 		std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
 		const u64 N = Hamil->get_hilbert_size();
@@ -319,7 +331,6 @@ void isingUI::ui::make_sim()
 		// spectrum repulsion for < sigma_0^x >
 		
 		vec stat_aver = statistics_average(r_sigma_x, 10);
-		scaling_r_sigmaX << N << stat_aver.t() << endl;
 		// outliers and scaling
 
 		probability_distribution(this->saving_dir, "rSigmaXDist" + Hamil->get_info(), r_sigma_x, -0.5, 0.5, 0.01);
@@ -330,6 +341,12 @@ void isingUI::ui::make_sim()
 		for (int k = 0; k < realisations; k++) {
 			Hamil->hamiltonian();
 			Hamil->diagonalization();
+			vec av_sigma_x = Hamil->operator_av_in_eigenstates_return(&IsingModel::av_sigma_x, *Hamil, 0);
+			vec r_sigma_x(N - 1);
+#pragma omp parallel for
+			for (int k = 0; k < N - 1; k++)
+				r_sigma_x(k) = av_sigma_x(k + 1) - av_sigma_x(k);
+			stat_aver += statistics_average(r_sigma_x, 10);
 			// average in middle spectrum
 			for (int f = Hamil->E_av_idx - mu / 2.; f < Hamil->E_av_idx + mu / 2.; f++) {
 				ipr += Hamil->ipr(f);
@@ -340,12 +357,13 @@ void isingUI::ui::make_sim()
 				double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 		}
 		out << "--> finished averaging over realizations for : " << Hamil->get_info() << " <--\n\n\t\n\b";
+		scaling_r_sigmaX << N << stat_aver.t() / double(realisations);
 		double norm = realisations * mu;
 		scaling_ipr << L << "\t\t" << N << "\t\t" << ipr / norm / (double)N << "\t\t" << entropy / norm << "\t\t" << r / norm << endl;
 	}
 	scaling_r_sigmaX.close();
 	scaling_ipr.close();
-
+	
 	out << "\n--> starting loop over disorders <--\n";
 	L = 12;
 	scaling_ipr.open(this->saving_dir + "iprDisorder" +\
@@ -407,7 +425,7 @@ void isingUI::ui::make_sim()
 		out << " \t--> w = " << w << " - in time : " << \
 			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 	}
-	scaling_ipr.close();
+	scaling_ipr.close();*/
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	out << " - - - - - - FINISHED CALCULATIONS IN : " << \

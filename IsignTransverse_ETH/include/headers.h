@@ -64,7 +64,6 @@ using v_1d = std::vector<T>;										// 1d double vector
 
 #define memory_over_performance false										// optimized by size --true-- (memory usage shortage) or performance --false--
 extern int num_of_threads;													// number of threads
-#define _BC 1
 
 constexpr long double pi = 3.141592653589793238462643383279502884L;			// it is me, pi
 constexpr long double two_pi = 2 * 3.141592653589793238462643383279502884L;	// it is me, 2pi
