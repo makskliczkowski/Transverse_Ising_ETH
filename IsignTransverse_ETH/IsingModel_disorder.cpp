@@ -65,7 +65,6 @@ void IsingModel_disorder::generate_mapping() {
 void IsingModel_disorder::setHamiltonianElem(u64 k, double value, std::vector<bool>& temp) {
     u64 idx = binary_to_int(temp);
     H(idx, k) += value;
-    //H(k, idx) += value;
 }
 /// <summary>
 /// Generates the total Hamiltonian of the system. The diagonal part is straightforward, 

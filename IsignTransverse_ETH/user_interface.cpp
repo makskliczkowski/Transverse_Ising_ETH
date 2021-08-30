@@ -211,7 +211,8 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv){
 		str_model = "disorder" + std::string(kPathSeparator);
 		break;
 	case 1:
-		str_model = "symmetries" + std::string(kPathSeparator);
+		str_model = "symmetries" + std::string(kPathSeparator); 
+		break;
 	default:
 		str_model = "disorder" + std::string(kPathSeparator);
 		break;
@@ -284,19 +285,58 @@ void isingUI::ui::make_sim()
 		this->model = std::make_unique<IsingModel_disorder>(L,J,J0,g,g0,h,w); break;								// make model with disorder
 		break;
 	}*/
-	this->model = std::make_unique<IsingModel_sym>(L, J, g, h, 0, 1, 1, boundary_conditions);
+	this->model = std::make_unique<IsingModel_sym>(L, J, g, h, 1, 1, 0, boundary_conditions);
 	this->model->diagonalization();
 
 	std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w, boundary_conditions);
 	Hamil->diagonalization();
-
 	out << this->model->get_info() << endl;
 	out << Hamil->get_info() << endl;
-
-	out << "symmetries\t\tdisorder" << endl;
-	for (int k = 0; k < this->model->get_hilbert_size(); k++) {
-		out << this->model->get_eigenEnergy(k) << "\t\t" << Hamil->get_eigenEnergy(k) << endl;
+	
+	out << "\nLp.\tsymmetries\t\t\tdisorder" << endl;
+	
+	int sym_count = 0;
+	for (int k = 0; k < Hamil->get_hilbert_size(); k++) {
+		auto en_dis = Hamil->get_eigenEnergy(k);
+		auto en_sym = (sym_count < model->get_hilbert_size()) ? model->get_eigenEnergy(sym_count) : INT_MIN;
+		if (abs(en_dis - en_sym) < 1e-6) {
+			out << k << ")\t" << en_sym << "\t\t" << en_dis << endl;
+			sym_count++;
+		}
+		else
+			out << k << ")\t\t\t\t\t" << en_dis << endl;
 	}
+	vec E_dis = Hamil->get_eigenvalues();
+	std::vector<double> E_sym;
+	for (int k = 0; k < L; k++) {
+		if (k == 0 || k == this->L / 2.) {
+			for (int p = 0; p <= 1; p++) {
+				for (int x = 0; x <= 1; x++) {
+					out << "\nk = " << k << ",x = " << x << ", p = " << p << endl;
+					std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_sym>(L, J, g, h, k, p, x, boundary_conditions);
+					Hamil->diagonalization();
+					vec t = Hamil->get_eigenvalues();
+					E_sym.insert(E_sym.end(), std::make_move_iterator(t.begin()), std::make_move_iterator(t.end()));
+				}
+			}
+		}
+		else {
+			for (int x = 0; x <= 1; x++) {
+				out << "\nk = " << k << ",x = " << x << endl;
+				std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_sym>(L, J, g, h, k, p, x, boundary_conditions);
+				Hamil->diagonalization();
+				vec t = Hamil->get_eigenvalues();
+				E_sym.insert(E_sym.end(), std::make_move_iterator(t.begin()), std::make_move_iterator(t.end()));
+			}
+		}
+		//out << Hamil->get_eigenvalues().t();
+	}
+	sort(E_sym.begin(), E_sym.end());
+	out << E_sym.size() << endl;
+	for (int k = 0; k < min(E_sym.size(), E_dis.size()); k++) {
+		out << E_sym[k] << "\t\t" << E_dis(k) << endl;
+	}
+
 	/*std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
 	std::ofstream scaling_r_sigmaX(this->saving_dir + "SpectrumRapScalingSigmaX" +\
 		",J0=" + to_string_prec(this->J0, 2) + \
@@ -310,7 +350,7 @@ void isingUI::ui::make_sim()
 		",g0=" + to_string_prec(this->g0, 2) + \
 		",h=" + to_string_prec(this->h, 2) + \
 		",w=" + to_string_prec(this->w, 2) + ".dat", std::ofstream::app);
-	for (L = 8; L <= 14; L += 1) {
+	for (L = 10; L <= 14; L += 1) {
 		realisations = 1000 - L * 50;
 
 		std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
@@ -365,7 +405,7 @@ void isingUI::ui::make_sim()
 	scaling_ipr.close();
 	
 	out << "\n--> starting loop over disorders <--\n";
-	L = 12;
+	L = 14;
 	scaling_ipr.open(this->saving_dir + "iprDisorder" +\
 		"_L=" + std::to_string(this->L) + \
 		",J0=" + to_string_prec(this->J0, 2) + \

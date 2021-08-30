@@ -154,6 +154,7 @@ void IsingModel::set_neighbors() {
 /// General procedure to diagonalize the Hamiltonian using eig_sym from the Armadillo library
 /// </summary>
 void IsingModel::diagonalization() {
+    //out << real(H) << endl;
     try {
         arma::eig_sym(eigenvalues, eigenvectors, H);
     }
@@ -364,7 +365,7 @@ double quantum_fidelity(u64 _min, u64 _max, const std::unique_ptr<IsingModel>& H
 void probability_distribution(std::string dir, std::string name, const arma::vec& data, double _min, double _max, double step) {
     std::ofstream file(dir + name + ".dat");
     int size = static_cast<int>((_max - _min) / step + 1);
-    arma::Col<int> prob_dist(size, arma::fill::zeros);
+    arma::vec prob_dist(size, arma::fill::zeros);
     for (int k = 1; k < data.size(); k++) {
         if (data(k) > _min && data(k) < _max) {
             const int bucket = static_cast<int>((data(k) + abs(_min)) / step);
@@ -372,6 +373,7 @@ void probability_distribution(std::string dir, std::string name, const arma::vec
             prob_dist(bucket) += 1;
         }
     }
+    arma::normalise(prob_dist);
     for (int p = 0; p < size; p++)
         file << p * step + _min << "\t" << prob_dist(p) << std::endl;
     file.close();
@@ -386,7 +388,7 @@ arma::vec probability_distribution_with_return(const arma::vec& data, double _mi
             prob_dist(bucket) += 1;
         }
     }
-    return prob_dist;
+    return arma::normalise(prob_dist);;
 }
 /// <summary>
 /// 

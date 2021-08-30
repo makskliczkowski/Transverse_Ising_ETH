@@ -59,7 +59,7 @@ using v_1d = std::vector<T>;										// 1d double vector
 
 // User makros
 #define im cpx(0.0,1.0)
-#define out std::cout << std::setprecision(8) << std::fixed
+#define out std::cout << std::setprecision(16) << std::fixed
 
 
 #define memory_over_performance false										// optimized by size --true-- (memory usage shortage) or performance --false--
@@ -81,7 +81,7 @@ extern std::mt19937_64 gen;
 
 //--------------------------------------------------TOOLS--------------------------------------------------
 template <typename T> int sgn(T val) {
-	return (T(0) < val) - (val < T(0));
+	return int(T(0) < val) - int(val < T(0));
 }
 
 /* STRING BASED TOOLS DECLARATIONS */
@@ -109,15 +109,17 @@ std::string to_string_prec(const T a_value, const int n = 3){
 template<typename T>
 inline u64 binary_search(vector<T>& arr, u64 l_point, u64 r_point, T element) {
 	if (l_point < 0) assert(false && "What?");
-	if (r_point >= arr.size()) assert(false && "Ah...");
+	if (r_point >= arr.size()) {
+		return -1;
+	}
 	if (r_point >= l_point) {
 		u64 middle = l_point + (r_point - l_point) / 2;
 		if (arr[middle] == element) return middle;
-		else if (arr[middle] > element) return binary_search(arr, l_point, middle - 1, element);
-		else return binary_search(arr, middle + 1, r_point, element);
+		else if (arr[middle] < element) return binary_search(arr, middle + 1, r_point, element);
+		else return binary_search(arr, l_point, middle - 1, element);
 	}
-	out << "Element " << element << " not present in the array" << endl;
-	assert(false);
+	//out << "Element " << element << " not present in the array" << endl;
+	//assert(false);
 	return -1;
 }
 
