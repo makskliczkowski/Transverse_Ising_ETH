@@ -267,7 +267,7 @@ void IsingModel_sym::hamiltonian() {
 /// <param name="n"></param>
 /// <param name="m"></param>
 /// <returns></returns>
-double IsingModel_sym::spin_flip_mat_element(const u64 n, const u64 m) {
+double IsingModel_sym::av_sigma_x_extensive(const u64 n, const u64 m) {
     std::vector<bool> base_vector(L), temp(L);
     cpx overlap = 0;
     cx_vec state_n = this->eigenvectors.col(n);
@@ -294,5 +294,5 @@ double IsingModel_sym::spin_flip_mat_element(const u64 n, const u64 m) {
             overlap += conj(state_n(idx)) * value_new * state_m(k);
         }
     }
-    return real(overlap);// / double(this->L * this->L);
+    return real(overlap) / double(this->L * this->L);
 }

@@ -139,7 +139,7 @@ double IsingModel_disorder::av_sigma_x(int site, u64 alfa, u64 beta) {
 /// <param name="n"></param>
 /// <param name="m"></param>
 /// <returns></returns>
-double IsingModel_disorder::spin_flip_mat_element(const u64 n, const u64 m) {
+double IsingModel_disorder::av_sigma_x_extensive(const u64 n, const u64 m) {
     std::vector<bool> base_vector(L), temp(L);
     cpx overlap = 0;
     cx_vec state_n = this->eigenvectors.col(n);
@@ -152,7 +152,7 @@ double IsingModel_disorder::spin_flip_mat_element(const u64 n, const u64 m) {
             overlap += conj(state_n(binary_to_int(temp))) * state_m(k);
         }
     }
-    return real(overlap);// / double(this->L * this->L);
+    return real(overlap) / double(this->L * this->L);
 }
 
 /// <summary>

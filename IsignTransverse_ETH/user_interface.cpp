@@ -353,9 +353,9 @@ void isingUI::ui::make_sim()
 	std::ofstream file("file.dat");
 	for_each(exec::seq, map.begin(), map.end(), [&](std::pair<u64, u64> element) {
 		for (auto& t : map) {
-			// double A = alfa->spin_flip_mat_element(element.first, t.first);
+			//double A = alfa->av_sigma_x_extensive(element.first, t.first);
 			double A = av_sigma_x_sym_sectors(0, element.first, t.first, *alfa, *alfa);
-			// double B = model->spin_flip_mat_element(element.second, t.second);
+			//double B = model->av_sigma_x_extensive(element.second, t.second);
 			double B = model->av_sigma_x(0, element.second, t.second);
 			stout << alfa->get_eigenEnergy(element.first) << "\t\t" << \
 				alfa->get_eigenEnergy(t.first) << "\t\t" << A << "\t\t" << B << "\t\t" << abs(A) - abs(B) << endl;

@@ -100,7 +100,7 @@ public:
 
 	// PHYSICAL OPERATORS (model states dependent) 
 	virtual double av_sigma_x(int site, u64 alfa, u64 beta) = 0;
-	virtual double spin_flip_mat_element(const u64 n, const u64 m) = 0;
+	virtual double av_sigma_x_extensive(const u64 n, const u64 m) = 0;
 	//friend double sigma_x_diff(int site, u64 beta, u64 alfa, const IsingModel_sym& sector_alfa, const IsingModel_sym& sector_beta);
 	double av_sigma_z(int state_id, int site);
 	virtual double entaglement_entropy(u64 state_id, int subsystem_size) = 0;
@@ -171,7 +171,7 @@ public:
 
 	double av_sigma_x(int site, u64 alfa, u64 beta) override { return 0; };
 	friend double av_sigma_x_sym_sectors(int site, const u64 beta, const u64 alfa, const IsingModel_sym& sector_alfa, const IsingModel_sym& sector_beta);
-	double spin_flip_mat_element(const u64 n, const u64 m) override;
+	double av_sigma_x_extensive(const u64 n, const u64 m) override;
 	mat correlation_matrix(u64 state_id) override {
 		return mat();
 	};
@@ -208,7 +208,7 @@ public:
 
 	// MATRICES
 	double av_sigma_x(int site, u64 alfa, u64 beta) override;
-	double spin_flip_mat_element(const u64 n, const u64 m) override;
+	double av_sigma_x_extensive(const u64 n, const u64 m) override;
 
 	mat correlation_matrix(u64 state_id) override;
 
