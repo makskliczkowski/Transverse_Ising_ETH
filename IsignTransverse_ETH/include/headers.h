@@ -34,10 +34,13 @@
 #include <bitset> // binary data type
 #include "random.h"
 #include <filesystem>
+#include <set>
+#include <execution>
 
 using namespace std;
 using namespace arma;
 namespace fs = std::filesystem;
+namespace exec = std::execution;
 
 //------------Definitions----
 static const char* kPathSeparator =
@@ -51,15 +54,15 @@ typedef unsigned long long u64;
 typedef std::complex<double> cpx;
 
 template<class T>
-using v_3d = std::vector<std::vector<std::vector<T>>>;				// 3d double vector
+using v_3d = std::vector<std::vector<std::vector<T>>>;						// 3d double vector
 template<class T>
-using v_2d = std::vector<std::vector<T>>;							// 2d double vector
+using v_2d = std::vector<std::vector<T>>;									// 2d double vector
 template<class T>
-using v_1d = std::vector<T>;										// 1d double vector
+using v_1d = std::vector<T>;												// 1d double vector
 
 // User makros
 #define im cpx(0.0,1.0)
-#define out std::cout << std::setprecision(16) << std::fixed
+#define stout std::cout << std::setprecision(16) << std::fixed				// standard outstream
 
 
 #define memory_over_performance false										// optimized by size --true-- (memory usage shortage) or performance --false--
@@ -106,8 +109,8 @@ std::string to_string_prec(const T a_value, const int n = 3){
 /// <param name="r_point"> right margin for binary search </param>
 /// <param name="element"> element to search in the array </param>
 /// <returns></returns>
-template<typename T>
-inline u64 binary_search(vector<T>& arr, u64 l_point, u64 r_point, T element) {
+template <class T>
+inline u64 binary_search(const std::vector<T>& arr, u64 l_point, u64 r_point, T element) {
 	if (l_point < 0) assert(false && "What?");
 	if (r_point >= arr.size()) {
 		return -1;
@@ -118,8 +121,20 @@ inline u64 binary_search(vector<T>& arr, u64 l_point, u64 r_point, T element) {
 		else if (arr[middle] < element) return binary_search(arr, middle + 1, r_point, element);
 		else return binary_search(arr, l_point, middle - 1, element);
 	}
-	//out << "Element " << element << " not present in the array" << endl;
-	//assert(false);
+	return -1;
+}
+template <>
+inline u64 binary_search(const std::vector<double>& arr, u64 l_point, u64 r_point, double element) {
+	if (l_point < 0) assert(false && "What?");
+	if (r_point >= arr.size()) {
+		return -1;
+	}
+	if (r_point >= l_point) {
+		u64 middle = l_point + (r_point - l_point) / 2;
+		if (abs(arr[middle] - element) < 1e-12) return middle;
+		else if (arr[middle] < element) return binary_search(arr, middle + 1, r_point, element);
+		else return binary_search(arr, l_point, middle - 1, element);
+	}
 	return -1;
 }
 
@@ -179,6 +194,27 @@ inline std::vector<double> create_random_vec_std(u64 N) {
 	return random_vec;
 }
 
+/// <summary>
+/// find non-unique elements in input array and store only elemetns, which did not have duplicates
+/// </summary>
+/// <param name="arr_in"> degenerated input array </param>
+/// <returns> indices to unique elements </returns>
+inline arma::vec get_NonDegenerated_Elements(const arma::vec& arr_in) {
+	std::vector<double> arr_degen;
+	u64 N = arr_in.size();
+	for (int k = 0; k < N - 1; k++)
+		if (abs(arr_in(k + 1) - arr_in(k)) < 1e-12)
+			arr_degen.push_back(arr_in(k));
+	if (abs(arr_in(N - 1) - arr_in(N - 2)) < 1e-12)
+		arr_degen.push_back(arr_in(N - 1));
+
+	arma::vec arr_unique = arr_in;
+	for (auto& E : arr_degen)
+		std::remove_if(arr_unique.begin(), arr_unique.end(), [&](double a) {
+		return abs(a - E) < 1e-12;
+			});
+	return arma::unique(arr_unique);
+}
 
 /// <summary>
 /// Overriding the ostream operator for pretty printing vectors.

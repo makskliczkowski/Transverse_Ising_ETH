@@ -36,6 +36,7 @@ public:
 
 // SIMULATIONS
 	virtual void make_sim() = 0;
+	virtual void compare_energies() = 0;
 };
 
 
@@ -91,7 +92,7 @@ namespace isingUI
 
 	// SIMULATION
 		void make_sim() override;														// make default simulation
-
+		void compare_energies() override;
 	};
 }
 

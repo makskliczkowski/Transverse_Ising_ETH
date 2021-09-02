@@ -15,11 +15,11 @@ IsingModel_sym::IsingModel_sym(int L, double J, double g, double h, int k_sym, b
     this->mapping = std::vector<u64>();
     this->normalisation = std::vector<cpx>();
     generate_mapping();
-    for (int k = 0; k < N; k++) {
+    /*for (int k = 0; k < N; k++) {
         std::vector<bool> temp(L);
         int_to_binary(mapping[k], temp);
         out << mapping[k] << "\t\t" << temp << "\t\t" << normalisation[k] << endl;
-    }
+    }*/
 
     set_neighbors(); // generate neighbors
     hamiltonian();
@@ -57,7 +57,7 @@ std::tuple<u64, int> IsingModel_sym::find_translation_representative(std::vector
 /// <param name="base_vector"> current base vector to act with symmetries </param>
 /// <param name="min"> index of EC class representative by translation symmetry </param>
 /// <returns></returns>
-std::tuple<u64, int> IsingModel_sym::find_SEC_representative(const std::vector<bool>& base_vector) {
+std::tuple<u64, int> IsingModel_sym::find_SEC_representative(const std::vector<bool>& base_vector) const {
     std::vector<u64> minima;
     std::vector<bool> temp = base_vector;
     bool k_sector = abs(symmetries.k_sym) < 1e-4 || abs(symmetries.k_sym - pi) < 1e-4;
@@ -219,7 +219,7 @@ void IsingModel_sym::setHamiltonianElem(u64 k, double value, std::vector<bool>& 
         if (idx < 0 || idx >= N) return;// out << "Element do not exist\n";
     }
     cpx translation_eig = (abs(sym_eig) == 1 || symmetries.k_sym == 0) ? \
-        cpx(1.0) : std::exp(-1i * symmetries.k_sym * double(abs(sym_eig - 1)));
+        cpx(1.0) : std::exp(-1i * symmetries.k_sym * double(abs(sym_eig) - 1));
     cpx value_new = value * translation_eig * (normalisation[idx] / normalisation[k]) * double(sgn(sym_eig));
     H(idx, k) += value_new;
 }
@@ -258,35 +258,41 @@ void IsingModel_sym::hamiltonian() {
             }
         }
     }
-    out << H << endl;
 }
 
 /* PHYSICAL QUANTITTIES */
 /// <summary>
-/// Calculates the matrix element of the x-component spin matrix within the eigenstate state_id
+/// 
 /// </summary>
-/// <param name="state_id"> index of eigenstate </param>
-/// <param name="site"> position of the spin, where the operator is acted upon </param>
-/// <returns> return the average in the eigenstate </returns>
-double IsingModel_sym::av_sigma_x(int state_id, int site) {
-    cx_vec state = eigenvectors.col(state_id);
-    double value = 0;
-#pragma omp parallel for reduction(+: value)
-    for (int k = 0; k < N; k++) {
-        std::vector<bool> base_vector(L), temp;
-        int_to_binary(k, base_vector);
-        temp = base_vector;
-        temp[site] = !base_vector[site];
-
-        // FIND SEC represetnative!!!
-        auto [min, trans_eig] = find_translation_representative(temp);
-
-        auto [min_sym, sym_eig] = find_SEC_representative(temp);
-
-        //finding index in reduced Hilbert space
-        u64 idx = binary_search(mapping, 0, N - 1, std::min(min, min_sym));
-
-        value += real(conj(state(idx)) * state(k));// *sqrt((double)periodicity[k] / (double)periodicity[idx]);
+/// <param name="n"></param>
+/// <param name="m"></param>
+/// <returns></returns>
+double IsingModel_sym::spin_flip_mat_element(const u64 n, const u64 m) {
+    std::vector<bool> base_vector(L), temp(L);
+    cpx overlap = 0;
+    cx_vec state_n = this->eigenvectors.col(n);
+    cx_vec state_m = this->eigenvectors.col(m);
+    for (long int k = 0; k < N; k++) {
+        int_to_binary(mapping[k], base_vector);
+        for (int j = 0; j < this->L; j++) {
+            temp = base_vector;
+            temp[j] = !base_vector[j];
+            auto idx_temp = binary_to_int(temp);
+            u64 idx = binary_search(mapping, 0, N - 1, idx_temp);
+            int sym_eig = 1;
+            if (idx == -1) {
+                auto tup_T = find_translation_representative(temp);
+                auto tup_S = find_SEC_representative(temp);
+                auto [min, trans_eig] = (std::get<0>(tup_T) > std::get<0>(tup_S)) ? tup_S : tup_T;
+                sym_eig = trans_eig;
+                idx = binary_search(mapping, 0, N - 1, min);
+                if (idx < 0 || idx >= N) continue; // out << "Element do not exist\n";
+            }
+            cpx translation_eig = (abs(sym_eig) == 1 || symmetries.k_sym == 0) ? \
+                cpx(1.0) : std::exp(-1i * symmetries.k_sym * double(abs(sym_eig) - 1));
+            cpx value_new = translation_eig * (normalisation[idx] / normalisation[k]) * double(sgn(sym_eig));
+            overlap += conj(state_n(idx)) * value_new * state_m(k);
+        }
     }
-    return value;
+    return real(overlap);// / double(this->L * this->L);
 }

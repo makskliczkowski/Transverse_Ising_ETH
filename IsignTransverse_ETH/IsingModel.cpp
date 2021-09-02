@@ -54,57 +54,9 @@ void IsingModel::print_base_spin_sector(int Sz) {
     Col<int> check_sectors(std::pow(2, L), arma::fill::zeros);
     for (int k = 0; k < N; k++) {
         int_to_binary(map(k), temp);
-        const int sum = std::accumulate(temp.begin(), temp.end(), 0);
-            //,[](int a, bool b)
-            //{return a + ((b) ? 1:-1);});
-        //for (int l = 0; l < L; l++)
-        //    Sz += temp[l] == 0 ? -1 : 1;
-
-        std::vector<int> temp_int(L);
-        for (int p = 0; p < L; p++) {
-            temp_int[p] = temp[p]? 1 : -1;
-        }
-            
-        std::vector<bool> PT(temp);
-        std::vector<bool> ZT(temp);
-        std::vector<bool> PZT(temp);
-        arma::vec v(L, arma::fill::zeros);
-        std::reverse(PT.begin(), PT.end());
-        for (int o = 0; o < L; o++)
-            ZT[o] = (temp[o]) ? 0 : 1;
-        PZT = ZT;
-        std::reverse(PZT.begin(), PZT.end());
-        int counter = 0;
-        for (int l = 0; l < L; l++) {
-            //out << "|" << temp_int << "> " << ((p < 0) ? "-" : "+") << " | " << PT << "> " << ((z < 0) ? "-" : "+") << "| " << ZT << "> " << \
-                ((p * z < 0) ? "-" : "+") << " |" << PZT << "> + ";
-            //v = v + p * Col<int>(PT) + Col<int>(temp_int) + z * Col<int>(ZT) + (z * p) * Col<int>(PZT);
-            check_sectors(binary_to_int(temp)) += 1;
-            check_sectors(binary_to_int(PT)) += p;
-            check_sectors(binary_to_int(ZT)) += z;
-            check_sectors(binary_to_int(PZT)) += p * z;
-            if (binary_to_int(PT) == k) counter += p;
-            if (binary_to_int(ZT) == k) counter += z;
-            if (binary_to_int(PZT) == k) counter += p * z;
-            if (binary_to_int(temp) == k) counter += 1;
-            std::rotate(PT.begin(), PT.begin() + 1, PT.end());
-            std::rotate(ZT.begin(), ZT.begin() + 1, ZT.end());
-            std::rotate(PZT.begin(), PZT.begin() + 1, PZT.end());
-            std::rotate(temp.begin(), temp.begin() + 1, temp.end());
-            PT = temp;
-            std::reverse(PT.begin(), PT.end());
-            for (int o = 0; o < L; o++)
-                ZT[o] = (temp[o]) ? 0 : 1;
-            PZT = ZT;
-            std::reverse(PZT.begin(), PZT.end());
-        }
-        //out << temp << "\t" << v.t() << endl;
-        summm += (counter != 0);
-        //out << " ---> is_zero? ----> " << jj << std::endl;
+        if (std::accumulate(temp.begin(), temp.end(), 0) == Sz)
+            stout << k << "\t\t" << temp << endl;
     }
-    //out << check_sectors.t();
-    out << summm << std::endl;
-    std::exit(1);
 }
 /// <summary>
 /// prints the state in the regular basis (only the highest coefficients are present)
@@ -117,10 +69,10 @@ void IsingModel::print_state(u64 _id) {
     for (int k = 0; k < N; k++) {
         int_to_binary(map(k), base_vector);
         if (abs(state(k)) >= 0.01 * max) {
-            out << state(k) << " * |" << base_vector << "> + ";
+            stout << state(k) << " * |" << base_vector << "> + ";
         }
     }
-    out << endl;
+    stout << endl;
 }
 
 
@@ -159,8 +111,8 @@ void IsingModel::diagonalization() {
         arma::eig_sym(eigenvalues, eigenvectors, H);
     }
     catch (const bad_alloc& e) {
-        std::cout << "Memory exceeded" << e.what() << "\n";
-        out << "dim(H) = " << H.size() * sizeof(H(0, 0)) << "\n";
+        stout << "Memory exceeded" << e.what() << "\n";
+        stout << "dim(H) = " << H.size() * sizeof(H(0, 0)) << "\n";
         assert(false);
     }
     double E_av = trace(eigenvalues) / double(N);
@@ -272,6 +224,72 @@ double IsingModel::spectrum_repulsion(double (IsingModel::* op)(int, int), Ising
 /// <summary>
 /// 
 /// </summary>
+/// <param name="_min"></param>
+/// <param name="_max"></param>
+/// <param name="symmetry"></param>
+/// <param name="original"></param>
+/// <returns></returns>
+std::unordered_map<u64, u64> mapping_sym_to_original(u64 _min, u64 _max, const IsingModel& symmetry, const IsingModel& original){
+    std::unordered_map<u64, u64> map;
+    std::vector<double> E_dis = arma::conv_to<std::vector<double>>::from(original.eigenvalues);
+    for (int k = 0; k < symmetry.N; k++) {
+        double E = symmetry.eigenvalues(k);
+        if (E < original.eigenvalues(_min) && E >= original.eigenvalues(_max)) continue;
+        auto idx = binary_search(E_dis, _min, _max, E);
+        if (idx < 0 || idx >= original.N) continue;
+        double E_prev = (idx == 0)? (original.eigenvalues(0) - 1.0) : original.eigenvalues(idx - 1);
+        double E_next = (idx == original.N - 1)? (original.eigenvalues(original.N - 1) + 1.0) : original.eigenvalues(idx + 1);
+        if (abs(E - E_prev) > 1e-8 && abs(E - E_next) > 1e-8)
+            map[k] = idx;
+    }
+    return map;
+}
+
+/* OPERATOR AVERAGE */
+/// <summary>
+/// 
+/// </summary>
+/// <param name="site"></param>
+/// <param name="beta"></param>
+/// <param name="alfa"></param>
+/// <param name="sector_alfa"></param>
+/// <param name="sector_alfa"></param>
+/// <returns></returns>
+double av_sigma_x_sym_sectors(int site, const u64 beta, const u64 alfa, const IsingModel_sym& sector_alfa, const IsingModel_sym& sector_beta) {
+    assert(sector_beta.L == sector_alfa.L && "incompatible chain lengths");
+    const int L = sector_beta.L;
+    const u64 N_alfa = sector_alfa.N;
+    const u64 N_beta = sector_beta.N;
+    const arma::subview_col<cpx>& state_beta = sector_beta.eigenvectors.col(beta);
+    const arma::subview_col<cpx>& state_alfa = sector_alfa.eigenvectors.col(alfa);
+    std::vector<bool> base(L);
+    cpx overlap = 0;
+    for (long int k = 0; k < N_beta; k++) {
+        if (abs(state_beta(k)) < 1e-12) continue;
+        int_to_binary(sector_beta.mapping[k], base);
+        base[site] = !base[site];
+        u64 idx = binary_search(sector_alfa.mapping, 0, N_alfa - 1, binary_to_int(base));
+        int sym_eig = 1;
+        if (idx == -1) {
+            auto tup_T = sector_alfa.find_translation_representative(base);
+            auto tup_S = sector_alfa.find_SEC_representative(base);
+            auto [min, trans_eig] = (std::get<0>(tup_T) > std::get<0>(tup_S)) ? tup_S : tup_T;
+            sym_eig = trans_eig;
+            idx = binary_search(sector_alfa.mapping, 0, N_alfa - 1, min);
+            if (idx < 0 || idx >= N_alfa) continue; // min is not present in symmetry sector
+        }
+        cpx translation_eig = (abs(sym_eig) == 1 || sector_alfa.symmetries.k_sym == 0) ? \
+            cpx(1.0) : std::exp(-1i * sector_alfa.symmetries.k_sym * double(abs(sym_eig) - 1));
+        cpx value_new = double(sgn(sym_eig)) * translation_eig *(sector_alfa.normalisation[idx] / sector_beta.normalisation[k]);
+        overlap += conj(state_alfa(idx)) * value_new * state_beta(k);
+    }
+    return real(overlap);
+}
+
+
+/// <summary>
+/// 
+/// </summary>
 /// <param name="state_id"></param>
 /// <param name="site"></param>
 /// <returns></returns>
@@ -294,6 +312,7 @@ double IsingModel::av_sigma_z(int state_id, int site) {
 
     return 0;
 }
+
 /// <summary>
 /// Prints to file the average of a given operator in each eigenstate as a function of eigenenergies
 /// </summary>
@@ -353,6 +372,8 @@ double quantum_fidelity(u64 _min, u64 _max, const std::unique_ptr<IsingModel>& H
     return fidelity / double(_max - _min);
 }
 
+
+/* STATISTICS AND PROBABILITIES */
 /// <summary>
 /// 
 /// </summary>

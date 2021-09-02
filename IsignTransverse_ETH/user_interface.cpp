@@ -59,7 +59,7 @@ template<typename T>
 void user_interface::set_default_msg(T & value, std::string option, std::string message,\
 	const std::unordered_map<std::string,std::string>& map) const
 {
-	out << message;																			// print warning
+	stout << message;																			// print warning
 	std::string value_str = "";																// we will set this to value
 	auto it = map.find(option);
 	if (it != map.end()) {
@@ -258,7 +258,7 @@ std::vector<std::string> user_interface::parseInputFile(std::string filename) co
 	ifstream inputFile(filename);
 	std::string line = "";
 	if(!inputFile.is_open())
-		out << "Cannot open a file " + filename + " that I could parse. All parameters are default. Sorry :c \n";
+		stout << "Cannot open a file " + filename + " that I could parse. All parameters are default. Sorry :c \n";
 	else{
 		if(std::getline(inputFile, line)){
 			commands = split_str(line, " ");									// saving lines to out vector if it can be done, then the parser shall treat them normally
@@ -267,52 +267,24 @@ std::vector<std::string> user_interface::parseInputFile(std::string filename) co
 	return std::vector<std::string>(commands.begin(),commands.end()); 
 }
 
-
-// ---- SIMULATIONS
-void isingUI::ui::make_sim()
-{	
-	using namespace std::chrono;
-	auto start = std::chrono::high_resolution_clock::now();
-	
-	// simulation start
-	/*switch (this->m)
-	{
-	case 0:
-		this->model = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);; break;							// make model with disorder
-	case 1:
-		this->model = std::make_unique<IsingModel_sym>(L, J, g, h);	break;											// make model with symmetries
-	default:
-		this->model = std::make_unique<IsingModel_disorder>(L,J,J0,g,g0,h,w); break;								// make model with disorder
-		break;
-	}*/
-	this->model = std::make_unique<IsingModel_sym>(L, J, g, h, 1, 1, 0, boundary_conditions);
-	this->model->diagonalization();
-
-	std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w, boundary_conditions);
-	Hamil->diagonalization();
-	out << this->model->get_info() << endl;
-	out << Hamil->get_info() << endl;
-	
-	out << "\nLp.\tsymmetries\t\t\tdisorder" << endl;
-	
-	int sym_count = 0;
-	for (int k = 0; k < Hamil->get_hilbert_size(); k++) {
-		auto en_dis = Hamil->get_eigenEnergy(k);
-		auto en_sym = (sym_count < model->get_hilbert_size()) ? model->get_eigenEnergy(sym_count) : INT_MIN;
-		if (abs(en_dis - en_sym) < 1e-6) {
-			out << k << ")\t" << en_sym << "\t\t" << en_dis << endl;
-			sym_count++;
-		}
-		else
-			out << k << ")\t\t\t\t\t" << en_dis << endl;
+class show_copies {
+	std::set<double> existing;
+public:
+	bool operator()(double const in) {
+		return existing.insert(in).second;
 	}
+};
+// ---- SIMULATIONS
+void isingUI::ui::compare_energies() {
+	std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w, boundary_conditions);
+	u64 N = Hamil->get_hilbert_size();
+	Hamil->diagonalization();
 	vec E_dis = Hamil->get_eigenvalues();
 	std::vector<double> E_sym;
 	for (int k = 0; k < L; k++) {
 		if (k == 0 || k == this->L / 2.) {
 			for (int p = 0; p <= 1; p++) {
 				for (int x = 0; x <= 1; x++) {
-					out << "\nk = " << k << ",x = " << x << ", p = " << p << endl;
 					std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_sym>(L, J, g, h, k, p, x, boundary_conditions);
 					Hamil->diagonalization();
 					vec t = Hamil->get_eigenvalues();
@@ -322,7 +294,6 @@ void isingUI::ui::make_sim()
 		}
 		else {
 			for (int x = 0; x <= 1; x++) {
-				out << "\nk = " << k << ",x = " << x << endl;
 				std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_sym>(L, J, g, h, k, p, x, boundary_conditions);
 				Hamil->diagonalization();
 				vec t = Hamil->get_eigenvalues();
@@ -332,11 +303,54 @@ void isingUI::ui::make_sim()
 		//out << Hamil->get_eigenvalues().t();
 	}
 	sort(E_sym.begin(), E_sym.end());
-	out << E_sym.size() << endl;
+	stout << E_sym.size() << endl;
 	for (int k = 0; k < min(E_sym.size(), E_dis.size()); k++) {
-		out << E_sym[k] << "\t\t" << E_dis(k) << endl;
+		stout << E_sym[k] << "\t\t" << E_dis(k) << "\t\t" << E_sym[k] - E_dis(k) << endl;
 	}
+}
 
+void isingUI::ui::make_sim()
+{	
+	using namespace std::chrono;
+	auto start = std::chrono::high_resolution_clock::now();
+	
+	// simulation start
+	/*switch (this->m)
+	{
+	case 0:
+		this->model = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w); break;							// make model with disorder
+	case 1:
+		this->model = std::make_unique<IsingModel_sym>(L, J, g, h);	break;											// make model with symmetries
+	default:
+		this->model = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w); break;						    // make model with disorder
+		break;
+	}*/
+	//vec E_dis = Hamil->get_eigenvalues();
+	//auto E_unique = get_NonDegenerated_Elements(E_dis);
+	//this->model = std::make_unique<IsingModel_sym>(L, J, g, h);
+	//compare_energies();
+	//exit(1);
+	this->model = std::make_unique<IsingModel_disorder>(L, J, 0, g, 0, h, 0);
+	this->model->diagonalization();
+	//vec E_dis = model->get_eigenvalues();
+	//auto E_unique = get_NonDegenerated_Elements(E_dis);
+	std::unique_ptr<IsingModel_sym> alfa = std::make_unique<IsingModel_sym>(L, J, g, h, 0, 1, 1);
+	alfa->diagonalization();
+	//stout << model->get_eigenvalues() << endl;
+	auto map = mapping_sym_to_original(0, model->get_hilbert_size() - 1, *alfa, *model);
+	stout << map.size() << endl;
+	std::ofstream file("file.dat");
+	for_each(exec::seq, map.begin(), map.end(), [&](std::pair<u64, u64> element) {
+		for (auto& t : map) {
+			double A = av_sigma_x_sym_sectors(0, element.first, t.first, *alfa, *alfa);
+			double B = model->av_sigma_x(0, element.second, t.second);
+			stout << alfa->get_eigenEnergy(element.first) << "\t\t" << \
+				alfa->get_eigenEnergy(t.first) << "\t\t" << A << "\t\t" << B << "\t\t" << A - B << endl;
+		}
+		});
+	file.close();
+
+	/* DISORDER main */
 	/*std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
 	std::ofstream scaling_r_sigmaX(this->saving_dir + "SpectrumRapScalingSigmaX" +\
 		",J0=" + to_string_prec(this->J0, 2) + \
@@ -405,8 +419,8 @@ void isingUI::ui::make_sim()
 	scaling_ipr.close();
 	
 	out << "\n--> starting loop over disorders <--\n";
-	L = 14;
-	scaling_ipr.open(this->saving_dir + "iprDisorder" +\
+	L = 10;
+	std::ofstream scaling_ipr(this->saving_dir + "iprDisorder" +\
 		"_L=" + std::to_string(this->L) + \
 		",J0=" + to_string_prec(this->J0, 2) + \
 		",g=" + to_string_prec(this->g, 2) + \
@@ -414,7 +428,7 @@ void isingUI::ui::make_sim()
 		",h=" + to_string_prec(this->h, 2) + \
 		".dat", std::ofstream::app);
 	for (double w = 0.0; w <= 6.0; w += 0.1) {
-		realisations = 400;
+		realisations = 600;
 
 		std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
 		const u64 N = Hamil->get_hilbert_size();
@@ -422,7 +436,7 @@ void isingUI::ui::make_sim()
 
 		vec av_sigma_x = Hamil->operator_av_in_eigenstates_return(&IsingModel::av_sigma_x, *Hamil, 0);
 		vec fluct = data_fluctuations(av_sigma_x);
-		double _min = -0.5, _max = 0.5, step = 2e-3;
+		double _min = -2.0, _max = 2.0, step = 2e-3;
 		out << "--> finished writing the sigma _x fluctuations for w = " << w << " <--\n";
 		
 
@@ -468,6 +482,6 @@ void isingUI::ui::make_sim()
 	scaling_ipr.close();*/
 
 	auto stop = std::chrono::high_resolution_clock::now();
-	out << " - - - - - - FINISHED CALCULATIONS IN : " << \
+	stout << " - - - - - - FINISHED CALCULATIONS IN : " << \
 		double(duration_cast<milliseconds>(duration(stop - start)).count()) / 1000.0 << " seconds - - - - - - " << endl;						// simulation end
 }

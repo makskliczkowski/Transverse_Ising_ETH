@@ -68,7 +68,7 @@ public:
 	// GETTERS & SETTERS
 	std::string get_info() const;																// get the information about the model params
 	u64 get_hilbert_size() const;																// get the Hilbert space size 2^N
-	const cx_mat& get_hamiltonian() const;															// get the const reference to a Hamiltonian
+	const cx_mat& get_hamiltonian() const;														// get the const reference to a Hamiltonian
 	const vec& get_eigenvalues() const;															// get the const reference to eigenvalues
 	const cx_mat& get_eigenvectors() const;														// get the const reference to the eigenvectors
 	const std::vector<u64>& get_mapping() const;												// constant reference to the mapping
@@ -82,7 +82,7 @@ public:
 
 	// METHODS
 	void set_neighbors();																		// create neighbors list according to the boundary conditions
-
+	//void set_parameters(double J, double g, double h) {};
 	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
 	virtual void setHamiltonianElem(u64 k, double value, std::vector<bool>& temp) = 0;
 
@@ -99,7 +99,9 @@ public:
 	vec eigenlevel_statistics_with_return();
 
 	// PHYSICAL OPERATORS (model states dependent) 
-	virtual double av_sigma_x(int state_id, int site) = 0;
+	virtual double av_sigma_x(int site, u64 alfa, u64 beta) = 0;
+	virtual double spin_flip_mat_element(const u64 n, const u64 m) = 0;
+	//friend double sigma_x_diff(int site, u64 beta, u64 alfa, const IsingModel_sym& sector_alfa, const IsingModel_sym& sector_beta);
 	double av_sigma_z(int state_id, int site);
 	virtual double entaglement_entropy(u64 state_id, int subsystem_size) = 0;
 
@@ -108,6 +110,9 @@ public:
 		std::string name = "operator_averaged.txt", string separator = "\t\t");
 	static vec operator_av_in_eigenstates_return(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 	static double spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site);
+
+	/* TOOLS */
+	friend std::unordered_map<u64, u64> mapping_sym_to_original(u64 _min, u64 _max, const IsingModel& symmetry, const IsingModel& original);
 };
 
 void probability_distribution(std::string dir, std::string name, const arma::vec& data, double _min, double _max, double step = 0.05);
@@ -148,7 +153,7 @@ private:
 	} symmetries;
 
 	std::tuple<u64, int> find_translation_representative(std::vector<bool>& base_vector) const;
-	std::tuple<u64, int> find_SEC_representative(const std::vector<bool>& base_vector);
+	std::tuple<u64, int> find_SEC_representative(const std::vector<bool>& base_vector) const;
 	cpx get_symmetry_normalization(std::vector<bool>& base_vector, u64 k);
 	void mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id);
 	void generate_mapping();
@@ -164,10 +169,13 @@ public:
 		return 0;
 	};
 
-	double av_sigma_x(int state_id, int site) override;
+	double av_sigma_x(int site, u64 alfa, u64 beta) override { return 0; };
+	friend double av_sigma_x_sym_sectors(int site, const u64 beta, const u64 alfa, const IsingModel_sym& sector_alfa, const IsingModel_sym& sector_beta);
+	double spin_flip_mat_element(const u64 n, const u64 m) override;
 	mat correlation_matrix(u64 state_id) override {
 		return mat();
 	};
+
 };
 
 
@@ -199,7 +207,8 @@ public:
 	void setHamiltonianElem(u64 k, double value, std::vector<bool>& temp) override;
 
 	// MATRICES
-	double av_sigma_x(int state_id, int site) override;
+	double av_sigma_x(int site, u64 alfa, u64 beta) override;
+	double spin_flip_mat_element(const u64 n, const u64 m) override;
 
 	mat correlation_matrix(u64 state_id) override;
 

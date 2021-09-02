@@ -115,9 +115,9 @@ void IsingModel_disorder::hamiltonian() {
 /// <param name="state_id"> index of eigenstate </param>
 /// <param name="site"> position of the spin, where the operator is acted upon </param>
 /// <returns> return the average in the eigenstate </returns>
-double IsingModel_disorder::av_sigma_x(int state_id, int site) {
-    const vec state = real(eigenvectors.col(state_id));
-
+double IsingModel_disorder::av_sigma_x(int site, u64 alfa, u64 beta) {
+    const vec state_alfa = real(eigenvectors.col(alfa));
+    const vec state_beta = real(eigenvectors.col(beta));
     double value = 0;
 #pragma omp parallel
     {
@@ -127,10 +127,32 @@ double IsingModel_disorder::av_sigma_x(int state_id, int site) {
             int_to_binary(k, base_vector);
             base_vector[site] = !base_vector[site];
             const u64 idx = binary_to_int(base_vector);
-            value += state(idx) * state(k);
+            value += state_alfa(idx) * state_beta(k);
         }
     }
     return value;
+}
+
+/// <summary>
+/// 
+/// </summary>
+/// <param name="n"></param>
+/// <param name="m"></param>
+/// <returns></returns>
+double IsingModel_disorder::spin_flip_mat_element(const u64 n, const u64 m) {
+    std::vector<bool> base_vector(L), temp(L);
+    cpx overlap = 0;
+    cx_vec state_n = this->eigenvectors.col(n);
+    cx_vec state_m = this->eigenvectors.col(m);
+    for (long int k = 0; k < N; k++) {
+        int_to_binary(k, base_vector);
+        for (int j = 0; j < this->L; j++) {
+            temp = base_vector;
+            temp[j] = !base_vector[j];
+            overlap += conj(state_n(binary_to_int(temp))) * state_m(k);
+        }
+    }
+    return real(overlap);// / double(this->L * this->L);
 }
 
 /// <summary>
