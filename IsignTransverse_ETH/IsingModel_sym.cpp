@@ -289,7 +289,7 @@ double IsingModel_sym::spin_flip_mat_element(const u64 n, const u64 m) {
                 if (idx < 0 || idx >= N) continue; // out << "Element do not exist\n";
             }
             cpx translation_eig = (abs(sym_eig) == 1 || symmetries.k_sym == 0) ? \
-                cpx(1.0) : std::exp(-1i * symmetries.k_sym * double(abs(sym_eig) - 1));
+                cpx(1.0) : std::exp(1i * symmetries.k_sym * double(abs(sym_eig) - 1));
             cpx value_new = translation_eig * (normalisation[idx] / normalisation[k]) * double(sgn(sym_eig));
             overlap += conj(state_n(idx)) * value_new * state_m(k);
         }

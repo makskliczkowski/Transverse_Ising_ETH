@@ -58,4 +58,3 @@ std::vector<std::string> split_str(std::string s, std::string delimiter)
 	res.push_back(s.substr(pos_start));
 	return res;
 }
-

@@ -280,7 +280,8 @@ void isingUI::ui::compare_energies() {
 	u64 N = Hamil->get_hilbert_size();
 	Hamil->diagonalization();
 	vec E_dis = Hamil->get_eigenvalues();
-	std::vector<double> E_sym;
+	std::vector<double> E_sym = v_1d<double>();
+	std::vector<std::string> symmetries = v_1d<std::string>();
 	for (int k = 0; k < L; k++) {
 		if (k == 0 || k == this->L / 2.) {
 			for (int p = 0; p <= 1; p++) {
@@ -289,23 +290,32 @@ void isingUI::ui::compare_energies() {
 					Hamil->diagonalization();
 					vec t = Hamil->get_eigenvalues();
 					E_sym.insert(E_sym.end(), std::make_move_iterator(t.begin()), std::make_move_iterator(t.end()));
+					v_1d<std::string> temp_str = v_1d<std::string>(t.size(), "k=" + std::to_string(k) + ",x=" + to_string(x) + ",p=" + to_string(p));
+					symmetries.insert(symmetries.end(), std::make_move_iterator(temp_str.begin()), std::make_move_iterator(temp_str.end()));
 				}
 			}
 		}
 		else {
 			for (int x = 0; x <= 1; x++) {
-				std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_sym>(L, J, g, h, k, p, x, boundary_conditions);
+				std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_sym>(L, J, g, h, k, 1, x, boundary_conditions);
 				Hamil->diagonalization();
 				vec t = Hamil->get_eigenvalues();
 				E_sym.insert(E_sym.end(), std::make_move_iterator(t.begin()), std::make_move_iterator(t.end()));
+				v_1d<std::string> temp_str = v_1d<std::string>(t.size(), "k=" + std::to_string(k) + ",x=" + to_string(x));
+				symmetries.insert(symmetries.end(), std::make_move_iterator(temp_str.begin()), std::make_move_iterator(temp_str.end()));
 			}
 		}
 		//out << Hamil->get_eigenvalues().t();
 	}
-	sort(E_sym.begin(), E_sym.end());
+	auto p = sort_permutation(E_sym, [](const double a, const double b) { 
+			return a < b;
+		});
+	//sort(E_sym.begin(), E_sym.end());
+	apply_permutation(E_sym, p);
+	apply_permutation(symmetries, p);
 	stout << E_sym.size() << endl;
 	for (int k = 0; k < min(E_sym.size(), E_dis.size()); k++) {
-		stout << E_sym[k] << "\t\t" << E_dis(k) << "\t\t" << E_sym[k] - E_dis(k) << endl;
+		stout << symmetries[k] << "\t\t" << E_sym[k] << "\t\t" << E_dis(k) << "\t\t" << E_sym[k] - E_dis(k) << endl;
 	}
 }
 
@@ -328,13 +338,14 @@ void isingUI::ui::make_sim()
 	//vec E_dis = Hamil->get_eigenvalues();
 	//auto E_unique = get_NonDegenerated_Elements(E_dis);
 	//this->model = std::make_unique<IsingModel_sym>(L, J, g, h);
-	//compare_energies();
+	compare_energies();
 	//exit(1);
 	this->model = std::make_unique<IsingModel_disorder>(L, J, 0, g, 0, h, 0);
 	this->model->diagonalization();
 	//vec E_dis = model->get_eigenvalues();
 	//auto E_unique = get_NonDegenerated_Elements(E_dis);
 	std::unique_ptr<IsingModel_sym> alfa = std::make_unique<IsingModel_sym>(L, J, g, h, 0, 1, 1);
+	stout << alfa->get_hilbert_size();
 	alfa->diagonalization();
 	//stout << model->get_eigenvalues() << endl;
 	auto map = mapping_sym_to_original(0, model->get_hilbert_size() - 1, *alfa, *model);
@@ -342,10 +353,12 @@ void isingUI::ui::make_sim()
 	std::ofstream file("file.dat");
 	for_each(exec::seq, map.begin(), map.end(), [&](std::pair<u64, u64> element) {
 		for (auto& t : map) {
+			// double A = alfa->spin_flip_mat_element(element.first, t.first);
 			double A = av_sigma_x_sym_sectors(0, element.first, t.first, *alfa, *alfa);
+			// double B = model->spin_flip_mat_element(element.second, t.second);
 			double B = model->av_sigma_x(0, element.second, t.second);
 			stout << alfa->get_eigenEnergy(element.first) << "\t\t" << \
-				alfa->get_eigenEnergy(t.first) << "\t\t" << A << "\t\t" << B << "\t\t" << A - B << endl;
+				alfa->get_eigenEnergy(t.first) << "\t\t" << A << "\t\t" << B << "\t\t" << abs(A) - abs(B) << endl;
 		}
 		});
 	file.close();
