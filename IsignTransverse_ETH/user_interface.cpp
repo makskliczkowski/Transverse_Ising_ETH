@@ -8,15 +8,14 @@
 /// <returns></returns>
 std::vector<std::string> change_input_to_vec_of_str(int argc, char** argv)
 {
-	std::vector<std::string> tmp(argc-1,"");															// -1 because first is the name of the file
-	for(int i = 0; i <argc - 1;i++ ){
+	std::vector<std::string> tmp(argc - 1, "");															// -1 because first is the name of the file
+	for (int i = 0; i < argc - 1; i++) {
 		tmp[i] = argv[i + 1];
 	}
 	return tmp;
 }
 
-
-// - - - - - - - - - - - - - - - - - - - USER INTERFACE - - - - - - - - - - - - - - - - - - -  
+// - - - - - - - - - - - - - - - - - - - USER INTERFACE - - - - - - - - - - - - - - - - - - -
 
 /// <summary>
 /// Find a given option in a vector of string given from cmd parser
@@ -26,12 +25,12 @@ std::vector<std::string> change_input_to_vec_of_str(int argc, char** argv)
 /// <returns>value for given option if exists, if not an empty string</returns>
 std::string user_interface::getCmdOption(const v_1d<std::string>& vec, std::string option) const
 {
-    if (auto itr = std::find(vec.begin(), vec.end(), option); itr != vec.end() && ++itr != vec.end())
-        return *itr;
-    return std::string();
+	if (auto itr = std::find(vec.begin(), vec.end(), option); itr != vec.end() && ++itr != vec.end())
+		return *itr;
+	return std::string();
 }
 /// <summary>
-/// 
+///
 /// </summary>
 /// <typeparam name="T"></typeparam>
 /// <param name="value"></param>
@@ -41,14 +40,14 @@ std::string user_interface::getCmdOption(const v_1d<std::string>& vec, std::stri
 template<typename T>
 void user_interface::set_option(T& value, const v_1d<std::string>& argv, std::string choosen_option, bool geq_0)
 {
-	if(std::string option = this->getCmdOption(argv,choosen_option); option != "")			
+	if (std::string option = this->getCmdOption(argv, choosen_option); option != "")
 		value = static_cast<T>(stod(option));												// set value to an option
-	if(geq_0 && value < 0)																	// if the variable shall be bigger equal 0
-		this->set_default_msg(value,choosen_option.substr(1),\
+	if (geq_0 && value < 0)																	// if the variable shall be bigger equal 0
+		this->set_default_msg(value, choosen_option.substr(1), \
 			choosen_option + " cannot be negative\n", isingUI::table);
 }
 /// <summary>
-/// 
+///
 /// </summary>
 /// <typeparam name="T"></typeparam>
 /// <param name="value"></param>
@@ -56,37 +55,35 @@ void user_interface::set_option(T& value, const v_1d<std::string>& argv, std::st
 /// <param name="message"></param>
 /// <param name="map"></param>
 template<typename T>
-void user_interface::set_default_msg(T & value, std::string option, std::string message,\
-	const std::unordered_map<std::string,std::string>& map) const
+void user_interface::set_default_msg(T& value, std::string option, std::string message, \
+	const std::unordered_map<std::string, std::string>& map) const
 {
 	stout << message;																			// print warning
 	std::string value_str = "";																// we will set this to value
 	auto it = map.find(option);
 	if (it != map.end()) {
-			value_str = it->second;															// if in table - we take the enum 
-		}
+		value_str = it->second;															// if in table - we take the enum
+	}
 	value = stod(value_str);
 }
-// - - - - - - - - - - - - - - - - - - - ISING MODEL - - - - - - - - - - - - - - - - - - -  
-
-
+// - - - - - - - - - - - - - - - - - - - ISING MODEL - - - - - - - - - - - - - - - - - - -
 
 /* Connected with the parser */
 /// <summary>
 /// Setting the default parameters for the Ising model
 /// </summary>
-void isingUI::ui::set_default(){
+void isingUI::ui::set_default() {
 	using namespace isingUI;
 	this->saving_dir = "." + std::string(kPathSeparator) + "results" + std::string(kPathSeparator);		// directory for the result files to be saved into
 	this->L = 4;
-	
+
 	this->J = 1.0;
 	this->J0 = 0.2;
 	this->h = 0.0;
 	this->w = 1.0;
 	this->g = 1.0;
 	this->g0 = 0;
-	
+
 	this->realisations = 100;
 	this->site = 0;
 	this->mu = 5;
@@ -97,10 +94,10 @@ void isingUI::ui::set_default(){
 	this->thread_number = 1;
 }
 
-// ---- CONSTURCTORS 
+// ---- CONSTURCTORS
 
 /// <summary>
-/// 
+///
 /// </summary>
 /// <param name="argc"></param>
 /// <param name="argv"></param>
@@ -109,7 +106,7 @@ isingUI::ui::ui(int argc, char** argv)
 	auto input = change_input_to_vec_of_str(argc, argv);									// change standard input to vec of strings
 	input = std::vector<std::string>(input.begin()++, input.end());							// skip the first element which is the name of file
 	// plog::init(plog::info, "log.txt");														// initialize logger
-	if(std::string option = this->getCmdOption(input,"-f"); option != ""){
+	if (std::string option = this->getCmdOption(input, "-f"); option != "") {
 		input = this->parseInputFile(option);												// parse input from file
 	}
 	this->parseModel(input.size(), input);													// parse input from CMD directly
@@ -117,8 +114,8 @@ isingUI::ui::ui(int argc, char** argv)
 /// <summary>
 /// Function that tells how does the parser work
 /// </summary>
-void isingUI::ui::exit_with_help() const{
-		printf(
+void isingUI::ui::exit_with_help() const {
+	printf(
 		" Usage: name of executable [options] outputDirectory \n"
 		" The input can be both introduced with [options] described below or with giving the input directory(which also is the flag in the options)\n"
 		" options:\n"
@@ -126,8 +123,8 @@ void isingUI::ui::exit_with_help() const{
 		"-J spin exchange coefficient : (default 1)\n"
 		"-J0 random spin exchange set in uniform distribution [-J0,J0]\n"
 		"-g transverse magnetic field (x-) constant: (default 1)\n"
-		"-g0 random transverse field set in uniform distribution [-g0,g0]\n"	
-		"-h perpendicular (z-) magnetic field constant: (default 0)\n"	
+		"-g0 random transverse field set in uniform distribution [-g0,g0]\n"
+		"-h perpendicular (z-) magnetic field constant: (default 0)\n"
 		"-w disorder strength : (default 0 - no disorder introduced)\n"
 		"-L chain length : bigger than 0 (default 8)\n"
 		"-b boundary conditions : bigger than 0 (default 0 - PBC)\n"
@@ -148,60 +145,58 @@ void isingUI::ui::exit_with_help() const{
 /// </summary>
 /// <param name="argc"> number of arguments </param>
 /// <param name="argv"> list of arguments </param>
-void isingUI::ui::parseModel(int argc, std::vector<std::string> argv){
+void isingUI::ui::parseModel(int argc, std::vector<std::string> argv) {
 	using namespace isingUI;
-	// SET DEFAULT VALUES 
+	// SET DEFAULT VALUES
 	this->set_default();																				// setting default at the very beginning
-	
+
 	std::string choosen_option = "";																	// current choosen option
 	std::string str_model = std::string(kPathSeparator) + "disorder" + std::string(kPathSeparator);		// folder for current model
-	//---------- SIMULATION PARAMETERS	
+	//---------- SIMULATION PARAMETERS
 	// spin coupling
-	choosen_option = "-J";																	
-	this->set_option(this->J,argv,choosen_option);
+	choosen_option = "-J";
+	this->set_option(this->J, argv, choosen_option);
 	// spin coupling disorder
-	choosen_option = "-J0";																	
-	this->set_option(this->J0,argv,choosen_option);
+	choosen_option = "-J0";
+	this->set_option(this->J0, argv, choosen_option);
 	// transverse field
-	choosen_option = "-g";																	
-	this->set_option(this->g,argv,choosen_option);
+	choosen_option = "-g";
+	this->set_option(this->g, argv, choosen_option);
 	// transverse field disorder
-	choosen_option = "-g0";																	
-	this->set_option(this->g0,argv,choosen_option);
+	choosen_option = "-g0";
+	this->set_option(this->g0, argv, choosen_option);
 	// perpendicular field
-	choosen_option = "-h";																	
-	this->set_option(this->h,argv,choosen_option);
+	choosen_option = "-h";
+	this->set_option(this->h, argv, choosen_option);
 	// perpendicular field disorder
 	choosen_option = "-w";
-	this->set_option(this->w,argv,choosen_option);
+	this->set_option(this->w, argv, choosen_option);
 
 	// chain length
-	choosen_option = "-L";																
-	this->set_option(this->L,argv,choosen_option);
+	choosen_option = "-L";
+	this->set_option(this->L, argv, choosen_option);
 	// boundary condition
-	choosen_option = "-b";																
-	this->set_option(this->boundary_conditions,argv,choosen_option);
-	if(this->boundary_conditions > 2) this->set_default_msg(this->boundary_conditions,choosen_option.substr(1),\
+	choosen_option = "-b";
+	this->set_option(this->boundary_conditions, argv, choosen_option);
+	if (this->boundary_conditions > 2) this->set_default_msg(this->boundary_conditions, choosen_option.substr(1), \
 		"max boundary condition is 2", table);
 	// model
-	choosen_option = "-m";																
-	this->set_option(this->m,argv,choosen_option);
-	if(this->m > 1) this->set_default_msg(this->m,choosen_option.substr(1),\
+	choosen_option = "-m";
+	this->set_option(this->m, argv, choosen_option);
+	if (this->m > 1) this->set_default_msg(this->m, choosen_option.substr(1), \
 		"max model number is 1", table);
 
-
-
 	// thread number
-	choosen_option = "-th";																
-	this->set_option(this->thread_number,argv,choosen_option);
+	choosen_option = "-th";
+	this->set_option(this->thread_number, argv, choosen_option);
 	if (this->thread_number > std::thread::hardware_concurrency())
-		this->set_default_msg(this->thread_number ,choosen_option.substr(1),\
+		this->set_default_msg(this->thread_number, choosen_option.substr(1), \
 			"Wrong number of threads\n", table);
 	omp_set_num_threads(this->thread_number);
 	num_of_threads = this->thread_number;
 	// get help
-	choosen_option = "-help";		
-	if(std::string option = this->getCmdOption(argv,choosen_option); option != "")			
+	choosen_option = "-help";
+	if (std::string option = this->getCmdOption(argv, choosen_option); option != "")
 		exit_with_help();
 
 	// make folder based on a model
@@ -211,7 +206,7 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv){
 		str_model = "disorder" + std::string(kPathSeparator);
 		break;
 	case 1:
-		str_model = "symmetries" + std::string(kPathSeparator); 
+		str_model = "symmetries" + std::string(kPathSeparator);
 		break;
 	default:
 		str_model = "disorder" + std::string(kPathSeparator);
@@ -231,20 +226,20 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv){
 	}
 
 	std::string folder = saving_dir + str_model;
-	if (!argv[argc-1].empty() && argc % 2 != 0){
+	if (!argv[argc - 1].empty() && argc % 2 != 0) {
 		// only if the last command is non-even
-		folder =  argv[argc-1] + str_model;
-		if(fs::create_directories(folder) || fs::is_directory(folder))						// creating the directory for saving the files with results
+		folder = argv[argc - 1] + str_model;
+		if (fs::create_directories(folder) || fs::is_directory(folder))						// creating the directory for saving the files with results
 			this->saving_dir = folder;																// if can create dir this is is
 	}
-	else{
-		if(fs::create_directories(folder) || fs::is_directory(folder))						// creating the directory for saving the files with results
+	else {
+		if (fs::create_directories(folder) || fs::is_directory(folder))						// creating the directory for saving the files with results
 			this->saving_dir = folder;																// if can create dir this is is
 	}
 
 	std::cout << " - - - - - - MAKING ISING INTERFACE AND USING OUTER THREADS : " \
 		<< thread_number << " - - - - - - " << endl;				// setting the number of threads to be used with omp
-	
+
 	omp_set_num_threads(this->thread_number);
 	return;
 }
@@ -253,27 +248,20 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv){
 /// </summary>
 /// <param name="filename"> the name of the file that contains the command line </param>
 /// <returns></returns>
-std::vector<std::string> user_interface::parseInputFile(std::string filename) const{
-	std::vector<std::string> commands(1,"");
+std::vector<std::string> user_interface::parseInputFile(std::string filename) const {
+	std::vector<std::string> commands(1, "");
 	ifstream inputFile(filename);
 	std::string line = "";
-	if(!inputFile.is_open())
+	if (!inputFile.is_open())
 		stout << "Cannot open a file " + filename + " that I could parse. All parameters are default. Sorry :c \n";
-	else{
-		if(std::getline(inputFile, line)){
+	else {
+		if (std::getline(inputFile, line)) {
 			commands = split_str(line, " ");									// saving lines to out vector if it can be done, then the parser shall treat them normally
 		}
 	}
-	return std::vector<std::string>(commands.begin(),commands.end()); 
+	return std::vector<std::string>(commands.begin(), commands.end());
 }
 
-class show_copies {
-	std::set<double> existing;
-public:
-	bool operator()(double const in) {
-		return existing.insert(in).second;
-	}
-};
 // ---- SIMULATIONS
 void isingUI::ui::compare_energies() {
 	std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w, boundary_conditions);
@@ -307,8 +295,8 @@ void isingUI::ui::compare_energies() {
 		}
 		//out << Hamil->get_eigenvalues().t();
 	}
-	auto p = sort_permutation(E_sym, [](const double a, const double b) { 
-			return a < b;
+	auto p = sort_permutation(E_sym, [](const double a, const double b) {
+		return a < b;
 		});
 	//sort(E_sym.begin(), E_sym.end());
 	apply_permutation(E_sym, p);
@@ -320,10 +308,10 @@ void isingUI::ui::compare_energies() {
 }
 
 void isingUI::ui::make_sim()
-{	
+{
 	using namespace std::chrono;
 	auto start = std::chrono::high_resolution_clock::now();
-	
+
 	// simulation start
 	/*switch (this->m)
 	{
@@ -338,27 +326,34 @@ void isingUI::ui::make_sim()
 	//vec E_dis = Hamil->get_eigenvalues();
 	//auto E_unique = get_NonDegenerated_Elements(E_dis);
 	//this->model = std::make_unique<IsingModel_sym>(L, J, g, h);
-	compare_energies();
+	//compare_energies();
 	//exit(1);
 	this->model = std::make_unique<IsingModel_disorder>(L, J, 0, g, 0, h, 0);
 	this->model->diagonalization();
 	//vec E_dis = model->get_eigenvalues();
 	//auto E_unique = get_NonDegenerated_Elements(E_dis);
-	std::unique_ptr<IsingModel_sym> alfa = std::make_unique<IsingModel_sym>(L, J, g, h, 0, 1, 1);
-	stout << alfa->get_hilbert_size();
+	std::unique_ptr<IsingModel_sym> alfa = std::make_unique<IsingModel_sym>(L, J, g, h, 1, 1, 1);
+	stout << alfa->get_hilbert_size() << endl;
 	alfa->diagonalization();
 	//stout << model->get_eigenvalues() << endl;
 	auto map = mapping_sym_to_original(0, model->get_hilbert_size() - 1, *alfa, *model);
 	stout << map.size() << endl;
 	std::ofstream file("file.dat");
+
+	auto sig_x = IsingModel_sym::sigma_x;
+	auto sig_z = IsingModel_sym::sigma_z;
+	stout << "ENERGY ALPHA |('.'|)" << "\t" << \
+		 "ENERGY BETA (/'.')/" << "\t" << "SIGMA_X(ALPHA)" << "\t" << "SIGMA_X(BETA)"  << "\t" << "DIFFERENCE" << endl;
 	for_each(exec::seq, map.begin(), map.end(), [&](std::pair<u64, u64> element) {
-		for (auto& t : map) {
-			//double A = alfa->av_sigma_x_extensive(element.first, t.first);
-			double A = av_sigma_x_sym_sectors(0, element.first, t.first, *alfa, *alfa);
-			//double B = model->av_sigma_x_extensive(element.second, t.second);
-			double B = model->av_sigma_x(0, element.second, t.second);
-			stout << alfa->get_eigenEnergy(element.first) << "\t\t" << \
-				alfa->get_eigenEnergy(t.first) << "\t\t" << A << "\t\t" << B << "\t\t" << abs(A) - abs(B) << endl;
+		for (auto& const t : map) {
+			//double A = alfa->av_sigma_z(1,2,element.first, t.first);
+			cpx A = av_operator(1,element.first, t.first, *alfa, *alfa, sig_z);
+			//double A = av_sigma_x_sym_sectors(0, element.first, t.first, *alfa, *alfa);
+			//double B = model->av_sigma_z(1,2,element.second, t.second);
+			double B = model->av_sigma_z(1, element.second, t.second);
+			//double B = model->av_sigma_x(0, element.second, t.second);
+			stout << alfa->get_eigenEnergy(element.first) << "\t" << \
+				alfa->get_eigenEnergy(t.first) << "\t" << real(A) << "\t" << B << "\t" << abs(real(A)) - abs(B) << endl;
 		}
 		});
 	file.close();
@@ -396,7 +391,7 @@ void isingUI::ui::make_sim()
 		for (int k = 0; k < N - 1; k++)
 			r_sigma_x(k) = av_sigma_x(k + 1) - av_sigma_x(k);
 		// spectrum repulsion for < sigma_0^x >
-		
+
 		vec stat_aver = statistics_average(r_sigma_x, 10);
 		// outliers and scaling
 
@@ -430,7 +425,7 @@ void isingUI::ui::make_sim()
 	}
 	scaling_r_sigmaX.close();
 	scaling_ipr.close();
-	
+
 	out << "\n--> starting loop over disorders <--\n";
 	L = 10;
 	std::ofstream scaling_ipr(this->saving_dir + "iprDisorder" +\
@@ -451,7 +446,6 @@ void isingUI::ui::make_sim()
 		vec fluct = data_fluctuations(av_sigma_x);
 		double _min = -2.0, _max = 2.0, step = 2e-3;
 		out << "--> finished writing the sigma _x fluctuations for w = " << w << " <--\n";
-		
 
 		arma::vec prob_dist = probability_distribution_with_return(fluct, _min, _max, step);
 		arma::vec prob_dist_GOE = probability_distribution_with_return(Hamil->eigenlevel_statistics_with_return(), 0, 1, 2 * step);

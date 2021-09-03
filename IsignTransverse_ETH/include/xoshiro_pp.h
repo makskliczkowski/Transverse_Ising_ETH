@@ -11,10 +11,10 @@
 //	to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
 //	copies of the Software, and to permit persons to whom the Software is
 //	furnished to do so, subject to the following conditions :
-//	
+//
 //	The above copyright notice and this permission notice shall be included in
 //	all copies or substantial portions of the Software.
-//	
+//
 //	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 //	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 //	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
@@ -62,11 +62,11 @@ namespace XoshiroCpp
 	{
 	public:
 
-		using state_type	= std::uint64_t;	
-		using result_type	= std::uint64_t;
-		
+		using state_type = std::uint64_t;
+		using result_type = std::uint64_t;
+
 		XOSHIROCPP_NODISCARD_CXX20
-		explicit constexpr SplitMix64(state_type state = DefaultSeed) noexcept;
+			explicit constexpr SplitMix64(state_type state = DefaultSeed) noexcept;
 
 		constexpr result_type operator()() noexcept;
 
@@ -96,7 +96,7 @@ namespace XoshiroCpp
 		{
 			return (lhs.m_state != rhs.m_state);
 		}
-	
+
 	private:
 
 		state_type m_state;
@@ -112,14 +112,14 @@ namespace XoshiroCpp
 	{
 	public:
 
-		using state_type	= std::array<std::uint64_t, 4>;
-		using result_type	= std::uint64_t;
+		using state_type = std::array<std::uint64_t, 4>;
+		using result_type = std::uint64_t;
 
 		XOSHIROCPP_NODISCARD_CXX20
-		explicit constexpr Xoshiro256Plus(std::uint64_t seed = DefaultSeed) noexcept;
+			explicit constexpr Xoshiro256Plus(std::uint64_t seed = DefaultSeed) noexcept;
 
 		XOSHIROCPP_NODISCARD_CXX20
-		explicit constexpr Xoshiro256Plus(state_type state) noexcept;
+			explicit constexpr Xoshiro256Plus(state_type state) noexcept;
 
 		constexpr result_type operator()() noexcept;
 
@@ -172,14 +172,14 @@ namespace XoshiroCpp
 	{
 	public:
 
-		using state_type	= std::array<std::uint64_t, 4>;
-		using result_type	= std::uint64_t;
+		using state_type = std::array<std::uint64_t, 4>;
+		using result_type = std::uint64_t;
 
 		XOSHIROCPP_NODISCARD_CXX20
-		explicit constexpr Xoshiro256PlusPlus(std::uint64_t seed = DefaultSeed) noexcept;
+			explicit constexpr Xoshiro256PlusPlus(std::uint64_t seed = DefaultSeed) noexcept;
 
 		XOSHIROCPP_NODISCARD_CXX20
-		explicit constexpr Xoshiro256PlusPlus(state_type state) noexcept;
+			explicit constexpr Xoshiro256PlusPlus(state_type state) noexcept;
 
 		constexpr result_type operator()() noexcept;
 
@@ -232,14 +232,14 @@ namespace XoshiroCpp
 	{
 	public:
 
-		using state_type	= std::array<std::uint64_t, 4>;
-		using result_type	= std::uint64_t;
+		using state_type = std::array<std::uint64_t, 4>;
+		using result_type = std::uint64_t;
 
 		XOSHIROCPP_NODISCARD_CXX20
-		explicit constexpr Xoshiro256StarStar(std::uint64_t seed = DefaultSeed) noexcept;
+			explicit constexpr Xoshiro256StarStar(std::uint64_t seed = DefaultSeed) noexcept;
 
 		XOSHIROCPP_NODISCARD_CXX20
-		explicit constexpr Xoshiro256StarStar(state_type state) noexcept;
+			explicit constexpr Xoshiro256StarStar(state_type state) noexcept;
 
 		constexpr result_type operator()() noexcept;
 
@@ -292,14 +292,14 @@ namespace XoshiroCpp
 	{
 	public:
 
-		using state_type	= std::array<std::uint64_t, 2>;
-		using result_type	= std::uint64_t;
+		using state_type = std::array<std::uint64_t, 2>;
+		using result_type = std::uint64_t;
 
 		XOSHIROCPP_NODISCARD_CXX20
-		explicit constexpr Xoroshiro128Plus(std::uint64_t seed = DefaultSeed) noexcept;
+			explicit constexpr Xoroshiro128Plus(std::uint64_t seed = DefaultSeed) noexcept;
 
 		XOSHIROCPP_NODISCARD_CXX20
-		explicit constexpr Xoroshiro128Plus(state_type state) noexcept;
+			explicit constexpr Xoroshiro128Plus(state_type state) noexcept;
 
 		constexpr result_type operator()() noexcept;
 
@@ -352,14 +352,14 @@ namespace XoshiroCpp
 	{
 	public:
 
-		using state_type	= std::array<std::uint64_t, 2>;
-		using result_type	= std::uint64_t;
+		using state_type = std::array<std::uint64_t, 2>;
+		using result_type = std::uint64_t;
 
 		XOSHIROCPP_NODISCARD_CXX20
-		explicit constexpr Xoroshiro128PlusPlus(std::uint64_t seed = DefaultSeed) noexcept;
+			explicit constexpr Xoroshiro128PlusPlus(std::uint64_t seed = DefaultSeed) noexcept;
 
 		XOSHIROCPP_NODISCARD_CXX20
-		explicit constexpr Xoroshiro128PlusPlus(state_type state) noexcept;
+			explicit constexpr Xoroshiro128PlusPlus(state_type state) noexcept;
 
 		constexpr result_type operator()() noexcept;
 
@@ -412,14 +412,14 @@ namespace XoshiroCpp
 	{
 	public:
 
-		using state_type	= std::array<std::uint64_t, 2>;
-		using result_type	= std::uint64_t;
+		using state_type = std::array<std::uint64_t, 2>;
+		using result_type = std::uint64_t;
 
 		XOSHIROCPP_NODISCARD_CXX20
-		explicit constexpr Xoroshiro128StarStar(std::uint64_t seed = DefaultSeed) noexcept;
+			explicit constexpr Xoroshiro128StarStar(std::uint64_t seed = DefaultSeed) noexcept;
 
 		XOSHIROCPP_NODISCARD_CXX20
-		explicit constexpr Xoroshiro128StarStar(state_type state) noexcept;
+			explicit constexpr Xoroshiro128StarStar(state_type state) noexcept;
 
 		constexpr result_type operator()() noexcept;
 
@@ -472,14 +472,14 @@ namespace XoshiroCpp
 	{
 	public:
 
-		using state_type	= std::array<std::uint32_t, 4>;
-		using result_type	= std::uint32_t;
+		using state_type = std::array<std::uint32_t, 4>;
+		using result_type = std::uint32_t;
 
 		XOSHIROCPP_NODISCARD_CXX20
-		explicit constexpr Xoshiro128Plus(std::uint64_t seed = DefaultSeed) noexcept;
+			explicit constexpr Xoshiro128Plus(std::uint64_t seed = DefaultSeed) noexcept;
 
 		XOSHIROCPP_NODISCARD_CXX20
-		explicit constexpr Xoshiro128Plus(state_type state) noexcept;
+			explicit constexpr Xoshiro128Plus(state_type state) noexcept;
 
 		constexpr result_type operator()() noexcept;
 
@@ -532,14 +532,14 @@ namespace XoshiroCpp
 	{
 	public:
 
-		using state_type	= std::array<std::uint32_t, 4>;
-		using result_type	= std::uint32_t;
+		using state_type = std::array<std::uint32_t, 4>;
+		using result_type = std::uint32_t;
 
 		XOSHIROCPP_NODISCARD_CXX20
-		explicit constexpr Xoshiro128PlusPlus(std::uint64_t seed = DefaultSeed) noexcept;
+			explicit constexpr Xoshiro128PlusPlus(std::uint64_t seed = DefaultSeed) noexcept;
 
 		XOSHIROCPP_NODISCARD_CXX20
-		explicit constexpr Xoshiro128PlusPlus(state_type state) noexcept;
+			explicit constexpr Xoshiro128PlusPlus(state_type state) noexcept;
 
 		constexpr result_type operator()() noexcept;
 
@@ -592,14 +592,14 @@ namespace XoshiroCpp
 	{
 	public:
 
-		using state_type	= std::array<std::uint32_t, 4>;
-		using result_type	= std::uint32_t;
+		using state_type = std::array<std::uint32_t, 4>;
+		using result_type = std::uint32_t;
 
 		XOSHIROCPP_NODISCARD_CXX20
-		explicit constexpr Xoshiro128StarStar(std::uint64_t seed = DefaultSeed) noexcept;
+			explicit constexpr Xoshiro128StarStar(std::uint64_t seed = DefaultSeed) noexcept;
 
 		XOSHIROCPP_NODISCARD_CXX20
-		explicit constexpr Xoshiro128StarStar(state_type state) noexcept;
+			explicit constexpr Xoshiro128StarStar(state_type state) noexcept;
 
 		constexpr result_type operator()() noexcept;
 

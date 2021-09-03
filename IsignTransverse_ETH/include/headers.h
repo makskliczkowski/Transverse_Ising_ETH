@@ -23,14 +23,14 @@
 #include <omp.h>
 #include <time.h>
 #include <ctime>
-#include <utility> // auto, etc. 
+#include <utility> // auto, etc.
 #include <memory> // smart ptr
 #include <thread>
 #include<queue>
 #include<mutex>
 #include<condition_variable>
 #include<functional>
-#include<future>   
+#include<future>
 #include <bitset> // binary data type
 #include "random.h"
 #include <filesystem>
@@ -64,23 +64,17 @@ using v_1d = std::vector<T>;												// 1d double vector
 #define im cpx(0.0,1.0)
 #define stout std::cout << std::setprecision(16) << std::fixed				// standard outstream
 
-
 #define memory_over_performance false										// optimized by size --true-- (memory usage shortage) or performance --false--
 extern int num_of_threads;													// number of threads
 
 constexpr long double pi = 3.141592653589793238462643383279502884L;			// it is me, pi
 constexpr long double two_pi = 2 * 3.141592653589793238462643383279502884L;	// it is me, 2pi
 
-extern double T;															// temperature for Sq calculations
-extern double dT;															// temperature increment
-extern double T_end;														// temperature range (dT, T_end)
 
 //static random_num* rn; // random number class instance
 extern std::random_device rd;
 extern std::mt19937::result_type seed;
 extern std::mt19937_64 gen;
-
-
 
 //--------------------------------------------------TOOLS--------------------------------------------------
 template <typename T> int sgn(T val) {
@@ -92,7 +86,7 @@ bool isNumber(const string& str);
 std::vector<std::string> split_str(std::string s, std::string delimiter);
 
 template <typename T>
-std::string to_string_prec(const T a_value, const int n = 3){
+std::string to_string_prec(const T a_value, const int n = 3) {
 	std::ostringstream outie;
 	outie.precision(n);
 	outie << std::fixed << a_value;
@@ -104,7 +98,7 @@ std::string to_string_prec(const T a_value, const int n = 3){
 /// Fiunding index of base vector in mapping to reduced basis
 /// </summary>
 /// <typeparam name="T"></typeparam>
-/// <param name="arr"> arary/vector conataing the mapping to the reduced basis </param> 
+/// <param name="arr"> arary/vector conataing the mapping to the reduced basis </param>
 /// <param name="l_point"> left maring for binary search </param>
 /// <param name="r_point"> right margin for binary search </param>
 /// <param name="element"> element to search in the array </param>

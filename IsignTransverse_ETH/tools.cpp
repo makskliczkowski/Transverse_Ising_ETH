@@ -23,19 +23,19 @@ std::mt19937_64 gen(seed);
 bool isNumber(const string& str)
 {
 	bool found_dot = false;
-	bool found_minus = false; 
-    for (char const &c : str) {
-		if(c == '.'&& !found_dot ){
+	bool found_minus = false;
+	for (char const& c : str) {
+		if (c == '.' && !found_dot) {
 			found_dot = true;
 			continue;
 		}
-		if(c=='-' && !found_minus){
+		if (c == '-' && !found_minus) {
 			found_minus = true;
 			continue;
 		}
-        if (std::isdigit(c) == 0) return false;
-    }
-    return true;
+		if (std::isdigit(c) == 0) return false;
+	}
+	return true;
 }
 /// <summary>
 /// Splits string by a given delimiter

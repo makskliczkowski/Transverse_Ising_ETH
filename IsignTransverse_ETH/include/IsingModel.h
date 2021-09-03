@@ -22,14 +22,13 @@
  * ------------------------------ All rights reserved -------------------------------- *
  * Authors:																	 *
  * - Rafa³ Œwiêtek, soon to be Phd student										 *
- *	- email: 77swietek77.at.gmail.com											 *	  
- * - Maksymilian Kliczkowski Phd student, Wroc³aw University of Science and Technology *		   
+ *	- email: 77swietek77.at.gmail.com											 *
+ * - Maksymilian Kliczkowski Phd student, Wroc³aw University of Science and Technology *
  *	- email: maxgrom97.at.gmail.com												 *
  * ----------------------------------------------------------------------------------- *
  * Special thanks to dr Lev Vidmar at Institute Josef Stefan, with whose support       *
  * the work has been done, while staying in Ljubljana, Slovenia.					 *
  * ---------------------------------------------------------------------------------- */
-
 
 class IsingModel {
 protected:
@@ -48,7 +47,7 @@ protected:
 
 	virtual u64 map(u64 index) = 0;						// function returning either the mapping(symmetries) or the input index (no-symmetry: 1to1 correspondance)
 
-public:	
+public:
 	u64 E_av_idx;										// average energy
 	/* MODEL BASED PARAMETERS */
 	int L;												// chain length
@@ -57,10 +56,10 @@ public:
 	double h;											// perpendicular magnetic field
 	int _BC;											// boundary condition
 
-	// CONSTRUCTOR 
+	// CONSTRUCTOR
 	virtual ~IsingModel() = 0;
 
-	// Clone functions 
+	// Clone functions
 	//virtual std::unique_ptr<IsingModel> clone() const = 0;
 	//return unique_ptr<IsingModel>(new IsingModel(*this));
 	//virtual std::unique_ptr<IsingModel> move_clone() = 0;
@@ -73,8 +72,8 @@ public:
 	const cx_mat& get_eigenvectors() const;														// get the const reference to the eigenvectors
 	const std::vector<u64>& get_mapping() const;												// constant reference to the mapping
 
-	double get_eigenEnergy(int idx) const;														// get eigenenergy at a given idx
-	const cx_vec& get_eigenState(int idx) const;													// get an eigenstate at a given idx
+	double get_eigenEnergy(u64 idx) const;														// get eigenenergy at a given idx
+	const cx_vec& get_eigenState(u64 idx) const;													// get an eigenstate at a given idx
 
 	// PRINTERS
 	void print_base_spin_sector(int Sz = 0);													// print basis state with a given total spin (for clarity purposes)
@@ -92,17 +91,22 @@ public:
 	virtual mat correlation_matrix(u64 state_id) = 0;											// create the spin correlation matrix at a given state
 	static double total_spin(const mat& corr_mat);												// the diagonal part of a spin correlation matrix
 
-	// PHYSICAL QUANTITIES 
+	// PHYSICAL QUANTITIES
 	double ipr(int state_idx);																	// calculate the ipr coeffincient
 	double information_entropy(const u64 _id);
 	double eigenlevel_statistics(u64 _min, u64 _max);											// calculate the statistics based on eigenlevels (r coefficient)
 	vec eigenlevel_statistics_with_return();
 
-	// PHYSICAL OPERATORS (model states dependent) 
+	// PHYSICAL OPERATORS (model states dependent)
+	virtual double av_sigma_z(int site, u64 alfa, u64 beta) = 0;
+	double av_sigma_z(int site_a, int site_b, u64 alfa, u64 beta);								// check the matrix element for sigma_z correlations S^z_aS^z_b
+	double av_sigma_z_extensive(const u64 n, const u64 m);
+	double av_sigma_z_extensive_corr(const u64 n, const u64 m, int corr_len = 1);
+
 	virtual double av_sigma_x(int site, u64 alfa, u64 beta) = 0;
 	virtual double av_sigma_x_extensive(const u64 n, const u64 m) = 0;
 	//friend double sigma_x_diff(int site, u64 beta, u64 alfa, const IsingModel_sym& sector_alfa, const IsingModel_sym& sector_beta);
-	double av_sigma_z(int state_id, int site);
+
 	virtual double entaglement_entropy(u64 state_id, int subsystem_size) = 0;
 
 	// USING PHYSICAL QUANTITES FOR PARAMTER RANGES, ETC.
@@ -132,7 +136,6 @@ inline double overlap(const std::unique_ptr<IsingModel>& A, const std::unique_pt
 	return abs(arma::cdot(A->get_eigenState(n_a), B->get_eigenState(n_b)));
 }
 
-
 //-------------------------------------------------------------------------------------------------------------------------------
 /// <summary>
 /// Model with included symmetries and uniform perpendicular magnetic field
@@ -158,26 +161,47 @@ private:
 	void mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id);
 	void generate_mapping();
 
-
 	u64 map(u64 index) override;
 	/*-------------------------------- */
 public:
 	void hamiltonian() override;
+	friend std::pair<u64, cpx> find_rep_and_sym_eigval(v_1d<bool>& base, const IsingModel_sym& sector_alfa, cpx normalisation_beta);
 	void setHamiltonianElem(u64 k, double value, std::vector<bool>& temp) override;
 
 	double entaglement_entropy(u64 state_id, int subsystem_size) override {
 		return 0;
 	};
 
-	double av_sigma_x(int site, u64 alfa, u64 beta) override { return 0; };
+	double av_sigma_z(int site, u64 alfa, u64 beta) override;
+
+	double av_sigma_x(int site, u64 alfa, u64 beta) override {return 0;};
+	// lambda function for Sigmas - changes the state and returns the value on the base vector
+	static std::pair<cpx, v_1d<bool>> sigma_x(int site, const v_1d<bool>& base_vec) {
+		auto tmp = base_vec;
+		tmp[site] = !tmp[site];
+		return std::make_pair(1.0,tmp);
+	};
+	static std::pair<cpx, v_1d<bool>> sigma_y(int site, const v_1d<bool>& base_vec) {
+		auto tmp = base_vec;
+		tmp[site] = !tmp[site];
+		return std::make_pair(base_vec[site] ? im : -im, tmp);
+	}
+	static std::pair<cpx, v_1d<bool>> sigma_z(int site, const v_1d<bool>& base_vec) {
+		auto tmp = base_vec;
+		return std::make_pair(tmp[site] ? 1.0 : -1.0,tmp);
+	}
+
+	friend cpx av_operator(int site, u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, std::function<std::pair<cpx,v_1d<bool>>(int, v_1d<bool>&)> op);
+	friend cpx apply_sym_overlap(int site, const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, const v_1d<bool>& base_vec,\
+		const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, std::function<std::pair<cpx,v_1d<bool>>(int, v_1d<bool>&)> op);
+
 	friend double av_sigma_x_sym_sectors(int site, const u64 beta, const u64 alfa, const IsingModel_sym& sector_alfa, const IsingModel_sym& sector_beta);
 	double av_sigma_x_extensive(const u64 n, const u64 m) override;
+
 	mat correlation_matrix(u64 state_id) override {
 		return mat();
 	};
-
 };
-
 
 //-------------------------------------------------------------------------------------------------------------------------------
 /// <summary>
@@ -207,19 +231,17 @@ public:
 	void setHamiltonianElem(u64 k, double value, std::vector<bool>& temp) override;
 
 	// MATRICES
+
+	double av_sigma_z(int site, u64 alfa, u64 beta) override;
+
 	double av_sigma_x(int site, u64 alfa, u64 beta) override;
 	double av_sigma_x_extensive(const u64 n, const u64 m) override;
 
 	mat correlation_matrix(u64 state_id) override;
 
 	double entaglement_entropy(u64 state_id, int subsystem_size) override;
-
 };
 
-
 double quantum_fidelity(u64 _min, u64 _max, const std::unique_ptr<IsingModel>& Hamil, double J, double J0, double g, double g0, double h, double w = 0);
-
-
-
 
 #endif
