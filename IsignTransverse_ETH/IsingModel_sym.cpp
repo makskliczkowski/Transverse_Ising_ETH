@@ -278,66 +278,41 @@ void IsingModel_sym::hamiltonian() {
 /* PHYSICAL QUANTITTIES */
 
 /// <summary>
-///
+/// Calculates the matrix element for sigma_z Pauli matrix
 /// </summary>
-/// <param name="state_id"></param>
-/// <param name="site"></param>
-/// <returns></returns>
+/// <param name="site">Site the matrix works on</param>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <returns>The matrix element</returns>
 double IsingModel_sym::av_sigma_z(int site, u64 alfa, u64 beta) {
-	if (site < 0 || site >= L) throw "Site index exceeds chain";
-	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
-	arma::subview_col state_beta = this->eigenvectors.col(beta);
-	bool k_sector = abs(symmetries.k_sym) < 1e-4 || abs(symmetries.k_sym - pi) < 1e-4;
+	auto sig_z = IsingModel_sym::sigma_z;
+	return real(av_operator(1, alfa, beta, *this, *this, sig_z));
+}
 
-	cpx value = 0;
-	std::vector<bool> base_vector(L);
-	for (int k = 0; k < N; k++) {
-		int_to_binary(map(k), base_vector);
-		// make symmetry states
-		double val_T = base_vector[site] ? 1.0 : -1.0;
-		double val_PT = 0;
-		double val_ZT = 0;
-		double val_PZT = 0;
-		double G = this->L;
-		if (h == 0) G += this->L;
-		if (k_sector) G += (h == 0) ? 2 * this->L : this->L;
+/// <summary>
+/// Calculates the matrix element for sigma_z Pauli matrix
+/// </summary>
+/// <param name="site_a">Site_a the matrix works on</param>
+/// <param name="site_b">Site_b the matrix works on</param>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <returns>The matrix element</returns>
+double IsingModel_sym::av_sigma_z(int site_a, int site_b, u64 alfa, u64 beta)
+{
+return 0.0;
+}
 
-		std::vector<bool> PT = base_vector;										// Parity translation
-		std::reverse(PT.begin(), PT.end());
-		val_PT = PT[site] ? 1.0 : -1.0;
-
-		std::vector<bool> ZT = base_vector;										// Flip translation
-		ZT.flip();
-		val_ZT = ZT[site] ? 1.0 : -1.0;
-
-		std::vector<bool> PZT = ZT;												// Parity Flip translation
-		std::reverse(PZT.begin(), PZT.end());
-		val_PZT = PZT[site] ? 1.0 : -1.0;
-
-		cpx overlap = 0;
-		for (int l = 0; l < this->L; l++) {
-			overlap += std::exp(-1i * symmetries.k_sym * double(l)) * val_T;														// translation alone
-			if (k_sector) {
-				overlap += val_PT * ((double)symmetries.p_sym) * std::exp(-1i * symmetries.k_sym * double(l));						// PT overlap
-				std::rotate(PT.begin(), PT.begin() + 1, PT.end());
-			}
-			if (h == 0) {
-				overlap += val_ZT * ((double)symmetries.x_sym) * std::exp(-1i * symmetries.k_sym * double(l));						// ZT overlap
-				std::rotate(ZT.begin(), ZT.begin() + 1, ZT.end());
-			}
-			if (k_sector && h == 0) {
-				overlap += val_PZT * ((double)symmetries.p_sym * (double)symmetries.x_sym) * std::exp(-1i * symmetries.k_sym * double(l));	// PZT overlap
-				std::rotate(PZT.begin(), PZT.begin() + 1, PZT.end());
-			}
-			std::rotate(base_vector.begin(), base_vector.begin() + 1, base_vector.end());
-			val_PT = PT[site] ? 1.0 : -1.0;
-			val_ZT = ZT[site] ? 1.0 : -1.0;
-			val_PZT = PZT[site] ? 1.0 : -1.0;
-			val_T = base_vector[site] ? 1.0 : -1.0;
-		}
-		value += conj(state_alfa(k)) * state_beta(k) * overlap / G;
-	}
-	return real(value);
+/// <summary>
+/// Calculates the matrix element for sigma_x Pauli matrix
+/// </summary>
+/// <param name="site">Site the matrix works on</param>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <returns>The matrix element</returns>
+double IsingModel_sym::av_sigma_x(int site, u64 alfa, u64 beta)
+{
+	auto sig_x = IsingModel_sym::sigma_x;
+	return real(av_operator(1, alfa, beta, *this, *this, sig_x));
 }
 
 /// <summary>
@@ -410,6 +385,7 @@ cpx av_operator(int site, u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, co
 cpx apply_sym_overlap(int site, const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, const v_1d<bool>& base_vec,\
 	const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, std::function<std::pair<cpx,v_1d<bool>>(int, v_1d<bool>&)> op)
 {
+
 	const bool k_sector_beta = abs(sec_beta.symmetries.k_sym) < 1e-4 || abs(sec_beta.symmetries.k_sym - pi) < 1e-4;
 	const u64 k = binary_search(sec_beta.mapping, 0, sec_beta.N - 1, binary_to_int(base_vec));									// index of the current base vector
 

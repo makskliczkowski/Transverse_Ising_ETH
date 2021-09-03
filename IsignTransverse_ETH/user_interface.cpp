@@ -332,30 +332,65 @@ void isingUI::ui::make_sim()
 	this->model->diagonalization();
 	//vec E_dis = model->get_eigenvalues();
 	//auto E_unique = get_NonDegenerated_Elements(E_dis);
-	std::unique_ptr<IsingModel_sym> alfa = std::make_unique<IsingModel_sym>(L, J, g, h, 1, 1, 1);
+	std::unique_ptr<IsingModel_sym> alfa = std::make_unique<IsingModel_sym>(L, J, g, h, 0, 1, 1);
+	std::unique_ptr<IsingModel_sym> beta = std::make_unique<IsingModel_sym>(L, J, g, h, L/2.0, 0, 0);
 	stout << alfa->get_hilbert_size() << endl;
 	alfa->diagonalization();
+	beta->diagonalization();
 	//stout << model->get_eigenvalues() << endl;
-	auto map = mapping_sym_to_original(0, model->get_hilbert_size() - 1, *alfa, *model);
-	stout << map.size() << endl;
+	auto map_alfa = mapping_sym_to_original(0, model->get_hilbert_size() - 1, *alfa, *model);
+	auto map_beta = mapping_sym_to_original(0, model->get_hilbert_size() - 1, *beta, *model); 
+	stout << "alfa sector size for nondegenerate mapping is : " << map_alfa.size() << endl;
+	stout << "beta sector size for nondegenerate mapping is : " << map_alfa.size() << endl; 
 	std::ofstream file("file.dat");
 
 	auto sig_x = IsingModel_sym::sigma_x;
 	auto sig_z = IsingModel_sym::sigma_z;
-	stout << "ENERGY ALPHA |('.'|)" << "\t" << \
-		 "ENERGY BETA (/'.')/" << "\t" << "SIGMA_X(ALPHA)" << "\t" << "SIGMA_X(BETA)"  << "\t" << "DIFFERENCE" << endl;
-	for_each(exec::seq, map.begin(), map.end(), [&](std::pair<u64, u64> element) {
-		for (auto& const t : map) {
+	stout << "ALPHA SECTOR : k=0,x=1,p=1, BETA SECTOR : k=pi,x=1,p=1\n\n";
+	stout << " - - - - - - SAME SECTORS - - - - - - \n" << " - - - - > FOR ALFA - ALFA: \n" << "ENERGY ALPHA |('.'|)" << "\t" << \
+		 "ENERGY ALFA (/'.')/" << "\t" << "<alfa|SIGMA_X|alfa>" << "\t" << "<non_sym|SIGMA_X|non_sym>"  << "\t" << "DIFFERENCE" << endl;
+	for_each(exec::seq, map_alfa.begin(), map_alfa.end(), [&](std::pair<u64, u64> element) {
+		for (auto& const t : map_alfa) {
 			//double A = alfa->av_sigma_z(1,2,element.first, t.first);
-			cpx A = av_operator(1,element.first, t.first, *alfa, *alfa, sig_z);
+			cpx A = av_operator(1,element.first, t.first, *alfa, *alfa, sig_x);
 			//double A = av_sigma_x_sym_sectors(0, element.first, t.first, *alfa, *alfa);
 			//double B = model->av_sigma_z(1,2,element.second, t.second);
-			double B = model->av_sigma_z(1, element.second, t.second);
+			double B = model->av_sigma_x(1, element.second, t.second);
 			//double B = model->av_sigma_x(0, element.second, t.second);
 			stout << alfa->get_eigenEnergy(element.first) << "\t" << \
 				alfa->get_eigenEnergy(t.first) << "\t" << real(A) << "\t" << B << "\t" << abs(real(A)) - abs(B) << endl;
 		}
 		});
+	stout << "\n - - - - > FOR BETA - BETA: \n" << "ENERGY BETA |('.'|)" << "\t" << \
+		 "ENERGY BETA (/'.')/" << "\t" << "<beta|SIGMA_X|beta>" << "\t" << "<non_sym|SIGMA_X|non_sym>"  << "\t" << "DIFFERENCE" << endl;
+	for_each(exec::seq, map_beta.begin(), map_beta.end(), [&](std::pair<u64, u64> element) {
+		for (auto& const t : map_beta) {
+			//double A = alfa->av_sigma_z(1,2,element.first, t.first);
+			cpx A = av_operator(1,element.first, t.first, *beta, *beta, sig_x);
+			//double A = av_sigma_x_sym_sectors(0, element.first, t.first, *alfa, *alfa);
+			//double B = model->av_sigma_z(1,2,element.second, t.second);
+			double B = model->av_sigma_x(1, element.second, t.second);
+			//double B = model->av_sigma_x(0, element.second, t.second);
+			stout << beta->get_eigenEnergy(element.first) << "\t" << \
+				beta->get_eigenEnergy(t.first) << "\t" << real(A) << "\t" << B << "\t" << abs(real(A)) - abs(B) << endl;
+		}
+		});
+	stout << "\n\n - - - - - - DIFFERENT SECTORS - - - - - - \n" << " - - - - > FOR ALFA - BETA: \n" << "ENERGY ALPHA |('.'|)" << "\t" << \
+		 "ENERGY BETA (/'.')/" << "\t" << "<alfa|SIGMA_X|beta>" << "\t" << "<non_sym_a|SIGMA_X|non_sym_b>"  << "\t" << "DIFFERENCE" << endl;
+	for_each(exec::seq, map_alfa.begin(), map_alfa.end(), [&](std::pair<u64, u64> element) {
+		for (auto& const t : map_beta) {
+			//double A = alfa->av_sigma_z(1,2,element.first, t.first);
+			cpx A = av_operator(1,element.first, t.first, *alfa, *beta, sig_x);
+			//double A = av_sigma_x_sym_sectors(0, element.first, t.first, *alfa, *alfa);
+			//double B = model->av_sigma_z(1,2,element.second, t.second);
+			double B = model->av_sigma_x(1, element.second, t.second);
+			//double B = model->av_sigma_x(0, element.second, t.second);
+			stout << alfa->get_eigenEnergy(element.first) << "\t" << \
+				beta->get_eigenEnergy(t.first) << "\t" << real(A) << "\t" << B << "\t" << abs(real(A)) - abs(B) << endl;
+		}
+		});
+
+
 	file.close();
 
 	/* DISORDER main */

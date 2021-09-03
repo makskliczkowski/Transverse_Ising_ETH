@@ -2,7 +2,7 @@
 
 IsingModel::~IsingModel() {
 }
-/* GETTERS and SETTERS*/
+// - - - - - GETTERS and SETTERS - - - - -
 std::string IsingModel::get_info() const {
 	return this->info;
 }
@@ -239,7 +239,11 @@ std::unordered_map<u64, u64> mapping_sym_to_original(u64 _min, u64 _max, const I
 	return map;
 }
 
-/* OPERATOR AVERAGE */
+// - - - - - OPERATOR AVERAGES - - - - -
+
+// -----------------------------------------------------------> TO REFACTOR AND CREATE DESCRIPTION -------------------------------------------------------
+
+
 /// <summary>
 ///
 /// </summary>
@@ -278,27 +282,6 @@ double av_sigma_x_sym_sectors(int site, const u64 beta, const u64 alfa, const Is
 		overlap += conj(state_alfa(idx)) * value_new * state_beta(k);
 	}
 	return real(overlap);
-}
-
-/// <summary>
-///
-/// </summary>
-/// <param name="state_id"></param>
-/// <param name="site"></param>
-/// <returns></returns>
-double IsingModel::av_sigma_z(int site_a, int site_b, u64 alfa, u64 beta) {
-	if (site_a < 0 || site_a >= L || site_b < 0 || site_b >= L) throw "Site index exceeds chain";
-	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
-	arma::subview_col state_beta = this->eigenvectors.col(beta);
-	cpx value = 0;
-	std::vector<bool> base_vector(L);
-	for (int k = 0; k < N; k++) {
-		int_to_binary(map(k), base_vector);
-		double Sz_a = base_vector[site_a] ? 1.0 : -1.0;
-		double Sz_b = base_vector[site_b] ? 1.0 : -1.0;
-		value += Sz_a * Sz_b * conj(state_alfa(k)) * state_beta(k);
-	}
-	return real(value);
 }
 
 /// <summary>
@@ -409,22 +392,22 @@ vec IsingModel::operator_av_in_eigenstates_return(double (IsingModel::* op)(int,
 /// <param name="h"> new uniform perpendicular field </param>
 /// <param name="w"> new disorder stregth </param>
 /// <returns></returns>
-double quantum_fidelity(u64 _min, u64 _max, const std::unique_ptr<IsingModel>& Hamil, double J, double J0, double g, double g0, double h, double w) {
+double quantum_fidelity(u64 _min, u64 _max, const IsingModel& Hamil, double J, double J0, double g, double g0, double h, double w) {
 	if (_min < 0) throw "too low index";
-	if (_max >= Hamil->get_hilbert_size()) throw "index exceeding Hilbert space";
+	if (_max >= Hamil.get_hilbert_size()) throw "index exceeding Hilbert space";
 
 	std::unique_ptr<IsingModel> Hamil2;
-	if (typeid(Hamil) == typeid(IsingModel_disorder)) Hamil2 = std::make_unique<IsingModel_disorder>(Hamil->L, J, J0, g, g0, h, w);
-	else Hamil2 = std::make_unique<IsingModel_sym>(Hamil->L, J, g, h);
+	if (typeid(Hamil) == typeid(IsingModel_disorder)) Hamil2 = std::make_unique<IsingModel_disorder>(Hamil.L, J, J0, g, g0, h, w);
+	else Hamil2 = std::make_unique<IsingModel_sym>(Hamil.L, J, g, h);
 
 	double fidelity = 0;
 #pragma omp parallel for reduction(+: fidelity)
 	for (long int k = _min; k < _max; k++)
-		fidelity += overlap(Hamil, Hamil2, k, k);
+		fidelity += overlap(Hamil, *Hamil2, k, k);
 	return fidelity / double(_max - _min);
 }
 
-/* STATISTICS AND PROBABILITIES */
+// - - - - - STATISTICS AND PROBABILITIES - - - - - 
 /// <summary>
 ///
 /// </summary>
@@ -505,4 +488,20 @@ arma::vec statistics_average(const arma::vec& data, int num_of_outliers) {
 	}
 	spec_rep[0] = average / double(data.size() - 2);
 	return (vec)spec_rep;
+}
+
+// - - - - - TOOLS - - - - -
+
+/// <summary>
+/// Overlapping of two eigenstates of possibly different matrices A and B
+/// </summary>
+/// <param name="A">matrix A</param>
+/// <param name="B">matrix B</param>
+/// <param name="n_a">number of A eigenstate</param>
+/// <param name="n_b">number of B eigenstate</param>
+/// <returns>A_n_a dot n_b_B</returns>
+double overlap(const IsingModel & A, const IsingModel & B, int n_a, int n_b)
+{
+	if(n_a >= A.N || n_b >= B.N || n_a < 0 || n_b < 0) throw "Cannot create an overlap between non-existing states\n";
+	return abs(arma::cdot(A.eigenvectors.col(n_a), B.eigenvectors.col(n_b)));
 }

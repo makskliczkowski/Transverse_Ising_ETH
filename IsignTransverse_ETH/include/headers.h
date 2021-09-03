@@ -10,6 +10,7 @@
 #include <complex>
 #include <cmath>
 #include <algorithm>
+#include <filesystem>
 // armadillo flags:
 #define ARMA_64BIT_WORD // enabling 64 integers in armadillo obbjects
 #define ARMA_BLAS_LONG_LONG // using long long inside LAPACK call
@@ -21,28 +22,27 @@
 //#include <mkl.h>
 #include <cassert> // assert terminates program
 #include <omp.h>
-#include <time.h>
 #include <ctime>
 #include <utility> // auto, etc.
 #include <memory> // smart ptr
 #include <thread>
-#include<queue>
-#include<mutex>
-#include<condition_variable>
-#include<functional>
-#include<future>
-#include <bitset> // binary data type
-#include "random.h"
-#include <filesystem>
-#include <set>
+#include <mutex>
+//#include <condition_variable>
+#include <functional>
 #include <execution>
 
+#include "random.h"
+
+
+
+
+// - - - - - namespaces - - - - -
 using namespace std;
 using namespace arma;
 namespace fs = std::filesystem;
 namespace exec = std::execution;
 
-//------------Definitions----
+//- - - - - definitions - - - - -
 static const char* kPathSeparator =
 #ifdef _WIN32
 "\\";
@@ -50,8 +50,8 @@ static const char* kPathSeparator =
 "/";
 #endif
 
-typedef unsigned long long u64;
-typedef std::complex<double> cpx;
+using u64 = unsigned long long;
+using cpx = std::complex<double>;
 
 template<class T>
 using v_3d = std::vector<std::vector<std::vector<T>>>;						// 3d double vector
@@ -60,16 +60,16 @@ using v_2d = std::vector<std::vector<T>>;									// 2d double vector
 template<class T>
 using v_1d = std::vector<T>;												// 1d double vector
 
-// User makros
+// User compiler macro
 #define im cpx(0.0,1.0)
 #define stout std::cout << std::setprecision(16) << std::fixed				// standard outstream
-
 #define memory_over_performance false										// optimized by size --true-- (memory usage shortage) or performance --false--
-extern int num_of_threads;													// number of threads
 
+// Constants
+extern int num_of_threads;													// number of threads
 constexpr long double pi = 3.141592653589793238462643383279502884L;			// it is me, pi
 constexpr long double two_pi = 2 * 3.141592653589793238462643383279502884L;	// it is me, 2pi
-
+const auto global_seed = std::random_device{}();							// global seed for classes 
 
 //static random_num* rn; // random number class instance
 extern std::random_device rd;
@@ -83,6 +83,7 @@ template <typename T> int sgn(T val) {
 
 /* STRING BASED TOOLS DECLARATIONS */
 bool isNumber(const string& str);
+
 std::vector<std::string> split_str(std::string s, std::string delimiter);
 
 template <typename T>

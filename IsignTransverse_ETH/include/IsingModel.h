@@ -33,6 +33,7 @@
 class IsingModel {
 protected:
 	std::string info;									// information about the model
+	randomGen ran;										// consistent quick random number generator
 
 	Mat<cpx> H;											// the Hamiltonian
 	Mat<cpx> eigenvectors;								// matrix of the eigenvectors in increasing order
@@ -81,7 +82,6 @@ public:
 
 	// METHODS
 	void set_neighbors();																		// create neighbors list according to the boundary conditions
-	//void set_parameters(double J, double g, double h) {};
 	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
 	virtual void setHamiltonianElem(u64 k, double value, std::vector<bool>& temp) = 0;
 
@@ -92,22 +92,20 @@ public:
 	static double total_spin(const mat& corr_mat);												// the diagonal part of a spin correlation matrix
 
 	// PHYSICAL QUANTITIES
-	double ipr(int state_idx);																	// calculate the ipr coeffincient
-	double information_entropy(const u64 _id);
+	double ipr(int state_idx);																	// calculate the ipr coeffincient (inverse participation ratio)
+	double information_entropy(u64 _id);														// calculate the information entropy in a given state (based on the ipr) Von Neuman type
 	double eigenlevel_statistics(u64 _min, u64 _max);											// calculate the statistics based on eigenlevels (r coefficient)
-	vec eigenlevel_statistics_with_return();
+	vec eigenlevel_statistics_with_return();													// calculate the eigenlevel statistics and return the vector with the results
+	virtual double entaglement_entropy(u64 state_id, int subsystem_size) = 0;					// entanglement entropy based on the density matrices
 
 	// PHYSICAL OPERATORS (model states dependent)
-	virtual double av_sigma_z(int site, u64 alfa, u64 beta) = 0;
-	double av_sigma_z(int site_a, int site_b, u64 alfa, u64 beta);								// check the matrix element for sigma_z correlations S^z_aS^z_b
-	double av_sigma_z_extensive(const u64 n, const u64 m);
+	virtual double av_sigma_z(int site, u64 alfa, u64 beta) = 0;								// check the sigma_z matrix element on a given site
+	virtual double av_sigma_z(int site_a, int site_b, u64 alfa, u64 beta) = 0;					// check the matrix element for sigma_z correlations S^z_aS^z_b
+	double av_sigma_z_extensive(u64 n, u64 m);
 	double av_sigma_z_extensive_corr(const u64 n, const u64 m, int corr_len = 1);
 
-	virtual double av_sigma_x(int site, u64 alfa, u64 beta) = 0;
+	virtual double av_sigma_x(int site, u64 alfa, u64 beta) = 0;								// check the sigma_x matrix element on a given site
 	virtual double av_sigma_x_extensive(const u64 n, const u64 m) = 0;
-	//friend double sigma_x_diff(int site, u64 beta, u64 alfa, const IsingModel_sym& sector_alfa, const IsingModel_sym& sector_beta);
-
-	virtual double entaglement_entropy(u64 state_id, int subsystem_size) = 0;
 
 	// USING PHYSICAL QUANTITES FOR PARAMTER RANGES, ETC.
 	static void operator_av_in_eigenstates(double (IsingModel::* op)(int, int), IsingModel& A, int site, \
@@ -115,28 +113,14 @@ public:
 	static vec operator_av_in_eigenstates_return(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 	static double spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 
-	/* TOOLS */
-	friend std::unordered_map<u64, u64> mapping_sym_to_original(u64 _min, u64 _max, const IsingModel& symmetry, const IsingModel& original);
+	// TOOLS AND HELPERS
+	friend std::unordered_map<u64, u64> mapping_sym_to_original(u64 _min, u64 _max,\
+		const IsingModel& symmetry, const IsingModel& original);								// maps the eigenstates of a symmetry sector to a Hamiltonian not involving the symmetries
+	friend double overlap(const IsingModel& A, const IsingModel& B, int n_a, int n_b);			// creates the overlap between two eigenstates
 };
 
-void probability_distribution(std::string dir, std::string name, const arma::vec& data, double _min, double _max, double step = 0.05);
-arma::vec probability_distribution_with_return(const arma::vec& data, double _min, double _max, double step = 0.05);
-arma::vec data_fluctuations(const arma::vec& data, int mu = 10);
-arma::vec statistics_average(const arma::vec& data, int num_of_outliers = 3);
 
-/// <summary>
-/// Overlapping of two eigenstates of possibly different matrices A and B
-/// </summary>
-/// <param name="A">matrix A</param>
-/// <param name="B">matrix B</param>
-/// <param name="n_a">number of A eigenstate</param>
-/// <param name="n_b">number of B eigenstate</param>
-/// <returns>A_n_a dot n_b_B</returns>
-inline double overlap(const std::unique_ptr<IsingModel>& A, const std::unique_ptr<IsingModel>& B, int n_a, int n_b) {
-	return abs(arma::cdot(A->get_eigenState(n_a), B->get_eigenState(n_b)));
-}
-
-//-------------------------------------------------------------------------------------------------------------------------------
+// ----------------------------------------- SYMMETRIC -----------------------------------------
 /// <summary>
 /// Model with included symmetries and uniform perpendicular magnetic field
 /// </summary>
@@ -146,36 +130,41 @@ public:
 	IsingModel_sym() = default;
 	IsingModel_sym(int L, double J, double g, double h, int k_sym = 0, bool p_sym = 1, bool x_sym = 1, int _BC = 0);
 
-	/* METHODS */
 private:
-	/* REDUCED BASIS AS SYMMETRY SECTOR */
+	// REDUCED BASIS AS A SYMMETRY SECTOR
 	struct {
-		double k_sym;
-		int p_sym;
-		int x_sym;
+		double k_sym;				// translational symmetry generator
+		int p_sym;					// parity symmetry generator
+		int x_sym;					// spin-flip symmetry generator
 	} symmetries;
 
-	std::tuple<u64, int> find_translation_representative(std::vector<bool>& base_vector) const;
+	std::tuple<u64, int> find_translation_representative(std::vector<bool>& base_vector) const;								
 	std::tuple<u64, int> find_SEC_representative(const std::vector<bool>& base_vector) const;
-	cpx get_symmetry_normalization(std::vector<bool>& base_vector, u64 k);
-	void mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id);
-	void generate_mapping();
 
-	u64 map(u64 index) override;
-	/*-------------------------------- */
+	cpx get_symmetry_normalization(std::vector<bool>& base_vector, u64 k);
+	void mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id);							// multithreaded mapping
+	void generate_mapping();																													// utilizes the mapping kernel
+
+	u64 map(u64 index) override;																												// finds a map corresponding to index (for inheritance purpose)
 public:
+	// OVERRIDES OF THE MODEL METHODS
 	void hamiltonian() override;
-	friend std::pair<u64, cpx> find_rep_and_sym_eigval(v_1d<bool>& base, const IsingModel_sym& sector_alfa, cpx normalisation_beta);
-	void setHamiltonianElem(u64 k, double value, std::vector<bool>& temp) override;
+	void setHamiltonianElem(u64 k, double value, std::vector<bool>& temp) override;																
+
+	friend std::pair<u64, cpx> find_rep_and_sym_eigval(v_1d<bool>& base,\
+		const IsingModel_sym& sector_alfa, cpx normalisation_beta);																				// returns the index and the value of the minimum representative
 
 	double entaglement_entropy(u64 state_id, int subsystem_size) override {
 		return 0;
 	};
+	// OPERATORS
 
 	double av_sigma_z(int site, u64 alfa, u64 beta) override;
+	double av_sigma_z(int site_a, int site_b, u64 alfa, u64 beta) override;
 
-	double av_sigma_x(int site, u64 alfa, u64 beta) override {return 0;};
-	// lambda function for Sigmas - changes the state and returns the value on the base vector
+	double av_sigma_x(int site, u64 alfa, u64 beta) override;
+
+	// lambda functions for Sigmas - changes the state and returns the value on the base vector
 	static std::pair<cpx, v_1d<bool>> sigma_x(int site, const v_1d<bool>& base_vec) {
 		auto tmp = base_vec;
 		tmp[site] = !tmp[site];
@@ -190,6 +179,7 @@ public:
 		auto tmp = base_vec;
 		return std::make_pair(tmp[site] ? 1.0 : -1.0,tmp);
 	}
+
 
 	friend cpx av_operator(int site, u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, std::function<std::pair<cpx,v_1d<bool>>(int, v_1d<bool>&)> op);
 	friend cpx apply_sym_overlap(int site, const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, const v_1d<bool>& base_vec,\
@@ -212,10 +202,10 @@ private:
 
 	vec dh;																		// disorder in the system - deviation from a constant h value
 	double w;																	// the distorder strength to set dh in (-disorder_strength, disorder_strength)
-	vec dJ;
-	double J0;
-	vec dg;
-	double g0;
+	vec dJ;																		// disorder in the system - deviation from a constant J0 value
+	double J0;																	// spin exchange coefficient
+	vec dg;																		// disorder in the system - deviation from a constant g0 value
+	double g0;																	// transverse magnetic field
 public:
 	/* Constructors */
 	IsingModel_disorder() = default;
@@ -233,6 +223,7 @@ public:
 	// MATRICES
 
 	double av_sigma_z(int site, u64 alfa, u64 beta) override;
+	double av_sigma_z(int site_a, int site_b, u64 alfa, u64 beta) override;
 
 	double av_sigma_x(int site, u64 alfa, u64 beta) override;
 	double av_sigma_x_extensive(const u64 n, const u64 m) override;
@@ -242,6 +233,14 @@ public:
 	double entaglement_entropy(u64 state_id, int subsystem_size) override;
 };
 
-double quantum_fidelity(u64 _min, u64 _max, const std::unique_ptr<IsingModel>& Hamil, double J, double J0, double g, double g0, double h, double w = 0);
+
+void probability_distribution(std::string dir, std::string name, const arma::vec& data,\
+	double _min, double _max, double step = 0.05);												// creates the probability distribution on a given data and saves it to a directory
+arma::vec probability_distribution_with_return(const arma::vec& data,\
+	double _min, double _max, double step = 0.05);												// creates the probability distribution on a given data and returns a vector with it
+arma::vec data_fluctuations(const arma::vec& data, int mu = 10);								// removes the average from the given data based on small buckets of size mu
+arma::vec statistics_average(const arma::vec& data, int num_of_outliers = 3);					// takes the average from the vector and the outliers
+double quantum_fidelity(u64 _min, u64 _max, const IsingModel& Hamil,\
+	double J, double J0, double g, double g0, double h, double w = 0);							// calculates the quantum fidelity for disorder
 
 #endif

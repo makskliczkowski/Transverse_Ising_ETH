@@ -7,6 +7,7 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 	this->N = static_cast<u64>(std::pow(2, L));
 	this->_BC = _BC;
 
+	this->ran = randomGen(global_seed);
 	//change info
 	this->info = "_L=" + std::to_string(this->L) + \
 		",J0=" + to_string_prec(this->J0, 2) + \
@@ -34,7 +35,8 @@ IsingModel_disorder::~IsingModel_disorder()
 }
 */
 
-/* BASE GENERATION AND RAPPING*/
+// - - - - - BASE GENERATION AND RAPPING - - - - -
+
 /// <summary>
 /// Return the index in the case of no mapping in disorder
 /// </summary>
@@ -44,6 +46,9 @@ u64 IsingModel_disorder::map(u64 index) {
 	if (index < 0 || index >= std::pow(2, L)) throw "Element out of range\n No such index in map\n";
 	return index;
 }
+/// <summary>
+/// W razie gdybyœmy robili Sz symetriê, dla picu
+/// </summary>
 void IsingModel_disorder::generate_mapping() {
 	this->mapping = std::vector<u64>();
 	std::vector<bool> base_vector(L);
@@ -53,8 +58,8 @@ void IsingModel_disorder::generate_mapping() {
 	this->N = this->mapping.size();
 }
 
-//-------------------------------------------------------------------------------------------------------------------------------
-// BUILDING HAMILTONIAN
+// - - - - - BUILDING HAMILTONIAN - - - - - 
+
 /// <summary>
 /// Sets the non-diagonal elements of the Hamimltonian matrix, by acting with the operator on the k-th state
 /// </summary>
@@ -71,7 +76,7 @@ void IsingModel_disorder::setHamiltonianElem(u64 k, double value, std::vector<bo
 /// </summary>
 void IsingModel_disorder::hamiltonian() {
 	try {
-		this->H = cx_mat(N, N, fill::zeros);                                //  hamiltonian
+		this->H = cx_mat(N, N, fill::zeros);                                //  hamiltonian memory reservation
 	}
 	catch (const bad_alloc& e) {
 		std::cout << "Memory exceeded" << e.what() << "\n";
@@ -94,50 +99,84 @@ void IsingModel_disorder::hamiltonian() {
 			temp[j] = !base_vector[j];                                      // negates on that site
 			setHamiltonianElem(k, this->g + this->dg(j), temp);
 			/* disorder */
-			H(k, k) += (this->h + dh(j)) * s_i;                             // diagonal
+			H(k, k) += (this->h + dh(j)) * s_i;                             // diagonal elements setting
 
 			if (nearest_neighbors[j] >= 0) {
 				/* Ising-like spin correlation */
 				s_j = base_vector[nearest_neighbors[j]] ? 1.0 : -1.0;
-				this->H(k, k) += (this->J + this->dJ(j)) * s_i * s_j;
+				this->H(k, k) += (this->J + this->dJ(j)) * s_i * s_j;		// setting the neighbors elements
 			}
 		}
 	}
 }
 
-//-------------------------------------------------------------------------------------------------------------------------------
-/* PHYSICAL QUANTITES */
+// - - - - - PHYSICAL QUANTITES - - - - -
 
 /// <summary>
-///
+/// Calculates the matrix element for sigma_z Pauli matrix
 /// </summary>
-/// <param name="state_id"></param>
-/// <param name="site"></param>
-/// <returns></returns>
+/// <param name="site">Site the matrix works on</param>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <returns>The matrix element</returns>
 double IsingModel_disorder::av_sigma_z(int site, u64 alfa, u64 beta) {
 	if (site < 0 || site >= L) throw "Site index exceeds chain";
 	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
 	arma::subview_col state_beta = this->eigenvectors.col(beta);
 
-	cpx value = 0;
-	std::vector<bool> base_vector(L);
-	for (int k = 0; k < N; k++) {
-		int_to_binary(map(k), base_vector);
-		double Sz = base_vector[site] ? 1.0 : -1.0;
-		value += Sz * conj(state_alfa(k)) * state_beta(k);
+	double value = 0;
+#pragma omp parallel
+	{
+		std::vector<bool> base_vector(L);
+#pragma omp for reduction (+: value)
+		for (int k = 0; k < N; k++) {
+			int_to_binary(map(k), base_vector);
+			double Sz = base_vector[site] ? 1.0 : -1.0;
+			value += real(Sz * conj(state_alfa(k)) * state_beta(k));
+		}
 	}
-	return real(value);
+	return value;
 }
 
 /// <summary>
-/// Calculates the matrix element of the x-component spin matrix within the eigenstate state_id
+/// Calculates the matrix element for sigma_z_a sigma_z_b multiplication of Pauli matrices
 /// </summary>
-/// <param name="state_id"> index of eigenstate </param>
-/// <param name="site"> position of the spin, where the operator is acted upon </param>
-/// <returns> return the average in the eigenstate </returns>
+/// <param name="site_a">Site_a the matrix works on</param>
+/// <param name="site_b">Site_b the matrix works on</param>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <returns>The matrix element</returns>
+double IsingModel_disorder::av_sigma_z(int site_a, int site_b, u64 alfa, u64 beta)
+{
+	if (site_a < 0 || site_a >= L || site_b < 0 || site_b >= L) throw "Site index exceeds chain";
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+
+	double value = 0;
+#pragma omp parallel
+	{
+		std::vector<bool> base_vector(L);
+#pragma omp for reduction (+: value)
+		for (int k = 0; k < N; k++) {
+			int_to_binary(map(k), base_vector);
+			double Sz_a = base_vector[site_a] ? 1.0 : -1.0;
+			double Sz_b = base_vector[site_b] ? 1.0 : -1.0;
+			value += real(Sz_a * Sz_b * state_alfa(k) * state_beta(k));
+		}
+	}
+	return value;
+}
+
+/// <summary>
+/// Calculates the matrix element for sigma_x Pauli matrix
+/// </summary>
+/// <param name="site">Site the matrix works on</param>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <returns>The matrix element</returns>
 double IsingModel_disorder::av_sigma_x(int site, u64 alfa, u64 beta) {
-	const vec state_alfa = real(eigenvectors.col(alfa));
-	const vec state_beta = real(eigenvectors.col(beta));
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
 	double value = 0;
 #pragma omp parallel
 	{
@@ -147,11 +186,13 @@ double IsingModel_disorder::av_sigma_x(int site, u64 alfa, u64 beta) {
 			int_to_binary(k, base_vector);
 			base_vector[site] = !base_vector[site];
 			const u64 idx = binary_to_int(base_vector);
-			value += state_alfa(idx) * state_beta(k);
+			value += real(state_alfa(idx) * state_beta(k));
 		}
 	}
 	return value;
 }
+
+// -----------------------------------------> TO REFACTOR AND CREATE DESCRIPTION <---------------------------------------------
 
 /// <summary>
 ///
@@ -229,7 +270,6 @@ mat IsingModel_disorder::correlation_matrix(u64 state_id) {
 
 	return corr_mat;
 }
-
 /// <summary>
 /// Calculates the entropy of the system via the mixed density matrix
 /// </summary>
