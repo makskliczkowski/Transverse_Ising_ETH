@@ -77,22 +77,32 @@ void IsingModel::print_state(u64 _id) {
 /// Sets the neigbours depending on the Boundary condition (BC) defined as a makro in the 'headers.h' file
 /// </summary>
 void IsingModel::set_neighbors() {
-	this->nearest_neighbors = std::vector<int>(L);
+	this->nearest_neighbors = std::vector<int>(L, 0);
+	this->next_nearest_neighbors = std::vector<int>(L,0);
 	switch (this->_BC) {
 	case 0:
 		// periodic boundary conditions
-		std::iota(nearest_neighbors.begin(), nearest_neighbors.end(), 1);
-		nearest_neighbors[L - 1] = 0;
+		for(int i = 0; i < this->L; i++){
+			this->nearest_neighbors[i] = (i+1) % this->L;
+			this->next_nearest_neighbors[i] = (i+2) % this->L;
+		}
 		break;
 
 	case 1:
 		// open boundary conditions
-		std::iota(nearest_neighbors.begin(), nearest_neighbors.end(), 1);
-		nearest_neighbors[L - 1] = -1;
+		for(int i = 0; i < this->L; i++){
+			this->nearest_neighbors[i] = (i+1) % this->L;
+			this->next_nearest_neighbors[i] = (i+2) % this->L;
+		}
+		this->nearest_neighbors[L-1] = -1;
+		this->next_nearest_neighbors[L-2] = -1;
+		this->next_nearest_neighbors[L-1] = -1;
 		break;
 	default:
-		std::iota(nearest_neighbors.begin(), nearest_neighbors.end(), 1);
-		nearest_neighbors[L - 1] = 0;
+		for(int i = 0; i < this->L; i++){
+			this->nearest_neighbors[i] = (i+1) % this->L;
+			this->next_nearest_neighbors[i] = (i+2) % this->L;
+		}
 		break;
 	}
 }
@@ -226,15 +236,18 @@ double IsingModel::spectrum_repulsion(double (IsingModel::* op)(int, int), Ising
 std::unordered_map<u64, u64> mapping_sym_to_original(u64 _min, u64 _max, const IsingModel& symmetry, const IsingModel& original) {
 	std::unordered_map<u64, u64> map;
 	std::vector<double> E_dis = arma::conv_to<std::vector<double>>::from(original.eigenvalues);
+#pragma omp parallel for
 	for (int k = 0; k < symmetry.N; k++) {
 		double E = symmetry.eigenvalues(k);
 		if (E < original.eigenvalues(_min) && E >= original.eigenvalues(_max)) continue;
 		auto idx = binary_search(E_dis, _min, _max, E);
-		if (idx < 0 || idx >= original.N) continue;
+		if (idx >= original.N) continue;
 		double E_prev = (idx == 0) ? (original.eigenvalues(0) - 1.0) : original.eigenvalues(idx - 1);
 		double E_next = (idx == original.N - 1) ? (original.eigenvalues(original.N - 1) + 1.0) : original.eigenvalues(idx + 1);
-		if (abs(E - E_prev) > 1e-8 && abs(E - E_next) > 1e-8)
+		if (abs(E - E_prev) > 1e-8 && abs(E - E_next) > 1e-8){
+#pragma omp critical
 			map[k] = idx;
+		}
 	}
 	return map;
 }
@@ -242,89 +255,6 @@ std::unordered_map<u64, u64> mapping_sym_to_original(u64 _min, u64 _max, const I
 // - - - - - OPERATOR AVERAGES - - - - -
 
 // -----------------------------------------------------------> TO REFACTOR AND CREATE DESCRIPTION -------------------------------------------------------
-
-
-/// <summary>
-///
-/// </summary>
-/// <param name="site"></param>
-/// <param name="beta"></param>
-/// <param name="alfa"></param>
-/// <param name="sector_alfa"></param>
-/// <param name="sector_alfa"></param>
-/// <returns></returns>
-double av_sigma_x_sym_sectors(int site, const u64 beta, const u64 alfa, const IsingModel_sym& sector_alfa, const IsingModel_sym& sector_beta) {
-	assert(sector_beta.L == sector_alfa.L && "incompatible chain lengths");
-	const int L = sector_beta.L;
-	const u64 N_alfa = sector_alfa.N;
-	const u64 N_beta = sector_beta.N;
-	const arma::subview_col<cpx>& state_beta = sector_beta.eigenvectors.col(beta);
-	const arma::subview_col<cpx>& state_alfa = sector_alfa.eigenvectors.col(alfa);
-	std::vector<bool> base(L);
-	cpx overlap = 0;
-	for (long int k = 0; k < N_beta; k++) {
-		if (abs(state_beta(k)) < 1e-12) continue;
-		int_to_binary(sector_beta.mapping[k], base);
-		base[site] = !base[site];
-		u64 idx = binary_search(sector_alfa.mapping, 0, N_alfa - 1, binary_to_int(base));
-		int sym_eig = 1;
-		if (idx == -1) {
-			auto tup_T = sector_alfa.find_translation_representative(base);
-			auto tup_S = sector_alfa.find_SEC_representative(base);
-			auto [min, trans_eig] = (std::get<0>(tup_T) > std::get<0>(tup_S)) ? tup_S : tup_T;
-			sym_eig = trans_eig;
-			idx = binary_search(sector_alfa.mapping, 0, N_alfa - 1, min);
-			if (idx < 0 || idx >= N_alfa) continue; // min is not present in symmetry sector
-		}
-		cpx translation_eig = (abs(sym_eig) == 1 || sector_alfa.symmetries.k_sym == 0) ? \
-			cpx(1.0) : std::exp(-1i * sector_alfa.symmetries.k_sym * double(abs(sym_eig) - 1));
-		cpx value_new = double(sgn(sym_eig)) * translation_eig * (sector_alfa.normalisation[idx] / sector_beta.normalisation[k]);
-		overlap += conj(state_alfa(idx)) * value_new * state_beta(k);
-	}
-	return real(overlap);
-}
-
-
-
-/// <summary>
-///
-/// </summary>
-/// <param name="n"></param>
-/// <param name="m"></param>
-/// <returns></returns>
-double IsingModel::av_sigma_z_extensive_corr(u64 alfa, u64 beta, int corr_len) {
-	std::vector<bool> base_vector(L);
-	cpx overlap = 0.0;
-	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
-	arma::subview_col state_beta = this->eigenvectors.col(beta);
-
-	std::vector<int> corr_nei(this->L, 0);
-	for (int k = 0; k < this->L; k++)
-	{
-		if (this->_BC == 1) {
-			if (k + corr_len > this->L)
-				corr_nei[k] = -1;																				// OBC
-			else
-				corr_nei[k] = k + corr_len;
-		}
-		else
-			corr_nei[k] = (k + corr_len) % this->L;																// PBC
-	}
-	//stout << "n="<< real(state_n.st()) << "m=" << real(state_m.st());
-	for (long int k = 0; k < N; k++) {
-		int_to_binary(map(k), base_vector);
-		double val = 0;
-		for (int j = 0; j < this->L; j++) {
-			double S_i = base_vector[j] ? 1 : -1;
-			double S_i_corr = 0;
-			if (corr_nei[j] >= 0) S_i_corr = double(base_vector[corr_nei[j]] ? 1 : -1);
-			val += S_i * S_i_corr;
-		}
-		//stout << val << endl;
-		overlap += conj(state_alfa(k)) * val * state_beta(k);
-	}
-	return real(overlap) / double(this->L * this->L);
-}
 
 /// <summary>
 /// Prints to file the average of a given operator in each eigenstate as a function of eigenenergies

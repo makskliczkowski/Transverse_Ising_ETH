@@ -352,12 +352,12 @@ void isingUI::ui::make_sim()
 	for_each(exec::seq, map_alfa.begin(), map_alfa.end(), [&](std::pair<u64, u64> element) {
 		for (auto& t : map_alfa) {
 			//double A = alfa->av_sigma_z(1,2,element.first, t.first);
-			cpx A = av_operator(element.first, t.first, *alfa, *alfa, sig_z);
+			cpx A = av_operator(element.first, t.first, *alfa, *alfa, sig_x, {1});
 			//double A = av_sigma_x_sym_sectors(0, element.first, t.first, *alfa, *alfa);
 			//double B = model->av_sigma_z(1,2,element.second, t.second);
-			double B = model->av_sigma_z(element.second, t.second);
+			double B = model->av_sigma_x(element.second, t.second, {1});
 			//double B = model->av_sigma_x(0, element.second, t.second);
-			file << alfa->get_eigenEnergy(element.first) << "\t" << \
+			stout << alfa->get_eigenEnergy(element.first) << "\t" << \
 				alfa->get_eigenEnergy(t.first) << "\t" << real(A) << "\t" << B << "\t" << abs(real(A)) - abs(B) << endl;
 		}
 		});
@@ -371,7 +371,7 @@ void isingUI::ui::make_sim()
 			//double B = model->av_sigma_z(1,2,element.second, t.second);
 			double B = model->av_sigma_z(element.second, t.second);
 			//double B = model->av_sigma_x(0, element.second, t.second);
-			file << beta->get_eigenEnergy(element.first) << "\t" << \
+			stout << beta->get_eigenEnergy(element.first) << "\t" << \
 				beta->get_eigenEnergy(t.first) << "\t" << real(A) << "\t" << B << "\t" << abs(real(A)) - abs(B) << endl;
 		}
 		});
@@ -380,12 +380,12 @@ void isingUI::ui::make_sim()
 	for_each(exec::seq, map_alfa.begin(), map_alfa.end(), [&](std::pair<u64, u64> element) {
 		for (auto& t : map_beta) {
 			//double A = alfa->av_sigma_z(1,2,element.first, t.first);
-			cpx A = av_operator(element.first, t.first, *alfa, *beta, sig_z);
+			cpx A = av_operator(element.first, t.first, *alfa, *beta, sig_x, {1});
 			//double A = av_sigma_x_sym_sectors(0, element.first, t.first, *alfa, *alfa);
 			//double B = model->av_sigma_z(1,2,element.second, t.second);
-			double B = model->av_sigma_z(element.second, t.second);
+			double B = model->av_sigma_x(element.second, t.second, {1});
 			//double B = model->av_sigma_x(0, element.second, t.second);
-			file << alfa->get_eigenEnergy(element.first) << "\t" << \
+			stout << alfa->get_eigenEnergy(element.first) << "\t" << \
 				beta->get_eigenEnergy(t.first) << "\t" << real(A) << "\t" << B << "\t" << abs(real(A)) - abs(B) << endl;
 		}
 		});

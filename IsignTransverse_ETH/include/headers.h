@@ -190,6 +190,26 @@ inline std::vector<double> create_random_vec_std(u64 N) {
 }
 
 /// <summary>
+/// Calculate the vector that consists of a given site corr_len away for a lattice site provided by the user
+/// </summary>
+/// <param name="_BC">boundary conditions, 0 - PBC, 1 - OBC</param>
+/// <param name="L">chain length</param>
+/// <param name="corr_len">correlation length</param>
+/// <returns>vector of correlation places</returns>
+inline std::vector<int> get_neigh_vector(int _BC, int L, int corr_len){
+	v_1d<int> neis(L, -1);
+	if(_BC == 0){
+		iota(neis.begin(), neis.end(), 0);
+		std::rotate(neis.begin(), neis.begin() + corr_len,neis.end());
+	}
+	else if(_BC == 1)
+		iota(neis.begin(), neis.begin() + (L-corr_len), corr_len);
+	else
+		throw "Not enough cases for me\n";
+
+}
+
+/// <summary>
 /// find non-unique elements in input array and store only elemetns, which did not have duplicates
 /// </summary>
 /// <param name="arr_in"> degenerated input array </param>
@@ -203,12 +223,14 @@ inline arma::vec get_NonDegenerated_Elements(const arma::vec& arr_in) {
 	if (abs(arr_in(N - 1) - arr_in(N - 2)) < 1e-12)
 		arr_degen.push_back(arr_in(N - 1));
 
-	arma::vec arr_unique = arr_in;
-	for (auto& E : arr_degen)
-		std::remove_if(arr_unique.begin(), arr_unique.end(), [&](double a) {
+	std::vector<double> arr_unique = arma::conv_to<std::vector<double>>::from(arr_in);
+	for (auto& E : arr_degen){
+		auto new_end = remove_if(arr_unique.begin(), arr_unique.end(), [&](double a) {
 		return abs(a - E) < 1e-12;
 			});
-	return arma::unique(arr_unique);
+		arr_unique.erase(new_end, arr_unique.end());
+	}
+	return arma::unique((vec)arr_unique);
 }
 
 /// <summary>
