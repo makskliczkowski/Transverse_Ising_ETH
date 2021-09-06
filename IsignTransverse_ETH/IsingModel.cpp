@@ -284,30 +284,7 @@ double av_sigma_x_sym_sectors(int site, const u64 beta, const u64 alfa, const Is
 	return real(overlap);
 }
 
-/// <summary>
-///
-/// </summary>
-/// <param name="n"></param>
-/// <param name="m"></param>
-/// <returns></returns>
-double IsingModel::av_sigma_z_extensive(u64 alfa, u64 beta) {
-	std::vector<bool> base_vector(L);
-	cpx overlap = 0.0;
-	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
-	arma::subview_col state_beta = this->eigenvectors.col(beta);
 
-	//stout << "n="<< real(state_n.st()) << "m=" << real(state_m.st());
-	for (long int k = 0; k < N; k++) {
-		int_to_binary(map(k), base_vector);
-		double val = 0;
-		for (int j = 0; j < this->L; j++) {
-			val += base_vector[j] ? 1.0 : -1.0;
-		}
-		//stout << val << endl;
-		overlap += conj(state_alfa(k)) * val * state_beta(k);
-	}
-	return real(overlap) / double(this->L * this->L);
-}
 
 /// <summary>
 ///

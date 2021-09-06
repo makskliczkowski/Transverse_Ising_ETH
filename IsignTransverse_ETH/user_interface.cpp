@@ -350,42 +350,42 @@ void isingUI::ui::make_sim()
 	stout << " - - - - - - SAME SECTORS - - - - - - \n" << " - - - - > FOR ALFA - ALFA: \n" << "ENERGY ALPHA |('.'|)" << "\t" << \
 		 "ENERGY ALFA (/'.')/" << "\t" << "<alfa|SIGMA_X|alfa>" << "\t" << "<non_sym|SIGMA_X|non_sym>"  << "\t" << "DIFFERENCE" << endl;
 	for_each(exec::seq, map_alfa.begin(), map_alfa.end(), [&](std::pair<u64, u64> element) {
-		for (auto& const t : map_alfa) {
+		for (auto& t : map_alfa) {
 			//double A = alfa->av_sigma_z(1,2,element.first, t.first);
-			cpx A = av_operator(1,element.first, t.first, *alfa, *alfa, sig_x);
+			cpx A = av_operator(element.first, t.first, *alfa, *alfa, sig_z);
 			//double A = av_sigma_x_sym_sectors(0, element.first, t.first, *alfa, *alfa);
 			//double B = model->av_sigma_z(1,2,element.second, t.second);
-			double B = model->av_sigma_x(1, element.second, t.second);
+			double B = model->av_sigma_z(element.second, t.second);
 			//double B = model->av_sigma_x(0, element.second, t.second);
-			stout << alfa->get_eigenEnergy(element.first) << "\t" << \
+			file << alfa->get_eigenEnergy(element.first) << "\t" << \
 				alfa->get_eigenEnergy(t.first) << "\t" << real(A) << "\t" << B << "\t" << abs(real(A)) - abs(B) << endl;
 		}
 		});
 	stout << "\n - - - - > FOR BETA - BETA: \n" << "ENERGY BETA |('.'|)" << "\t" << \
 		 "ENERGY BETA (/'.')/" << "\t" << "<beta|SIGMA_X|beta>" << "\t" << "<non_sym|SIGMA_X|non_sym>"  << "\t" << "DIFFERENCE" << endl;
 	for_each(exec::seq, map_beta.begin(), map_beta.end(), [&](std::pair<u64, u64> element) {
-		for (auto& const t : map_beta) {
+		for (auto& t : map_beta) {
 			//double A = alfa->av_sigma_z(1,2,element.first, t.first);
-			cpx A = av_operator(1,element.first, t.first, *beta, *beta, sig_x);
+			cpx A = av_operator(element.first, t.first, *beta, *beta, sig_z);
 			//double A = av_sigma_x_sym_sectors(0, element.first, t.first, *alfa, *alfa);
 			//double B = model->av_sigma_z(1,2,element.second, t.second);
-			double B = model->av_sigma_x(1, element.second, t.second);
+			double B = model->av_sigma_z(element.second, t.second);
 			//double B = model->av_sigma_x(0, element.second, t.second);
-			stout << beta->get_eigenEnergy(element.first) << "\t" << \
+			file << beta->get_eigenEnergy(element.first) << "\t" << \
 				beta->get_eigenEnergy(t.first) << "\t" << real(A) << "\t" << B << "\t" << abs(real(A)) - abs(B) << endl;
 		}
 		});
 	stout << "\n\n - - - - - - DIFFERENT SECTORS - - - - - - \n" << " - - - - > FOR ALFA - BETA: \n" << "ENERGY ALPHA |('.'|)" << "\t" << \
 		 "ENERGY BETA (/'.')/" << "\t" << "<alfa|SIGMA_X|beta>" << "\t" << "<non_sym_a|SIGMA_X|non_sym_b>"  << "\t" << "DIFFERENCE" << endl;
 	for_each(exec::seq, map_alfa.begin(), map_alfa.end(), [&](std::pair<u64, u64> element) {
-		for (auto& const t : map_beta) {
+		for (auto& t : map_beta) {
 			//double A = alfa->av_sigma_z(1,2,element.first, t.first);
-			cpx A = av_operator(1,element.first, t.first, *alfa, *beta, sig_x);
+			cpx A = av_operator(element.first, t.first, *alfa, *beta, sig_z);
 			//double A = av_sigma_x_sym_sectors(0, element.first, t.first, *alfa, *alfa);
 			//double B = model->av_sigma_z(1,2,element.second, t.second);
-			double B = model->av_sigma_x(1, element.second, t.second);
+			double B = model->av_sigma_z(element.second, t.second);
 			//double B = model->av_sigma_x(0, element.second, t.second);
-			stout << alfa->get_eigenEnergy(element.first) << "\t" << \
+			file << alfa->get_eigenEnergy(element.first) << "\t" << \
 				beta->get_eigenEnergy(t.first) << "\t" << real(A) << "\t" << B << "\t" << abs(real(A)) - abs(B) << endl;
 		}
 		});

@@ -101,11 +101,11 @@ public:
 	// PHYSICAL OPERATORS (model states dependent)
 	virtual double av_sigma_z(int site, u64 alfa, u64 beta) = 0;								// check the sigma_z matrix element on a given site
 	virtual double av_sigma_z(int site_a, int site_b, u64 alfa, u64 beta) = 0;					// check the matrix element for sigma_z correlations S^z_aS^z_b
-	double av_sigma_z_extensive(u64 n, u64 m);
+	virtual double av_sigma_z(u64 alfa, u64 beta) = 0;											// check the matrix element of extensive sum_i sigma z
 	double av_sigma_z_extensive_corr(const u64 n, const u64 m, int corr_len = 1);
 
 	virtual double av_sigma_x(int site, u64 alfa, u64 beta) = 0;								// check the sigma_x matrix element on a given site
-	virtual double av_sigma_x_extensive(const u64 n, const u64 m) = 0;
+	virtual double av_sigma_x(const u64 alfa, const u64 beta) = 0;								// check the matrix element of extensive sum_i sigma x
 
 	// USING PHYSICAL QUANTITES FOR PARAMTER RANGES, ETC.
 	static void operator_av_in_eigenstates(double (IsingModel::* op)(int, int), IsingModel& A, int site, \
@@ -128,7 +128,7 @@ class IsingModel_sym : public IsingModel {
 public:
 	/* Constructors */
 	IsingModel_sym() = default;
-	IsingModel_sym(int L, double J, double g, double h, int k_sym = 0, bool p_sym = 1, bool x_sym = 1, int _BC = 0);
+	IsingModel_sym(int L, double J, double g, double h, int k_sym = 0, bool p_sym = true, bool x_sym = true, int _BC = 0);
 
 private:
 	// REDUCED BASIS AS A SYMMETRY SECTOR
@@ -137,6 +137,8 @@ private:
 		int p_sym;					// parity symmetry generator
 		int x_sym;					// spin-flip symmetry generator
 	} symmetries;
+	bool k_sector;					// if the k-sector allows p symmetry
+	v_1d<cpx> k_exponents;			// precalculate the symmetry exponents for current k vector
 
 	std::tuple<u64, int> find_translation_representative(std::vector<bool>& base_vector) const;								
 	std::tuple<u64, int> find_SEC_representative(const std::vector<bool>& base_vector) const;
@@ -161,8 +163,10 @@ public:
 
 	double av_sigma_z(int site, u64 alfa, u64 beta) override;
 	double av_sigma_z(int site_a, int site_b, u64 alfa, u64 beta) override;
+	double av_sigma_z(u64 alfa, u64 beta) override;												
 
 	double av_sigma_x(int site, u64 alfa, u64 beta) override;
+	double av_sigma_x(u64 alfa, u64 beta) override;		
 
 	// lambda functions for Sigmas - changes the state and returns the value on the base vector
 	static std::pair<cpx, v_1d<bool>> sigma_x(int site, const v_1d<bool>& base_vec) {
@@ -181,12 +185,15 @@ public:
 	}
 
 
-	friend cpx av_operator(int site, u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, std::function<std::pair<cpx,v_1d<bool>>(int, v_1d<bool>&)> op);
+	friend cpx av_operator(int site, u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta,\
+		std::function<std::pair<cpx,v_1d<bool>>(int, v_1d<bool>&)> op);																			// calculates the matrix element of operator at given site
+	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta,\
+		std::function<std::pair<cpx,v_1d<bool>>(int, v_1d<bool>&)> op);																			// calculates the matrix element of operator at given site in extensive form (a sum)
+
 	friend cpx apply_sym_overlap(int site, const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, const v_1d<bool>& base_vec,\
 		const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, std::function<std::pair<cpx,v_1d<bool>>(int, v_1d<bool>&)> op);
 
 	friend double av_sigma_x_sym_sectors(int site, const u64 beta, const u64 alfa, const IsingModel_sym& sector_alfa, const IsingModel_sym& sector_beta);
-	double av_sigma_x_extensive(const u64 n, const u64 m) override;
 
 	mat correlation_matrix(u64 state_id) override {
 		return mat();
@@ -224,9 +231,10 @@ public:
 
 	double av_sigma_z(int site, u64 alfa, u64 beta) override;
 	double av_sigma_z(int site_a, int site_b, u64 alfa, u64 beta) override;
+	double av_sigma_z(u64 alfa, u64 beta) override;	
 
 	double av_sigma_x(int site, u64 alfa, u64 beta) override;
-	double av_sigma_x_extensive(const u64 n, const u64 m) override;
+	double av_sigma_x(const u64 n, const u64 m) override;
 
 	mat correlation_matrix(u64 state_id) override;
 

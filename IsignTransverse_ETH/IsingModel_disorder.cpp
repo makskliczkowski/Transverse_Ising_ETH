@@ -168,6 +168,28 @@ double IsingModel_disorder::av_sigma_z(int site_a, int site_b, u64 alfa, u64 bet
 }
 
 /// <summary>
+/// Calculates the matrix element for sum_i sigma_z Pauli matrix
+/// </summary>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <returns>The matrix element</returns>
+double IsingModel_disorder::av_sigma_z(const u64 n, const u64 m) {
+	std::vector<bool> base_vector(L);
+	double overlap = 0;
+	arma::subview_col state_n = this->eigenvectors.col(n);
+	arma::subview_col state_m = this->eigenvectors.col(m);
+#pragma omp parallel for reduction(+: overlap)
+	for (long int k = 0; k < N; k++) {
+		int_to_binary(k, base_vector);
+		for (int j = 0; j < this->L; j++) {
+			double Sz = base_vector[j] ? 1.0 : -1.0;
+			overlap += real(Sz * state_n(k) * state_m(k));
+		}
+	}
+	return real(overlap) / double(this->L);
+}
+
+/// <summary>
 /// Calculates the matrix element for sigma_x Pauli matrix
 /// </summary>
 /// <param name="site">Site the matrix works on</param>
@@ -192,29 +214,31 @@ double IsingModel_disorder::av_sigma_x(int site, u64 alfa, u64 beta) {
 	return value;
 }
 
-// -----------------------------------------> TO REFACTOR AND CREATE DESCRIPTION <---------------------------------------------
-
 /// <summary>
-///
+/// Calculates the matrix element for sum_i sigma_x Pauli matrix
 /// </summary>
-/// <param name="n"></param>
-/// <param name="m"></param>
-/// <returns></returns>
-double IsingModel_disorder::av_sigma_x_extensive(const u64 n, const u64 m) {
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <returns>The matrix element</returns>
+double IsingModel_disorder::av_sigma_x(const u64 n, const u64 m) {
 	std::vector<bool> base_vector(L), temp(L);
-	cpx overlap = 0;
+	double overlap = 0;
 	cx_vec state_n = this->eigenvectors.col(n);
 	cx_vec state_m = this->eigenvectors.col(m);
+#pragma omp parallel for reduction(+: overlap)
 	for (long int k = 0; k < N; k++) {
 		int_to_binary(k, base_vector);
 		for (int j = 0; j < this->L; j++) {
 			temp = base_vector;
 			temp[j] = !base_vector[j];
-			overlap += conj(state_n(binary_to_int(temp))) * state_m(k);
+			overlap += real(state_n(binary_to_int(temp)) * state_m(k));
 		}
 	}
-	return real(overlap) / double(this->L * this->L);
+	return real(overlap) / double(this->L);
 }
+// -----------------------------------------> TO REFACTOR AND CREATE DESCRIPTION <---------------------------------------------
+
+
 
 /// <summary>
 /// Calculates the spin correlation matrix within a given state (non-equilibrium average)
