@@ -10,6 +10,7 @@
 #include <complex>
 #include <cmath>
 #include <algorithm>
+#include <filesystem>
 // armadillo flags:
 #define ARMA_64BIT_WORD // enabling 64 integers in armadillo obbjects
 #define ARMA_BLAS_LONG_LONG // using long long inside LAPACK call
@@ -21,28 +22,27 @@
 //#include <mkl.h>
 #include <cassert> // assert terminates program
 #include <omp.h>
-#include <time.h>
 #include <ctime>
 #include <utility> // auto, etc.
 #include <memory> // smart ptr
 #include <thread>
-#include<queue>
-#include<mutex>
-#include<condition_variable>
-#include<functional>
-#include<future>
-#include <bitset> // binary data type
-#include "random.h"
-#include <filesystem>
-#include <set>
+#include <mutex>
+//#include <condition_variable>
+#include <functional>
 #include <execution>
 
+#include "random.h"
+
+
+
+
+// - - - - - namespaces - - - - -
 using namespace std;
 using namespace arma;
 namespace fs = std::filesystem;
 namespace exec = std::execution;
 
-//------------Definitions----
+//- - - - - definitions - - - - -
 static const char* kPathSeparator =
 #ifdef _WIN32
 "\\";
@@ -50,8 +50,8 @@ static const char* kPathSeparator =
 "/";
 #endif
 
-typedef unsigned long long u64;
-typedef std::complex<double> cpx;
+using u64 = unsigned long long;
+using cpx = std::complex<double>;
 
 template<class T>
 using v_3d = std::vector<std::vector<std::vector<T>>>;						// 3d double vector
@@ -60,16 +60,16 @@ using v_2d = std::vector<std::vector<T>>;									// 2d double vector
 template<class T>
 using v_1d = std::vector<T>;												// 1d double vector
 
-// User makros
+// User compiler macro
 #define im cpx(0.0,1.0)
 #define stout std::cout << std::setprecision(16) << std::fixed				// standard outstream
-
 #define memory_over_performance false										// optimized by size --true-- (memory usage shortage) or performance --false--
-extern int num_of_threads;													// number of threads
 
+// Constants
+extern int num_of_threads;													// number of threads
 constexpr long double pi = 3.141592653589793238462643383279502884L;			// it is me, pi
 constexpr long double two_pi = 2 * 3.141592653589793238462643383279502884L;	// it is me, 2pi
-
+const auto global_seed = std::random_device{}();							// global seed for classes 
 
 //static random_num* rn; // random number class instance
 extern std::random_device rd;
@@ -83,6 +83,7 @@ template <typename T> int sgn(T val) {
 
 /* STRING BASED TOOLS DECLARATIONS */
 bool isNumber(const string& str);
+
 std::vector<std::string> split_str(std::string s, std::string delimiter);
 
 template <typename T>
@@ -189,6 +190,26 @@ inline std::vector<double> create_random_vec_std(u64 N) {
 }
 
 /// <summary>
+/// Calculate the vector that consists of a given site corr_len away for a lattice site provided by the user
+/// </summary>
+/// <param name="_BC">boundary conditions, 0 - PBC, 1 - OBC</param>
+/// <param name="L">chain length</param>
+/// <param name="corr_len">correlation length</param>
+/// <returns>vector of correlation places</returns>
+inline std::vector<int> get_neigh_vector(int _BC, int L, int corr_len){
+	v_1d<int> neis(L, -1);
+	if(_BC == 0){
+		iota(neis.begin(), neis.end(), 0);
+		std::rotate(neis.begin(), neis.begin() + corr_len,neis.end());
+	}
+	else if(_BC == 1)
+		iota(neis.begin(), neis.begin() + (L-corr_len), corr_len);
+	else
+		throw "Not enough cases for me\n";
+
+}
+
+/// <summary>
 /// find non-unique elements in input array and store only elemetns, which did not have duplicates
 /// </summary>
 /// <param name="arr_in"> degenerated input array </param>
@@ -202,12 +223,14 @@ inline arma::vec get_NonDegenerated_Elements(const arma::vec& arr_in) {
 	if (abs(arr_in(N - 1) - arr_in(N - 2)) < 1e-12)
 		arr_degen.push_back(arr_in(N - 1));
 
-	arma::vec arr_unique = arr_in;
-	for (auto& E : arr_degen)
-		std::remove_if(arr_unique.begin(), arr_unique.end(), [&](double a) {
+	std::vector<double> arr_unique = arma::conv_to<std::vector<double>>::from(arr_in);
+	for (auto& E : arr_degen){
+		auto new_end = remove_if(arr_unique.begin(), arr_unique.end(), [&](double a) {
 		return abs(a - E) < 1e-12;
 			});
-	return arma::unique(arr_unique);
+		arr_unique.erase(new_end, arr_unique.end());
+	}
+	return arma::unique((vec)arr_unique);
 }
 
 /// <summary>

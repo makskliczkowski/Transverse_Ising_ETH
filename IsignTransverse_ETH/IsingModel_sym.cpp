@@ -11,6 +11,13 @@ IsingModel_sym::IsingModel_sym(int L, double J, double g, double h, int k_sym, b
 	symmetries.k_sym = k_sym * two_pi / double(this->L);
 	symmetries.p_sym = (p_sym) ? 1.0 : -1.0;
 	symmetries.x_sym = (x_sym) ? 1.0 : -1.0;
+	k_sector = abs(this->symmetries.k_sym) < 1e-4 || abs(this->symmetries.k_sym - pi) < 1e-4;
+	
+	// precalculate the exponents
+	this->k_exponents = v_1d<cpx>(this->L, 0.0);
+	for(int l = 0; l < this->L; l++)
+		this->k_exponents[l] = std::exp(-1i * this->symmetries.k_sym * double(l));
+
 
 	this->mapping = std::vector<u64>();
 	this->normalisation = std::vector<cpx>();
@@ -104,22 +111,24 @@ cpx IsingModel_sym::get_symmetry_normalization(std::vector<bool>& base_vector, u
 	cpx normalisation = cpx(0.0, 0.0);
 	std::vector<bool> PT = base_vector;
 	std::reverse(PT.begin(), PT.end());
+
 	std::vector<bool> ZT = base_vector;
 	ZT.flip();
+
 	std::vector<bool> PZT = ZT;
 	std::reverse(PZT.begin(), PZT.end());
-	bool k_sector = abs(symmetries.k_sym) < 1e-4 || abs(symmetries.k_sym - pi) < 1e-4;
+
 	for (int l = 0; l < L; l++) {
 		if (binary_to_int(base_vector) == k)
 			normalisation += std::exp(-1i * symmetries.k_sym * double(l));
 		if (k_sector && binary_to_int(PT) == k) {
-			normalisation += ((double)symmetries.p_sym) * std::exp(-1i * symmetries.k_sym * double(l));
+			normalisation += ((double)symmetries.p_sym) * this->k_exponents[l];
 		}
 		if ((h == 0) && binary_to_int(ZT) == k) {
-			normalisation += ((double)symmetries.x_sym) * std::exp(-1i * symmetries.k_sym * double(l));
+			normalisation += ((double)symmetries.x_sym) * this->k_exponents[l];
 		}
 		if (k_sector && (h == 0) && binary_to_int(PZT) == k) {
-			normalisation += ((double)symmetries.p_sym * (double)symmetries.x_sym) * std::exp(-1i * symmetries.k_sym * double(l));
+			normalisation += ((double)symmetries.p_sym * (double)symmetries.x_sym) * this->k_exponents[l];
 		}
 		if(k_sector)
 			std::rotate(PT.begin(), PT.begin() + 1, PT.end());
@@ -205,6 +214,13 @@ void IsingModel_sym::generate_mapping() {
 
 /* BUILDING HAMILTONIAN */
 
+/// <summary>
+/// 
+/// </summary>
+/// <param name="base"></param>
+/// <param name="sector_alfa"></param>
+/// <param name="normalisation_beta"></param>
+/// <returns></returns>
 std::pair<u64, cpx> find_rep_and_sym_eigval(v_1d<bool>& base, const IsingModel_sym& sector_alfa, cpx normalisation_beta)
 {
 	u64 idx = binary_search(sector_alfa.mapping, 0, sector_alfa.N - 1, binary_to_int(base));
@@ -218,8 +234,7 @@ std::pair<u64, cpx> find_rep_and_sym_eigval(v_1d<bool>& base, const IsingModel_s
 		idx = binary_search(sector_alfa.mapping, 0, sector_alfa.N - 1, min);
 	}
 	if(idx < sector_alfa.N){
-		cpx translation_eig = (abs(sym_eig) == 1 || sector_alfa.symmetries.k_sym == 0) ? \
-			cpx(1.0) : std::exp(-1i * sector_alfa.symmetries.k_sym * double(abs(sym_eig) - 1));
+		cpx translation_eig = sector_alfa.k_exponents[abs(sym_eig) - 1];
 		cpx val = translation_eig * (sector_alfa.normalisation[idx] / normalisation_beta) * double(sgn(sym_eig));
 		return std::make_pair(idx, val);
 	}
@@ -254,7 +269,8 @@ void IsingModel_sym::hamiltonian() {
 	std::vector<bool> temp(base_vector); // changes under H action
 	for (long int k = 0; k < N; k++) {
 		int_to_binary(mapping[k], base_vector);
-		double s_i, s_j;
+		double s_i;
+		double s_j;
 		for (int j = 0; j <= L - 1; j++) {
 			s_i = base_vector[j] ? 1.0 : -1.0;                              // true - spin up, false - spin down
 			/* transverse field */
@@ -278,110 +294,95 @@ void IsingModel_sym::hamiltonian() {
 /* PHYSICAL QUANTITTIES */
 
 /// <summary>
-///
+/// <summary>
+/// Calculates the matrix element for sigma_z Pauli matrix
 /// </summary>
-/// <param name="state_id"></param>
-/// <param name="site"></param>
-/// <returns></returns>
-double IsingModel_sym::av_sigma_z(int site, u64 alfa, u64 beta) {
-	if (site < 0 || site >= L) throw "Site index exceeds chain";
-	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
-	arma::subview_col state_beta = this->eigenvectors.col(beta);
-	bool k_sector = abs(symmetries.k_sym) < 1e-4 || abs(symmetries.k_sym - pi) < 1e-4;
+/// <param name="sites">Sites the matrix works on</param>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <returns>The matrix element</returns>
+double IsingModel_sym::av_sigma_z(u64 alfa, u64 beta, std::initializer_list<int> sites) {
+	auto sig_z = IsingModel_sym::sigma_z;
+	return real(av_operator(alfa, beta, *this, *this, sig_z, sites));
+}
 
-	cpx value = 0;
-	std::vector<bool> base_vector(L);
-	for (int k = 0; k < N; k++) {
-		int_to_binary(map(k), base_vector);
-		// make symmetry states
-		double val_T = base_vector[site] ? 1.0 : -1.0;
-		double val_PT = 0;
-		double val_ZT = 0;
-		double val_PZT = 0;
-		double G = this->L;
-		if (h == 0) G += this->L;
-		if (k_sector) G += (h == 0) ? 2 * this->L : this->L;
+/// <summary>
+/// Calculates the matrix element for sigma_z extensive
+/// </summary>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <returns>The matrix element</returns>
+double IsingModel_sym::av_sigma_z(u64 alfa, u64 beta)
+{
+	auto sig_z = IsingModel_sym::sigma_z;
+	return real(av_operator(alfa, beta, *this, *this, sig_z));
+}
 
-		std::vector<bool> PT = base_vector;										// Parity translation
-		std::reverse(PT.begin(), PT.end());
-		val_PT = PT[site] ? 1.0 : -1.0;
+/// <summary>
+/// Calculates the matrix element for sigma_z extensive correlations
+/// </summary>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <param name="corr_length">correlation length</param>
+/// <returns>The matrix element</returns>
+double IsingModel_sym::av_sigma_z(u64 alfa, u64 beta, int corr_length){
+	auto sig_z = IsingModel_sym::sigma_z;
+	return real(av_operator(alfa, beta, *this, *this, sig_z, corr_length));
+}
 
-		std::vector<bool> ZT = base_vector;										// Flip translation
-		ZT.flip();
-		val_ZT = ZT[site] ? 1.0 : -1.0;
+/// <summary>
+/// Calculates the matrix element for sigma_x Pauli matrix
+/// </summary>
+/// <param name="sites">Sites the matrix works on</param>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <returns>The matrix element</returns>
+double IsingModel_sym::av_sigma_x(u64 alfa, u64 beta, std::initializer_list<int> sites)
+{
+	auto sig_x = IsingModel_sym::sigma_x;
+	return real(av_operator(alfa, beta, *this, *this, sig_x, sites));
+}
 
-		std::vector<bool> PZT = ZT;												// Parity Flip translation
-		std::reverse(PZT.begin(), PZT.end());
-		val_PZT = PZT[site] ? 1.0 : -1.0;
+/// <summary>
+/// Calculates the matrix element for sigma_x extensive
+/// </summary>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <returns>The matrix element</returns>
+double IsingModel_sym::av_sigma_x(const u64 alfa, const u64 beta) {
+	auto sig_x = IsingModel_sym::sigma_x;
+	return real(av_operator(alfa, beta, *this, *this, sig_x));
+}
 
-		cpx overlap = 0;
-		for (int l = 0; l < this->L; l++) {
-			overlap += std::exp(-1i * symmetries.k_sym * double(l)) * val_T;														// translation alone
-			if (k_sector) {
-				overlap += val_PT * ((double)symmetries.p_sym) * std::exp(-1i * symmetries.k_sym * double(l));						// PT overlap
-				std::rotate(PT.begin(), PT.begin() + 1, PT.end());
-			}
-			if (h == 0) {
-				overlap += val_ZT * ((double)symmetries.x_sym) * std::exp(-1i * symmetries.k_sym * double(l));						// ZT overlap
-				std::rotate(ZT.begin(), ZT.begin() + 1, ZT.end());
-			}
-			if (k_sector && h == 0) {
-				overlap += val_PZT * ((double)symmetries.p_sym * (double)symmetries.x_sym) * std::exp(-1i * symmetries.k_sym * double(l));	// PZT overlap
-				std::rotate(PZT.begin(), PZT.begin() + 1, PZT.end());
-			}
-			std::rotate(base_vector.begin(), base_vector.begin() + 1, base_vector.end());
-			val_PT = PT[site] ? 1.0 : -1.0;
-			val_ZT = ZT[site] ? 1.0 : -1.0;
-			val_PZT = PZT[site] ? 1.0 : -1.0;
-			val_T = base_vector[site] ? 1.0 : -1.0;
-		}
-		value += conj(state_alfa(k)) * state_beta(k) * overlap / G;
-	}
-	return real(value);
+/// <summary>
+/// Calculates the matrix element for sigma_x extensive correlations
+/// </summary>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <param name="corr_length">correlation length</param>
+/// <returns>The matrix element</returns>
+double IsingModel_sym::av_sigma_x(u64 alfa, u64 beta, int corr_length){
+	auto sig_x = IsingModel_sym::sigma_x;
+	return real(av_operator(alfa, beta, *this, *this, sig_x, corr_length));
 }
 
 /// <summary>
 ///
 /// </summary>
-/// <param name="n"></param>
-/// <param name="m"></param>
+/// <param name="alfa"></param>
+/// <param name="beta"></param>
+/// <param name="sec_alfa"></param>
+/// <param name="sec_beta"></param>
+/// <param name="op"></param>
+/// <param name="sites"></param>
 /// <returns></returns>
-double IsingModel_sym::av_sigma_x_extensive(const u64 n, const u64 m) {
-	std::vector<bool> base_vector(L), temp(L);
-	cpx overlap = 0;
-	cx_vec state_n = this->eigenvectors.col(n);
-	cx_vec state_m = this->eigenvectors.col(m);
-	for (long int k = 0; k < N; k++) {
-		int_to_binary(mapping[k], base_vector);
-		for (int j = 0; j < this->L; j++) {
-			temp = base_vector;
-			temp[j] = !base_vector[j];
-			auto idx_temp = binary_to_int(temp);
-			u64 idx = binary_search(mapping, 0, N - 1, idx_temp);
-			int sym_eig = 1;
-			if (idx == -1) {
-				auto tup_T = find_translation_representative(temp);
-				auto tup_S = find_SEC_representative(temp);
-				auto [min, trans_eig] = (std::get<0>(tup_T) > std::get<0>(tup_S)) ? tup_S : tup_T;
-				sym_eig = trans_eig;
-				idx = binary_search(mapping, 0, N - 1, min);
-				if (idx < 0 || idx >= N) continue; // out << "Element do not exist\n";
-			}
-			cpx translation_eig = (abs(sym_eig) == 1 || symmetries.k_sym == 0) ? \
-				cpx(1.0) : std::exp(1i * symmetries.k_sym * double(abs(sym_eig) - 1));
-			cpx value_new = translation_eig * (normalisation[idx] / normalisation[k]) * double(sgn(sym_eig));
-			overlap += conj(state_n(idx)) * value_new * state_m(k);
-		}
-	}
-	return real(overlap) / double(this->L * this->L);
-}
-
-cpx av_operator(int site, u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, std::function<std::pair<cpx,v_1d<bool>>(int, v_1d<bool>&)> op)
+cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, std::function<std::pair<cpx,v_1d<bool>>(v_1d<bool>&, std::initializer_list<int>)> op, std::initializer_list<int> sites)
 {
-	if ((site < 0 || site >= sec_alfa.L) && sec_alfa.L == sec_beta.L) throw "Site index exceeds chain or incompatible chain lengths. Your choice\n";
+	// throwables
+	for(auto& site: sites)
+		if ((site < 0 || site >= sec_alfa.L) && sec_alfa.L != sec_beta.L) throw "Site index exceeds chain or incompatible chain lengths. Your choice\n";
 	if(sec_alfa.J != sec_beta.J || sec_alfa.h != sec_beta.h || sec_alfa.g != sec_beta.g) throw "incompatible model parameters, sun \\('.')// \n";
-	bool k_sector_alfa = abs(sec_alfa.symmetries.k_sym) < 1e-4 || abs(sec_alfa.symmetries.k_sym - pi) < 1e-4;
-	bool k_sector_beta = abs(sec_beta.symmetries.k_sym) < 1e-4 || abs(sec_beta.symmetries.k_sym - pi) < 1e-4;
+
 	arma::subview_col state_alfa = sec_alfa.eigenvectors.col(alfa);
 	arma::subview_col state_beta = sec_beta.eigenvectors.col(beta);
 
@@ -393,24 +394,147 @@ cpx av_operator(int site, u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, co
 		G_alfa += sec_alfa.L;
 		G_beta += sec_beta.L;
 	}
-	if (k_sector_alfa) G_alfa += (sec_alfa.h == 0) ? 2 * sec_alfa.L : sec_alfa.L;
-	if (k_sector_beta) G_beta += (sec_beta.h == 0) ? 2 * sec_beta.L : sec_beta.L;
+	if (sec_alfa.k_sector) G_alfa += (sec_alfa.h == 0) ? 2 * sec_alfa.L : sec_alfa.L;
+	if (sec_beta.k_sector) G_beta += (sec_beta.h == 0) ? 2 * sec_beta.L : sec_beta.L;
 	G = std::sqrt(G_alfa * G_beta);
 	
 	// going through all sector beta states
-	std::vector<bool> base_vector(sec_beta.L);
-	cpx overlap = 0;
-	for (int k = 0; k < sec_beta.N; k++) {
-		int_to_binary(sec_beta.mapping[k], base_vector);
-		overlap += apply_sym_overlap(site,state_alfa, state_beta, base_vector,sec_alfa,sec_beta,op);
+	double overlap_real = 0;
+	double overlap_imag = 0;
+#pragma omp parallel
+	{	
+		std::vector<bool> base_vector(sec_beta.L, 0);
+#pragma omp for reduction(+:overlap_real, overlap_imag)
+		for (int k = 0; k < sec_beta.N; k++) {
+			int_to_binary(sec_beta.mapping[k], base_vector);
+			cpx overlap = apply_sym_overlap(state_alfa, state_beta, base_vector, sec_alfa,sec_beta,op,sites);
+			overlap_real += overlap.real();
+			overlap_imag += overlap.imag();
+		}
 	}
-	return overlap / G;
+	return cpx(overlap_real, overlap_imag) / G;
 }
 
-cpx apply_sym_overlap(int site, const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, const v_1d<bool>& base_vec,\
-	const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, std::function<std::pair<cpx,v_1d<bool>>(int, v_1d<bool>&)> op)
+/// <summary>
+/// 
+/// </summary>
+/// <param name="alfa"></param>
+/// <param name="beta"></param>
+/// <param name="sec_alfa"></param>
+/// <param name="sec_beta"></param>
+/// <param name="op"></param>
+/// <returns></returns>
+cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym & sec_alfa, const IsingModel_sym & sec_beta, std::function<std::pair<cpx,v_1d<bool>>(v_1d<bool>&, std::initializer_list<int>)> op)
 {
-	const bool k_sector_beta = abs(sec_beta.symmetries.k_sym) < 1e-4 || abs(sec_beta.symmetries.k_sym - pi) < 1e-4;
+	if (sec_alfa.L != sec_beta.L) throw "Incompatible chain lengths. Your choice\n";
+	if(sec_alfa.J != sec_beta.J || sec_alfa.h != sec_beta.h || sec_alfa.g != sec_beta.g) throw "incompatible model parameters, sun \\('.')// \n";
+
+	arma::subview_col state_alfa = sec_alfa.eigenvectors.col(alfa);
+	arma::subview_col state_beta = sec_beta.eigenvectors.col(beta);
+
+	// calculating normalisation for both sector symmetry groups
+	double G = 0;
+	double G_alfa = sec_alfa.L;
+	double G_beta = G_alfa;
+	if (sec_alfa.h == 0){
+		G_alfa += sec_alfa.L;
+		G_beta += sec_beta.L;
+	}
+	if (sec_alfa.k_sector) G_alfa += (sec_alfa.h == 0) ? 2 * sec_alfa.L : sec_alfa.L;
+	if (sec_beta.k_sector) G_beta += (sec_beta.h == 0) ? 2 * sec_beta.L : sec_beta.L;
+	G = std::sqrt(G_alfa * G_beta);
+	
+	// going through all sector beta states
+	double overlap_real = 0;
+	double overlap_imag = 0;
+#pragma omp parallel
+	{	
+		std::vector<bool> base_vector(sec_beta.L, 0);
+#pragma omp for reduction(+:overlap_real, overlap_imag)
+		for (int k = 0; k < sec_beta.N; k++) {
+			for(int l = 0; l < sec_beta.L; l++){
+				int_to_binary(sec_beta.mapping[k], base_vector);
+				cpx overlap = apply_sym_overlap(state_alfa, state_beta, base_vector, sec_alfa,sec_beta,op,{l});
+				overlap_real += overlap.real();
+				overlap_imag += overlap.imag();
+			}
+		}
+	}
+	return cpx(overlap_real, overlap_imag) / (G * sec_alfa.L);
+}
+
+/// <summary>
+/// 
+/// </summary>
+/// <param name="alfa"></param>
+/// <param name="beta"></param>
+/// <param name="sec_alfa"></param>
+/// <param name="sec_beta"></param>
+/// <param name="op"></param>
+/// <param name="corr_len"></param>
+/// <returns></returns>
+cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta,\
+		std::function<std::pair<cpx,v_1d<bool>>(v_1d<bool>&, std::initializer_list<int>)> op, int corr_len){
+	if(sec_alfa.L != sec_beta.L) throw "Incompatible chain lengths. Your choice\n";
+	if(corr_len >= sec_alfa.L) throw "Exceeding correlation length\n";
+	if(sec_alfa.J != sec_beta.J || sec_alfa.h != sec_beta.h || sec_alfa.g != sec_beta.g) throw "incompatible model parameters, sun \\('.')// \n";
+
+	arma::subview_col state_alfa = sec_alfa.eigenvectors.col(alfa);
+	arma::subview_col state_beta = sec_beta.eigenvectors.col(beta);
+
+	// calculating normalisation for both sector symmetry groups
+	double G = 0;
+	double G_alfa = sec_alfa.L;
+	double G_beta = G_alfa;
+	if (sec_alfa.h == 0){
+		G_alfa += sec_alfa.L;
+		G_beta += sec_beta.L;
+	}
+	if (sec_alfa.k_sector) G_alfa += (sec_alfa.h == 0) ? 2 * sec_alfa.L : sec_alfa.L;
+	if (sec_beta.k_sector) G_beta += (sec_beta.h == 0) ? 2 * sec_beta.L : sec_beta.L;
+	G = std::sqrt(G_alfa * G_beta);
+	
+	auto neis = get_neigh_vector(sec_alfa._BC, sec_alfa.L, corr_len);
+	// going through all sector beta states
+
+	double overlap_real = 0;
+	double overlap_imag = 0;
+#pragma omp parallel
+	{	
+		std::vector<bool> base_vector(sec_beta.L, 0);
+#pragma omp for reduction(+:overlap_real, overlap_imag)
+		for (int k = 0; k < sec_beta.N; k++) {
+			for(int l = 0; l < sec_beta.L; l++){
+				int_to_binary(sec_beta.mapping[k], base_vector);
+				const int nei = neis[l];
+				if(nei >= 0){
+					cpx overlap = apply_sym_overlap(state_alfa, state_beta, base_vector, sec_alfa,sec_beta,op,{l, nei});
+					overlap_real += overlap.real();
+					overlap_imag += overlap.imag();
+				}
+			}
+		}
+	}
+	return cpx(overlap_real, overlap_imag) / (G * sec_alfa.L);
+
+
+}
+
+/// <summary>
+/// 
+/// </summary>
+/// <param name="site"></param>
+/// <param name="alfa"></param>
+/// <param name="beta"></param>
+/// <param name="base_vec"></param>
+/// <param name="sec_alfa"></param>
+/// <param name="sec_beta"></param>
+/// <param name="op"></param>
+/// <param name="sites"></param>
+/// <returns></returns>
+cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, const v_1d<bool>& base_vec,\
+	const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, std::function<std::pair<cpx,v_1d<bool>>(v_1d<bool>&, std::initializer_list<int>)> op, std::initializer_list<int> sites)
+{
 	const u64 k = binary_search(sec_beta.mapping, 0, sec_beta.N - 1, binary_to_int(base_vec));									// index of the current base vector
 
 	std::vector<bool> T = base_vec;
@@ -424,17 +548,17 @@ cpx apply_sym_overlap(int site, const arma::subview_col<cpx>& alfa, const arma::
 	std::vector<bool> PZT = ZT;												// Parity Flip translation
 	std::reverse(PZT.begin(), PZT.end());
 
-	cpx overlap = 0;
+	cpx overlap = 0.0;
 	for (int l = 0; l < sec_alfa.L; l++) {
-		auto T_eig = std::exp(-1i * sec_beta.symmetries.k_sym * double(l));
+		auto T_eig = sec_beta.k_exponents[l];
 	
-		auto [val_T_beta, vec_T] = op(site,T);
+		auto [val_T_beta, vec_T] = op(T,sites);
 		auto [idx_T,val_T_alfa] = !(T == vec_T) ? find_rep_and_sym_eigval(vec_T,sec_alfa,sec_beta.normalisation[k]) : std::make_pair(k, conj(T_eig));
 		if(idx_T < sec_alfa.N)
 			overlap += T_eig * conj(val_T_alfa *alfa(idx_T)) * beta(k) * val_T_beta;													// translation alone
-		if (k_sector_beta) {
+		if (sec_beta.k_sector) {
 			auto PT_eig = T_eig * double(sec_beta.symmetries.p_sym);
-			auto [val_PT_beta, vec_PT] = op(site,PT);
+			auto [val_PT_beta, vec_PT] = op(PT, sites);
 			auto [idx_PT,val_PT_alfa] = !(PT == vec_PT) ? find_rep_and_sym_eigval(vec_PT,sec_alfa,sec_beta.normalisation[k]) : std::make_pair(k, conj(PT_eig));
 			if(idx_PT < sec_alfa.N)
 				overlap += PT_eig * conj(val_PT_alfa *alfa(idx_PT)) * beta(k) * val_PT_beta;											
@@ -443,15 +567,15 @@ cpx apply_sym_overlap(int site, const arma::subview_col<cpx>& alfa, const arma::
 		}
 		if (sec_beta.h == 0) {
 			auto ZT_eig = T_eig * double(sec_beta.symmetries.x_sym);
-			auto [val_ZT_beta, vec_ZT] = op(site,ZT);
+			auto [val_ZT_beta, vec_ZT] = op(ZT, sites);
 			auto [idx_ZT,val_ZT_alfa] = !(ZT == vec_ZT) ? find_rep_and_sym_eigval(vec_ZT,sec_alfa,sec_beta.normalisation[k]) : std::make_pair(k, conj(ZT_eig));
 			if(idx_ZT < sec_alfa.N)
 				overlap += ZT_eig * conj(val_ZT_alfa *alfa(idx_ZT)) * beta(k) * val_ZT_beta;				
 			std::rotate(ZT.begin(), ZT.begin() + 1, ZT.end());
 		}
-		if (k_sector_beta && sec_beta.h == 0) {
+		if (sec_beta.k_sector && sec_beta.h == 0) {
 			auto PZT_eig = T_eig * double(sec_beta.symmetries.p_sym * sec_beta.symmetries.x_sym);
-			auto [val_PZT_beta, vec_PZT] = op(site,PZT);
+			auto [val_PZT_beta, vec_PZT] = op(PZT, sites);
 			auto [idx_PZT,val_PZT_alfa] = !(PZT == vec_PZT) ? find_rep_and_sym_eigval(vec_PZT,sec_alfa,sec_beta.normalisation[k]) : std::make_pair(k, conj(PZT_eig));
 			if(idx_PZT < sec_alfa.N)
 				overlap += PZT_eig * conj(val_PZT_alfa *alfa(idx_PZT)) * beta(k) * val_PZT_beta;			
