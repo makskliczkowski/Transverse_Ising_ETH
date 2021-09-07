@@ -74,8 +74,7 @@ namespace isingUI
 		int realisations;																// number of realisations to average on for disordered case - symmetries got 1
 		int mu;																			// small bucket for the operator fluctuations to be averaged onto
 		int site;																		// site for operator averages
-
-		std::unique_ptr<IsingModel> model;												// pointer to a model
+		//std::unique_ptr<IsingModel<T>> model;												// pointer to a model
 	public:
 		// CONSTRUCTORS
 		ui() = default;

@@ -18,22 +18,6 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 	set_neighbors();
 	hamiltonian();
 }
-/*
-IsingModel_disorder::IsingModel_disorder(const IsingModel_disorder& A) {
-	this->L = A.L; this->J = A.J; this->g = A.g; this->h = A.h; this->disorder_strength = A.disorder_strength;
-	this->N = A.N; this->mapping = A.mapping;
-	this->H = A.H; this->eigenvectors = A.eigenvectors; this->eigenvalues = A.eigenvalues;
-}
-IsingModel_disorder::IsingModel_disorder(IsingModel_disorder&& A) noexcept {
-	this->L = A.L; this->J = A.J; this->g = A.g; this->h = A.h; this->disorder_strength = A.disorder_strength;
-	this->N = A.N; this->mapping = A.mapping;
-	this->H = A.H; this->eigenvectors = A.eigenvectors; this->eigenvalues = A.eigenvalues;
-}
-IsingModel_disorder::~IsingModel_disorder()
-{
-	//out << "Destroying the disordered Ising model\n";
-}
-*/
 
 // - - - - - BASE GENERATION AND RAPPING - - - - -
 
@@ -76,7 +60,7 @@ void IsingModel_disorder::setHamiltonianElem(u64 k, double value, std::vector<bo
 /// </summary>
 void IsingModel_disorder::hamiltonian() {
 	try {
-		this->H = cx_mat(N, N, fill::zeros);                                //  hamiltonian memory reservation
+		this->H = mat(N, N, fill::zeros);                                //  hamiltonian memory reservation
 	}
 	catch (const bad_alloc& e) {
 		std::cout << "Memory exceeded" << e.what() << "\n";
@@ -135,7 +119,7 @@ double IsingModel_disorder::av_sigma_z(u64 alfa, u64 beta, std::initializer_list
 			double S_z = 1;
 			for(auto& site: sites)
 				S_z *= base_vector[site] ? 1.0 : -1.0;
-			value += real(S_z * conj(state_alfa(k)) * state_beta(k));
+			value += S_z * state_alfa(k) * state_beta(k);
 		}
 	}
 	return value;
@@ -160,7 +144,7 @@ double IsingModel_disorder::av_sigma_z(u64 alfa, u64 beta)
 			int_to_binary(map(k), base_vector);
 			for(int l = 0; l < this->L; l++){
 				double Sz = base_vector[l] ? 1.0 : -1.0;
-				value += real(Sz * conj(state_alfa(k)) * state_beta(k));
+				value += Sz * state_alfa(k) * state_beta(k);
 			}
 		}
 	}
@@ -194,7 +178,7 @@ double IsingModel_disorder::av_sigma_z(u64 alfa, u64 beta, int corr_length)
 				int nei = neis[l];
 				if(nei < 0) continue;
 				double Sz_corr = base_vector[nei] ? 1.0 : -1.0;
-				value += real(Sz * Sz_corr * conj(state_alfa(k)) * state_beta(k));
+				value += Sz * Sz_corr * state_alfa(k) * state_beta(k);
 			}
 		}
 	}
@@ -224,7 +208,7 @@ double IsingModel_disorder::av_sigma_x(u64 alfa, u64 beta, std::initializer_list
 			for(auto& site: sites)
 				base_vector[site] = !base_vector[site];
 			const u64 idx = binary_to_int(base_vector);
-			value += real(state_alfa(idx) * state_beta(k));
+			value += state_alfa(idx) * state_beta(k);
 		}
 	}
 	return value;
@@ -239,22 +223,22 @@ double IsingModel_disorder::av_sigma_x(u64 alfa, u64 beta, std::initializer_list
 double IsingModel_disorder::av_sigma_x(u64 alfa, u64 beta) {
 
 	double overlap = 0;
-	cx_vec state_alfa = this->eigenvectors.col(alfa);
-	cx_vec state_beta = this->eigenvectors.col(beta);
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
 #pragma omp parallel
 	{
-		std::vector<bool> base_vector(L,0);
+		std::vector<bool> base_vector(L,0), temp(L);
 #pragma omp for reduction(+: overlap)
 		for (long int k = 0; k < N; k++) {
 			int_to_binary(k, base_vector);
 			for (int j = 0; j < this->L; j++) {
-				v_1d<bool> temp = base_vector;
+				temp = base_vector;
 				temp[j] = !base_vector[j];
-				overlap += real(state_alfa(binary_to_int(temp)) * state_beta(k));
+				overlap += state_alfa(binary_to_int(temp)) * state_beta(k);
 			}
 		}
 	}
-	return (overlap) / double(this->L);
+	return overlap / double(this->L);
 }
 
 /// <summary>
@@ -275,17 +259,17 @@ double IsingModel_disorder::av_sigma_x(u64 alfa, u64 beta, int corr_length)
 
 #pragma omp parallel
 	{
-		std::vector<bool> base_vector(L);
+		std::vector<bool> base_vector(L), temp(L);
 #pragma omp for reduction (+: value)
 		for (int k = 0; k < N; k++) {
 			int_to_binary(map(k), base_vector);
 			for(int l = 0; l < this->L; l++){
-				v_1d<bool> temp = base_vector;
+				temp = base_vector;
 				temp[l] = !base_vector[l];
 				int nei = neis[l];
 				if(nei < 0) continue;
 				temp[nei] = !base_vector[nei];
-				value += real(state_alfa(binary_to_int(temp)) * state_beta(k));
+				value += state_alfa(binary_to_int(temp)) * state_beta(k);
 			}
 		}
 	}
@@ -294,6 +278,160 @@ double IsingModel_disorder::av_sigma_x(u64 alfa, u64 beta, int corr_length)
 
 
 }
+
+/// <summary>
+/// 
+/// </summary>
+/// <param name="alfa"></param>
+/// <param name="beta"></param>
+/// <param name="sites"></param>
+/// <returns></returns>
+double IsingModel_disorder::av_spin_flip(u64 alfa, u64 beta, std::initializer_list<int> sites) {
+	if (sites.size() != 2) throw "Not implemented such exotic operators, choose 1 or 2 sites\n";
+	for (auto& site : sites) {
+		if (site < 0 || site >= L) throw "Site index exceeds chain";
+	}
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+	double value = 0;
+#pragma omp parallel
+	{
+		std::vector<bool> base_vector(L), temp(L);
+#pragma omp for reduction (+: value)
+		for (int k = 0; k < N; k++) {
+			int_to_binary(map(k), base_vector);
+			auto it = sites.begin();
+			auto it2 = it + 1;
+			temp = base_vector;
+			if ((base_vector[*it] == 0 && base_vector[*it2] == 1) || (base_vector[*it] == 1 && base_vector[*it2] == 0)) {
+				temp[*it] = !base_vector[*it];
+				temp[*it2] = !base_vector[*it2];
+				const u64 idx = binary_to_int(temp);
+				value += state_alfa(idx) * state_beta(k);
+			}
+		}
+	}
+	return 2.0 * value;
+}
+
+/// <summary>
+/// 
+/// </summary>
+/// <param name="alfa"></param>
+/// <param name="beta"></param>
+/// <returns></returns>
+double IsingModel_disorder::av_spin_flip(u64 alfa, u64 beta) {
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+	double value = 0;
+#pragma omp parallel
+	{
+		std::vector<bool> base_vector(L), temp(L);
+#pragma omp for reduction (+: value)
+		for (int k = 0; k < N; k++) {
+			int_to_binary(map(k), base_vector);
+			for (int l = 0; l < this->L; l++) {
+				temp = base_vector;
+				const int nei = this->nearest_neighbors[l];
+				if (nei < 0) continue;
+				if ((base_vector[l] == 0 && base_vector[nei] == 1) || (base_vector[nei] == 0 && base_vector[l])) {
+					temp[l] = !base_vector[l];
+					temp[nei] = !base_vector[nei];
+					const u64 idx = binary_to_int(temp);
+					value += state_alfa(idx) * state_beta(k);
+				}
+			}
+		}
+	}
+	return 2.0 * value;
+}
+
+/// <summary>
+/// 
+/// </summary>
+/// <param name="alfa"></param>
+/// <param name="beta"></param>
+/// <param name="sites"></param>
+/// <returns></returns>
+cpx IsingModel_disorder::av_spin_current(u64 alfa, u64 beta, std::initializer_list<int> sites) {
+	if (sites.size() != 2) throw "Not implemented such exotic operators, choose 1 or 2 sites\n";
+	for (auto& site : sites) {
+		if (site < 0 || site >= L) throw "Site index exceeds chain";
+	}
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+	double value_real = 0, value_imag = 0;
+#pragma omp parallel
+	{
+		std::vector<bool> base_vector(L), temp(L);
+#pragma omp for reduction (+: value_real, value_imag)
+		for (int k = 0; k < N; k++) {
+			int_to_binary(map(k), base_vector);
+			auto l = *(sites.begin());
+			auto nei = *(sites.begin() + 1);
+			temp = base_vector;
+			if (nei < 0) continue;
+			cpx value = 0.0;
+			if (base_vector[l] && !base_vector[nei]) {
+				temp[l] = 0;
+				temp[nei] = 1;
+				const u64 idx = binary_to_int(temp);
+				value = state_alfa(idx) * state_beta(k) * im;
+			}
+			else if (!base_vector[l] && base_vector[nei]) {
+				temp[l] = 1;
+				temp[nei] = 0;
+				const u64 idx = binary_to_int(temp);
+				value = -state_alfa(idx) * state_beta(k) * im;
+			}
+			value_real += value.real();
+			value_imag += value.imag();
+		}
+	}
+	return 2i * cpx(value_real, value_imag);
+}
+/// <summary>
+/// 
+/// </summary>
+/// <param name="alfa"></param>
+/// <param name="beta"></param>
+/// <returns></returns>
+cpx IsingModel_disorder::av_spin_current(u64 alfa, u64 beta) {
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+	double value_real = 0, value_imag = 0;
+#pragma omp parallel
+	{
+		std::vector<bool> base_vector(L), temp(L);
+#pragma omp for reduction (+: value_real, value_imag)
+		for (int k = 0; k < N; k++) {
+			int_to_binary(map(k), base_vector);
+			for (int l = 0; l < this->L; l++) {
+				temp = base_vector;
+				const int nei = this->nearest_neighbors[l];
+				if (nei < 0) continue;
+				cpx value = 0.0;
+				if (base_vector[l] && !base_vector[nei]) {
+					temp[l] = 0;
+					temp[nei] = 1;
+					const u64 idx = binary_to_int(temp);
+					value = state_alfa(idx) * state_beta(k) * im;
+				}
+				else if (!base_vector[l] && base_vector[nei]) {
+					temp[l] = 1;
+					temp[nei] = 0;
+					const u64 idx = binary_to_int(temp);
+					value = -state_alfa(idx) * state_beta(k) * im;
+				}
+				value_real += value.real();
+				value_imag += value.imag();
+			}
+		}
+	}
+	return 2i * cpx(value_real, value_imag);
+}
+
+
 
 // -----------------------------------------> TO REFACTOR AND CREATE DESCRIPTION <---------------------------------------------
 
@@ -306,7 +444,7 @@ double IsingModel_disorder::av_sigma_x(u64 alfa, u64 beta, int corr_length)
 /// <returns> correlation matrix </returns>
 mat IsingModel_disorder::correlation_matrix(u64 state_id) {
 	mat corr_mat(L, L, fill::zeros);
-	const cx_vec state = this->eigenvectors.col(state_id);
+	const arma::subview_col state = this->eigenvectors.col(state_id);
 #pragma omp parallel shared(state, corr_mat)
 	{
 		u64 idx;
@@ -321,13 +459,13 @@ mat IsingModel_disorder::correlation_matrix(u64 state_id) {
 				if (vect[m] == 1) Szm = 0.5;
 				else Szm = -0.5;
 
-				S2_tmp = real((Szm * Szm + 0.5) * conj(state(p)) * state(p)); //  <Sz(m) Sz(m)> + 2*( <S(m)^+ S(m)^-> + <S(m)^- S(m)^+> ) on-site
+				S2_tmp = (Szm * Szm + 0.5) * state(p) * state(p); //  <Sz(m) Sz(m)> + 2*( <S(m)^+ S(m)^-> + <S(m)^- S(m)^+> ) on-site
 				corr_mat(m, m) += S2_tmp;
 				for (int k = m + 1; k < L; k++) {
 					double Szk = 0;
 					if (vect[k] == 1) Szk = 0.5;
 					else Szk = -0.5;
-					S2_tmp = Szm * Szk * real(conj(state(p)) * state(p)); //  <Sz(m) Sz(k)> for k > m
+					S2_tmp = Szm * Szk * state(p) * state(p); //  <Sz(m) Sz(k)> for k > m
 
 					// <S^+ S^->
 					temp = vect;
@@ -335,14 +473,14 @@ mat IsingModel_disorder::correlation_matrix(u64 state_id) {
 						temp[m] = 0;
 						temp[k] = 1;
 						idx = binary_to_int(temp);
-						S2_tmp += 0.5 * real(conj(state(idx)) * state(p));
+						S2_tmp += 0.5 * state(idx) * state(p);
 					}
 					//<S^- S^+>
 					else if (vect[m] == 0 && vect[k] == 1) {
 						temp[m] = 1;
 						temp[k] = 0;
 						idx = binary_to_int(temp);
-						S2_tmp += 0.5 * real(conj(state(idx)) * state(p));
+						S2_tmp += 0.5 * state(idx) * state(p);
 					}
 					corr_mat(m, k) += S2_tmp;
 					corr_mat(k, m) += S2_tmp;
@@ -350,7 +488,6 @@ mat IsingModel_disorder::correlation_matrix(u64 state_id) {
 			}
 		}
 	}
-
 	return corr_mat;
 }
 /// <summary>
@@ -361,7 +498,7 @@ mat IsingModel_disorder::correlation_matrix(u64 state_id) {
 /// <returns> entropy of considered systsem </returns>
 double IsingModel_disorder::entaglement_entropy(u64 state_id, int A_size) {
 	std::vector<bool> base_vector(L);
-	const cx_vec state = this->eigenvectors.col(state_id);
+	const arma::subview_col state = this->eigenvectors.col(state_id);
 	u64 dimA = std::pow(2, A_size);
 	u64 dimB = std::pow(2, L - A_size);
 	cx_mat rho(dimA, dimA, fill::zeros);
