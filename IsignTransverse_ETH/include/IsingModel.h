@@ -113,6 +113,7 @@ public:
 	// PHYSICAL QUANTITIES
 	double ipr(int state_idx);																	// calculate the ipr coeffincient (inverse participation ratio)
 	double information_entropy(u64 _id);														// calculate the information entropy in a given state (based on the ipr) Von Neuman type
+	double information_entropy(u64 _id, const IsingModel<T>& beta, u64 _min, u64 _max);			// calculate the information entropy in basis of other model from input
 	double eigenlevel_statistics(u64 _min, u64 _max);											// calculate the statistics based on eigenlevels (r coefficient)
 	vec eigenlevel_statistics_with_return();													// calculate the eigenlevel statistics and return the vector with the results
 	virtual double entaglement_entropy(u64 state_id, int subsystem_size) = 0;					// entanglement entropy based on the density matrices
@@ -140,8 +141,7 @@ public:
 
 	// TOOLS AND HELPERS
 		
-	template <typename T2>
-	friend double overlap(const IsingModel<T>& A, const IsingModel<T2>& B, int n_a, int n_b);			// creates the overlap between two eigenstates
+	friend T overlap(const IsingModel<T>& A, const IsingModel<T>& B, int n_a, int n_b);			// creates the overlap between two eigenstates
 };
 
 

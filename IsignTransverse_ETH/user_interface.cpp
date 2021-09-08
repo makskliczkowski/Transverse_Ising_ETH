@@ -561,21 +561,51 @@ void isingUI::ui::compare_matrix_elements() {
 
 }
 
+/// <summary>
+/// 
+/// </summary>
+void isingUI::ui::fidelity(std::initializer_list<int> symetries){
+	std::vector<int> sym = { 0, 1, 1 };
+	for (int i = 0; i < 3; i++) 
+		if (i < symetries.size())
+			sym[i] = *(symetries.begin() + i);
+	auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, sym[0], sym[2], sym[1], this->boundary_conditions);
+	alfa->diagonalization();
+	this->mu = 0.1 * alfa->get_hilbert_size();
+	std::ofstream file(this->saving_dir + "Fidelity" + alfa->get_info({ "g"}) + ".dat");
+
+	double step = 1e-2;
+	for (double dg = 0.0; dg <= 2.0; dg += step) {
+		auto beta = std::make_unique<IsingModel_sym>(this->L, this->J, this->g + dg, this->h + dg, sym[0], sym[2], sym[1], this->boundary_conditions);
+		beta->diagonalization();
+		double fidel = 0, entropy = 0;
+		for (int k = alfa->E_av_idx - mu / 2.; k < alfa->E_av_idx + mu / 2.; k++) {
+			fidel += abs(cdot(alfa->get_eigenState(k), beta->get_eigenState(k)));
+			entropy += alfa->information_entropy(k, *beta, alfa->E_av_idx - mu / 2., alfa->E_av_idx + mu / 2.);
+		}
+		file << dg << "\t\t" << fidel / (double)this->mu << "\t\t" << entropy / (double)this->mu << "\t\t" << endl;
+		stout << dg << "\t\t" << fidel / (double)this->mu << "\t\t" << entropy / (double)this->mu << "\t\t" << endl;
+	}
+	file.close();
+}
+
+/// <summary>
+/// 
+/// </summary>
+/// <param name="k"></param>
+/// <param name="p"></param>
+/// <param name="x"></param>
 void isingUI::ui::size_scaling_sym(int k, int p, int x) {
 	using namespace std::chrono;
 	auto start = std::chrono::high_resolution_clock::now();
 
 	const int L_max = this->L + this->Ln*this->Ls;
-	int Lx = this->L;
-
-	std::ofstream farante(this->saving_dir + "IprScaling" + \
-		",g=" + to_string_prec(this->g, 2) + \
-		",h=" + to_string_prec(this->h, 2) + ".dat");
-	std::ofstream fikolo(this->saving_dir + "SpectrumRapScalingSigmaX" + \
-		",g=" + to_string_prec(this->g, 2) + \
-		",h=" + to_string_prec(this->h, 2) + ".dat");
+	auto beta = std::make_unique<IsingModel_sym>(2, J, g, h, k, p, x, boundary_conditions);
+	std::ofstream farante(this->saving_dir + "IprScaling" + beta->get_info({ "L" }) + ".dat");
+	std::ofstream fikolo(this->saving_dir + "SpectrumRapScalingSigmaX" + beta->get_info({ "L" }) + ".dat");
 	
 	for (; Lx <= L_max; Lx++) {
+	for (int Lx = this->L; Lx <= L_max; Lx++) {
 		stout << "\n\n------------------------------Doing L = " << Lx << "------------------------------\n";
 		auto alfa = std::make_unique<IsingModel_sym>(Lx, J, g, h, k, p, x, boundary_conditions);
 		u64 N = alfa->get_hilbert_size();
@@ -603,13 +633,14 @@ void isingUI::ui::size_scaling_sym(int k, int p, int x) {
 		stout << " \t\t--> finished outliers for " << alfa->get_info() << " - in time : " << \
 			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 
-		probability_distribution(this->saving_dir, "ProbDistSpecRapSigmaX" + alfa->get_info(), r_sigma_x, 0, 0.05, 0.0002);
-		probability_distribution(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), data_fluctuations(av_sigma_x), -2.0, 2.0, 0.001);
+		probability_distribution(this->saving_dir, "ProbDistSpecRapSigmaX" + alfa->get_info(), r_sigma_x, 0, 0.1, 0.001);
+		probability_distribution(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), data_fluctuations(av_sigma_x), -0.1, 0.1, 0.003);
 		stout << " \t\t--> finished prob dist for " << alfa->get_info() << " - in time : " << \
 			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 
 		// eigenlevel statistics and prob distribution
-		double r = alfa->eigenlevel_statistics(alfa->E_av_idx - mu / 2., alfa->E_av_idx + mu / 2.);
+		vec r = alfa->eigenlevel_statistics_with_return();
+		probability_distribution(this->saving_dir, "ProbDistGap" + alfa->get_info(), r, 0, 1.0, 0.01);
 
 		// ipr & info entropy
 		double ipr = 0, ent = 0;
@@ -617,7 +648,7 @@ void isingUI::ui::size_scaling_sym(int k, int p, int x) {
 			ipr += alfa->ipr(i);
 			ent += alfa->information_entropy(i);
 		}
-		farante << Lx << "\t\t" << ipr / double(mu) / double(N) << "\t\t" << ent / double(mu) << "\t\t" << r << endl;
+		farante << Lx << "\t\t" << ipr / double(mu) / double(N) << "\t\t" << ent / double(mu) << "\t\t" << mean(r) << endl;
 		stout << " \t\t--> finished farante for " << alfa->get_info() << " - in time : " << \
 			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 
