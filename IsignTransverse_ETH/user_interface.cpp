@@ -75,20 +75,22 @@ void isingUI::ui::set_default() {
 	using namespace isingUI;
 	this->saving_dir = "." + std::string(kPathSeparator) + "results" + std::string(kPathSeparator);		// directory for the result files to be saved into
 	this->L = 4;
-	this->Ls = 1;
+	this->Ls = 0;
 	this->Ln = 1;
 
 	this->J = 1.0;
 	this->J0 = 0.2;
 
 	this->h = 0.0;
-	this->hs = 0.2;
+	this->hs = 0.0;
 	this->hn = 1;
 
 	this->w = 1.0;
+	this->ws = 0.0;
+	this->wn = 1;
 
 	this->g = 1.0;
-	this->gs = 0.2;
+	this->gs = 0.0;
 	this->gn = 1;
 
 	this->g0 = 0;
@@ -133,17 +135,17 @@ void isingUI::ui::exit_with_help() const {
 		"-J spin exchange coefficient : (default 1)\n"
 		"-J0 random spin exchange set in uniform distribution [-J0,J0]\n"
 		"-g transverse magnetic field (x-) constant: (default 1)\n"
-		"-gs transverse magnetic field (x-) constant step: (default 0.1)\n"
+		"-gs transverse magnetic field (x-) constant step: (default 0.0)\n"
 		"-gn transverse magnetic field (x-) constant number: (default 1)\n"
 		"-g0 random transverse field set in uniform distribution [-g0,g0]\n"
 		"-h perpendicular (z-) magnetic field constant: (default 0)\n"
-		"-hs perpendicular (z-) magnetic field constant step: (default 0.1)\n"
+		"-hs perpendicular (z-) magnetic field constant step: (default 0.0)\n"
 		"-hn perpendicular (z-) magnetic field constant number: (default 1)\n"
 		"-w disorder strength : (default 0 - no disorder introduced)\n"
-		"-ws disorder strength step: (default 0.1)\n"
+		"-ws disorder strength step: (default 0.0)\n"
 		"-wn disorder strength number: (default 1)\n"
 		"-L chain length minimum: bigger than 0 (default 8)\n"
-		"-Ls chain length step: bigger than 0 (default 1)\n"
+		"-Ls chain length step: bigger equal than 0 (default 0)\n"
 		"-Ln chain length number: bigger than 0 (default 1)\n"
 		"-b boundary conditions : bigger than 0 (default 0 - PBC)\n"
 		"	0 -- PBC\n"
@@ -202,9 +204,9 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv) {
 	choosen_option = "-w";
 	this->set_option(this->w, argv, choosen_option);
 	choosen_option = "-ws";
-	this->set_option(this->w, argv, choosen_option);
+	this->set_option(this->ws, argv, choosen_option);
 	choosen_option = "-wn";
-	this->set_option(this->w, argv, choosen_option);
+	this->set_option(this->wn, argv, choosen_option);
 
 	// chain length
 	choosen_option = "-L";
@@ -315,6 +317,7 @@ void isingUI::ui::compare_energies() {
 	vec E_dis = Hamil->get_eigenvalues();
 	std::vector<double> E_sym = v_1d<double>();
 	std::vector<std::string> symmetries = v_1d<std::string>();
+	stout << "symmetry sector\t\tdegeneracies\n";
 	for (int k = 0; k < L; k++) {
 		if (k == 0 || k == this->L / 2.) {
 			for (int p = 0; p <= 1; p++) {
@@ -322,6 +325,21 @@ void isingUI::ui::compare_energies() {
 					auto Hamil = std::make_unique<IsingModel_sym>(L, J, g, h, k, p, x, boundary_conditions);
 					Hamil->diagonalization();
 					vec t = Hamil->get_eigenvalues();
+					int degen_twofold = 0;
+					for (int o = 0; o < t.size() - 1; o++)
+						if (abs(t(o + 1) - t(o)) < 1e-12) degen_twofold++;
+					int degen_threefold = 0;
+					if (t.size() > 2) {
+						for (int o = 0; o < t.size() - 2; o += 2)
+							if ((abs(t(o + 1) - t(o)) < 1e-12) && (abs(t(o + 2) - t(o)) < 1e-12)) degen_threefold++;
+					}
+					int degen_fourfold = 0;
+					if (t.size() > 3) {
+						for (int o = 0; o < t.size() - 3; o += 3)
+							if ((abs(t(o + 1) - t(o)) < 1e-12) && (abs(t(o + 2) - t(o)) < 1e-12) && (abs(t(o + 3) - t(o)) < 1e-12)) degen_fourfold++;
+					}
+					stout << "k=" + std::to_string(k) + ",x=" + to_string(x) + ",p=" + to_string(p) + "\t\t"\
+						<< degen_twofold << "\t\t" << degen_threefold << "\t\t" << degen_fourfold << "\t\t" << Hamil->get_hilbert_size() << endl;
 					E_sym.insert(E_sym.end(), std::make_move_iterator(t.begin()), std::make_move_iterator(t.end()));
 					v_1d<std::string> temp_str = v_1d<std::string>(t.size(), "k=" + std::to_string(k) + ",x=" + to_string(x) + ",p=" + to_string(p));
 					symmetries.insert(symmetries.end(), std::make_move_iterator(temp_str.begin()), std::make_move_iterator(temp_str.end()));
@@ -333,6 +351,17 @@ void isingUI::ui::compare_energies() {
 				auto Hamil = std::make_unique<IsingModel_sym>(L, J, g, h, k, 1, x, boundary_conditions);
 				Hamil->diagonalization();
 				vec t = Hamil->get_eigenvalues();
+				int degen_twofold = 0;
+				for (int o = 0; o < t.size() - 1; o++)
+					if (abs(t(o + 1) - t(o)) < 1e-12) degen_twofold++;
+				int degen_threefold = 0;
+				for (int o = 0; o < t.size() - 2; o+=2)
+					if ((abs(t(o + 1) - t(o)) < 1e-12) && (abs(t(o + 2) - t(o)) < 1e-12)) degen_threefold++;
+				int degen_fourfold = 0;
+				for (int o = 0; o < t.size() - 3; o+=3)
+					if ((abs(t(o + 1) - t(o)) < 1e-12) && (abs(t(o + 2) - t(o)) < 1e-12) && (abs(t(o + 3) - t(o)) < 1e-12)) degen_fourfold++;
+				stout << "k=" + std::to_string(k) + ",x=" + to_string(x) + "\t\t\t"\
+					<< degen_twofold << "\t\t" << degen_threefold << "\t\t" << degen_fourfold << "\t\t" << Hamil->get_hilbert_size() << endl;
 				E_sym.insert(E_sym.end(), std::make_move_iterator(t.begin()), std::make_move_iterator(t.end()));
 				v_1d<std::string> temp_str = v_1d<std::string>(t.size(), "k=" + std::to_string(k) + ",x=" + to_string(x));
 				symmetries.insert(symmetries.end(), std::make_move_iterator(temp_str.begin()), std::make_move_iterator(temp_str.end()));
@@ -348,7 +377,7 @@ void isingUI::ui::compare_energies() {
 	apply_permutation(symmetries, p);
 	stout << E_sym.size() << endl;
 	for (int k = 0; k < min(E_sym.size(), E_dis.size()); k++) {
-		stout << symmetries[k] << "\t\t\t\t" << E_sym[k] << "\t\t\t\t" << E_dis(k) << "\t\t\t\t" << E_sym[k] - E_dis(k) << endl;
+		//stout << symmetries[k] << "\t\t\t\t" << E_sym[k] << "\t\t\t\t" << E_dis(k) << "\t\t\t\t" << E_sym[k] - E_dis(k) << endl;
 	}
 }
 
@@ -546,7 +575,7 @@ void isingUI::ui::size_scaling_sym(int k, int p, int x) {
 	using namespace std::chrono;
 	auto start = std::chrono::high_resolution_clock::now();
 
-	const int L_max = this->L + this->Ln*this->Ls;
+	const int L_max = this->L + this->Ln * this->Ls;
 	int Lx = this->L;
 
 	std::ofstream farante(this->saving_dir + "IprScaling" + \
@@ -590,7 +619,7 @@ void isingUI::ui::size_scaling_sym(int k, int p, int x) {
 			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 
 		// eigenlevel statistics and prob distribution
-		double r = alfa->eigenlevel_statistics(alfa->E_av_idx - mu / 2., alfa->E_av_idx + mu / 2.);
+		double r = alfa->eigenlevel_statistics(1, N - 1);
 
 		// ipr & info entropy
 		double ipr = 0, ent = 0;
@@ -614,11 +643,11 @@ void isingUI::ui::make_sim()
 {
 	using namespace std::chrono;
 	auto start = std::chrono::high_resolution_clock::now();
-
+	
 	//compare_energies();
-	this->mu = 10;
+	//compare_matrix_elements();
 	size_scaling_sym(0, 1, 1);
-	size_scaling_sym(1, 1, 1);
+	//size_scaling_sym(1, 1, 1);
 	//if(h == 0) size_scaling_sym(1, 1, -1);
 	
 
