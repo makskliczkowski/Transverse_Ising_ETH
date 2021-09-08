@@ -725,28 +725,9 @@ void isingUI::ui::make_sim()
 	//size_scaling_sym(0, 1, 1);
 	//size_scaling_sym(1, 1, 1);
 	//if(h == 0) size_scaling_sym(1, 1, -1);
-	std::ofstream file;
-		auto beta = std::make_unique<IsingModel_sym>(L, J, g, h, 0, 1, 1, boundary_conditions);
-		file.open(this->saving_dir + "ipr" + beta->get_info({ "g" }) + ".dat");
-		g = 0.1;
-		for (; g <= 5.0; g += 0.01) {
-			auto alfa = std::make_unique<IsingModel_sym>(L, J, g, h, 0, 1, 1, boundary_conditions);
-			u64 N = alfa->get_hilbert_size();
-			this->mu = 0.1 * N;
-			alfa->diagonalization();
-
-			double ipr = 0, ent = 0, r = 0;
-			int counter = 0;
-			for (int i = 0; i < N; i++) {
-				ipr += alfa->ipr(i);
-				ent += alfa->information_entropy(i);
-				if (i > 0 && i < N - 1)
-					r += alfa->eigenlevel_statistics(i, i + 1);
-				counter++;
-			}
-			file << g << "\t\t" << ipr / double(counter) << "\t\t" << ent / double(counter) << "\t\t" << r / double(counter - 2) << endl;
-		}
-		file.close();
+	
+	
+	
 	
 	auto stop = std::chrono::high_resolution_clock::now();
 	stout << " - - - - - - FINISHED CALCULATIONS IN : " << \
