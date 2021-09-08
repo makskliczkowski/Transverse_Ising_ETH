@@ -58,10 +58,9 @@ template<typename T>
 void user_interface::set_default_msg(T& value, std::string option, std::string message, \
 	const std::unordered_map<std::string, std::string>& map) const
 {
-	stout << message;																			// print warning
-	std::string value_str = "";																// we will set this to value
-	auto it = map.find(option);
-	if (it != map.end()) {
+	stout << message;																	// print warning
+	std::string value_str = "";															// we will set this to value
+	if (auto it = map.find(option); it != map.end()) {
 		value_str = it->second;															// if in table - we take the enum
 	}
 	value = stod(value_str);
@@ -76,12 +75,22 @@ void isingUI::ui::set_default() {
 	using namespace isingUI;
 	this->saving_dir = "." + std::string(kPathSeparator) + "results" + std::string(kPathSeparator);		// directory for the result files to be saved into
 	this->L = 4;
+	this->Ls = 1;
+	this->Ln = 1;
 
 	this->J = 1.0;
 	this->J0 = 0.2;
+
 	this->h = 0.0;
+	this->hs = 0.2;
+	this->hn = 1;
+
 	this->w = 1.0;
+
 	this->g = 1.0;
+	this->gs = 0.2;
+	this->gn = 1;
+
 	this->g0 = 0;
 
 	this->realisations = 100;
@@ -120,13 +129,20 @@ void isingUI::ui::exit_with_help() const {
 		" The input can be both introduced with [options] described below or with giving the input directory(which also is the flag in the options)\n"
 		" options:\n"
 		"-f input file for all of the options : (default none)\n"
+		"-mu bucket size for ergodic coefficients (default 5)\n"
 		"-J spin exchange coefficient : (default 1)\n"
 		"-J0 random spin exchange set in uniform distribution [-J0,J0]\n"
 		"-g transverse magnetic field (x-) constant: (default 1)\n"
+		"-gs transverse magnetic field (x-) constant step: (default 0.1)\n"
+		"-gn transverse magnetic field (x-) constant number: (default 1)\n"
 		"-g0 random transverse field set in uniform distribution [-g0,g0]\n"
 		"-h perpendicular (z-) magnetic field constant: (default 0)\n"
+		"-hs perpendicular (z-) magnetic field constant step: (default 0.1)\n"
+		"-hn perpendicular (z-) magnetic field constant number: (default 1)\n"
 		"-w disorder strength : (default 0 - no disorder introduced)\n"
-		"-L chain length : bigger than 0 (default 8)\n"
+		"-L chain length minimum: bigger than 0 (default 8)\n"
+		"-Ls chain length step: bigger than 0 (default 1)\n"
+		"-Ln chain length number: bigger than 0 (default 1)\n"
 		"-b boundary conditions : bigger than 0 (default 0 - PBC)\n"
 		"	0 -- PBC\n"
 		"	1 -- OBC\n"
@@ -155,18 +171,31 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv) {
 	// spin coupling
 	choosen_option = "-J";
 	this->set_option(this->J, argv, choosen_option);
+
 	// spin coupling disorder
 	choosen_option = "-J0";
 	this->set_option(this->J0, argv, choosen_option);
+
 	// transverse field
 	choosen_option = "-g";
 	this->set_option(this->g, argv, choosen_option);
+	choosen_option = "-gs";
+	this->set_option(this->gs, argv, choosen_option, false);
+	choosen_option = "-gn";
+	this->set_option(this->gn, argv, choosen_option);
+
 	// transverse field disorder
 	choosen_option = "-g0";
 	this->set_option(this->g0, argv, choosen_option);
+
 	// perpendicular field
 	choosen_option = "-h";
 	this->set_option(this->h, argv, choosen_option);
+	choosen_option = "-hs";
+	this->set_option(this->hs, argv, choosen_option, false);
+	choosen_option = "-hn";
+	this->set_option(this->hn, argv, choosen_option);
+
 	// perpendicular field disorder
 	choosen_option = "-w";
 	this->set_option(this->w, argv, choosen_option);
@@ -174,16 +203,26 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv) {
 	// chain length
 	choosen_option = "-L";
 	this->set_option(this->L, argv, choosen_option);
+	choosen_option = "-Ls";
+	this->set_option(this->Ls, argv, choosen_option, false);
+	choosen_option = "-Ln";
+	this->set_option(this->Ln, argv, choosen_option);
+
 	// boundary condition
 	choosen_option = "-b";
 	this->set_option(this->boundary_conditions, argv, choosen_option);
 	if (this->boundary_conditions > 2) this->set_default_msg(this->boundary_conditions, choosen_option.substr(1), \
 		"max boundary condition is 2", table);
+
 	// model
 	choosen_option = "-m";
 	this->set_option(this->m, argv, choosen_option);
 	if (this->m > 1) this->set_default_msg(this->m, choosen_option.substr(1), \
 		"max model number is 1", table);
+
+	// buckets
+	choosen_option = "-mu";
+	this->set_option(this->mu, argv, choosen_option);
 
 	// thread number
 	choosen_option = "-th";
@@ -193,6 +232,7 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv) {
 			"Wrong number of threads\n", table);
 	omp_set_num_threads(this->thread_number);
 	num_of_threads = this->thread_number;
+
 	// get help
 	choosen_option = "-help";
 	if (std::string option = this->getCmdOption(argv, choosen_option); option != "")
@@ -237,7 +277,7 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv) {
 	}
 
 	std::cout << " - - - - - - MAKING ISING INTERFACE AND USING OUTER THREADS : " \
-		<< thread_number << " - - - - - - " << endl;				// setting the number of threads to be used with omp
+		<< thread_number << " - - - - - - " << endl;										// setting the number of threads to be used with omp
 
 	omp_set_num_threads(this->thread_number);
 	return;
