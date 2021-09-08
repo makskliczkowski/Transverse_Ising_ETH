@@ -75,20 +75,22 @@ void isingUI::ui::set_default() {
 	using namespace isingUI;
 	this->saving_dir = "." + std::string(kPathSeparator) + "results" + std::string(kPathSeparator);		// directory for the result files to be saved into
 	this->L = 4;
-	this->Ls = 1;
+	this->Ls = 0;
 	this->Ln = 1;
 
 	this->J = 1.0;
 	this->J0 = 0.2;
 
 	this->h = 0.0;
-	this->hs = 0.2;
+	this->hs = 0.0;
 	this->hn = 1;
 
 	this->w = 1.0;
+	this->ws = 0.0;
+	this->wn = 1;
 
 	this->g = 1.0;
-	this->gs = 0.2;
+	this->gs = 0.0;
 	this->gn = 1;
 
 	this->g0 = 0;
@@ -133,17 +135,17 @@ void isingUI::ui::exit_with_help() const {
 		"-J spin exchange coefficient : (default 1)\n"
 		"-J0 random spin exchange set in uniform distribution [-J0,J0]\n"
 		"-g transverse magnetic field (x-) constant: (default 1)\n"
-		"-gs transverse magnetic field (x-) constant step: (default 0.1)\n"
+		"-gs transverse magnetic field (x-) constant step: (default 0.0)\n"
 		"-gn transverse magnetic field (x-) constant number: (default 1)\n"
 		"-g0 random transverse field set in uniform distribution [-g0,g0]\n"
 		"-h perpendicular (z-) magnetic field constant: (default 0)\n"
-		"-hs perpendicular (z-) magnetic field constant step: (default 0.1)\n"
+		"-hs perpendicular (z-) magnetic field constant step: (default 0.0)\n"
 		"-hn perpendicular (z-) magnetic field constant number: (default 1)\n"
 		"-w disorder strength : (default 0 - no disorder introduced)\n"
-		"-ws disorder strength step: (default 0.1)\n"
+		"-ws disorder strength step: (default 0.0)\n"
 		"-wn disorder strength number: (default 1)\n"
 		"-L chain length minimum: bigger than 0 (default 8)\n"
-		"-Ls chain length step: bigger than 0 (default 1)\n"
+		"-Ls chain length step: bigger equal than 0 (default 0)\n"
 		"-Ln chain length number: bigger than 0 (default 1)\n"
 		"-b boundary conditions : bigger than 0 (default 0 - PBC)\n"
 		"	0 -- PBC\n"
@@ -202,9 +204,9 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv) {
 	choosen_option = "-w";
 	this->set_option(this->w, argv, choosen_option);
 	choosen_option = "-ws";
-	this->set_option(this->w, argv, choosen_option);
+	this->set_option(this->ws, argv, choosen_option);
 	choosen_option = "-wn";
-	this->set_option(this->w, argv, choosen_option);
+	this->set_option(this->wn, argv, choosen_option);
 
 	// chain length
 	choosen_option = "-L";
@@ -609,14 +611,86 @@ void isingUI::ui::size_scaling_sym(int k, int p, int x) {
 	stout << " - - - - - - FINISHED SIZE SCALING for:\nk = " << k << ", p = " << p << ", x = " << x << "\nIN : " << \
 		double(duration_cast<milliseconds>(duration(stop - start)).count()) / 1000.0 << " seconds - - - - - - " << endl;
 }
+/// <summary>
+/// 
+/// </summary>
+/// <param name="k"></param>
+/// <param name="p"></param>
+/// <param name="x"></param>
+void isingUI::ui::parameter_sweep_sym(int k, int p, int x) const
+{
+	const auto start = std::chrono::high_resolution_clock::now();
+	auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, k, p, x, boundary_conditions);
 
+	const double gmax = this->g + this->gn * this->gs;
+	const double hmax = this->h + this->hn * this->hs;
+
+	std::ofstream farante(this->saving_dir + "IprScaling" + alfa->get_info({"g","h"}) + ".dat");
+
+	for(double gx = this->g; gx < gmax; g+=this->gs){
+		for(double hx =this->h; hx < hmax; h+=this->hs){
+			alfa.reset(new IsingModel_sym(this->L, this->J, gx, hx, k, p, x, boundary_conditions));
+			stout << "\n\n------------------------------ Doing : " <<  alfa->get_info() << "------------------------------\n";
+			const u64 N = alfa->get_hilbert_size();
+			alfa->diagonalization();
+			stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n";
+			
+			// average sigma_x operator at first site prob dist
+			vec av_sigma_x(N, fill::zeros);
+			for (int i = 0; i < N; i++)
+				av_sigma_x(k) = alfa->av_sigma_x(i, i, { 0 });
+			probability_distribution(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), data_fluctuations(av_sigma_x), -2.0, 2.0, 0.001);
+			stout << " \t\t--> finished prob dist of sigma_x for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n";
+
+			// eigenlevel statistics and prob distribution
+			const auto r = alfa->eigenlevel_statistics_with_return();
+			probability_distribution(this->saving_dir, "ProbDistGap" + alfa->get_info(), r, 0, 1, 0.002);
+			// ipr & info entropy
+			double ipr = 0;
+			double ent = 0;
+			for (int i = alfa->E_av_idx - mu/2.; i <= alfa->E_av_idx + mu/2.; i++){ 
+				ipr += alfa->ipr(i);
+				ent += alfa->information_entropy(i);
+			}
+			farante << hx << "\t\t" << gx << "\t\t" << ipr / double(this->mu) / double(N) << "\t\t" << ent / double(this->mu) << "\t\t" << r << endl;
+		}
+	}
+	farante.close();
+	stout << " - - - - - - FINISHED SIZE SCALING for:\nk = " << k << ", p = " << p << ", x = " << x << "\nIN : " << tim_s(start) << "s\n";
+}
+/// <summary>
+/// 
+/// </summary>
+/// <param name="alfa_sym"></param>
+/// <param name="beta_sym"></param>
+/// <param name="omega_dist"></param>
+/// <param name="omega_gauss_max"></param>
+/// <param name="energy_constraint"></param>
+void isingUI::ui::matrix_elements_stat_sym(double omega_dist, int omega_gauss_max, double energy_constraint, std::initializer_list<int> alfa_sym, std::initializer_list<int> beta_sym) const
+{
+	// in order k, x, p because we can skip p for most cases, x as well but in different order
+	std::vector<int> alfa_syms = {0, 1, 1};
+	std::vector<int> beta_syms = {0, 1, 1};
+	for(int i = 0; i < 3; i++){
+		if(i < alfa_sym.size())
+			alfa_syms[i] = *(alfa_sym.begin() + i);
+		if(i < beta_sym.size())
+			beta_syms[i] = *(beta_sym.begin() + i);
+	}
+	auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, alfa_syms[0], alfa_syms[2], alfa_syms[1], this->boundary_conditions);
+	auto beta = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, beta_syms[0], beta_syms[2], beta_syms[1], this->boundary_conditions);
+
+}
+
+/// <summary>
+/// 
+/// </summary>
 void isingUI::ui::make_sim()
 {
 	using namespace std::chrono;
 	auto start = std::chrono::high_resolution_clock::now();
 
 	//compare_energies();
-	this->mu = 10;
 	size_scaling_sym(0, 1, 1);
 	size_scaling_sym(1, 1, 1);
 	//if(h == 0) size_scaling_sym(1, 1, -1);

@@ -339,6 +339,8 @@ template void IsingModel<cpx>::diagonalization();
 template void IsingModel<double>::diagonalization();
 template double IsingModel<cpx>::eigenlevel_statistics(u64, u64);
 template double IsingModel<double>::eigenlevel_statistics(u64, u64);
+template vec IsingModel<cpx>::eigenlevel_statistics_with_return();
+template vec IsingModel<double>::eigenlevel_statistics_with_return();
 template double IsingModel<double>::ipr(int);
 template double IsingModel<cpx>::ipr(int);
 template double IsingModel<double>::information_entropy(u64);

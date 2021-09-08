@@ -51,17 +51,17 @@ namespace isingUI
 		{"J0","0.2"},					// spin coupling randomness maximum (-J0 to J0)
 		{"h","0.0"},					// perpendicular magnetic field constant
 		{"hn","1"},
-		{"hs","0.2"},
+		{"hs","0.0"},
 		{"w","1.0"},					// disorder strength
 		{"wn","1"},
-		{"ws","0.2"},
+		{"ws","0.0"},
 		{"g","1.0"},					// transverse magnetic field constant
 		{"gn","1"},
-		{"gs","0.2"},
+		{"gs","0.0"},
 		{"g0","0.0"},					// transverse field randomness maximum (-g0 to g0)
 		{"L","4"},						// chain length
 		{"Ln","1"},
-		{"Ls","1"},
+		{"Ls","0"},
 		{"b","0"},						// boundary condition
 		{"m","0"},						// choose model
 		{"r","100"},					// realisations
@@ -74,9 +74,9 @@ namespace isingUI
 	class ui : public user_interface {
 	protected:
 		// MODEL PARAMETERS
-		double J, h, g;																	// fields
-		int hn, gn;																		// fields number
-		double hs, gs;																	// fields steps
+		double J, h, g;																	// external fields
+		int hn, gn, wn;																	// external fields number of points
+		double hs, gs, ws;																// external fields step
 		double w, g0, J0;																// disorder strengths
 		int L, Ls, Ln, m;																// lattice params
 		bool p, q;																		//
@@ -101,7 +101,11 @@ namespace isingUI
 		void disorder();
 		void compare_matrix_elements();
 		void size_scaling_sym(int k, int p, int x);
-		void parameter_sweep_sym(int k, int p, int x);
+		void parameter_sweep_sym(int k, int p, int x) const;
+		void matrix_elements_stat_sym(double omega_dist,\
+			int omega_gauss_max, double energy_constraint,\
+			std::initializer_list<int> alfa_sym = {},\
+			std::initializer_list<int> beta_sym = {}) const;
 	};
 }
 

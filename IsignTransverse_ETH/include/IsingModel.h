@@ -68,15 +68,31 @@ public:
 	//virtual std::unique_ptr<IsingModel> move_clone() = 0;
 
 	// GETTERS & SETTERS
-	std::string get_info() const { return this->info; };											// get the information about the model params
-	u64 get_hilbert_size() const { return this->N; };												// get the Hilbert space size 2^N
-	const Mat<T>& get_hamiltonian() const {	return this->H;	};										// get the const reference to a Hamiltonian
-	const vec& get_eigenvalues() const { return this->eigenvalues; };								// get the const reference to eigenvalues
-	const Mat<T>& get_eigenvectors() const { return this->eigenvectors; };								// get the const reference to the eigenvectors
-	const std::vector<u64>& get_mapping() const { return this->mapping; };							// constant reference to the mapping
+	// get the information about the model params
+	std::string get_info(std::initializer_list<std::string> skip = {}) const {
+		auto tmp = split_str(this->info, ",");	
+		std::string tmp_str = "";
+		for(int i=0; i < tmp.size(); i++){
+			bool save = true;
+			for(auto & skip_param: skip)
+			{
+				// skip the element if we don't want it to be included in the info
+				if(split_str(tmp[i],"=")[0] == skip_param)
+					save = false;
+			}
+			if(save) tmp_str += tmp[i];
+		}
+		return tmp_str; 
+	};
 
-	double get_eigenEnergy(u64 idx) const { return this->eigenvalues(idx); };						// get eigenenergy at a given idx
-	const Col<T>& get_eigenState(u64 idx) const { return this->eigenvectors.col(idx);};				// get an eigenstate at a given idx
+	u64 get_hilbert_size() const { return this->N; };											// get the Hilbert space size 2^N
+	const Mat<T>& get_hamiltonian() const {	return this->H;	};									// get the const reference to a Hamiltonian
+	const vec& get_eigenvalues() const { return this->eigenvalues; };							// get the const reference to eigenvalues
+	const Mat<T>& get_eigenvectors() const { return this->eigenvectors; };						// get the const reference to the eigenvectors
+	const std::vector<u64>& get_mapping() const { return this->mapping; };						// constant reference to the mapping
+
+	double get_eigenEnergy(u64 idx) const { return this->eigenvalues(idx); };					// get eigenenergy at a given idx
+	const Col<T>& get_eigenState(u64 idx) const { return this->eigenvectors.col(idx);};			// get an eigenstate at a given idx
 
 	// PRINTERS
 	void print_base_spin_sector(int Sz = 0);													// print basis state with a given total spin (for clarity purposes)
