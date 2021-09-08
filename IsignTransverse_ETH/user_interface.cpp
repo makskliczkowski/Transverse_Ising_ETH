@@ -140,6 +140,8 @@ void isingUI::ui::exit_with_help() const {
 		"-hs perpendicular (z-) magnetic field constant step: (default 0.1)\n"
 		"-hn perpendicular (z-) magnetic field constant number: (default 1)\n"
 		"-w disorder strength : (default 0 - no disorder introduced)\n"
+		"-ws disorder strength step: (default 0.1)\n"
+		"-wn disorder strength number: (default 1)\n"
 		"-L chain length minimum: bigger than 0 (default 8)\n"
 		"-Ls chain length step: bigger than 0 (default 1)\n"
 		"-Ln chain length number: bigger than 0 (default 1)\n"
@@ -198,6 +200,10 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv) {
 
 	// perpendicular field disorder
 	choosen_option = "-w";
+	this->set_option(this->w, argv, choosen_option);
+	choosen_option = "-ws";
+	this->set_option(this->w, argv, choosen_option);
+	choosen_option = "-wn";
 	this->set_option(this->w, argv, choosen_option);
 
 	// chain length
@@ -536,9 +542,12 @@ void isingUI::ui::compare_matrix_elements() {
 
 }
 
-void isingUI::ui::size_scaling_sym(int k, int p, int x, int L_min, int L_max) {
+void isingUI::ui::size_scaling_sym(int k, int p, int x) {
 	using namespace std::chrono;
 	auto start = std::chrono::high_resolution_clock::now();
+
+	const int L_max = this->L + this->Ln*this->Ls;
+	int Lx = this->L;
 
 	std::ofstream farante(this->saving_dir + "IprScaling" + \
 		",g=" + to_string_prec(this->g, 2) + \
@@ -547,9 +556,9 @@ void isingUI::ui::size_scaling_sym(int k, int p, int x, int L_min, int L_max) {
 		",g=" + to_string_prec(this->g, 2) + \
 		",h=" + to_string_prec(this->h, 2) + ".dat");
 	
-	for (L = L_min; L <= L_max; L ++) {
-		stout << "\n\n------------------------------Doing L = " << L << "------------------------------\n";
-		auto alfa = std::make_unique<IsingModel_sym>(L, J, g, h, k, p, x, boundary_conditions);
+	for (; Lx <= L_max; Lx++) {
+		stout << "\n\n------------------------------Doing L = " << Lx << "------------------------------\n";
+		auto alfa = std::make_unique<IsingModel_sym>(Lx, J, g, h, k, p, x, boundary_conditions);
 		u64 N = alfa->get_hilbert_size();
 		alfa->diagonalization();
 		stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << " - in time : " << \
@@ -558,19 +567,20 @@ void isingUI::ui::size_scaling_sym(int k, int p, int x, int L_min, int L_max) {
 		// average sigma_x operator at first site
 		std::ofstream sigx(this->saving_dir + "SigmaX" + alfa->get_info() + ".dat");
 		vec av_sigma_x(N, fill::zeros);
-		for (int k = 0; k < N; k++) {
-			av_sigma_x(k) = alfa->av_sigma_x(k, k, { 0 });
-			sigx << alfa->get_eigenEnergy(k) << "\t\t" << av_sigma_x(k) << endl;
+		for (int i = 0; i < N; i++) {
+			av_sigma_x(k) = alfa->av_sigma_x(i, i, { 0 });
+			sigx << alfa->get_eigenEnergy(i) << "\t\t" << av_sigma_x(i) << endl;
 		}
 		sigx.close();
 
 		//outliers and prob distribution for sigma_x
 		vec r_sigma_x(N - 1);
 #pragma omp parallel for
-		for (int k = 0; k < N - 1; k++)
-			r_sigma_x(k) = abs(av_sigma_x(k + 1) - av_sigma_x(k));
+		for (int i = 0; i < N - 1; i++)
+			r_sigma_x(i) = abs(av_sigma_x(i + 1) - av_sigma_x(i));
+
 		vec outliers = statistics_average(r_sigma_x, 4);
-		fikolo << L << "\t\t" << outliers.t();
+		fikolo << Lx << "\t\t" << outliers.t();
 		stout << " \t\t--> finished outliers for " << alfa->get_info() << " - in time : " << \
 			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 
@@ -584,11 +594,11 @@ void isingUI::ui::size_scaling_sym(int k, int p, int x, int L_min, int L_max) {
 
 		// ipr & info entropy
 		double ipr = 0, ent = 0;
-		for (int k = alfa->E_av_idx - mu / 2.; k <= alfa->E_av_idx + mu / 2.; k++) {
-			ipr += alfa->ipr(k);
-			ent += alfa->information_entropy(k);
+		for (int i = alfa->E_av_idx - mu / 2.; i <= alfa->E_av_idx + mu / 2.; i++) {
+			ipr += alfa->ipr(i);
+			ent += alfa->information_entropy(i);
 		}
-		farante << L << "\t\t" << ipr / double(mu) / double(N) << "\t\t" << ent / double(mu) << "\t\t" << r << endl;
+		farante << Lx << "\t\t" << ipr / double(mu) / double(N) << "\t\t" << ent / double(mu) << "\t\t" << r << endl;
 		stout << " \t\t--> finished farante for " << alfa->get_info() << " - in time : " << \
 			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 
@@ -607,9 +617,9 @@ void isingUI::ui::make_sim()
 
 	//compare_energies();
 	this->mu = 10;
-	size_scaling_sym(0, 1, 1, 12, 18);
-	size_scaling_sym(1, 1, 1, 12, 18);
-	//if(h == 0) size_scaling_sym(1, 1, -1, 12, 18, 2);
+	size_scaling_sym(0, 1, 1);
+	size_scaling_sym(1, 1, 1);
+	//if(h == 0) size_scaling_sym(1, 1, -1);
 	
 
 	auto stop = std::chrono::high_resolution_clock::now();

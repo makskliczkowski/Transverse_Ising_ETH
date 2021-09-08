@@ -53,6 +53,8 @@ namespace isingUI
 		{"hn","1"},
 		{"hs","0.2"},
 		{"w","1.0"},					// disorder strength
+		{"wn","1"},
+		{"ws","0.2"},
 		{"g","1.0"},					// transverse magnetic field constant
 		{"gn","1"},
 		{"gs","0.2"},
@@ -98,7 +100,7 @@ namespace isingUI
 		void compare_energies();
 		void disorder();
 		void compare_matrix_elements();
-		void size_scaling_sym(int k, int p, int x, int L_min, int L_max, int mu);
+		void size_scaling_sym(int k, int p, int x);
 		void parameter_sweep_sym(int k, int p, int x);
 	};
 }
