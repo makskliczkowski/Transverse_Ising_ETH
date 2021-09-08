@@ -340,8 +340,25 @@ arma::vec statistics_average(const arma::vec& data, int num_of_outliers) {
 /// <returns>A_n_a dot n_b_B</returns>
 template <typename T>
 T overlap(const IsingModel<T>& A, const IsingModel<T>& B, int n_a, int n_b){
-	if(n_a >= A.N || n_b >= B.N || n_a < 0 || n_b < 0) throw "Cannot create an overlap between non-existing states\n";
-	return arma::cdot(A.eigenvectors.col(n_a), B.eigenvectors.col(n_b));
+	if (A.get_hilbert_size() != B.get_hilbert_size()) throw "Incompatible Hilbert dimensions\n";
+	if(n_a >= A.get_hilbert_size() || n_b >= B.get_hilbert_size() || n_a < 0 || n_b < 0) throw "Cannot create an overlap between non-existing states\n";
+	return arma::cdot(A.get_eigenState(n_a), B.get_eigenState(n_b));
+}
+template<> cpx overlap<cpx>(const IsingModel<cpx>& A, const IsingModel<cpx>& B, int n_a, int n_b) {
+	if (A.get_hilbert_size() != B.get_hilbert_size()) throw "Incompatible Hilbert dimensions\n";
+	if (n_a >= A.get_hilbert_size() || n_b >= B.get_hilbert_size() || n_a < 0 || n_b < 0) throw "Cannot create an overlap between non-existing states\n";
+	double overlap_real = 0, overlap_imag = 0;
+	auto state_A = A.get_eigenState(n_a);
+	auto state_B = B.get_eigenState(n_b);
+	arma::normalise(state_A);
+	arma::normalise(state_B);
+#pragma omp parallel for reduction(+: overlap_real, overlap_imag)
+	for (int k = 0; k < A.get_hilbert_size(); k++) {
+		cpx over = conj(state_A(k)) * state_B(k);
+		overlap_real += real(over);
+		overlap_imag += imag(over);
+	}
+	return cpx(overlap_real, overlap_imag);
 }
 
 
@@ -364,3 +381,5 @@ template double IsingModel<double>::information_entropy(u64);
 template double IsingModel<cpx>::information_entropy(u64);
 template double IsingModel<double>::information_entropy(u64, const IsingModel<double>&, u64, u64);
 template double IsingModel<cpx>::information_entropy(u64, const IsingModel<cpx>&, u64, u64);
+template cpx overlap(const IsingModel<cpx>&, const IsingModel<cpx>&, int, int);
+template double overlap(const IsingModel<double>&, const IsingModel<double>&, int, int);

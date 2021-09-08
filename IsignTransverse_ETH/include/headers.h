@@ -311,10 +311,10 @@ inline void apply_permutation(std::vector<T>& vec, const std::vector<std::size_t
 
 
 inline int getDistIdx(double min, double step, double elem){
-	return static_cast<int>((elem - abs(min)) / step);
+	return static_cast<int>((elem + abs(min)) / step);
 }
 
 inline void setDistElem(vec& dist, double min, double step, double elem){
-	const int idx = getDistIdx(min,step,elem);
-	if(idx >= 0) dist(idx) += 1;
+	const int idx = getDistIdx(min, step, elem);
+	if (idx >= 0 && idx < dist.size()) dist(idx) += 1;
 }
