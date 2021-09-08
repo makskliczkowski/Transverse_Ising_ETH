@@ -366,7 +366,7 @@ void isingUI::ui::compare_energies() {
 	apply_permutation(E_sym, p);
 	apply_permutation(symmetries, p);
 	stout << E_sym.size() << endl;
-	for (int k = 0; k < min(E_sym.size(), E_dis.size()); k++) {
+	for (int k = 0; k < E_dis.size(); k++) {
 		stout << symmetries[k] << "\t\t\t\t" << E_sym[k] << "\t\t\t\t" << E_dis(k) << "\t\t\t\t" << E_sym[k] - E_dis(k) << endl;
 	}
 }
@@ -503,7 +503,7 @@ void isingUI::ui::disorder() {
  }
 
 void isingUI::ui::compare_matrix_elements() {
-	std::ofstream file("file.dat");
+	/*std::ofstream file("file.dat");
 
 	auto model = std::make_unique<IsingModel_disorder>(L, J, 0, g, 0, h, 0);
 	model->diagonalization();
@@ -558,7 +558,7 @@ void isingUI::ui::compare_matrix_elements() {
 		});
 	file.close();
 
-
+	*/
 }
 
 /// <summary>

@@ -29,7 +29,7 @@
 #include <mutex>
 //#include <condition_variable>
 #include <functional>
-#include <execution>
+//#include <execution>
 
 #include "random.h"
 
@@ -40,7 +40,7 @@
 using namespace std;
 using namespace arma;
 namespace fs = std::filesystem;
-namespace exec = std::execution;
+//namespace exec = std::execution;
 
 //- - - - - definitions - - - - -
 static const char* kPathSeparator =
@@ -76,8 +76,8 @@ extern std::random_device rd;
 extern std::mt19937::result_type seed;
 extern std::mt19937_64 gen;
 
-inline double tim_s(std::chrono::steady_clock::time_point start){
-	return double(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration(std::chrono::high_resolution_clock::now() - start)).count()) / 1000.0;
+inline double tim_s(std::chrono::system_clock::time_point start){
+	return 0;//double(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration(std::chrono::high_resolution_clock::now() - start)).count()) / 1000.0;
 }
 //--------------------------------------------------TOOLS--------------------------------------------------
 template <typename T> int sgn(T val) {
