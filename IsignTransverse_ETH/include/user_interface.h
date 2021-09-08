@@ -90,7 +90,7 @@ namespace isingUI
 		void compare_energies();
 		void disorder();
 		void compare_matrix_elements();
-		void size_scaling_sym(int k, int p, int x, int L_min, int L_max, int mu);
+		void size_scaling_sym(int k, int p, int x, int L_min, int L_max);
 	};
 }
 
