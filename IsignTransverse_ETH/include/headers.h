@@ -198,15 +198,15 @@ inline std::vector<double> create_random_vec_std(u64 N) {
 /// <returns>vector of correlation places</returns>
 inline std::vector<int> get_neigh_vector(int _BC, int L, int corr_len){
 	v_1d<int> neis(L, -1);
-	if(_BC == 0){
+	if (_BC == 0) {
 		iota(neis.begin(), neis.end(), 0);
-		std::rotate(neis.begin(), neis.begin() + corr_len,neis.end());
+		std::rotate(neis.begin(), neis.begin() + corr_len, neis.end());
 	}
-	else if(_BC == 1)
-		iota(neis.begin(), neis.begin() + (L-corr_len), corr_len);
+	else if (_BC == 1)
+		iota(neis.begin(), neis.begin() + (L - corr_len), corr_len);
 	else
 		throw "Not enough cases for me\n";
-
+	return neis;
 }
 
 /// <summary>

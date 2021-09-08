@@ -36,7 +36,6 @@ public:
 
 // SIMULATIONS
 	virtual void make_sim() = 0;
-	virtual void compare_energies() = 0;
 };
 
 namespace isingUI
@@ -51,14 +50,20 @@ namespace isingUI
 		{"J","1.0"},					// spin coupling
 		{"J0","0.2"},					// spin coupling randomness maximum (-J0 to J0)
 		{"h","0.0"},					// perpendicular magnetic field constant
+		{"hn","1"},
+		{"hs","0.2"},
 		{"w","1.0"},					// disorder strength
 		{"g","1.0"},					// transverse magnetic field constant
+		{"gn","1"},
+		{"gs","0.2"},
 		{"g0","0.0"},					// transverse field randomness maximum (-g0 to g0)
 		{"L","4"},						// chain length
+		{"Ln","1"},
+		{"Ls","1"},
 		{"b","0"},						// boundary condition
 		{"m","0"},						// choose model
 		{"r","100"},					// realisations
-		{"mu","8"},						// small bucket for the operator fluctuations to be averaged onto
+		{"mu","5"},						// small bucket for the operator fluctuations to be averaged onto
 		{"s","0"},						// site for operator averages
 		{"p","0"},						// use parity symmetry?
 		{"th","1"},						// number of threads
@@ -68,14 +73,15 @@ namespace isingUI
 	protected:
 		// MODEL PARAMETERS
 		double J, h, g;																	// fields
-		double w, g0, J0;																	// disorder strengths
-		int L, m;																		// lattice params
+		int hn, gn;																		// fields number
+		double hs, gs;																	// fields steps
+		double w, g0, J0;																// disorder strengths
+		int L, Ls, Ln, m;																// lattice params
 		bool p, q;																		//
 		int realisations;																// number of realisations to average on for disordered case - symmetries got 1
 		int mu;																			// small bucket for the operator fluctuations to be averaged onto
 		int site;																		// site for operator averages
-
-		std::unique_ptr<IsingModel> model;												// pointer to a model
+		//std::unique_ptr<IsingModel<T>> model;												// pointer to a model
 	public:
 		// CONSTRUCTORS
 		ui() = default;
@@ -89,7 +95,11 @@ namespace isingUI
 
 	// SIMULATION
 		void make_sim() override;														// make default simulation
-		void compare_energies() override;
+		void compare_energies();
+		void disorder();
+		void compare_matrix_elements();
+		void size_scaling_sym(int k, int p, int x, int L_min, int L_max, int mu);
+		void parameter_sweep_sym(int k, int p, int x);
 	};
 }
 

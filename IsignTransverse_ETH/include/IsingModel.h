@@ -21,7 +21,7 @@
  * -> 10.1103/PhysRevE.90.052105												 *
  * ------------------------------ All rights reserved -------------------------------- *
  * Authors:																	 *
- * - Rafa³ Œwiêtek, soon to be Phd student										 *
+ * - Rafa³ Œwiêtek, soon to be Phd student, Josef Stefan Institute					 *
  *	- email: 77swietek77.at.gmail.com											 *
  * - Maksymilian Kliczkowski Phd student, Wroc³aw University of Science and Technology *
  *	- email: maxgrom97.at.gmail.com												 *
@@ -30,13 +30,14 @@
  * the work has been done, while staying in Ljubljana, Slovenia.					 *
  * ---------------------------------------------------------------------------------- */
 
+template <typename T>
 class IsingModel {
 protected:
 	std::string info;									// information about the model
 	randomGen ran;										// consistent quick random number generator
 
-	Mat<cpx> H;											// the Hamiltonian
-	Mat<cpx> eigenvectors;								// matrix of the eigenvectors in increasing order
+	Mat<T> H;											// the Hamiltonian
+	Mat<T> eigenvectors;								// matrix of the eigenvectors in increasing order
 	vec eigenvalues;									// eigenvalues vector
 
 	u64 N;												// the Hilbert space size
@@ -67,15 +68,15 @@ public:
 	//virtual std::unique_ptr<IsingModel> move_clone() = 0;
 
 	// GETTERS & SETTERS
-	std::string get_info() const;																// get the information about the model params
-	u64 get_hilbert_size() const;																// get the Hilbert space size 2^N
-	const cx_mat& get_hamiltonian() const;														// get the const reference to a Hamiltonian
-	const vec& get_eigenvalues() const;															// get the const reference to eigenvalues
-	const cx_mat& get_eigenvectors() const;														// get the const reference to the eigenvectors
-	const std::vector<u64>& get_mapping() const;												// constant reference to the mapping
+	std::string get_info() const { return this->info; };											// get the information about the model params
+	u64 get_hilbert_size() const { return this->N; };												// get the Hilbert space size 2^N
+	const Mat<T>& get_hamiltonian() const {	return this->H;	};										// get the const reference to a Hamiltonian
+	const vec& get_eigenvalues() const { return this->eigenvalues; };								// get the const reference to eigenvalues
+	const Mat<T>& get_eigenvectors() const { return this->eigenvectors; };								// get the const reference to the eigenvectors
+	const std::vector<u64>& get_mapping() const { return this->mapping; };							// constant reference to the mapping
 
-	double get_eigenEnergy(u64 idx) const;														// get eigenenergy at a given idx
-	const cx_vec& get_eigenState(u64 idx) const;													// get an eigenstate at a given idx
+	double get_eigenEnergy(u64 idx) const { return this->eigenvalues(idx); };						// get eigenenergy at a given idx
+	const Col<T>& get_eigenState(u64 idx) const { return this->eigenvectors.col(idx);};				// get an eigenstate at a given idx
 
 	// PRINTERS
 	void print_base_spin_sector(int Sz = 0);													// print basis state with a given total spin (for clarity purposes)
@@ -108,6 +109,12 @@ public:
 	virtual double av_sigma_x(u64 alfa, u64 beta, int corr_len) = 0;							// check the sigma_z matrix element with correlation length
 	virtual double av_sigma_x(u64 alfa, u64 beta, std::initializer_list<int> sites) = 0;		// check the matrix element of sigma_x elements sites correlation
 
+	virtual double av_spin_flip(u64 alfa, u64 beta) = 0;										// check the spin flip element extensive
+	virtual double av_spin_flip(u64 alfa, u64 beta, std::initializer_list<int> sites) = 0;		// check the spin flip element at input sites (up to 2)
+	
+	virtual cpx av_spin_current(u64 alfa, u64 beta) = 0;										// check the spin current extensive
+	virtual cpx av_spin_current(u64 alfa, u64 beta, std::initializer_list<int> sites) = 0;		// check the spin current at given sites
+
 	// USING PHYSICAL QUANTITES FOR PARAMTER RANGES, ETC.
 	static void operator_av_in_eigenstates(double (IsingModel::* op)(int, int), IsingModel& A, int site, \
 		std::string name = "operator_averaged.txt", string separator = "\t\t");
@@ -115,17 +122,18 @@ public:
 	static double spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 
 	// TOOLS AND HELPERS
-	friend std::unordered_map<u64, u64> mapping_sym_to_original(u64 _min, u64 _max,\
-		const IsingModel& symmetry, const IsingModel& original);								// maps the eigenstates of a symmetry sector to a Hamiltonian not involving the symmetries
-	friend double overlap(const IsingModel& A, const IsingModel& B, int n_a, int n_b);			// creates the overlap between two eigenstates
+		
+	template <typename T2>
+	friend double overlap(const IsingModel<T>& A, const IsingModel<T2>& B, int n_a, int n_b);			// creates the overlap between two eigenstates
 };
+
 
 
 // ----------------------------------------- SYMMETRIC -----------------------------------------
 /// <summary>
 /// Model with included symmetries and uniform perpendicular magnetic field
 /// </summary>
-class IsingModel_sym : public IsingModel {
+class IsingModel_sym : public IsingModel<cpx> {
 public:
 	/* Constructors */
 	IsingModel_sym() = default;
@@ -160,8 +168,8 @@ public:
 	double entaglement_entropy(u64 state_id, int subsystem_size) override {
 		return 0;
 	};
-	// OPERATORS
-
+	
+	// MATRICES & OPERATORS
 	double av_sigma_z(u64 alfa, u64 beta) override;											// check the sigma_z matrix element extensive
 	double av_sigma_z(u64 alfa, u64 beta, int corr_len) override;							// check the sigma_z matrix element with correlation length extensive
 	double av_sigma_z(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the matrix element of sigma_z elements sites correlation
@@ -169,6 +177,12 @@ public:
 	double av_sigma_x(u64 alfa, u64 beta) override;											// check the sigma_z matrix element extensive
 	double av_sigma_x(u64 alfa, u64 beta, int corr_len) override;							// check the sigma_z matrix element with correlation length extensive
 	double av_sigma_x(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the matrix element of sigma_x elements sites correlation
+
+	double av_spin_flip(u64 alfa, u64 beta) override;										// check the spin flip element extensive
+	double av_spin_flip(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the spin flip element at input sites (up to 2)
+	
+	cpx av_spin_current(u64 alfa, u64 beta) override;										// check the extensive spin current
+	cpx av_spin_current(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the spin current at given sites
 
 	// lambda functions for Sigmas - changes the state and returns the value on the base vector
 	static std::pair<cpx, v_1d<bool>> sigma_x(const v_1d<bool>& base_vec, std::initializer_list<int> sites) {
@@ -189,24 +203,42 @@ public:
 	static std::pair<cpx, v_1d<bool>> sigma_z(const v_1d<bool>& base_vec, std::initializer_list<int> sites) {
 		auto tmp = base_vec;
 		double val = 1.0;
-		for(auto& site: sites)
-			val *=tmp[site] ? 1.0 : -1.0;
-		return std::make_pair(val,tmp);
-	}
-
+		for (auto& site : sites)
+			val *= tmp[site] ? 1.0 : -1.0;
+		return std::make_pair(val, tmp);
+	};
+	static std::pair<cpx, v_1d<bool>> spin_flip(const v_1d<bool>& base_vec, std::initializer_list<int> sites) {
+		if (sites.size() > 2) throw "Not implemented such exotic operators, choose 1 or 2 sites\n";
+		auto tmp = base_vec;
+		cpx val = 0.0;
+		auto it = sites.begin() + 1;
+		auto it2 = sites.begin();
+		if (!base_vec[*it]) {
+			tmp[*it] = !tmp[*it];
+			val = 2.0;
+			if (sites.size() > 1) {
+				if (base_vec[*it2]) {
+					tmp[*it2] = !tmp[*it2];
+					val *= 2.0;
+				}
+				else val = 0.0;
+			}
+		}
+		else val = 0.0;
+		return std::make_pair(val, tmp);
+	};
+	
 	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta,\
-		std::function<std::pair<cpx,v_1d<bool>>(v_1d<bool>&, std::initializer_list<int>)> op, std::initializer_list<int> sites);							// calculates the matrix element of operator at given site
+		std::function<std::pair<cpx,v_1d<bool>>(const v_1d<bool>&, std::initializer_list<int>)> op, std::initializer_list<int> sites);							// calculates the matrix element of operator at given site
 	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta,\
-		std::function<std::pair<cpx,v_1d<bool>>(v_1d<bool>&, std::initializer_list<int>)> op);																// calculates the matrix element of operator at given site in extensive form (a sum)
+		std::function<std::pair<cpx,v_1d<bool>>(const v_1d<bool>&, std::initializer_list<int>)> op);																// calculates the matrix element of operator at given site in extensive form (a sum)
 	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta,\
-		std::function<std::pair<cpx,v_1d<bool>>(v_1d<bool>&, std::initializer_list<int>)> op, int corr_len);												// calculates the matrix element of operator at given site in extensive form (a sum) with corr_len
+		std::function<std::pair<cpx,v_1d<bool>>(const v_1d<bool>&, std::initializer_list<int>)> op, int corr_len);												// calculates the matrix element of operator at given site in extensive form (a sum) with corr_len
 
 	friend cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, const v_1d<bool>& base_vec,\
 		const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta,\
-		std::function<std::pair<cpx,v_1d<bool>>(v_1d<bool>&, std::initializer_list<int>)> op,\
+		std::function<std::pair<cpx,v_1d<bool>>(const v_1d<bool>&, std::initializer_list<int>)> op,\
 		std::initializer_list<int> sites);
-
-	friend double av_sigma_x_sym_sectors(int site, const u64 beta, const u64 alfa, const IsingModel_sym& sector_alfa, const IsingModel_sym& sector_beta);
 
 	mat correlation_matrix(u64 state_id) override {
 		return mat();
@@ -217,7 +249,7 @@ public:
 /// <summary>
 /// Model with disorder thus with no symmetries
 /// </summary>
-class IsingModel_disorder : public IsingModel {
+class IsingModel_disorder : public IsingModel<double> {
 private:
 
 	vec dh;																		// disorder in the system - deviation from a constant h value
@@ -240,8 +272,7 @@ public:
 	void hamiltonian() override;
 	void setHamiltonianElem(u64 k, double value, std::vector<bool>& temp) override;
 
-	// MATRICES
-
+	// MATRICES & OPERATORS
 	double av_sigma_z(u64 alfa, u64 beta) override;											// check the sigma_z matrix element extensive
 	double av_sigma_z(u64 alfa, u64 beta, int corr_len) override;							// check the sigma_z matrix element with correlation length
 	double av_sigma_z(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the matrix element of sigma_z elements sites correlation
@@ -249,6 +280,12 @@ public:
 	double av_sigma_x(u64 alfa, u64 beta) override;											// check the sigma_z matrix element extensive
 	double av_sigma_x(u64 alfa, u64 beta, int corr_len) override;							// check the sigma_z matrix element with correlation length
 	double av_sigma_x(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the matrix element of sigma_x elements sites correlation
+
+	double av_spin_flip(u64 alfa, u64 beta) override;										// check the spin flip element extensive
+	double av_spin_flip(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the spin flip element at input sites (up to 2)
+	
+	cpx av_spin_current(u64 alfa, u64 beta) override;										// check the extensive spin current
+	cpx av_spin_current(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the spin current at given sites
 
 	mat correlation_matrix(u64 state_id) override;
 
@@ -262,7 +299,39 @@ arma::vec probability_distribution_with_return(const arma::vec& data,\
 	double _min, double _max, double step = 0.05);												// creates the probability distribution on a given data and returns a vector with it
 arma::vec data_fluctuations(const arma::vec& data, int mu = 10);								// removes the average from the given data based on small buckets of size mu
 arma::vec statistics_average(const arma::vec& data, int num_of_outliers = 3);					// takes the average from the vector and the outliers
-double quantum_fidelity(u64 _min, u64 _max, const IsingModel& Hamil,\
-	double J, double J0, double g, double g0, double h, double w = 0);							// calculates the quantum fidelity for disorder
+
+/// <summary>
+/// nie pisz, póŸniej
+/// </summary>
+/// <typeparam name="T1"></typeparam>
+/// <typeparam name="T2"></typeparam>
+/// <param name="_min"></param>
+/// <param name="_max"></param>
+/// <param name="symmetry"></param>
+/// <param name="original"></param>
+/// <returns></returns>
+template <typename T1, typename T2>
+std::unordered_map<u64, u64> mapping_sym_to_original(u64 _min, u64 _max, \
+	const IsingModel<T1>& symmetry, const IsingModel<T2>& original) {
+	std::unordered_map<u64, u64> map;
+	std::vector<double> E_dis = arma::conv_to<std::vector<double>>::from(original.get_eigenvalues());
+#pragma omp parallel for
+	for (int k = 0; k < symmetry.get_hilbert_size(); k++) {
+		double E = symmetry.get_eigenEnergy(k);
+		if (E < original.get_eigenEnergy(_min) && E >= original.get_eigenEnergy(_max)) continue;
+		auto idx = binary_search(E_dis, _min, _max, E);
+		if (idx >= original.get_hilbert_size()) continue;
+		double E_prev = (idx == 0) ? (original.get_eigenEnergy(0) - 1.0) : original.get_eigenEnergy(idx - 1);
+		double E_next = (idx == original.get_hilbert_size() - 1) ? \
+			(original.get_eigenEnergy(original.get_hilbert_size() - 1) + 1.0) : original.get_eigenEnergy(idx + 1);
+		if (abs(E - E_prev) > 1e-8 && abs(E - E_next) > 1e-8) {
+#pragma omp critical
+			map[k] = idx;
+		}
+	}
+	return map;
+};
+
+
 
 #endif

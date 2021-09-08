@@ -1,42 +1,5 @@
 #include "include/IsingModel.h"
-
-IsingModel::~IsingModel() {
-}
-// - - - - - GETTERS and SETTERS - - - - -
-std::string IsingModel::get_info() const {
-	return this->info;
-}
-u64 IsingModel::get_hilbert_size() const {
-	return this->N;
-}
-const cx_mat& IsingModel::get_hamiltonian() const {
-	return this->H;
-}
-const vec& IsingModel::get_eigenvalues() const {
-	return this->eigenvalues;
-}
-const cx_mat& IsingModel::get_eigenvectors() const {
-	return this->eigenvectors;
-}
-const std::vector<u64>& IsingModel::get_mapping() const {
-	return this->mapping;
-}
-/// <summary>
-/// Return given eigenenergy at index idx
-/// </summary>
-/// <param name="idx"> index of eigenvalue </param>
-/// <returns> eigenvalue at idx </returns>
-double IsingModel::get_eigenEnergy(u64 idx) const
-{
-	return this->eigenvalues(idx);
-}
-/// <summary>
-/// Returns given eigenstate at index idx
-/// </summary>
-/// <param name="idx"> index of eigenstate </param>
-/// <returns> eigenstate at idx </returns>
-const cx_vec& IsingModel::get_eigenState(u64 idx) const {
-	return this->eigenvectors.col(idx);
+template<typename T> IsingModel<T>::~IsingModel() {
 }
 
 // ---- PRINTERS
@@ -44,7 +7,7 @@ const cx_vec& IsingModel::get_eigenState(u64 idx) const {
 /// prints the basis vector in the given spin-symmetry block
 /// </summary>
 /// <param name="Sz"> custom spin symmetry block </param>
-void IsingModel::print_base_spin_sector(int Sz) {
+template <typename T> void IsingModel<T>::print_base_spin_sector(int Sz) {
 	std::vector<bool> temp(L);
 	int summm = 0;
 	int p = +1;
@@ -60,7 +23,7 @@ void IsingModel::print_base_spin_sector(int Sz) {
 /// prints the state in the regular basis (only the highest coefficients are present)
 /// </summary>
 /// <param name="_id"> index of the printed state </param>
-void IsingModel::print_state(u64 _id) {
+template <typename T> void IsingModel<T>::print_state(u64 _id) {
 	vec state = abs(eigenvectors.col(_id));
 	double max = arma::max(state);
 	std::vector<bool> base_vector(L);
@@ -76,7 +39,7 @@ void IsingModel::print_state(u64 _id) {
 /// <summary>
 /// Sets the neigbours depending on the Boundary condition (BC) defined as a makro in the 'headers.h' file
 /// </summary>
-void IsingModel::set_neighbors() {
+template <typename T> void IsingModel<T>::set_neighbors() {
 	this->nearest_neighbors = std::vector<int>(L, 0);
 	this->next_nearest_neighbors = std::vector<int>(L,0);
 	switch (this->_BC) {
@@ -110,7 +73,7 @@ void IsingModel::set_neighbors() {
 /// <summary>
 /// General procedure to diagonalize the Hamiltonian using eig_sym from the Armadillo library
 /// </summary>
-void IsingModel::diagonalization() {
+template <typename T> void IsingModel<T>::diagonalization() {
 	//out << real(H) << endl;
 	try {
 		arma::eig_sym(eigenvalues, eigenvectors, H);
@@ -132,7 +95,7 @@ void IsingModel::diagonalization() {
 /// </summary>
 /// <param name="corr_mat"> spin correlation matrix </param>
 /// <returns></returns>
-double IsingModel::total_spin(const mat& corr_mat) {
+template <typename T> double IsingModel<T>::total_spin(const mat& corr_mat) {
 	return (sqrt(1 + 4 * arma::accu(corr_mat)) - 1.0) / 2.0;
 }
 
@@ -142,13 +105,13 @@ double IsingModel::total_spin(const mat& corr_mat) {
 /// IPR=dim(hilbert space)
 /// </summary>
 /// <param name="state_idx"> index of the eigenvector used to calculate this quantity </param>
-/// <returns> returns the IPR value</returns>
-double IsingModel::ipr(int state_idx) {
+/// <returns> returns the IPR value </returns>
+template <typename T> double IsingModel<T>::ipr(int state_idx) {
 	double ipr = 0;
-	cx_vec state = eigenvectors.col(state_idx);
+	arma::subview_col state = eigenvectors.col(state_idx);
 #pragma omp parallel for reduction(+: ipr)
 	for (int n = 0; n < N; n++) {
-		double value = abs(state(n) * state(n));
+		double value = abs(conj(state(n)) * state(n));
 		ipr += value * value;
 	}
 	return 1.0 / ipr;
@@ -159,15 +122,15 @@ double IsingModel::ipr(int state_idx) {
 /// </summary>
 /// <param name="_id"></param>
 /// <returns></returns>
-double IsingModel::information_entropy(const u64 _id) {
-	cx_vec state = this->eigenvectors.col(_id);
+template <typename T> double IsingModel<T>::information_entropy(const u64 _id) {
+	arma::subview_col state = this->eigenvectors.col(_id);
 	double ent = 0;
 #pragma omp parallel for reduction(+: ent)
 	for (int k = 0; k < N; k++) {
 		double val = abs(conj(state(k)) * state(k));
 		ent += val * log(val);
 	}
-	return -ent / log(0.48 * N);
+	return -ent / log(0.48 * this->N);
 }
 
 /// <summary>
@@ -177,25 +140,25 @@ double IsingModel::information_entropy(const u64 _id) {
 /// <param name="_min"> index of eigenenergy, being the lower bound of energy window </param>
 /// <param name="_max"> index of eigenenergy, being the upper bound of energy window </param>
 /// <returns></returns>
-double IsingModel::eigenlevel_statistics(u64 _min, u64 _max) {
+template <typename T> double IsingModel<T>::eigenlevel_statistics(u64 _min, u64 _max) {
 	double r = 0;
 	if (_min <= 0) throw "too low index";
-	if (_max >= N) throw "index exceeding Hilbert space";
+	if (_max >= N - 1) throw "index exceeding Hilbert space";
 	//double delta_n = eigenvalues(_min) - eigenvalues(_min - 1);
 	//double delta_n_next = 0;
 #pragma omp parallel for reduction(+: r)
-	for (int k = _min; k < _max; k++) {
+	for (int k = _min; k <= _max; k++) {
 		const double delta_n = eigenvalues(k) - eigenvalues(k - 1);
 		const double delta_n_next = eigenvalues(k + 1) - eigenvalues(k);
 		const double min = std::min(delta_n, delta_n_next);
 		const double max = std::max(delta_n, delta_n_next);
-		if (max == 0) throw "Degeneracy!!!\n";
+		if (abs(delta_n) <= 1e-14) throw "Degeneracy!!!\n";
 		r += min / max;
 		//delta_n = delta_n_next;
 	}
 	return r / double(_max - _min);
 }
-vec IsingModel::eigenlevel_statistics_with_return() {
+template <typename T> vec IsingModel<T>::eigenlevel_statistics_with_return() {
 	vec r(N - 2);
 #pragma omp parallel for shared(r)
 	for (int k = 1; k < N - 1; k++)
@@ -212,7 +175,8 @@ vec IsingModel::eigenlevel_statistics_with_return() {
 /// <param name="A"> class instance </param>
 /// <param name="site"> position of the spin, where the operator is acted upon </param>
 /// <returns> returns the average spectrum repulsion </returns>
-double IsingModel::spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site) {
+template <typename T> 
+double IsingModel<T>::spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site) {
 	//double rn_next = 0, rn = (A.*op)(0, 1);
 	double average = 0;
 #pragma omp parallel for reduction(+:average)
@@ -223,33 +187,6 @@ double IsingModel::spectrum_repulsion(double (IsingModel::* op)(int, int), Ising
 		//rn = rn_next;
 	}
 	return average / (A.N - 1.0);
-}
-
-/// <summary>
-///
-/// </summary>
-/// <param name="_min"></param>
-/// <param name="_max"></param>
-/// <param name="symmetry"></param>
-/// <param name="original"></param>
-/// <returns></returns>
-std::unordered_map<u64, u64> mapping_sym_to_original(u64 _min, u64 _max, const IsingModel& symmetry, const IsingModel& original) {
-	std::unordered_map<u64, u64> map;
-	std::vector<double> E_dis = arma::conv_to<std::vector<double>>::from(original.eigenvalues);
-#pragma omp parallel for
-	for (int k = 0; k < symmetry.N; k++) {
-		double E = symmetry.eigenvalues(k);
-		if (E < original.eigenvalues(_min) && E >= original.eigenvalues(_max)) continue;
-		auto idx = binary_search(E_dis, _min, _max, E);
-		if (idx >= original.N) continue;
-		double E_prev = (idx == 0) ? (original.eigenvalues(0) - 1.0) : original.eigenvalues(idx - 1);
-		double E_next = (idx == original.N - 1) ? (original.eigenvalues(original.N - 1) + 1.0) : original.eigenvalues(idx + 1);
-		if (abs(E - E_prev) > 1e-8 && abs(E - E_next) > 1e-8){
-#pragma omp critical
-			map[k] = idx;
-		}
-	}
-	return map;
 }
 
 // - - - - - OPERATOR AVERAGES - - - - -
@@ -264,8 +201,9 @@ std::unordered_map<u64, u64> mapping_sym_to_original(u64 _min, u64 _max, const I
 /// <param name="site"> position of the spin, where the operator is acted upon </param>
 /// <param name="name"> name of the file to print data </param>
 /// <param name="separator"> separator between columns in file </param>
-void IsingModel::operator_av_in_eigenstates(double (IsingModel::* op)(int, int), \
-	IsingModel& A, int site, std::string name, std::string separator) {
+template <typename T>
+void IsingModel<T>::operator_av_in_eigenstates(double (IsingModel<T>::* op)(int, int), \
+	IsingModel<T>& A, int site, std::string name, std::string separator) {
 	std::ofstream file(name);                                                                  // file to write the average to
 	if (!file.is_open()) throw "Can't open file " + name + "\n Choose another file\n";
 	// vec res(A.get_hilbert_size(), fill::zeros);
@@ -280,38 +218,13 @@ void IsingModel::operator_av_in_eigenstates(double (IsingModel::* op)(int, int),
 	//    file << A.eigenvalues(k) / (double)A.L << separator << res(k) << endl;
 	file.close();
 }
-vec IsingModel::operator_av_in_eigenstates_return(double (IsingModel::* op)(int, int), IsingModel& A, int site) {
+template <typename T>
+vec IsingModel<T>::operator_av_in_eigenstates_return(double (IsingModel<T>::* op)(int, int), IsingModel<T>& A, int site) {
 	vec temp(A.get_hilbert_size(), fill::zeros);
 #pragma omp parallel for shared(temp)
 	for (int k = 0; k < A.get_hilbert_size(); k++)
 		temp(k) = (A.*op)(k, site);
 	return temp;
-}
-
-/// <summary>
-/// Calculates the quantum fidelity of two eigenstates with slightly different parameters
-/// </summary>
-/// <param name="_min"> lower bound of averaging bucket (over energy) </param>
-/// <param name="_max"> upper bound of averaging bucket (over energy) </param>
-/// <param name="Hamil"> Hamiltonian with given set of parameters </param>
-/// <param name="J"> new exchange integral </param>
-/// <param name="g"> new trasnverse field </param>
-/// <param name="h"> new uniform perpendicular field </param>
-/// <param name="w"> new disorder stregth </param>
-/// <returns></returns>
-double quantum_fidelity(u64 _min, u64 _max, const IsingModel& Hamil, double J, double J0, double g, double g0, double h, double w) {
-	if (_min < 0) throw "too low index";
-	if (_max >= Hamil.get_hilbert_size()) throw "index exceeding Hilbert space";
-
-	std::unique_ptr<IsingModel> Hamil2;
-	if (typeid(Hamil) == typeid(IsingModel_disorder)) Hamil2 = std::make_unique<IsingModel_disorder>(Hamil.L, J, J0, g, g0, h, w);
-	else Hamil2 = std::make_unique<IsingModel_sym>(Hamil.L, J, g, h);
-
-	double fidelity = 0;
-#pragma omp parallel for reduction(+: fidelity)
-	for (long int k = _min; k < _max; k++)
-		fidelity += overlap(Hamil, *Hamil2, k, k);
-	return fidelity / double(_max - _min);
 }
 
 // - - - - - STATISTICS AND PROBABILITIES - - - - - 
@@ -350,7 +263,7 @@ arma::vec probability_distribution_with_return(const arma::vec& data, double _mi
 			prob_dist(bucket) += 1;
 		}
 	}
-	return arma::normalise(prob_dist);;
+	return arma::normalise(prob_dist);
 }
 /// <summary>
 ///
@@ -407,8 +320,27 @@ arma::vec statistics_average(const arma::vec& data, int num_of_outliers) {
 /// <param name="n_a">number of A eigenstate</param>
 /// <param name="n_b">number of B eigenstate</param>
 /// <returns>A_n_a dot n_b_B</returns>
-double overlap(const IsingModel & A, const IsingModel & B, int n_a, int n_b)
+template <typename T>
+double overlap(const IsingModel<T>& A, const IsingModel<T>& B, int n_a, int n_b)
 {
 	if(n_a >= A.N || n_b >= B.N || n_a < 0 || n_b < 0) throw "Cannot create an overlap between non-existing states\n";
 	return abs(arma::cdot(A.eigenvectors.col(n_a), B.eigenvectors.col(n_b)));
 }
+
+
+
+
+// SOME SHIT WE HAVE TO DO
+template IsingModel<double>::~IsingModel();
+template IsingModel<cpx>::~IsingModel();
+template void IsingModel<double>::set_neighbors();
+template void IsingModel<cpx>::set_neighbors();
+template void IsingModel<cpx>::diagonalization();
+template void IsingModel<double>::diagonalization();
+template double IsingModel<cpx>::eigenlevel_statistics(u64, u64);
+template double IsingModel<double>::eigenlevel_statistics(u64, u64);
+template double IsingModel<double>::ipr(int);
+template double IsingModel<cpx>::ipr(int);
+template double IsingModel<double>::information_entropy(u64);
+template double IsingModel<cpx>::information_entropy(u64);
+
