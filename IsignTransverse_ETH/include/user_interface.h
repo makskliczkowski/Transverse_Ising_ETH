@@ -99,8 +99,12 @@ namespace isingUI
 		void make_sim() override;														// make default simulation
 		void compare_energies();
 		void disorder();
+		
 		void compare_matrix_elements();
 		void size_scaling_sym(int k, int p, int x);
+
+		void fidelity(std::initializer_list<int> symetries);
+
 		void parameter_sweep_sym(int k, int p, int x) const;
 		void matrix_elements_stat_sym(double omega_dist,\
 			int omega_gauss_max, double energy_constraint,\

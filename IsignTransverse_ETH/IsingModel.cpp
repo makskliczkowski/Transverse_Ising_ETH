@@ -122,12 +122,31 @@ template <typename T> double IsingModel<T>::ipr(int state_idx) {
 /// </summary>
 /// <param name="_id"></param>
 /// <returns></returns>
-template <typename T> double IsingModel<T>::information_entropy(const u64 _id) {
+template <typename T> double IsingModel<T>::information_entropy(u64 _id) {
 	arma::subview_col state = this->eigenvectors.col(_id);
 	double ent = 0;
 #pragma omp parallel for reduction(+: ent)
 	for (int k = 0; k < N; k++) {
 		double val = abs(conj(state(k)) * state(k));
+		ent += val * log(val);
+	}
+	return -ent / log(0.48 * this->N);
+}
+
+/// <summary>
+/// 
+/// </summary>
+/// <typeparam name="T"></typeparam>
+/// <param name="_id"></param>
+/// <param name="beta"></param>
+/// <returns></returns>
+template <typename T> double IsingModel<T>::information_entropy(u64 _id, const IsingModel<T>& beta, u64 _min, u64 _max) {
+	arma::subview_col state_alfa = this->eigenvectors.col(_id);
+	double ent = 0;
+//#pragma omp parallel for reduction(+: ent)
+	for (int k = _min; k < _max; k++) {
+		cpx c_k = cdot(beta.get_eigenState(k), state_alfa);
+		double val = abs(conj(c_k) * c_k);
 		ent += val * log(val);
 	}
 	return -ent / log(0.48 * this->N);
@@ -259,7 +278,6 @@ arma::vec probability_distribution_with_return(const arma::vec& data, double _mi
 	for (int k = 1; k < data.size(); k++) {
 		if (data(k) > _min && data(k) < _max) {
 			const int bucket = static_cast<int>((data(k) + abs(_min)) / step);
-			// out << "data(k) + _min: " << data(k) + _min<< "bucket: " << bucket << std::endl;
 			prob_dist(bucket) += 1;
 		}
 	}
@@ -321,10 +339,9 @@ arma::vec statistics_average(const arma::vec& data, int num_of_outliers) {
 /// <param name="n_b">number of B eigenstate</param>
 /// <returns>A_n_a dot n_b_B</returns>
 template <typename T>
-double overlap(const IsingModel<T>& A, const IsingModel<T>& B, int n_a, int n_b)
-{
+T overlap(const IsingModel<T>& A, const IsingModel<T>& B, int n_a, int n_b){
 	if(n_a >= A.N || n_b >= B.N || n_a < 0 || n_b < 0) throw "Cannot create an overlap between non-existing states\n";
-	return abs(arma::cdot(A.eigenvectors.col(n_a), B.eigenvectors.col(n_b)));
+	return arma::cdot(A.eigenvectors.col(n_a), B.eigenvectors.col(n_b));
 }
 
 
@@ -345,4 +362,5 @@ template double IsingModel<double>::ipr(int);
 template double IsingModel<cpx>::ipr(int);
 template double IsingModel<double>::information_entropy(u64);
 template double IsingModel<cpx>::information_entropy(u64);
-
+template double IsingModel<double>::information_entropy(u64, const IsingModel<double>&, u64, u64);
+template double IsingModel<cpx>::information_entropy(u64, const IsingModel<cpx>&, u64, u64);
