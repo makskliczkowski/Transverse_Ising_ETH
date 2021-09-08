@@ -2,17 +2,19 @@
 
 /* CONSTRUCTORS */
  IsingModel_sym::IsingModel_sym(int L, double J, double g, double h, int k_sym, bool p_sym, bool x_sym, int _BC) {
-	this->L = L; this->J = J; this->g = g; this->h = h;
-	this->info = "_L=" + std::to_string(this->L) + \
-		",g=" + to_string_prec(this->g) + \
-		",h=" + to_string_prec(this->h);
-	this->_BC = _BC;
-
+	this->L = L; this->J = J; this->g = g; this->h = h; this->_BC = _BC;
 	symmetries.k_sym = k_sym * two_pi / double(this->L);
 	symmetries.p_sym = (p_sym) ? 1.0 : -1.0;
 	symmetries.x_sym = (x_sym) ? 1.0 : -1.0;
 	k_sector = abs(this->symmetries.k_sym) < 1e-4 || abs(this->symmetries.k_sym - pi) < 1e-4;
-	
+
+	this->info = "_L=" + std::to_string(this->L) + \
+		",g=" + to_string_prec(this->g,2) + \
+		",h=" + to_string_prec(this->h,2) + \
+		",k=" + std::to_string(k_sym) + \
+		",p=" + std::to_string(symmetries.p_sym) + \
+		",x=" + std::to_string(symmetries.x_sym);	
+
 	// precalculate the exponents
 	this->k_exponents = v_1d<cpx>(this->L, 0.0);
 #pragma omp parallel for

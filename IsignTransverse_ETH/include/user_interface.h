@@ -50,18 +50,21 @@ namespace isingUI
 		{"J","1.0"},					// spin coupling
 		{"J0","0.2"},					// spin coupling randomness maximum (-J0 to J0)
 		{"h","0.0"},					// perpendicular magnetic field constant
-		{"hn","1"},
-		{"hs","0.0"},
+		{"hn","1"},						// longitudal magnetic field sweep number
+		{"hs","0.0"},					// longitudal magnetic field sweep step
 		{"w","1.0"},					// disorder strength
-		{"wn","1"},
-		{"ws","0.0"},
+		{"wn","1"},						// disorder change number
+		{"ws","0.0"},					// disorder change step
 		{"g","1.0"},					// transverse magnetic field constant
-		{"gn","1"},
-		{"gs","0.0"},
+		{"gn","1"},						// parameter scaling g number
+		{"gs","0.0"},					// parameter scaling g step
 		{"g0","0.0"},					// transverse field randomness maximum (-g0 to g0)
 		{"L","4"},						// chain length
-		{"Ln","1"},
-		{"Ls","0"},
+		{"Ln","1"},						// chain length step in size scaling
+		{"Ls","0"},						// number of chain lengths in size scaling
+		{"k","1"},						// translation symetry sector
+		{"p","1"},						// parity symmetry sector
+		{"x","1"},						// spin flip symmetry sector
 		{"b","0"},						// boundary condition
 		{"m","0"},						// choose model
 		{"r","100"},					// realisations
@@ -83,6 +86,12 @@ namespace isingUI
 		int realisations;																// number of realisations to average on for disordered case - symmetries got 1
 		int mu;																			// small bucket for the operator fluctuations to be averaged onto
 		int site;																		// site for operator averages
+
+		struct {
+			double k_sym;																// translational symmetry generator
+			int p_sym;																	// parity symmetry generator
+			int x_sym;																	// spin-flip symmetry generator
+		} symmetries;
 		//std::unique_ptr<IsingModel<T>> model;											// pointer to a model
 	public:
 		// CONSTRUCTORS
@@ -102,10 +111,11 @@ namespace isingUI
 		void compare_matrix_elements();
 		void size_scaling_sym(int k, int p, int x);
 		void parameter_sweep_sym(int k, int p, int x) const;
-		void matrix_elements_stat_sym(double omega_dist,\
-			int omega_gauss_max, double energy_constraint,\
+		void matrix_elements_stat_sym(double min, double max, double step, double omega_dist,\
+			int omega_gauss_max, double energy_constraint, int energy_num,\
 			std::initializer_list<int> alfa_sym = {},\
 			std::initializer_list<int> beta_sym = {}) const;
+		void perturbative_stat_sym(double dist_step, double min, double max, double pert);
 	};
 }
 

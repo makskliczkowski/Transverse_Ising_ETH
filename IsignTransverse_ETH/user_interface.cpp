@@ -95,6 +95,10 @@ void isingUI::ui::set_default() {
 
 	this->g0 = 0;
 
+	this->symmetries.k_sym = 0;
+	this->symmetries.p_sym = 0;
+	this->symmetries.x_sym = 0;
+
 	this->realisations = 100;
 	this->site = 0;
 	this->mu = 5;
@@ -154,6 +158,9 @@ void isingUI::ui::exit_with_help() const {
 		"-m model to be choosen : (default 0 - without symmetries)\n"
 		"	0 -- nonsymmetric model - only here the disorder is working\n"
 		"	1 -- include symmetries - here the parity flag is also working\n"
+		"-k translation symetry sector, 0-L, (default 0)\n"
+		"-p parity symmetry sector, +-1 (if applicable) (default 1)\n"
+		"-x spin flip symmetry sector, +-1 (if applicable) (default 1)\n"
 		"-th number of threads to be used for CPU parallelization : depends on the machine specifics, default(1)"
 		"-h quit with help\n"
 	);
@@ -231,6 +238,16 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv) {
 	// buckets
 	choosen_option = "-mu";
 	this->set_option(this->mu, argv, choosen_option);
+
+	// symmetries
+	choosen_option = "-k";
+	this->set_option(this->symmetries.k_sym, argv, choosen_option);
+	if(this->symmetries.k_sym >= this->L) this->set_default_msg(this->symmetries.k_sym, choosen_option.substr(1), \
+		"max k sector is L = " + std::to_string(this->L), table);
+	choosen_option = "-p";
+	this->set_option(this->symmetries.p_sym, argv, choosen_option, false);
+	choosen_option = "-x";
+	this->set_option(this->symmetries.x_sym, argv, choosen_option, false);
 
 	// thread number
 	choosen_option = "-th";
@@ -570,7 +587,7 @@ void isingUI::ui::size_scaling_sym(int k, int p, int x) {
 		std::ofstream sigx(this->saving_dir + "SigmaX" + alfa->get_info() + ".dat");
 		vec av_sigma_x(N, fill::zeros);
 		for (int i = 0; i < N; i++) {
-			av_sigma_x(k) = alfa->av_sigma_x(i, i, { 0 });
+			av_sigma_x(i) = alfa->av_sigma_x(i, i, { 0 });
 			sigx << alfa->get_eigenEnergy(i) << "\t\t" << av_sigma_x(i) << endl;
 		}
 		sigx.close();
@@ -627,8 +644,8 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x) const
 
 	std::ofstream farante(this->saving_dir + "IprScaling" + alfa->get_info({"g","h"}) + ".dat");
 
-	for(double gx = this->g; gx < gmax; g+=this->gs){
-		for(double hx =this->h; hx < hmax; h+=this->hs){
+	for(double gx = this->g; gx < gmax; gx+=this->gs){
+		for(double hx =this->h; hx < hmax; hx+=this->hs){
 			alfa.reset(new IsingModel_sym(this->L, this->J, gx, hx, k, p, x, boundary_conditions));
 			stout << "\n\n------------------------------ Doing : " <<  alfa->get_info() << "------------------------------\n";
 			const u64 N = alfa->get_hilbert_size();
@@ -666,7 +683,7 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x) const
 /// <param name="omega_dist"></param>
 /// <param name="omega_gauss_max"></param>
 /// <param name="energy_constraint"></param>
-void isingUI::ui::matrix_elements_stat_sym(double omega_dist, int omega_gauss_max, double energy_constraint, std::initializer_list<int> alfa_sym, std::initializer_list<int> beta_sym) const
+void isingUI::ui::matrix_elements_stat_sym(double min, double max, double step, double omega_dist, int omega_gauss_max, double energy_constraint, int energy_num, std::initializer_list<int> alfa_sym, std::initializer_list<int> beta_sym) const
 {
 	// in order k, x, p because we can skip p for most cases, x as well but in different order
 	std::vector<int> alfa_syms = {0, 1, 1};
@@ -679,9 +696,121 @@ void isingUI::ui::matrix_elements_stat_sym(double omega_dist, int omega_gauss_ma
 	}
 	auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, alfa_syms[0], alfa_syms[2], alfa_syms[1], this->boundary_conditions);
 	auto beta = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, beta_syms[0], beta_syms[2], beta_syms[1], this->boundary_conditions);
+	alfa->diagonalization();
+	beta->diagonalization();
+	const u64 Na = alfa->get_hilbert_size();
+	const u64 Nb = beta->get_hilbert_size();
+	const int size = static_cast<int>(abs(max-min) / step);
+	const double omega_step = 0.025;
+	const int omega_num = static_cast<int>(omega_gauss_max/double(omega_step));
+	// files
+	ofstream gaussianity(this->saving_dir + "gaussianity_for_alfa=" + alfa->get_info() + "_beta=" + beta->get_info() + ".dat");
+	gaussianity << "omega" << "\t\t" << "sig_x" << "\t\t" << "sig_x_ex\n";
+	ofstream op_prob_dist(this->saving_dir + "operatorProbDist_for_alfa=" + alfa->get_info() + "_beta=" + beta->get_info() + ".dat");
+	op_prob_dist << "P(|O_ab|)" << "\t\t" << "sig_x" << "\t\t" << "sig_x_ex" << "\t\t" << "sig_z_nnn" << "\t\t" << "sig_z_nnn_ex" << "\t\t" << "spin_flip\n";
 
+	// operators
+	auto sig_x = IsingModel_sym::sigma_x;
+	auto sig_z = IsingModel_sym::sigma_z;
+	auto spin_fl = IsingModel_sym::spin_flip;
+	// sigma _z
+	vec d_sigma_z_nnn(size, arma::fill::zeros), d_sigma_z_nnn_ex(size, arma::fill::zeros);	// for making the probability distribution of close sigma_zs matrix elements											
+	//double min_sz_nnn = 0, min_sz_nnn_ex = 0;													// minimas of sigma_z proba distributions								
+	// sigma _x
+	vec d_sigma_x(size, arma::fill::zeros), d_sigma_x_ex(size, arma::fill::zeros);
+	v_1d<double> av_sigma_x(omega_num, 0);													// average sigma_x in small omega bucket
+	v_1d<double> av_sigma_x_ex(omega_num, 0);												// average sigma_x_ex in small omega bucket
+	v_1d<double> av_sigma_x2(omega_num, 0);													// average sigma_x in small omega bucket
+	v_1d<double> av_sigma_x2_ex(omega_num, 0);												// average sigma_x_ex in small omega bucket0);	
+	// spin flip
+	vec d_sigma_flip(size, arma::fill::zeros);
+
+	const int alfa_max_E = static_cast<int>(alfa->E_av_idx + energy_num / 2.0);
+	const int beta_max_E = static_cast<int>(beta->E_av_idx + energy_num / 2.0);
+
+	for(int a = alfa->E_av_idx - energy_num / 2.0; a < alfa_max_E; a++){
+		if(a<0 || a >= Na) continue;
+		const double Ea = alfa->get_eigenEnergy(a);
+		for(int b = beta->E_av_idx - energy_num / 2.0; b < beta_max_E; b++){
+			if(b < 0 || b >= Nb) continue;
+			const double Eb = beta->get_eigenEnergy(b);
+			if(const double Eav = abs(Eb + Ea)/2.0; Eav > energy_constraint) continue;
+			const double omega = abs(Ea - Eb);
+			const auto omega_bucket = static_cast<int>(omega/omega_step);
+
+			// sigma_x
+			const double sigma_x = abs(av_operator(a, b, *alfa, *beta, sig_x, { 0}));
+			const double sigma_x_ex = abs(av_operator(a, b, *alfa, *beta, sig_x));
+			// sigma x to averages
+			if(omega_bucket < omega_num){
+				av_sigma_x[omega_bucket] += sigma_x;
+				av_sigma_x_ex[omega_bucket] += sigma_x_ex;
+				av_sigma_x2[omega_bucket] += sigma_x*sigma_x;
+				av_sigma_x2_ex[omega_bucket] += sigma_x_ex*sigma_x_ex;
+			}
+			// check omega constraint
+			if(omega < omega_dist){
+				// sigma_z
+				setDistElem(d_sigma_z_nnn,min,step, abs(av_operator(a, b, *alfa, *beta, sig_z, { 0, 2 })));
+				setDistElem(d_sigma_z_nnn_ex,min,step, abs(av_operator(a,b, *alfa, *beta, sig_z, 2)));
+				// sigma_x already calculated
+				setDistElem(d_sigma_x,min,step, sigma_x);
+				setDistElem(d_sigma_x_ex,min,step, sigma_x_ex);
+				// spin flip
+				setDistElem(d_sigma_flip,min,step, 0.5*abs(av_operator(a, b, *alfa, *beta, spin_fl) + conj(av_operator(b, a, *beta, *alfa, spin_fl))));
+				//rescale_Distribution(d_sigma_flip,min_sf,step,spin_flip_ex);
+			}
+		}
+	}
+	arma::normalise(d_sigma_x); arma::normalise(d_sigma_x_ex); arma::normalise(d_sigma_z_nnn); arma::normalise(d_sigma_z_nnn_ex); arma::normalise(d_sigma_flip); 
+	for(int i = 0; i < max; i++)
+		op_prob_dist << i*step + min << "\t\t" << d_sigma_x[i] << "\t\t" << d_sigma_x_ex[i] << "\t\t" << d_sigma_z_nnn[i] << "\t\t" << d_sigma_z_nnn_ex[i] << "\t\t" << d_sigma_flip[i] << "\n";
+	for(int i = 0; i < omega_num; i++) 
+		gaussianity << i*omega_step << "\t\t" << av_sigma_x2[i] / (av_sigma_x[i] * av_sigma_x[i]) << "\t\t" << av_sigma_x2_ex[i] / (av_sigma_x_ex[i] * av_sigma_x_ex[i]) << std::endl;
+	
+	gaussianity.close();
+	op_prob_dist.close();
 }
 
+/// <summary>
+/// 
+/// </summary>
+/// <param name="dist_step"></param>
+/// <param name="pert"></param>
+void isingUI::ui::perturbative_stat_sym(double dist_step, double min, double max, double pert)
+{
+	auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+	auto beta = std::make_unique<IsingModel_sym>(this->L, this->J, this->g+pert, this->h+pert, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+	alfa->diagonalization();
+	beta->diagonalization();
+
+	const int size = static_cast<int>(abs(max-min) / dist_step);
+	// operators 
+
+	vec dis_sig_x(size, arma::fill::zeros), dis_sig_x_ex(size, arma::fill::zeros);
+	vec dis_delta_E(size, arma::fill::zeros);
+
+	for(int i = 0; i < alfa->get_hilbert_size(); i++){
+		const double delta_sig_x = real(beta->av_sigma_x(i,i,{0}) - alfa->av_sigma_x(i,i,{0}));
+		const double delta_sig_x_ex =  real(beta->av_sigma_x(i,i) - alfa->av_sigma_x(i,i));
+		const double delta_E = beta->get_eigenEnergy(i) - alfa->get_eigenEnergy(i);
+		setDistElem(dis_sig_x,min,dist_step,delta_sig_x);
+		setDistElem(dis_sig_x_ex,min,dist_step,delta_sig_x_ex);
+		setDistElem(dis_delta_E,min,dist_step,delta_E);
+	}
+	arma::normalise(dis_sig_x); arma::normalise(dis_sig_x_ex); arma::normalise(dis_delta_E);
+	ofstream dis_x(this->saving_dir + "perturbationSigX_Dist" + alfa->get_info() + ",pert=" + to_string_prec(pert,5)+".dat");
+	dis_x << "P(O_aa)\t\tsig_x\t\tsig_x_ex\n";
+
+	ofstream dis_E(this->saving_dir + "perturbationEnergyDiffDist" + alfa->get_info() + ",pert=" + to_string_prec(pert,5)+".dat");
+
+	for(int i = 0; i < dis_sig_x.size();i++) {
+		dis_x << dist_step * i + min << "\t\t" << dis_sig_x(i) << "\t\t" << dis_sig_x_ex(i) << "\n";
+		dis_E << dist_step * i + min << "\t\t" << dis_delta_E(i) << "\n";
+	}
+
+	dis_x.close(); dis_E.close();
+}
 /// <summary>
 /// 
 /// </summary>

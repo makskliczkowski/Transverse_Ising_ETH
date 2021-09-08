@@ -80,8 +80,9 @@ public:
 				if(split_str(tmp[i],"=")[0] == skip_param)
 					save = false;
 			}
-			if(save) tmp_str += tmp[i];
+			if(save) tmp_str += tmp[i]+",";
 		}
+		tmp_str.pop_back();
 		return tmp_str; 
 	};
 
