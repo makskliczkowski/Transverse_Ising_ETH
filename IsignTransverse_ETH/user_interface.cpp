@@ -536,7 +536,7 @@ void isingUI::ui::compare_matrix_elements() {
 
 }
 
-void isingUI::ui::size_scaling_sym(int k, int p, int x, int L_min, int L_max, int mu) {
+void isingUI::ui::size_scaling_sym(int k, int p, int x, int L_min, int L_max) {
 	using namespace std::chrono;
 	auto start = std::chrono::high_resolution_clock::now();
 
@@ -552,6 +552,8 @@ void isingUI::ui::size_scaling_sym(int k, int p, int x, int L_min, int L_max, in
 		auto alfa = std::make_unique<IsingModel_sym>(L, J, g, h, k, p, x, boundary_conditions);
 		u64 N = alfa->get_hilbert_size();
 		alfa->diagonalization();
+		stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << " - in time : " << \
+			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 
 		// average sigma_x operator at first site
 		std::ofstream sigx(this->saving_dir + "SigmaX" + alfa->get_info() + ".dat");
@@ -566,14 +568,14 @@ void isingUI::ui::size_scaling_sym(int k, int p, int x, int L_min, int L_max, in
 		vec r_sigma_x(N - 1);
 #pragma omp parallel for
 		for (int k = 0; k < N - 1; k++)
-			r_sigma_x(k) = av_sigma_x(k + 1) - av_sigma_x(k);
+			r_sigma_x(k) = abs(av_sigma_x(k + 1) - av_sigma_x(k));
 		vec outliers = statistics_average(r_sigma_x, 4);
 		fikolo << L << "\t\t" << outliers.t();
 		stout << " \t\t--> finished outliers for " << alfa->get_info() << " - in time : " << \
 			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 
-		probability_distribution(this->saving_dir, "ProbDistSpecRapSigmaX" + alfa->get_info(), r_sigma_x, -0.05, 0.05, 0.0002);
-		probability_distribution(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), data_fluctuations(r_sigma_x), -2.0, 2.0, 0.001);
+		probability_distribution(this->saving_dir, "ProbDistSpecRapSigmaX" + alfa->get_info(), r_sigma_x, 0, 0.05, 0.0002);
+		probability_distribution(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), data_fluctuations(av_sigma_x), -2.0, 2.0, 0.001);
 		stout << " \t\t--> finished prob dist for " << alfa->get_info() << " - in time : " << \
 			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 
@@ -582,7 +584,7 @@ void isingUI::ui::size_scaling_sym(int k, int p, int x, int L_min, int L_max, in
 
 		// ipr & info entropy
 		double ipr = 0, ent = 0;
-		for (int k = alfa->E_av_idx - mu / 2.; k < alfa->E_av_idx + mu / 2.; k++) {
+		for (int k = alfa->E_av_idx - mu / 2.; k <= alfa->E_av_idx + mu / 2.; k++) {
 			ipr += alfa->ipr(k);
 			ent += alfa->information_entropy(k);
 		}
@@ -604,8 +606,9 @@ void isingUI::ui::make_sim()
 	auto start = std::chrono::high_resolution_clock::now();
 
 	//compare_energies();
-	size_scaling_sym(0, 1, 1, 12, 18, 2);
-	size_scaling_sym(1, 1, 1, 12, 18, 2);
+	this->mu = 10;
+	size_scaling_sym(0, 1, 1, 12, 18);
+	size_scaling_sym(1, 1, 1, 12, 18);
 	//if(h == 0) size_scaling_sym(1, 1, -1, 12, 18, 2);
 	
 

@@ -105,7 +105,7 @@ template <typename T> double IsingModel<T>::total_spin(const mat& corr_mat) {
 /// IPR=dim(hilbert space)
 /// </summary>
 /// <param name="state_idx"> index of the eigenvector used to calculate this quantity </param>
-/// <returns> returns the IPR value</returns>
+/// <returns> returns the IPR value </returns>
 template <typename T> double IsingModel<T>::ipr(int state_idx) {
 	double ipr = 0;
 	arma::subview_col state = eigenvectors.col(state_idx);
@@ -143,16 +143,16 @@ template <typename T> double IsingModel<T>::information_entropy(const u64 _id) {
 template <typename T> double IsingModel<T>::eigenlevel_statistics(u64 _min, u64 _max) {
 	double r = 0;
 	if (_min <= 0) throw "too low index";
-	if (_max >= N) throw "index exceeding Hilbert space";
+	if (_max >= N - 1) throw "index exceeding Hilbert space";
 	//double delta_n = eigenvalues(_min) - eigenvalues(_min - 1);
 	//double delta_n_next = 0;
 #pragma omp parallel for reduction(+: r)
-	for (int k = _min; k < _max; k++) {
+	for (int k = _min; k <= _max; k++) {
 		const double delta_n = eigenvalues(k) - eigenvalues(k - 1);
 		const double delta_n_next = eigenvalues(k + 1) - eigenvalues(k);
 		const double min = std::min(delta_n, delta_n_next);
 		const double max = std::max(delta_n, delta_n_next);
-		if (max == 0) throw "Degeneracy!!!\n";
+		if (abs(delta_n) <= 1e-14) throw "Degeneracy!!!\n";
 		r += min / max;
 		//delta_n = delta_n_next;
 	}
