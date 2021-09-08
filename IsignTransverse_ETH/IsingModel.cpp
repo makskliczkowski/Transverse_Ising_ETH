@@ -108,10 +108,10 @@ template <typename T> double IsingModel<T>::total_spin(const mat& corr_mat) {
 /// <returns> returns the IPR value</returns>
 template <typename T> double IsingModel<T>::ipr(int state_idx) {
 	double ipr = 0;
-	cx_vec state = eigenvectors.col(state_idx);
+	arma::subview_col state = eigenvectors.col(state_idx);
 #pragma omp parallel for reduction(+: ipr)
 	for (int n = 0; n < N; n++) {
-		double value = abs(state(n) * state(n));
+		double value = abs(conj(state(n)) * state(n));
 		ipr += value * value;
 	}
 	return 1.0 / ipr;
@@ -123,14 +123,14 @@ template <typename T> double IsingModel<T>::ipr(int state_idx) {
 /// <param name="_id"></param>
 /// <returns></returns>
 template <typename T> double IsingModel<T>::information_entropy(const u64 _id) {
-	cx_vec state = this->eigenvectors.col(_id);
+	arma::subview_col state = this->eigenvectors.col(_id);
 	double ent = 0;
 #pragma omp parallel for reduction(+: ent)
 	for (int k = 0; k < N; k++) {
 		double val = abs(conj(state(k)) * state(k));
 		ent += val * log(val);
 	}
-	return -ent / log(0.48 * N);
+	return -ent / log(0.48 * this->N);
 }
 
 /// <summary>
@@ -263,7 +263,7 @@ arma::vec probability_distribution_with_return(const arma::vec& data, double _mi
 			prob_dist(bucket) += 1;
 		}
 	}
-	return arma::normalise(prob_dist);;
+	return arma::normalise(prob_dist);
 }
 /// <summary>
 ///
@@ -337,4 +337,10 @@ template void IsingModel<double>::set_neighbors();
 template void IsingModel<cpx>::set_neighbors();
 template void IsingModel<cpx>::diagonalization();
 template void IsingModel<double>::diagonalization();
+template double IsingModel<cpx>::eigenlevel_statistics(u64, u64);
+template double IsingModel<double>::eigenlevel_statistics(u64, u64);
+template double IsingModel<double>::ipr(int);
+template double IsingModel<cpx>::ipr(int);
+template double IsingModel<double>::information_entropy(u64);
+template double IsingModel<cpx>::information_entropy(u64);
 

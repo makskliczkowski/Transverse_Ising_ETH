@@ -134,7 +134,6 @@ void isingUI::ui::exit_with_help() const {
 		"-m model to be choosen : (default 0 - without symmetries)\n"
 		"	0 -- nonsymmetric model - only here the disorder is working\n"
 		"	1 -- include symmetries - here the parity flag is also working\n"
-		"-p include the parity symmetry : workis only in the model with symmetries (1) (default 1 - with parity symmetry)\n"
 		"-th number of threads to be used for CPU parallelization : depends on the machine specifics, default(1)"
 		"-h quit with help\n"
 	);
@@ -307,92 +306,9 @@ void isingUI::ui::compare_energies() {
 	}
 }
 
-void isingUI::ui::make_sim()
-{
-	using namespace std::chrono;
-	auto start = std::chrono::high_resolution_clock::now();
-
-	// simulation start
-	/*switch (this->m)
-	{
-	case 0:
-		this->model = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w); break;							// make model with disorder
-	case 1:
-		this->model = std::make_unique<IsingModel_sym>(L, J, g, h);	break;											// make model with symmetries
-	default:
-		this->model = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w); break;						    // make model with disorder
-		break;
-	}*/
-	//vec E_dis = Hamil->get_eigenvalues();
-	//auto E_unique = get_NonDegenerated_Elements(E_dis);
-	//this->model = std::make_unique<IsingModel_sym>(L, J, g, h);
-	//compare_energies();
-	//exit(1);
-	std::ofstream file("file.dat");
-
-	auto model = std::make_unique<IsingModel_disorder>(L, J, 0, g, 0, h, 0);
-	model->diagonalization();
-	//vec E_dis = model->get_eigenvalues();
-	//auto E_unique = get_NonDegenerated_Elements(E_dis);
-	std::unique_ptr<IsingModel_sym> alfa = std::make_unique<IsingModel_sym>(L, J, g, h, 0, 1, 1);
-	std::unique_ptr<IsingModel_sym> beta = std::make_unique<IsingModel_sym>(L, J, g, h, L / 2.0, 0, 0);
-	stout << alfa->get_hilbert_size() << endl;
-	alfa->diagonalization();
-	beta->diagonalization();
-	//stout << model->get_eigenvalues() << endl;
-	auto map_alfa = mapping_sym_to_original(0, model->get_hilbert_size() - 1, *alfa, *model);
-	auto map_beta = mapping_sym_to_original(0, model->get_hilbert_size() - 1, *beta, *model); 
-	file << "alfa sector size for nondegenerate mapping is : " << map_alfa.size() << endl;
-	file << "beta sector size for nondegenerate mapping is : " << map_alfa.size() << endl; 
-
-	auto sig_x = IsingModel_sym::sigma_x;
-	auto sig_z = IsingModel_sym::sigma_z;
-	file << "ALPHA SECTOR : k=0,x=1,p=1, BETA SECTOR : k=pi,x=1,p=1\n\n";
-	file << " - - - - - - SAME SECTORS - - - - - - \n" << " - - - - > FOR ALFA - ALFA: \n" << "ENERGY ALPHA |('.'|)" << "\t\t" << \
-		 "ENERGY ALFA (/'.')/" << "\t\t" << "<alfa|SIGMA_X|alfa>" << "\t\t" << "<non_sym|SIGMA_X|non_sym>"  << "\t\t" << "DIFFERENCE" << endl;
-	for_each(exec::seq, map_alfa.begin(), map_alfa.end(), [&](std::pair<u64, u64> element) {
-		for (auto& t : map_alfa) {
-			cpx A = alfa->av_spin_current(element.first, t.first, { 1,2 });
-			cpx B = model->av_spin_current(element.second, t.second, { 1,2 });
-			file << alfa->get_eigenEnergy(element.first) << "\t\t" << \
-				alfa->get_eigenEnergy(t.first) << "\t\t" << real(A) << "\t\t" << real(B) << "\t\t" << real(abs(A) - abs(B)) << endl;
-		}
-		});
-	file << "\n - - - - > FOR BETA - BETA: \n" << "ENERGY BETA |('.'|)" << "\t\t" << \
-		 "ENERGY BETA (/'.')/" << "\t\t" << "<beta|SIGMA_X|beta>" << "\t\t" << "<non_sym|SIGMA_X|non_sym>"  << "\t\t" << "DIFFERENCE" << endl;
-	for_each(exec::seq, map_beta.begin(), map_beta.end(), [&](std::pair<u64, u64> element) {
-		for (auto& t : map_beta) {
-			//double A = alfa->av_sigma_z(1,2,element.first, t.first);
-			cpx A = av_operator(element.first, t.first, *beta, *beta, sig_z);
-			//double A = av_sigma_x_sym_sectors(0, element.first, t.first, *alfa, *alfa);
-			//double B = model->av_sigma_z(1,2,element.second, t.second);
-			double B = model->av_sigma_z(element.second, t.second);
-			//double B = model->av_sigma_x(0, element.second, t.second);
-			file << beta->get_eigenEnergy(element.first) << "\t\t" << \
-				beta->get_eigenEnergy(t.first) << "\t\t" << real(A) << "\t\t" << B << "\t\t" << abs(real(A)) - abs(B) << endl;
-		}
-		});
-	file << "\n\n - - - - - - DIFFERENT SECTORS - - - - - - \n" << " - - - - > FOR ALFA - BETA: \n" << "ENERGY ALPHA |('.'|)" << "\t\t" << \
-		 "ENERGY BETA (/'.')/" << "\t\t" << "<alfa|SIGMA_X|beta>" << "\t\t" << "<non_sym_a|SIGMA_X|non_sym_b>"  << "\t\t" << "DIFFERENCE" << endl;
-	for_each(exec::seq, map_alfa.begin(), map_alfa.end(), [&](std::pair<u64, u64> element) {
-		for (auto& t : map_beta) {
-			//double A = alfa->av_sigma_z(1,2,element.first, t.first);
-			cpx A = av_operator(element.first, t.first, *alfa, *beta, sig_x, {1});
-			//double A = av_sigma_x_sym_sectors(0, element.first, t.first, *alfa, *alfa);
-			//double B = model->av_sigma_z(1,2,element.second, t.second);
-			double B = model->av_sigma_x(element.second, t.second, {1});
-			//double B = model->av_sigma_x(0, element.second, t.second);
-			file << alfa->get_eigenEnergy(element.first) << "\t\t" << \
-				beta->get_eigenEnergy(t.first) << "\t\t" << real(A) << "\t\t" << B << "\t\t" << abs(real(A)) - abs(B) << endl;
-		}
-		});
-
-
-	file.close();
-
-	/* DISORDER main */
-	/*std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
-	std::ofstream scaling_r_sigmaX(this->saving_dir + "SpectrumRapScalingSigmaX" +\
+void isingUI::ui::disorder() {
+	/*auto start = std::chrono::high_resolution_clock::now();
+	std::ofstream scaling_r_sigmaX(this->saving_dir + "SpectrumRapScalingSigmaX" + \
 		",J0=" + to_string_prec(this->J0, 2) + \
 		",g=" + to_string_prec(this->g, 2) + \
 		",g0=" + to_string_prec(this->g0, 2) + \
@@ -407,16 +323,16 @@ void isingUI::ui::make_sim()
 	for (L = 10; L <= 14; L += 1) {
 		realisations = 1000 - L * 50;
 
-		std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
+		auto Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
 		const u64 N = Hamil->get_hilbert_size();
 		Hamil->diagonalization();
 
-		vec av_sigma_x = Hamil->operator_av_in_eigenstates_return(&IsingModel::av_sigma_x, *Hamil, 0);
+		vec av_sigma_x = Hamil->operator_av_in_eigenstates_return(&IsingModel_disorder::av_sigma_x, *Hamil, 0);
 		std::ofstream average_sigma_x(this->saving_dir + "SigmaX" + Hamil->get_info() + ".dat");
 		for (int k = 0; k < N; k++)
 			average_sigma_x << Hamil->get_eigenEnergy(k) / double(L) << "\t\t\t\t" << av_sigma_x(k) << endl;
 		average_sigma_x.close();
-		out << "--> finished writing the sigma _x  average for : " << Hamil->get_info() << " <--\n";
+		stout << "--> finished writing the sigma _x  average for : " << Hamil->get_info() << " <--\n";
 
 		vec r_sigma_x(N - 1);
 #pragma omp parallel for
@@ -425,10 +341,10 @@ void isingUI::ui::make_sim()
 		// spectrum repulsion for < sigma_0^x >
 
 		vec stat_aver = statistics_average(r_sigma_x, 10);
-		// outliers and scaling
+		// stoutliers and scaling
 
 		probability_distribution(this->saving_dir, "rSigmaXDist" + Hamil->get_info(), r_sigma_x, -0.5, 0.5, 0.01);
-		out << "--> finished writing the probability distribution for r_sigma _x repuslion and outliers for : " << Hamil->get_info() << " <--\n";
+		stout << "--> finished writing the probability distribution for r_sigma _x repuslion and outliers for : " << Hamil->get_info() << " <--\n";
 
 		double ipr = 0, entropy = 0, r = 0;
 		int mu = 100;
@@ -447,10 +363,10 @@ void isingUI::ui::make_sim()
 				entropy += Hamil->information_entropy(f);
 				r += Hamil->eigenlevel_statistics(f, f + 1);
 			}
-			if (k % 5 == 0) out << " \t\t--> " << k << " - in time : " << \
+			if (k % 5 == 0) stout << " \t\t--> " << k << " - in time : " << \
 				double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 		}
-		out << "--> finished averaging over realizations for : " << Hamil->get_info() << " <--\n\n\t\t\n\b";
+		stout << "--> finished averaging over realizations for : " << Hamil->get_info() << " <--\n\n\t\t\n\b";
 		scaling_r_sigmaX << N << stat_aver.t() / double(realisations);
 		double norm = realisations * mu;
 		scaling_ipr << L << "\t\t\t\t" << N << "\t\t\t\t" << ipr / norm / (double)N << "\t\t\t\t" << entropy / norm << "\t\t\t\t" << r / norm << endl;
@@ -458,9 +374,9 @@ void isingUI::ui::make_sim()
 	scaling_r_sigmaX.close();
 	scaling_ipr.close();
 
-	out << "\n--> starting loop over disorders <--\n";
+	stout << "\n--> starting loop over disorders <--\n";
 	L = 10;
-	std::ofstream scaling_ipr(this->saving_dir + "iprDisorder" +\
+	std::ofstream scaling_ipr(this->saving_dir + "iprDisorder" + \
 		"_L=" + std::to_string(this->L) + \
 		",J0=" + to_string_prec(this->J0, 2) + \
 		",g=" + to_string_prec(this->g, 2) + \
@@ -470,14 +386,14 @@ void isingUI::ui::make_sim()
 	for (double w = 0.0; w <= 6.0; w += 0.1) {
 		realisations = 600;
 
-		std::unique_ptr<IsingModel> Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
+		auto Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
 		const u64 N = Hamil->get_hilbert_size();
 		Hamil->diagonalization();
 
 		vec av_sigma_x = Hamil->operator_av_in_eigenstates_return(&IsingModel::av_sigma_x, *Hamil, 0);
 		vec fluct = data_fluctuations(av_sigma_x);
 		double _min = -2.0, _max = 2.0, step = 2e-3;
-		out << "--> finished writing the sigma _x fluctuations for w = " << w << " <--\n";
+		stout << "--> finished writing the sigma _x fluctuations for w = " << w << " <--\n";
 
 		arma::vec prob_dist = probability_distribution_with_return(fluct, _min, _max, step);
 		arma::vec prob_dist_GOE = probability_distribution_with_return(Hamil->eigenlevel_statistics_with_return(), 0, 1, 2 * step);
@@ -499,10 +415,10 @@ void isingUI::ui::make_sim()
 				entropy += Hamil->information_entropy(f);
 				r += Hamil->eigenlevel_statistics(f, f + 1);
 			}
-			//if (k % 5 == 0) out << " \t\t--> " << k << " - in time : " << \
+			//if (k % 5 == 0) stout << " \t\t--> " << k << " - in time : " << \
 				double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 		}
-		out << "--> finished loop over realisations for w = " << w << " <--\n";
+		stout << "--> finished loop over realisations for w = " << w << " <--\n";
 		std::ofstream ProbDistSigmaX(this->saving_dir + "ProbDistSigmaX" + Hamil->get_info() + ".dat");
 		for (int f = 0; f < prob_dist.size(); f++)
 			ProbDistSigmaX << _min + f * step << "\t\t\t\t" << prob_dist(f) / double(realisations) << endl;
@@ -515,10 +431,143 @@ void isingUI::ui::make_sim()
 
 		double norm = realisations * mu;
 		scaling_ipr << w << "\t\t\t\t" << ipr / norm / (double)N << "\t\t\t\t" << entropy / norm << "\t\t\t\t" << r / norm << endl;
-		out << " \t\t--> w = " << w << " - in time : " << \
+		stout << " \t\t--> w = " << w << " - in time : " << \
 			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 	}
 	scaling_ipr.close();*/
+ }
+
+void isingUI::ui::compare_matrix_elements() {
+	std::ofstream file("file.dat");
+
+	auto model = std::make_unique<IsingModel_disorder>(L, J, 0, g, 0, h, 0);
+	model->diagonalization();
+	//vec E_dis = model->get_eigenvalues();
+	//auto E_unique = get_NonDegenerated_Elements(E_dis);
+	std::unique_ptr<IsingModel_sym> alfa = std::make_unique<IsingModel_sym>(L, J, g, h, 0, 1, 1);
+	std::unique_ptr<IsingModel_sym> beta = std::make_unique<IsingModel_sym>(L, J, g, h, L / 2.0, 0, 0);
+	stout << alfa->get_hilbert_size() << endl;
+	alfa->diagonalization();
+	beta->diagonalization();
+	//stout << model->get_eigenvalues() << endl;
+	auto map_alfa = mapping_sym_to_original(0, model->get_hilbert_size() - 1, *alfa, *model);
+	auto map_beta = mapping_sym_to_original(0, model->get_hilbert_size() - 1, *beta, *model);
+	stout << "alfa sector size for nondegenerate mapping is : " << map_alfa.size() << endl;
+	stout << "beta sector size for nondegenerate mapping is : " << map_alfa.size() << endl;
+
+	auto sig_x = IsingModel_sym::sigma_x;
+	auto sig_z = IsingModel_sym::sigma_z;
+	auto spin_cur = IsingModel_sym::spin_flip;
+	stout << "ALPHA SECTOR : k=0,x=1,p=1, BETA SECTOR : k=pi,x=1,p=1\n\n";
+	stout << " - - - - - - SAME SECTORS - - - - - - \n" << " - - - - > FOR ALFA - ALFA: \n" << "ENERGY ALPHA |('.'|)" << "\t\t" << \
+		"ENERGY ALFA (/'.')/" << "\t\t" << "<alfa|SIGMA_X|alfa>" << "\t\t" << "<non_sym|SIGMA_X|non_sym>" << "\t\t" << "DIFFERENCE" << endl;
+	for_each(exec::seq, map_alfa.begin(), map_alfa.end(), [&](std::pair<u64, u64> element) {
+		for (auto& t : map_alfa) {
+			cpx A = alfa->av_spin_current(element.first, t.first, { 1,2 });
+			cpx B = model->av_spin_current(element.second, t.second, { 1,2 });
+			stout << alfa->get_eigenEnergy(element.first) << "\t\t" << \
+				alfa->get_eigenEnergy(t.first) << "\t\t" << real(A) << "\t\t" << real(B) << "\t\t" << real(abs(A) - abs(B)) << endl;
+		}
+		});
+	stout << "\n - - - - > FOR BETA - BETA: \n" << "ENERGY BETA |('.'|)" << "\t\t" << \
+		"ENERGY BETA (/'.')/" << "\t\t" << "<beta|SIGMA_X|beta>" << "\t\t" << "<non_sym|SIGMA_X|non_sym>" << "\t\t" << "DIFFERENCE" << endl;
+	for_each(exec::seq, map_beta.begin(), map_beta.end(), [&](std::pair<u64, u64> element) {
+		for (auto& t : map_beta) {
+			cpx A = beta->av_spin_current(element.first, t.first, { 1,2 });
+			cpx B = model->av_spin_current(element.second, t.second, { 1,2 });
+			file << beta->get_eigenEnergy(element.first) << "\t\t" << \
+				beta->get_eigenEnergy(t.first) << "\t\t" << real(A) << "\t\t" << real(B) << "\t\t" << real(abs(A) - abs(B)) << endl;
+		}
+		});
+	stout << "\n\n - - - - - - DIFFERENT SECTORS - - - - - - \n" << " - - - - > FOR ALFA - BETA: \n" << "ENERGY ALPHA |('.'|)" << "\t\t" << \
+		"ENERGY BETA (/'.')/" << "\t\t" << "<alfa|SIGMA_X|beta>" << "\t\t" << "<non_sym_a|SIGMA_X|non_sym_b>" << "\t\t" << "DIFFERENCE" << endl;
+	for_each(exec::seq, map_alfa.begin(), map_alfa.end(), [&](std::pair<u64, u64> element) {
+		for (auto& t : map_beta) {
+			cpx A = im * av_operator(element.first, t.first, *alfa, *beta, spin_cur, { 1,2 });
+			A += conj(im * av_operator(t.first, element.first, *beta, *alfa, spin_cur, { 1,2 }));
+			A *= 0.5i;
+			cpx B = model->av_spin_current(element.second, t.second, { 1,2 });
+			stout << alfa->get_eigenEnergy(element.first) << "\t\t" << \
+				beta->get_eigenEnergy(t.first) << "\t\t" << real(A) << "\t\t" << real(B) << "\t\t" << real(abs(A) - abs(B)) << endl;
+		}
+		});
+	file.close();
+
+
+}
+
+void isingUI::ui::size_scaling_sym(int k, int p, int x, int L_min, int L_max, int mu) {
+	using namespace std::chrono;
+	auto start = std::chrono::high_resolution_clock::now();
+
+	std::ofstream farante(this->saving_dir + "IprScaling" + \
+		",g=" + to_string_prec(this->g, 2) + \
+		",h=" + to_string_prec(this->h, 2) + ".dat");
+	std::ofstream fikolo(this->saving_dir + "SpectrumRapScalingSigmaX" + \
+		",g=" + to_string_prec(this->g, 2) + \
+		",h=" + to_string_prec(this->h, 2) + ".dat");
+	
+	for (L = L_min; L <= L_max; L ++) {
+		stout << "\n\n------------------------------Doing L = " << L << "------------------------------\n";
+		auto alfa = std::make_unique<IsingModel_sym>(L, J, g, h, k, p, x, boundary_conditions);
+		u64 N = alfa->get_hilbert_size();
+		alfa->diagonalization();
+
+		// average sigma_x operator at first site
+		std::ofstream sigx(this->saving_dir + "SigmaX" + alfa->get_info() + ".dat");
+		vec av_sigma_x(N, fill::zeros);
+		for (int k = 0; k < N; k++) {
+			av_sigma_x(k) = alfa->av_sigma_x(k, k, { 0 });
+			sigx << alfa->get_eigenEnergy(k) << "\t\t" << av_sigma_x(k) << endl;
+		}
+		sigx.close();
+
+		//outliers and prob distribution for sigma_x
+		vec r_sigma_x(N - 1);
+#pragma omp parallel for
+		for (int k = 0; k < N - 1; k++)
+			r_sigma_x(k) = av_sigma_x(k + 1) - av_sigma_x(k);
+		vec outliers = statistics_average(r_sigma_x, 4);
+		fikolo << L << "\t\t" << outliers.t();
+		stout << " \t\t--> finished outliers for " << alfa->get_info() << " - in time : " << \
+			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
+
+		probability_distribution(this->saving_dir, "ProbDistSpecRapSigmaX" + alfa->get_info(), r_sigma_x, -0.05, 0.05, 0.0002);
+		probability_distribution(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), data_fluctuations(r_sigma_x), -2.0, 2.0, 0.001);
+		stout << " \t\t--> finished prob dist for " << alfa->get_info() << " - in time : " << \
+			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
+
+		// eigenlevel statistics and prob distribution
+		double r = alfa->eigenlevel_statistics(alfa->E_av_idx - mu / 2., alfa->E_av_idx + mu / 2.);
+
+		// ipr & info entropy
+		double ipr = 0, ent = 0;
+		for (int k = alfa->E_av_idx - mu / 2.; k < alfa->E_av_idx + mu / 2.; k++) {
+			ipr += alfa->ipr(k);
+			ent += alfa->information_entropy(k);
+		}
+		farante << L << "\t\t" << ipr / double(mu) / double(N) << "\t\t" << ent / double(mu) << "\t\t" << r << endl;
+		stout << " \t\t--> finished farante for " << alfa->get_info() << " - in time : " << \
+			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
+
+	}
+	fikolo.close();
+	farante.close();
+	auto stop = std::chrono::high_resolution_clock::now();
+	stout << " - - - - - - FINISHED SIZE SCALING for:\nk = " << k << ", p = " << p << ", x = " << x << "\nIN : " << \
+		double(duration_cast<milliseconds>(duration(stop - start)).count()) / 1000.0 << " seconds - - - - - - " << endl;
+}
+
+void isingUI::ui::make_sim()
+{
+	using namespace std::chrono;
+	auto start = std::chrono::high_resolution_clock::now();
+
+	//compare_energies();
+	size_scaling_sym(0, 1, 1, 12, 18, 2);
+	size_scaling_sym(1, 1, 1, 12, 18, 2);
+	//if(h == 0) size_scaling_sym(1, 1, -1, 12, 18, 2);
+	
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	stout << " - - - - - - FINISHED CALCULATIONS IN : " << \

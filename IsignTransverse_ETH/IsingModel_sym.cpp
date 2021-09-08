@@ -15,18 +15,13 @@
 	
 	// precalculate the exponents
 	this->k_exponents = v_1d<cpx>(this->L, 0.0);
-	for(int l = 0; l < this->L; l++)
+#pragma omp parallel for
+	for (int l = 0; l < this->L; l++)
 		this->k_exponents[l] = std::exp(-1i * this->symmetries.k_sym * double(l));
-
 
 	this->mapping = std::vector<u64>();
 	this->normalisation = std::vector<cpx>();
 	generate_mapping();
-	/*for (int k = 0; k < N; k++) {
-		std::vector<bool> temp(L);
-		int_to_binary(mapping[k], temp);
-		out << mapping[k] << "\t\t" << temp << "\t\t" << normalisation[k] << endl;
-	}*/
 
 	this->set_neighbors(); // generate neighbors
 	hamiltonian();
@@ -120,23 +115,23 @@
 
 	for (int l = 0; l < this->L; l++) {
 		if (binary_to_int(base_vector) == k)
-			normalisation += std::exp(-1i * this->symmetries.k_sym * double(l));
-		if (k_sector && binary_to_int(PT) == k) {
-			normalisation += ((double)this->symmetries.p_sym) * this->k_exponents[l];
-		}
-		if ((this->h == 0) && binary_to_int(ZT) == k) {
-			normalisation += ((double)this->symmetries.x_sym) * this->k_exponents[l];
-		}
-		if (this->k_sector && (this->h == 0) && binary_to_int(PZT) == k) {
-			normalisation += ((double)this->symmetries.p_sym * (double)this->symmetries.x_sym) * this->k_exponents[l];
-		}
-		if(this->k_sector)
-			std::rotate(PT.begin(), PT.begin() + 1, PT.end());
-		if(this->h == 0)
-			std::rotate(ZT.begin(), ZT.begin() + 1, ZT.end());
-		if(this->h == 0 && this->k_sector)
-			std::rotate(PZT.begin(), PZT.begin() + 1, PZT.end());
+			normalisation += this->k_exponents[l];
 		std::rotate(base_vector.begin(), base_vector.begin() + 1, base_vector.end());
+		if (this->k_sector){
+			if (binary_to_int(PT) == k) 
+				normalisation += ((double)this->symmetries.p_sym) * this->k_exponents[l];
+			std::rotate(PT.begin(), PT.begin() + 1, PT.end());
+		}
+		if ((this->h == 0)){
+			if (binary_to_int(ZT) == k)
+				normalisation += ((double)this->symmetries.x_sym) * this->k_exponents[l];
+			std::rotate(ZT.begin(), ZT.begin() + 1, ZT.end());
+			if (this->k_sector) {
+				if (binary_to_int(PZT) == k)
+					normalisation += ((double)this->symmetries.p_sym * (double)this->symmetries.x_sym) * this->k_exponents[l];
+				std::rotate(PZT.begin(), PZT.begin() + 1, PZT.end());
+			}
+		}
 	}
 	return std::sqrt(normalisation);
 }
@@ -234,7 +229,7 @@ std::pair<u64, cpx> find_rep_and_sym_eigval(v_1d<bool>& base, const IsingModel_s
 		idx = binary_search(sector_alfa.mapping, 0, sector_alfa.N - 1, min);
 	}
 	if(idx < sector_alfa.N){
-		cpx translation_eig = sector_alfa.k_exponents[abs(sym_eig) - 1];
+		cpx translation_eig = conj(sector_alfa.k_exponents[abs(sym_eig) - 1]);
 		cpx val = translation_eig * (sector_alfa.normalisation[idx] / normalisation_beta) * double(sgn(sym_eig));
 		return std::make_pair(idx, val);
 	}
@@ -260,6 +255,7 @@ std::pair<u64, cpx> find_rep_and_sym_eigval(v_1d<bool>& base, const IsingModel_s
  void IsingModel_sym::hamiltonian() {
 	try {
 		this->H = cx_mat(this->N, this->N, fill::zeros); //hamiltonian
+		//this->H = arma::conv_to<arma::Mat<double>>::from(this->H);
 	}
 	catch (const bad_alloc& e) {
 		std::cout << "Memory exceeded" << e.what() << "\n";
@@ -459,7 +455,7 @@ cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingM
 #pragma omp for reduction(+:overlap_real, overlap_imag)
 		for (int k = 0; k < sec_beta.N; k++) {
 			int_to_binary(sec_beta.mapping[k], base_vector);
-			cpx overlap = apply_sym_overlap(state_alfa, state_beta, base_vector, sec_alfa,sec_beta,op,sites);
+			cpx overlap = apply_sym_overlap(state_alfa, state_beta, base_vector, sec_alfa, sec_beta, op, sites);
 			overlap_real += overlap.real();
 			overlap_imag += overlap.imag();
 		}
