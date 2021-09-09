@@ -8,12 +8,12 @@ The context is partially based on:
 								
 -----------------------------------------------------------------------------------
 ## Authors:																	
-* Rafał Świętek, Phd student, Josef Stefan Institute					 
+* Rafał Świętek, PhD student, Josef Stefan Institute					 
   * email: 77swietek77.at.gmail.com											 
-* Maksymilian Kliczkowski, Phd student, Wrocław University of Science and Technology
+* Maksymilian Kliczkowski, PhD student, Wrocław University of Science and Technology
   * email: maxgrom97.at.gmail.com												 
 -----------------------------------------------------------------------------------
 
-Special thanks to dr Lev Vidmar at Institute Josef Stefan, with whose support the work has been done, while staying in Ljubljana, Slovenia.					 
+Special thanks to dr Lev Vidmar and PhD student Jan Suntajs at Institute Josef Stefan, with whose support the work has been done, while staying in Ljubljana, Slovenia.					 
 
 -----------------------------------------------------------------------------------
