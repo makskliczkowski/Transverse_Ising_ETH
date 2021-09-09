@@ -23,7 +23,6 @@ The context is partially based on:
   * email: maxgrom97.at.gmail.com												 
 -----------------------------------------------------------------------------------
 
-Special thanks to dr Lev Vidmar at Institute Josef Stefan, with whose support      
-the work has been done, while staying in Ljubljana, Slovenia.					 
+Special thanks to dr Lev Vidmar at Institute Josef Stefan, with whose support the work has been done, while staying in Ljubljana, Slovenia.					 
 
 -----------------------------------------------------------------------------------
