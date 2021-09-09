@@ -14,6 +14,6 @@ The context is partially based on:
   * email: maxgrom97.at.gmail.com												 
 -----------------------------------------------------------------------------------
 
-Special thanks to dr Lev Vidmar and PhD student Jan Suntajs at Institute Josef Stefan, with whose support the work has been done, while staying in Ljubljana, Slovenia.					 
+Special thanks to dr Lev Vidmar and PhD student Jan Suntajs[@](https://github.com/JanSuntajs) at Institute Josef Stefan, with whose support the work has been done, while staying in Ljubljana, Slovenia.					 
 
 -----------------------------------------------------------------------------------
