@@ -10,17 +10,20 @@ with translational invariance is creating the degeneracy in the eigenstates, an 
 is impossible to be tested without symmetry sectors. To deal with it, perturbation 
 in the perpendicular magnetic field is introduced. For more information, please ref
 to:
--> https://github.com/makskliczkowski/Transverse_Ising_ETH						
+[](https://github.com/makskliczkowski/Transverse_Ising_ETH)						
+## Bibliography:
 The context is partially based on:											 
 -> arXiv:2009.09208v1														
 -> 10.1103/PhysRevE.90.052105												
 ------------------------------ All rights reserved --------------------------------
-##Authors:																	
+## Authors:																	
 - Rafał Świętek, Phd student, Josef Stefan Institute					 
 - email: 77swietek77.at.gmail.com											 
 - Maksymilian Kliczkowski Phd student, Wrocław University of Science and Technology
 - email: maxgrom97.at.gmail.com												 
 -----------------------------------------------------------------------------------
+
 Special thanks to dr Lev Vidmar at Institute Josef Stefan, with whose support      
 the work has been done, while staying in Ljubljana, Slovenia.					 
+
 ---------------------------------------------------------------------------------- 
