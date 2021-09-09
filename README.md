@@ -15,7 +15,7 @@ The context is partially based on:
 * arXiv:2009.09208v1														
 * 10.1103/PhysRevE.90.052105
 								
------------------------------- All rights reserved --------------------------------
+-----------------------------------------------------------------------------------
 ## Authors:																	
 * Rafał Świętek, Phd student, Josef Stefan Institute					 
   * email: 77swietek77.at.gmail.com											 
@@ -26,4 +26,4 @@ The context is partially based on:
 Special thanks to dr Lev Vidmar at Institute Josef Stefan, with whose support      
 the work has been done, while staying in Ljubljana, Slovenia.					 
 
----------------------------------------------------------------------------------- 
+-----------------------------------------------------------------------------------
