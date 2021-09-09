@@ -9,8 +9,7 @@ consideration of the symmetry sector can be controlled. Secondly, because the mo
 with translational invariance is creating the degeneracy in the eigenstates, an ETH
 is impossible to be tested without symmetry sectors. To deal with it, perturbation 
 in the perpendicular magnetic field is introduced. For more information, please ref
-to:
-[](https://github.com/makskliczkowski/Transverse_Ising_ETH)						
+to [Wiki](https://github.com/makskliczkowski/Transverse_Ising_ETH/wiki)
 ## Bibliography:
 The context is partially based on:											 
 * arXiv:2009.09208v1														
