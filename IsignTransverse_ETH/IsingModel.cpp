@@ -281,6 +281,7 @@ arma::vec probability_distribution_with_return(const arma::vec& data, double _mi
 			prob_dist(bucket) += 1;
 		}
 	}
+	//prob_dist = arma::conv_to<arma::vec>::from(arma::hist(data, size));
 	return normalise_dist(prob_dist, _min, _max);
 }
 /// <summary>
