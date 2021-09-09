@@ -114,12 +114,12 @@ namespace isingUI
 
 		void fidelity(std::initializer_list<int> symetries);
 
-		void parameter_sweep_sym(int k, int p, int x) const;
+		void parameter_sweep_sym(int k, int p, int x);
 		void matrix_elements_stat_sym(double min, double max, double step, double omega_dist,\
 			int omega_gauss_max, double energy_constraint, int energy_num,\
 			std::initializer_list<int> alfa_sym = {},\
 			std::initializer_list<int> beta_sym = {}) const;
-		void perturbative_stat_sym(double dist_step, double min, double max, double pert);
+		void perturbative_stat_sym(double dist_step, double min, double max, double pert, double gx, double hx);
 	};
 }
 

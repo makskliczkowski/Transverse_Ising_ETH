@@ -60,3 +60,26 @@ std::vector<std::string> split_str(std::string s, std::string delimiter)
 }
 
 // PROBABILITY BASED TOOLS
+double simpson_rule(double a, double b,
+	int n, // Number of intervals
+	const arma::vec& f)
+{
+	double h = (b - a) / n;
+
+	// Internal sample points, there should be n - 1 of them
+	double sum_odds = 0.0;
+#pragma omp parallel for reduction(+: sum_odds)
+	for (int i = 1; i < n; i += 2) {
+		int idx = ((a + i * h) + abs(a)) / h;
+		sum_odds += f(idx);
+	}
+	
+	double sum_evens = 0.0;
+#pragma omp parallel for reduction(+: sum_evens)
+	for (int i = 2; i < n; i += 2) {
+		int idx = ((a+i * h) + abs(a)) / h;
+		sum_evens += f(idx);
+	}
+	
+	return (f(0) + f(f.size() - 1) + 2 * sum_evens + 4 * sum_odds) * h / 3;
+}

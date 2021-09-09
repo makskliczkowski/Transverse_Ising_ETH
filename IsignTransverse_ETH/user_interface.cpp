@@ -666,7 +666,7 @@ void isingUI::ui::size_scaling_sym(int k, int p, int x) {
 /// <param name="k"></param>
 /// <param name="p"></param>
 /// <param name="x"></param>
-void isingUI::ui::parameter_sweep_sym(int k, int p, int x) const
+void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 {
 	const auto start = std::chrono::high_resolution_clock::now();
 	auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, k, p, x, boundary_conditions);
@@ -685,25 +685,30 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x) const
 			stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n";
 			
 			// average sigma_x operator at first site prob dist
-			vec av_sigma_x(N, fill::zeros);
-			for (int i = 0; i < N; i++)
-				av_sigma_x(k) = alfa->av_sigma_x(i, i, { 0 });
-			probability_distribution(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), data_fluctuations(av_sigma_x), -2.0, 2.0, 0.001);
+			//vec av_sigma_x(N, fill::zeros);
+			//for (int i = 0; i < N; i++)
+				//av_sigma_x(k) = alfa->av_sigma_x(i, i, { 0 });
+			//probability_distribution(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), data_fluctuations(av_sigma_x), -0.2, 0.2, 0.00001);
 			stout << " \t\t--> finished prob dist of sigma_x for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n";
 
 			// eigenlevel statistics and prob distribution
 			const auto r = alfa->eigenlevel_statistics_with_return();
-			probability_distribution(this->saving_dir, "ProbDistGap" + alfa->get_info(), r, 0, 1, 0.002);
+			probability_distribution(this->saving_dir, "ProbDistGap" + alfa->get_info(), r, 0, 1, 0.02);
 			// ipr & info entropy
 			double ipr = 0;
 			double ent = 0;
 			int counter = 0;
 			for (int i = alfa->E_av_idx - mu/2.; i <= alfa->E_av_idx + mu/2.; i++){ 
-				ipr += alfa->ipr(i);
-				ent += alfa->information_entropy(i);
+				//ipr += alfa->ipr(i);
+				//ent += alfa->information_entropy(i);
 				counter++;
 			}
-			farante << hx << "\t\t" << gx << "\t\t" << ipr / double(counter * N) << "\t\t" << ent / double(counter) << "\t\t" << r << endl;
+			farante << hx << "\t\t" << gx << "\t\t" << ipr / double(counter * N) << "\t\t" << ent / double(counter) << "\t\t" << mean(r) << endl;
+
+			//perturbative_stat_sym(2e-4, -0.1, 0.1, 1e-4, gx, hx);
+			//perturbative_stat_sym(2e-4, -0.1, 0.1, 1e-3, gx, hx);
+			//perturbative_stat_sym(5e-4, -0.2, 0.2, 1e-2, gx, hx);
+			//perturbative_stat_sym(5e-3, -0.2, 0.2, 1e-1, gx, hx);
 		}
 	}
 	farante.close();
@@ -797,7 +802,9 @@ void isingUI::ui::matrix_elements_stat_sym(double min, double max, double step, 
 			}
 		}
 	}
-	arma::normalise(d_sigma_x); arma::normalise(d_sigma_x_ex); arma::normalise(d_sigma_z_nnn); arma::normalise(d_sigma_z_nnn_ex);// arma::normalise(d_sigma_flip); 
+	d_sigma_x = normalise_dist(d_sigma_x, min, max); d_sigma_x_ex =  normalise_dist(d_sigma_x_ex, min, max);
+	d_sigma_z_nnn = normalise_dist(d_sigma_z_nnn, min, max); d_sigma_z_nnn_ex = normalise_dist(d_sigma_z_nnn_ex, min, max);
+	// d_sigma_flip = normalise_dist(d_sigma_flip, min, max); 
 	for (int i = 0; i < size; i++)
 		op_prob_dist << i * step + min << "\t\t" << d_sigma_x(i) << "\t\t" << d_sigma_x_ex(i) << \
 		"\t\t" << d_sigma_z_nnn(i) << "\t\t" << d_sigma_z_nnn_ex(i) << "\t\t\n";// << d_sigma_flip(i) << "\n";
@@ -814,41 +821,47 @@ void isingUI::ui::matrix_elements_stat_sym(double min, double max, double step, 
 /// </summary>
 /// <param name="dist_step"></param>
 /// <param name="pert"></param>
-void isingUI::ui::perturbative_stat_sym(double dist_step, double min, double max, double pert)
+void isingUI::ui::perturbative_stat_sym(double dist_step, double min, double max, double pert, double gx, double hx)
 {
-	auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, \
+	clk::time_point start = std::chrono::high_resolution_clock::now();
+	auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, gx, hx, \
 		this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-	auto beta = std::make_unique<IsingModel_sym>(this->L, this->J, this->g + pert, this->h + pert, \
+	auto beta = std::make_unique<IsingModel_sym>(this->L, this->J, gx + pert, hx + pert, \
 		this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 	alfa->diagonalization();
 	beta->diagonalization();
 
-	const int size = static_cast<int>(abs(max-min) / dist_step);
+	const double E_dist_step = 5 * dist_step;
+	const int size = static_cast<int>(abs(max - min) / dist_step);
+	const int E_size = static_cast<int>(abs(max - min) / E_dist_step);
 	// operators 
 
-	vec dis_sig_x(size, arma::fill::zeros), dis_sig_x_ex(size, arma::fill::zeros);
-	vec dis_delta_E(size, arma::fill::zeros);
-
+	vec dis_sig_x(size, arma::fill::zeros), dis_sig_z_nnn(size, arma::fill::zeros);
+	vec dis_delta_E(E_size, arma::fill::zeros);
 	for(int i = 0; i < alfa->get_hilbert_size(); i++){
 		const double delta_sig_x = real(beta->av_sigma_x(i, i, { 0 }) - alfa->av_sigma_x(i, i, { 0 }));
-		const double delta_sig_x_ex = real(beta->av_sigma_x(i, i) - alfa->av_sigma_x(i, i));
+		const double delta_sig_z_nnn = beta->av_sigma_z(i, i, { 1,3 }) - alfa->av_sigma_z(i, i, { 1,3 });
 		const double delta_E = beta->get_eigenEnergy(i) - alfa->get_eigenEnergy(i);
 		setDistElem(dis_sig_x, min, dist_step, delta_sig_x);
-		setDistElem(dis_sig_x_ex, min, dist_step, delta_sig_x_ex);
-		setDistElem(dis_delta_E, min, dist_step, delta_E);
+		setDistElem(dis_sig_z_nnn, min, dist_step, delta_sig_z_nnn);
+		setDistElem(dis_delta_E, min,  E_dist_step, delta_E);
+		//stout << std::setprecision(4) << i / (double)alfa->get_hilbert_size() * 100 << "%" << endl;
 	}
-	arma::normalise(dis_sig_x); arma::normalise(dis_sig_x_ex); arma::normalise(dis_delta_E);
-	ofstream dis_x(this->saving_dir + "perturbationSigX_Dist" + alfa->get_info() + ",pert=" + to_string_prec(pert, 5) + ".dat");
-	dis_x << "P(O_aa)\t\tsig_x\t\tsig_x_ex\n";
+	dis_sig_x = normalise_dist(dis_sig_x, min, max); 
+	dis_sig_z_nnn = normalise_dist(dis_sig_z_nnn, min, max);
+	dis_delta_E = normalise_dist(dis_delta_E, min, max);
+	ofstream dis_op(this->saving_dir + "perturbationOperatorsDist" + alfa->get_info() + ",pert=" + to_string_prec(pert, 4) + ".dat");
+	dis_op << "P(O_aa)\t\tsig_x\t\tsig_z_nnn\n";
 
-	ofstream dis_E(this->saving_dir + "perturbationEnergyDiffDist" + alfa->get_info() + ",pert=" + to_string_prec(pert, 5) + ".dat");
+	ofstream dis_E(this->saving_dir + "perturbationEnergyDiffDist" + alfa->get_info() + ",pert=" + to_string_prec(pert, 4) + ".dat");
 
-	for(int i = 0; i < size;i++) {
-		dis_x << dist_step * i + min << "\t\t" << dis_sig_x(i) << "\t\t" << dis_sig_x_ex(i) << "\n";
-		dis_E << dist_step * i + min << "\t\t" << dis_delta_E(i) << "\n";
+	for(int i = 0; i < size; i++) {
+		dis_op << dist_step * i + min << "\t\t" << dis_sig_x(i) << "\t\t" << dis_sig_z_nnn(i) << "\n";
+		if(i < E_size) dis_E << E_dist_step * i + min << "\t\t" << dis_delta_E(i) << "\n";
 	}
 
-	dis_x.close(); dis_E.close();
+	dis_op.close(); dis_E.close();
+	stout << " - - - - - - FINISHED perturbation = " << pert << " IN : " << tim_s(start) << " seconds - -----" << endl;
 }
 /// <summary>
 /// 
@@ -856,16 +869,15 @@ void isingUI::ui::perturbative_stat_sym(double dist_step, double min, double max
 void isingUI::ui::make_sim()
 {
 	using namespace std::chrono;
-	auto start = std::chrono::high_resolution_clock::now();
+	clk::time_point start = std::chrono::high_resolution_clock::now();
 
-	size_scaling_sym(0, 1, 1);
-	size_scaling_sym(2, 1, 1);
-	this->L = 18;
-	perturbative_stat_sym(5e-5, -0.01, 0.01, 1e-3);
-	fidelity({ 2, 1, 1 });
+	//size_scaling_sym(0, 1, 1);
+	//size_scaling_sym(2, 1, 1);
+	//this->L = 18;
+	//fidelity({ 2, 1, 1 });
 	parameter_sweep_sym(0, 1, 1);
-	matrix_elements_stat_sym(0, 1, 0.001, 0.1, 20, 0.05, 100, { 1, 1, 1 }, { 1, 1, 1 });
-	matrix_elements_stat_sym(0, 1, 0.001, 0.1, 20, 0.05, 100, { 1, 1, 1 }, { 2, 1, 1 });
+	//matrix_elements_stat_sym(0, 1, 0.001, 0.1, 20, 0.05, 100, { 1, 1, 1 }, { 1, 1, 1 });
+	//matrix_elements_stat_sym(0, 1, 0.001, 0.1, 20, 0.05, 100, { 1, 1, 1 }, { 2, 1, 1 });
 	
 	stout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - " << endl;						// simulation end
 }

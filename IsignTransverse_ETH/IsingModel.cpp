@@ -267,7 +267,7 @@ void probability_distribution(std::string dir, std::string name, const arma::vec
 			prob_dist(bucket) += 1;
 		}
 	}
-	arma::normalise(prob_dist);
+	prob_dist = normalise_dist(prob_dist, _min, _max);
 	for (int p = 0; p < size; p++)
 		file << p * step + _min << "\t" << prob_dist(p) << std::endl;
 	file.close();
@@ -281,7 +281,7 @@ arma::vec probability_distribution_with_return(const arma::vec& data, double _mi
 			prob_dist(bucket) += 1;
 		}
 	}
-	return arma::normalise(prob_dist);
+	return normalise_dist(prob_dist, _min, _max);
 }
 /// <summary>
 ///
