@@ -13,13 +13,13 @@ to:
 [](https://github.com/makskliczkowski/Transverse_Ising_ETH)						
 ## Bibliography:
 The context is partially based on:											 
-> arXiv:2009.09208v1														
-> 10.1103/PhysRevE.90.052105												
+* arXiv:2009.09208v1														
+* 10.1103/PhysRevE.90.052105												
 ------------------------------ All rights reserved --------------------------------
 ## Authors:																	
 * Rafał Świętek, Phd student, Josef Stefan Institute					 
-  *email: 77swietek77.at.gmail.com											 
-* Maksymilian Kliczkowski Phd student, Wrocław University of Science and Technology
+  * email: 77swietek77.at.gmail.com											 
+* Maksymilian Kliczkowski, Phd student, Wrocław University of Science and Technology
   * email: maxgrom97.at.gmail.com												 
 -----------------------------------------------------------------------------------
 
