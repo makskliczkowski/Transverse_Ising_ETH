@@ -13,7 +13,8 @@ to [Wiki](https://github.com/makskliczkowski/Transverse_Ising_ETH/wiki)
 ## Bibliography:
 The context is partially based on:											 
 * arXiv:2009.09208v1														
-* 10.1103/PhysRevE.90.052105												
+* 10.1103/PhysRevE.90.052105
+								
 ------------------------------ All rights reserved --------------------------------
 ## Authors:																	
 * Rafał Świętek, Phd student, Josef Stefan Institute					 
