@@ -372,8 +372,8 @@ void isingUI::ui::compare_energies() {
 }
 
 void isingUI::ui::disorder() {
-	/*auto start = std::chrono::high_resolution_clock::now();
-	std::ofstream scaling_r_sigmaX(this->saving_dir + "SpectrumRapScalingSigmaX" + \
+	auto start = std::chrono::high_resolution_clock::now();
+	/*std::ofstream scaling_r_sigmaX(this->saving_dir + "SpectrumRapScalingSigmaX" + \
 		",J0=" + to_string_prec(this->J0, 2) + \
 		",g=" + to_string_prec(this->g, 2) + \
 		",g0=" + to_string_prec(this->g0, 2) + \
@@ -438,9 +438,8 @@ void isingUI::ui::disorder() {
 	}
 	scaling_r_sigmaX.close();
 	scaling_ipr.close();
-
-	stout << "\n--> starting loop over disorders <--\n";
-	L = 10;
+	*/
+	this->m = 0;
 	std::ofstream scaling_ipr(this->saving_dir + "iprDisorder" + \
 		"_L=" + std::to_string(this->L) + \
 		",J0=" + to_string_prec(this->J0, 2) + \
@@ -448,31 +447,34 @@ void isingUI::ui::disorder() {
 		",g0=" + to_string_prec(this->g0, 2) + \
 		",h=" + to_string_prec(this->h, 2) + \
 		".dat", std::ofstream::app);
-	for (double w = 0.0; w <= 6.0; w += 0.1) {
-		realisations = 600;
-
+	realisations = 300;
+	for (double w = 0.0; w <= 5.0; w += 0.2) {
 		auto Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
+		stout << "\n\n------------------------------ Doing : " << Hamil->get_info() << "------------------------------\n";
 		const u64 N = Hamil->get_hilbert_size();
 		Hamil->diagonalization();
+		stout << " \t\t--> finished diagonalizing for " << Hamil->get_info() << " - in time : " << tim_s(start) << "s\n";
 
-		vec av_sigma_x = Hamil->operator_av_in_eigenstates_return(&IsingModel::av_sigma_x, *Hamil, 0);
+		vec av_sigma_x(N, arma::fill::zeros);
+		for (u64 k = 0; k < N; k++)
+			av_sigma_x(k) = Hamil->av_sigma_x(k, k, { 0 });
 		vec fluct = data_fluctuations(av_sigma_x);
 		double _min = -2.0, _max = 2.0, step = 2e-3;
 		stout << "--> finished writing the sigma _x fluctuations for w = " << w << " <--\n";
 
 		arma::vec prob_dist = probability_distribution_with_return(fluct, _min, _max, step);
-		arma::vec prob_dist_GOE = probability_distribution_with_return(Hamil->eigenlevel_statistics_with_return(), 0, 1, 2 * step);
+		arma::vec prob_dist_GOE = probability_distribution_with_return(Hamil->eigenlevel_statistics_with_return(), 0, 1, 0.02);
 		double ipr = 0, entropy = 0;
-		int mu = 100;
 		double r = 0;
 		for (int k = 0; k < realisations - 1; k++) {
 			Hamil->hamiltonian();
 			Hamil->diagonalization();
-			av_sigma_x = Hamil->operator_av_in_eigenstates_return(&IsingModel::av_sigma_x, *Hamil, 0);
+			for (u64 k = 0; k < N; k++)
+				av_sigma_x(k) = Hamil->av_sigma_x(k, k, { 0 });
 			fluct = data_fluctuations(av_sigma_x);
 
 			prob_dist += probability_distribution_with_return(fluct, _min, _max, step);
-			prob_dist_GOE += probability_distribution_with_return(Hamil->eigenlevel_statistics_with_return(), 0, 1, 2 * step);
+			prob_dist_GOE += probability_distribution_with_return(Hamil->eigenlevel_statistics_with_return(), 0, 1, 0.02);
 
 			// average in middle spectrum
 			for (int f = Hamil->E_av_idx - mu / 2.; f < Hamil->E_av_idx + mu / 2.; f++) {
@@ -480,26 +482,18 @@ void isingUI::ui::disorder() {
 				entropy += Hamil->information_entropy(f);
 				r += Hamil->eigenlevel_statistics(f, f + 1);
 			}
-			//if (k % 5 == 0) stout << " \t\t--> " << k << " - in time : " << \
-				double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
+			if (k % 5 == 0) stout << " \t\t--> " << k << " - in time : " << tim_s(start) << "s" << std::endl;
 		}
 		stout << "--> finished loop over realisations for w = " << w << " <--\n";
-		std::ofstream ProbDistSigmaX(this->saving_dir + "ProbDistSigmaX" + Hamil->get_info() + ".dat");
-		for (int f = 0; f < prob_dist.size(); f++)
-			ProbDistSigmaX << _min + f * step << "\t\t\t\t" << prob_dist(f) / double(realisations) << endl;
-		ProbDistSigmaX.close();
+		save_to_file(this->saving_dir, "ProbDistSigmaX" + Hamil->get_info(), arma::linspace(_min, _max, prob_dist.size()), prob_dist);
 
-		std::ofstream ProbDistGap(this->saving_dir + "ProbDistGap" + Hamil->get_info() + ".dat");
-		for (int f = 0; f < prob_dist_GOE.size(); f++)
-			ProbDistGap << f * 2 * step << "\t\t\t\t" << prob_dist_GOE(f) / double(realisations) << endl;
-		ProbDistGap.close();
+		save_to_file(this->saving_dir, "ProbDistGap" + Hamil->get_info(), arma::linspace(0, 1, prob_dist_GOE.size()), prob_dist_GOE);
 
 		double norm = realisations * mu;
 		scaling_ipr << w << "\t\t\t\t" << ipr / norm / (double)N << "\t\t\t\t" << entropy / norm << "\t\t\t\t" << r / norm << endl;
-		stout << " \t\t--> w = " << w << " - in time : " << \
-			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
+		stout << " \t\t--> w = " << w << " - in time : " << tim_s(start) << "s" << std::endl;
 	}
-	scaling_ipr.close();*/
+	scaling_ipr.close();
  }
 
 void isingUI::ui::compare_matrix_elements() {
@@ -572,7 +566,7 @@ void isingUI::ui::fidelity(std::initializer_list<int> symetries){
 	this->mu = 0.1 * alfa->get_hilbert_size();
 	std::ofstream file(this->saving_dir + "Fidelity" + alfa->get_info({ "g"}) + ".dat");
 
-	double step = 1e-2;
+	double step = 5e-2;
 	for (double dg = 0.0; dg <= 2.0; dg += step) {
 		auto beta = std::make_unique<IsingModel_sym>(this->L, this->J, this->g + dg, this->h + dg, sym[0], sym[2], sym[1], this->boundary_conditions);
 		beta->diagonalization();
@@ -669,18 +663,18 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 	const auto start = std::chrono::high_resolution_clock::now();
 	auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, k, p, x, boundary_conditions);
 	stout << alfa->get_hilbert_size();
-	const double gmax = this->g + this->gn * this->gs;
-	const double hmax = this->h + this->hn * this->hs;
+	const double gmax = 0.4 + this->gn * this->gs;
+	const double hmax = 0.2 + this->hn * this->hs;
 
 	std::string info;
 	if (this->gn == 1) info = alfa->get_info({ "h" });
 	else if (this->hn == 1) info = alfa->get_info({ "g" });
 	else info = alfa->get_info({ "g","h" });
 	std::ofstream kurt(this->saving_dir + "Moments" + info + ".dat");
-	//std::ofstream farante(this->saving_dir + "IprScaling" + info + ".dat");
+	std::ofstream farante(this->saving_dir + "IprScaling" + info + ".dat");
 
-	for (double gx = this->g; gx < gmax; gx += this->gs) {
-		for (double hx = this->h; hx < hmax; hx += this->hs) {
+	for (double gx = 0.4; gx < gmax; gx += this->gs) {
+		for (double hx = 0.2; hx < hmax; hx += this->hs) {
 			alfa.reset(new IsingModel_sym(this->L, this->J, gx, hx, k, p, x, boundary_conditions));
 			stout << "\n\n------------------------------ Doing : " << alfa->get_info() << "------------------------------\n";
 			const u64 N = alfa->get_hilbert_size();
@@ -698,10 +692,10 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 				<< kurtosis(distSigmaX) << "\t\t" << arma::stddev(distSigmaX) << endl;
 			stout << " \t\t--> finished prob dist of sigma_x for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n";
 
-			/*
+			
 			// eigenlevel statistics and prob distribution
-			const auto r = alfa->eigenlevel_statistics_with_return();
-			probability_distribution(this->saving_dir, "ProbDistGap" + alfa->get_info(), r, 0, 1, 0.02);
+			//const auto r = alfa->eigenlevel_statistics_with_return();
+			//probability_distribution(this->saving_dir, "ProbDistGap" + alfa->get_info(), r, 0, 1, 0.02);
 
 			// ipr & info entropy
 			double ipr = 0;
@@ -715,14 +709,14 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 				counter++;
 			}
 			farante << hx << "\t\t" << gx << "\t\t" << ipr / double(counter * N) << "\t\t" << ent / double(counter) << "\t\t" << r / double(counter) << endl;
-			*/
+			
 			//perturbative_stat_sym(2e-4, -0.1, 0.1, 1e-4, gx, hx);
-			//perturbative_stat_sym(2e-4, -0.1, 0.1, 1e-3, gx, hx);
-			//perturbative_stat_sym(5e-4, -0.2, 0.2, 1e-2, gx, hx);
+			perturbative_stat_sym(2e-4, -0.1, 0.1, 1e-3, gx, hx);
+			perturbative_stat_sym(5e-4, -0.2, 0.2, 1e-2, gx, hx);
 			//perturbative_stat_sym(5e-3, -0.2, 0.2, 1e-1, gx, hx);
 		}
 	}		 
-	//*farante.close();
+	farante.close();
 	kurt.close();
 	stout << " - - - - - - FINISHED SIZE SCALING for:\nk = " << k << ", p = " << p << ", x = " << x << "IN : " << tim_s(start) << "s\n";
 }
@@ -848,27 +842,24 @@ void isingUI::ui::perturbative_stat_sym(double dist_step, double min, double max
 	const int E_size = static_cast<int>(abs(max - min) / E_dist_step);
 	// operators 
 
-	vec dis_sig_x(size, arma::fill::zeros), dis_sig_z_nnn(size, arma::fill::zeros);
+	vec dis_sig_x(size, arma::fill::zeros);
 	vec dis_delta_E(E_size, arma::fill::zeros);
 	for(int i = 0; i < alfa->get_hilbert_size(); i++){
 		const double delta_sig_x = real(beta->av_sigma_x(i, i, { 0 }) - alfa->av_sigma_x(i, i, { 0 }));
-		const double delta_sig_z_nnn = beta->av_sigma_z(i, i, { 1,3 }) - alfa->av_sigma_z(i, i, { 1,3 });
 		const double delta_E = beta->get_eigenEnergy(i) - alfa->get_eigenEnergy(i);
 		setDistElem(dis_sig_x, min, dist_step, delta_sig_x);
-		setDistElem(dis_sig_z_nnn, min, dist_step, delta_sig_z_nnn);
 		setDistElem(dis_delta_E, min,  E_dist_step, delta_E);
 		//stout << std::setprecision(4) << i / (double)alfa->get_hilbert_size() * 100 << "%" << endl;
 	}
 	dis_sig_x = normalise_dist(dis_sig_x, min, max); 
-	dis_sig_z_nnn = normalise_dist(dis_sig_z_nnn, min, max);
 	dis_delta_E = normalise_dist(dis_delta_E, min, max);
 	ofstream dis_op(this->saving_dir + "perturbationOperatorsDist" + alfa->get_info() + ",pert=" + to_string_prec(pert, 4) + ".dat");
-	dis_op << "P(O_aa)\t\tsig_x\t\tsig_z_nnn\n";
+	dis_op << "P(O_aa)\t\tsig_x\n";
 
 	ofstream dis_E(this->saving_dir + "perturbationEnergyDiffDist" + alfa->get_info() + ",pert=" + to_string_prec(pert, 4) + ".dat");
 
 	for(int i = 0; i < size; i++) {
-		dis_op << dist_step * i + min << "\t\t" << dis_sig_x(i) << "\t\t" << dis_sig_z_nnn(i) << "\n";
+		dis_op << dist_step * i + min << "\t\t" << dis_sig_x(i) << "\n";
 		if(i < E_size) dis_E << E_dist_step * i + min << "\t\t" << dis_delta_E(i) << "\n";
 	}
 
@@ -886,10 +877,17 @@ void isingUI::ui::make_sim()
 	//size_scaling_sym(0, 1, 1);
 	//size_scaling_sym(2, 1, 1);
 	//this->L = 18;
-	//fidelity({ 2, 1, 1 });
-	parameter_sweep_sym(0, 1, 1);
-	//matrix_elements_stat_sym(0, 1, 0.001, 0.1, 20, 0.05, 100, { 1, 1, 1 }, { 1, 1, 1 });
-	//matrix_elements_stat_sym(0, 1, 0.001, 0.1, 20, 0.05, 100, { 1, 1, 1 }, { 2, 1, 1 });
+	parameter_sweep_sym(1, 1, 1);
+	fidelity({ 1, 1, 1 });
 	
+	matrix_elements_stat_sym(0, 1, 0.001, 0.02, 10, 0.025, 100, { 1, 1, 1 }, { 1, 1, 1 });
+	matrix_elements_stat_sym(0, 1, 0.001, 0.02, 10, 0.025, 100, { 1, 1, 1 }, { 2, 1, 1 });
+	
+	this->h = 3.0;
+	fidelity({ 1,1,1 });
+	
+	this->L = 13;
+	this->h = 1;
+	disorder();
 	stout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - " << endl;						// simulation end
 }
