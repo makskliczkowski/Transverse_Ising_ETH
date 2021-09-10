@@ -668,7 +668,7 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 {
 	const auto start = std::chrono::high_resolution_clock::now();
 	auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, k, p, x, boundary_conditions);
-
+	stout << alfa->get_hilbert_size();
 	const double gmax = this->g + this->gn * this->gs;
 	const double hmax = this->h + this->hn * this->hs;
 
@@ -691,9 +691,11 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 			vec av_sigma_x(N, fill::zeros);
 			for (int i = 0; i < N; i++)
 				av_sigma_x(i) = alfa->av_sigma_x(i, i, { 0 });
-			//probability_distribution(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), data_fluctuations(av_sigma_x), -0.2, 0.2, 0.00001);
-			arma::vec distSigmaX = probability_distribution_with_return(data_fluctuations(av_sigma_x), -1.5, 1.5, 0.001);
-			kurt << gx << "\t\t" << hx << "\t\t" << binder_cumulant(distSigmaX) << "\t\t" << kurtosis(distSigmaX) << endl;
+			//probability_distribution(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), data_fluctuations(av_sigma_x), -0.5, 0.5, 0.005);
+			arma::vec distSigmaX = probability_distribution_with_return(data_fluctuations(av_sigma_x), -0.5, 0.5, 0.005);
+			save_to_file(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), arma::linspace(-0.5, 0.5, distSigmaX.size()), distSigmaX);
+			kurt << gx << "\t\t" << hx << "\t\t" << binder_cumulant(distSigmaX) << "\t\t"\
+				<< kurtosis(distSigmaX) << "\t\t" << arma::stddev(distSigmaX) << endl;
 			stout << " \t\t--> finished prob dist of sigma_x for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n";
 
 			/*

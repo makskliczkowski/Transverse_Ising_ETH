@@ -268,8 +268,12 @@ void probability_distribution(std::string dir, std::string name, const arma::vec
 		}
 	}
 	prob_dist = normalise_dist(prob_dist, _min, _max);
-	for (int p = 0; p < size; p++)
-		file << p * step + _min << "\t" << prob_dist(p) << std::endl;
+	double std_dev = arma::stddev(data);
+	double mean = 0.0;// arma::mean(data);
+	for (int p = 0; p < size; p++) {
+		double x = p * step + _min;
+		file << x << "\t" << prob_dist(p) << "\t\t" << gaussian(x, mean, std_dev) << std::endl;
+	}
 	file.close();
 }
 arma::vec probability_distribution_with_return(const arma::vec& data, double _min, double _max, double step) {

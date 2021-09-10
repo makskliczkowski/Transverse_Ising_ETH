@@ -84,7 +84,6 @@ inline double tim_s(clk::time_point start){
 template <typename T> int sgn(T val) {
 	return int(T(0) < val) - int(val < T(0));
 }
-
 /* STRING BASED TOOLS DECLARATIONS */
 bool isNumber(const string& str);
 
@@ -97,6 +96,9 @@ std::string to_string_prec(const T a_value, const int n = 3) {
 	outie << std::fixed << a_value;
 	return outie.str();
 }
+
+
+void save_to_file(std::string dir, std::string name, const arma::vec& X, const arma::vec& Y);
 
 /* DEFINITIONS */
 /// <summary>
@@ -314,3 +316,16 @@ inline double kurtosis(const arma::vec& arr_in) {
 }
 double binder_cumulant(const arma::vec& arr_in);														// calculate binder cumulant of dataset
 arma::vec get_NonDegenerated_Elements(const arma::vec& arr_in);											// compute non-unique values in dataset
+
+/// <summary>
+/// Compute Gaussina function at value x with input mean and variance
+/// </summary>
+/// <param name="x"> input value </param>
+/// <param name="meam"> mean value of gaussian function </param>
+/// <param name="std_dev"> standard deviation of gaussian </param>
+template <class T>
+inline T gaussian(T x, double mean, double std_dev) {
+	T exponent = (x - mean) / std_dev;
+	return 1.0 / (std::sqrt(two_pi) * std_dev) * exp(-pow(exponent, 2) / 2.0);
+}
+

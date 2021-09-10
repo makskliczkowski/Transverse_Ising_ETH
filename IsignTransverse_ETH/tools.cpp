@@ -59,6 +59,25 @@ std::vector<std::string> split_str(std::string s, std::string delimiter)
 	return res;
 }
 
+
+/// <summary>
+/// Saves input dataset Y to file along X values and gaussian distribution form X values and mean/stddev from Y
+/// </summary>
+/// <param name="dir"> saving directory </param>
+/// <param name="name"> name of file </param>
+/// <param name="X"> x values </param>
+/// <param name="Y"> Y values</param>
+void save_to_file(std::string dir, std::string name, const arma::vec& X, const arma::vec& Y) {
+	if (X.size() != Y.size()) throw "Incompatible datasets\n";
+	std::ofstream file(dir + name + ".dat");
+	double std_dev = arma::stddev(Y);
+	double mean = 0.0;// arma::mean(Y);
+	arma::vec gauss = gaussian(X, mean, std_dev);
+	for (int k = 0; k < X.size(); k++)
+		file << X(k) << "\t\t" << Y(k) << "\t\t" << gauss(k) << endl;
+	file.close();
+}
+
 // PROBABILITY BASED TOOLS
 double simpson_rule(double a, double b, int n, const arma::vec& f){
 	double h = (b - a) / n;
