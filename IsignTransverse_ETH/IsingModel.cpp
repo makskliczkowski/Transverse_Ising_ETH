@@ -267,9 +267,13 @@ void probability_distribution(std::string dir, std::string name, const arma::vec
 			prob_dist(bucket) += 1;
 		}
 	}
-	arma::normalise(prob_dist);
-	for (int p = 0; p < size; p++)
-		file << p * step + _min << "\t" << prob_dist(p) << std::endl;
+	prob_dist = normalise_dist(prob_dist, _min, _max);
+	double std_dev = arma::stddev(data);
+	double mean = 0.0;// arma::mean(data);
+	for (int p = 0; p < size; p++) {
+		double x = p * step + _min;
+		file << x << "\t" << prob_dist(p) << "\t\t" << gaussian(x, mean, std_dev) << std::endl;
+	}
 	file.close();
 }
 arma::vec probability_distribution_with_return(const arma::vec& data, double _min, double _max, double step) {
@@ -281,7 +285,8 @@ arma::vec probability_distribution_with_return(const arma::vec& data, double _mi
 			prob_dist(bucket) += 1;
 		}
 	}
-	return arma::normalise(prob_dist);
+	//prob_dist = arma::conv_to<arma::vec>::from(arma::hist(data, size));
+	return normalise_dist(prob_dist, _min, _max);
 }
 /// <summary>
 ///
@@ -340,8 +345,25 @@ arma::vec statistics_average(const arma::vec& data, int num_of_outliers) {
 /// <returns>A_n_a dot n_b_B</returns>
 template <typename T>
 T overlap(const IsingModel<T>& A, const IsingModel<T>& B, int n_a, int n_b){
-	if(n_a >= A.N || n_b >= B.N || n_a < 0 || n_b < 0) throw "Cannot create an overlap between non-existing states\n";
-	return arma::cdot(A.eigenvectors.col(n_a), B.eigenvectors.col(n_b));
+	if (A.get_hilbert_size() != B.get_hilbert_size()) throw "Incompatible Hilbert dimensions\n";
+	if(n_a >= A.get_hilbert_size() || n_b >= B.get_hilbert_size() || n_a < 0 || n_b < 0) throw "Cannot create an overlap between non-existing states\n";
+	return arma::cdot(A.get_eigenState(n_a), B.get_eigenState(n_b));
+}
+template<> cpx overlap<cpx>(const IsingModel<cpx>& A, const IsingModel<cpx>& B, int n_a, int n_b) {
+	if (A.get_hilbert_size() != B.get_hilbert_size()) throw "Incompatible Hilbert dimensions\n";
+	if (n_a >= A.get_hilbert_size() || n_b >= B.get_hilbert_size() || n_a < 0 || n_b < 0) throw "Cannot create an overlap between non-existing states\n";
+	double overlap_real = 0, overlap_imag = 0;
+	auto state_A = A.get_eigenState(n_a);
+	auto state_B = B.get_eigenState(n_b);
+	arma::normalise(state_A);
+	arma::normalise(state_B);
+#pragma omp parallel for reduction(+: overlap_real, overlap_imag)
+	for (int k = 0; k < A.get_hilbert_size(); k++) {
+		cpx over = conj(state_A(k)) * state_B(k);
+		overlap_real += real(over);
+		overlap_imag += imag(over);
+	}
+	return cpx(overlap_real, overlap_imag);
 }
 
 
@@ -364,3 +386,5 @@ template double IsingModel<double>::information_entropy(u64);
 template double IsingModel<cpx>::information_entropy(u64);
 template double IsingModel<double>::information_entropy(u64, const IsingModel<double>&, u64, u64);
 template double IsingModel<cpx>::information_entropy(u64, const IsingModel<cpx>&, u64, u64);
+template cpx overlap(const IsingModel<cpx>&, const IsingModel<cpx>&, int, int);
+template double overlap(const IsingModel<double>&, const IsingModel<double>&, int, int);

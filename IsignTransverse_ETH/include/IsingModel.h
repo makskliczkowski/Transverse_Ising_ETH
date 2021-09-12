@@ -93,7 +93,7 @@ public:
 	const std::vector<u64>& get_mapping() const { return this->mapping; };						// constant reference to the mapping
 
 	double get_eigenEnergy(u64 idx) const { return this->eigenvalues(idx); };					// get eigenenergy at a given idx
-	const Col<T>& get_eigenState(u64 idx) const { return this->eigenvectors.col(idx);};			// get an eigenstate at a given idx
+	Col<T> get_eigenState(u64 idx) const { return this->eigenvectors.col(idx);};			// get an eigenstate at a given idx
 
 	// PRINTERS
 	void print_base_spin_sector(int Sz = 0);													// print basis state with a given total spin (for clarity purposes)
@@ -140,10 +140,10 @@ public:
 	static double spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 
 	// TOOLS AND HELPERS
-		
-	friend T overlap(const IsingModel<T>& A, const IsingModel<T>& B, int n_a, int n_b);			// creates the overlap between two eigenstates
+	
 };
-
+template <typename T>
+T overlap(const IsingModel<T>& A, const IsingModel<T>& B, int n_a, int n_b);			// creates the overlap between two eigenstates
 
 
 // ----------------------------------------- SYMMETRIC -----------------------------------------

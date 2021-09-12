@@ -218,11 +218,10 @@
 /// <param name="normalisation_beta"></param>
 /// <returns></returns>
  
-std::pair<u64, cpx> find_rep_and_sym_eigval(v_1d<bool>& base, const IsingModel_sym& sector_alfa, cpx normalisation_beta)
-{
+std::pair<u64, cpx> find_rep_and_sym_eigval(v_1d<bool>& base, const IsingModel_sym& sector_alfa, cpx normalisation_beta){
 	u64 idx = binary_search(sector_alfa.mapping, 0, sector_alfa.N - 1, binary_to_int(base));
 	int sym_eig = 1;
-	if (idx == -1) {
+	if (idx > sector_alfa.N) {
 		auto tup_T = sector_alfa.find_translation_representative(base);
 		auto tup_S = sector_alfa.find_SEC_representative(base);
 		auto [min, trans_eig] = (std::get<0>(tup_T) > std::get<0>(tup_S)) ? tup_S : tup_T;
@@ -230,13 +229,13 @@ std::pair<u64, cpx> find_rep_and_sym_eigval(v_1d<bool>& base, const IsingModel_s
 		//finding index in reduced Hilbert space
 		idx = binary_search(sector_alfa.mapping, 0, sector_alfa.N - 1, min);
 	}
-	if(idx < sector_alfa.N){
+	if (idx < sector_alfa.N) {
 		cpx translation_eig = conj(sector_alfa.k_exponents[abs(sym_eig) - 1]);
 		cpx val = translation_eig * (sector_alfa.normalisation[idx] / normalisation_beta) * double(sgn(sym_eig));
 		return std::make_pair(idx, val);
 	}
 	else
-		return std::make_pair(INT_MAX,0);
+		return std::make_pair(INT_MAX, 0);
 }
 
 /// <summary>
