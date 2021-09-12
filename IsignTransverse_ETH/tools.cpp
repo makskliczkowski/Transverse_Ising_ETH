@@ -58,3 +58,86 @@ std::vector<std::string> split_str(std::string s, std::string delimiter)
 	res.push_back(s.substr(pos_start));
 	return res;
 }
+
+
+/// <summary>
+/// Saves input dataset Y to file along X values and gaussian distribution form X values and mean/stddev from Y
+/// </summary>
+/// <param name="dir"> saving directory </param>
+/// <param name="name"> name of file </param>
+/// <param name="X"> x values </param>
+/// <param name="Y"> Y values</param>
+void save_to_file(std::string dir, std::string name, const arma::vec& X, const arma::vec& Y) {
+	if (X.size() != Y.size()) throw "Incompatible datasets\n";
+	std::ofstream file(dir + name + ".dat");
+	double std_dev = arma::stddev(Y);
+	double mean = 0.0;// arma::mean(Y);
+	arma::vec gauss = gaussian(X, mean, std_dev);
+	for (int k = 0; k < X.size(); k++)
+		file << X(k) << "\t\t" << Y(k) << "\t\t" << gauss(k) << endl;
+	file.close();
+}
+
+// PROBABILITY BASED TOOLS
+double simpson_rule(double a, double b, int n, const arma::vec& f){
+	double h = (b - a) / n;
+
+	// Internal sample points, there should be n - 1 of them
+	double sum_odds = 0.0;
+#pragma omp parallel for reduction(+: sum_odds)
+	for (int i = 1; i < n; i += 2) {
+		int idx = ((a + i * h) + abs(a)) / h;
+		sum_odds += f(idx);
+	}
+	
+	double sum_evens = 0.0;
+#pragma omp parallel for reduction(+: sum_evens)
+	for (int i = 2; i < n; i += 2) {
+		int idx = ((a+i * h) + abs(a)) / h;
+		sum_evens += f(idx);
+	}
+	
+	return (f(0) + f(f.size() - 1) + 2 * sum_evens + 4 * sum_odds) * h / 3;
+}
+
+
+/// <summary>
+/// find non-unique elements in input array and store only elemetns, which did not have duplicates
+/// </summary>
+/// <param name="arr_in"> degenerated input array </param>
+/// <returns> indices to unique elements </returns>
+arma::vec get_NonDegenerated_Elements(const arma::vec& arr_in) {
+	std::vector<double> arr_degen;
+	u64 N = arr_in.size();
+	for (int k = 0; k < N - 1; k++)
+		if (abs(arr_in(k + 1) - arr_in(k)) < 1e-12)
+			arr_degen.push_back(arr_in(k));
+	if (abs(arr_in(N - 1) - arr_in(N - 2)) < 1e-12)
+		arr_degen.push_back(arr_in(N - 1));
+
+	std::vector<double> arr_unique = arma::conv_to<std::vector<double>>::from(arr_in);
+	for (auto& E : arr_degen) {
+		auto new_end = remove_if(arr_unique.begin(), arr_unique.end(), [&](double a) {
+			return abs(a - E) < 1e-12;
+			});
+		arr_unique.erase(new_end, arr_unique.end());
+	}
+	return arma::unique((vec)arr_unique);
+}
+
+
+/// <summary>
+/// 
+/// </summary>
+/// <param name="arr_in"></param>
+/// <returns></returns>
+double binder_cumulant(const arma::vec& arr_in) {
+	double av2 = 0, av4 = 0;
+#pragma omp parallel for reduction(+: av2, av4)
+	for (int k = 0; k < arr_in.size(); k++) {
+		double val = arr_in(k) * arr_in(k);
+		av2 += val;
+		av4 += val * val;
+	}
+	return 1 - av4 * (double)arr_in.size() / (3.0 * av2 * av2);
+}

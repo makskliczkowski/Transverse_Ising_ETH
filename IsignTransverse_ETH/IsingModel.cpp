@@ -122,12 +122,31 @@ template <typename T> double IsingModel<T>::ipr(int state_idx) {
 /// </summary>
 /// <param name="_id"></param>
 /// <returns></returns>
-template <typename T> double IsingModel<T>::information_entropy(const u64 _id) {
+template <typename T> double IsingModel<T>::information_entropy(u64 _id) {
 	arma::subview_col state = this->eigenvectors.col(_id);
 	double ent = 0;
 #pragma omp parallel for reduction(+: ent)
 	for (int k = 0; k < N; k++) {
 		double val = abs(conj(state(k)) * state(k));
+		ent += val * log(val);
+	}
+	return -ent / log(0.48 * this->N);
+}
+
+/// <summary>
+/// 
+/// </summary>
+/// <typeparam name="T"></typeparam>
+/// <param name="_id"></param>
+/// <param name="beta"></param>
+/// <returns></returns>
+template <typename T> double IsingModel<T>::information_entropy(u64 _id, const IsingModel<T>& beta, u64 _min, u64 _max) {
+	arma::subview_col state_alfa = this->eigenvectors.col(_id);
+	double ent = 0;
+//#pragma omp parallel for reduction(+: ent)
+	for (int k = _min; k < _max; k++) {
+		cpx c_k = cdot(beta.get_eigenState(k), state_alfa);
+		double val = abs(conj(c_k) * c_k);
 		ent += val * log(val);
 	}
 	return -ent / log(0.48 * this->N);
@@ -143,16 +162,16 @@ template <typename T> double IsingModel<T>::information_entropy(const u64 _id) {
 template <typename T> double IsingModel<T>::eigenlevel_statistics(u64 _min, u64 _max) {
 	double r = 0;
 	if (_min <= 0) throw "too low index";
-	if (_max >= N - 1) throw "index exceeding Hilbert space";
+	if (_max >= N) throw "index exceeding Hilbert space";
 	//double delta_n = eigenvalues(_min) - eigenvalues(_min - 1);
 	//double delta_n_next = 0;
 #pragma omp parallel for reduction(+: r)
-	for (int k = _min; k <= _max; k++) {
+	for (int k = _min; k < _max; k++) {
 		const double delta_n = eigenvalues(k) - eigenvalues(k - 1);
 		const double delta_n_next = eigenvalues(k + 1) - eigenvalues(k);
 		const double min = std::min(delta_n, delta_n_next);
 		const double max = std::max(delta_n, delta_n_next);
-		if (abs(delta_n) <= 1e-14) throw "Degeneracy!!!\n";
+		if (abs(delta_n) <= 1e-14) continue;// throw "Degeneracy!!!\n";
 		r += min / max;
 		//delta_n = delta_n_next;
 	}
@@ -248,9 +267,13 @@ void probability_distribution(std::string dir, std::string name, const arma::vec
 			prob_dist(bucket) += 1;
 		}
 	}
-	arma::normalise(prob_dist);
-	for (int p = 0; p < size; p++)
-		file << p * step + _min << "\t" << prob_dist(p) << std::endl;
+	prob_dist = normalise_dist(prob_dist, _min, _max);
+	double std_dev = arma::stddev(data);
+	double mean = 0.0;// arma::mean(data);
+	for (int p = 0; p < size; p++) {
+		double x = p * step + _min;
+		file << x << "\t" << prob_dist(p) << "\t\t" << gaussian(x, mean, std_dev) << std::endl;
+	}
 	file.close();
 }
 arma::vec probability_distribution_with_return(const arma::vec& data, double _min, double _max, double step) {
@@ -259,11 +282,11 @@ arma::vec probability_distribution_with_return(const arma::vec& data, double _mi
 	for (int k = 1; k < data.size(); k++) {
 		if (data(k) > _min && data(k) < _max) {
 			const int bucket = static_cast<int>((data(k) + abs(_min)) / step);
-			// out << "data(k) + _min: " << data(k) + _min<< "bucket: " << bucket << std::endl;
 			prob_dist(bucket) += 1;
 		}
 	}
-	return arma::normalise(prob_dist);
+	//prob_dist = arma::conv_to<arma::vec>::from(arma::hist(data, size));
+	return normalise_dist(prob_dist, _min, _max);
 }
 /// <summary>
 ///
@@ -321,10 +344,26 @@ arma::vec statistics_average(const arma::vec& data, int num_of_outliers) {
 /// <param name="n_b">number of B eigenstate</param>
 /// <returns>A_n_a dot n_b_B</returns>
 template <typename T>
-double overlap(const IsingModel<T>& A, const IsingModel<T>& B, int n_a, int n_b)
-{
-	if(n_a >= A.N || n_b >= B.N || n_a < 0 || n_b < 0) throw "Cannot create an overlap between non-existing states\n";
-	return abs(arma::cdot(A.eigenvectors.col(n_a), B.eigenvectors.col(n_b)));
+T overlap(const IsingModel<T>& A, const IsingModel<T>& B, int n_a, int n_b){
+	if (A.get_hilbert_size() != B.get_hilbert_size()) throw "Incompatible Hilbert dimensions\n";
+	if(n_a >= A.get_hilbert_size() || n_b >= B.get_hilbert_size() || n_a < 0 || n_b < 0) throw "Cannot create an overlap between non-existing states\n";
+	return arma::cdot(A.get_eigenState(n_a), B.get_eigenState(n_b));
+}
+template<> cpx overlap<cpx>(const IsingModel<cpx>& A, const IsingModel<cpx>& B, int n_a, int n_b) {
+	if (A.get_hilbert_size() != B.get_hilbert_size()) throw "Incompatible Hilbert dimensions\n";
+	if (n_a >= A.get_hilbert_size() || n_b >= B.get_hilbert_size() || n_a < 0 || n_b < 0) throw "Cannot create an overlap between non-existing states\n";
+	double overlap_real = 0, overlap_imag = 0;
+	auto state_A = A.get_eigenState(n_a);
+	auto state_B = B.get_eigenState(n_b);
+	arma::normalise(state_A);
+	arma::normalise(state_B);
+#pragma omp parallel for reduction(+: overlap_real, overlap_imag)
+	for (int k = 0; k < A.get_hilbert_size(); k++) {
+		cpx over = conj(state_A(k)) * state_B(k);
+		overlap_real += real(over);
+		overlap_imag += imag(over);
+	}
+	return cpx(overlap_real, overlap_imag);
 }
 
 
@@ -339,8 +378,13 @@ template void IsingModel<cpx>::diagonalization();
 template void IsingModel<double>::diagonalization();
 template double IsingModel<cpx>::eigenlevel_statistics(u64, u64);
 template double IsingModel<double>::eigenlevel_statistics(u64, u64);
+template vec IsingModel<cpx>::eigenlevel_statistics_with_return();
+template vec IsingModel<double>::eigenlevel_statistics_with_return();
 template double IsingModel<double>::ipr(int);
 template double IsingModel<cpx>::ipr(int);
 template double IsingModel<double>::information_entropy(u64);
 template double IsingModel<cpx>::information_entropy(u64);
-
+template double IsingModel<double>::information_entropy(u64, const IsingModel<double>&, u64, u64);
+template double IsingModel<cpx>::information_entropy(u64, const IsingModel<cpx>&, u64, u64);
+template cpx overlap(const IsingModel<cpx>&, const IsingModel<cpx>&, int, int);
+template double overlap(const IsingModel<double>&, const IsingModel<double>&, int, int);

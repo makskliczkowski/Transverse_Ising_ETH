@@ -68,15 +68,32 @@ public:
 	//virtual std::unique_ptr<IsingModel> move_clone() = 0;
 
 	// GETTERS & SETTERS
-	std::string get_info() const { return this->info; };											// get the information about the model params
-	u64 get_hilbert_size() const { return this->N; };												// get the Hilbert space size 2^N
-	const Mat<T>& get_hamiltonian() const {	return this->H;	};										// get the const reference to a Hamiltonian
-	const vec& get_eigenvalues() const { return this->eigenvalues; };								// get the const reference to eigenvalues
-	const Mat<T>& get_eigenvectors() const { return this->eigenvectors; };								// get the const reference to the eigenvectors
-	const std::vector<u64>& get_mapping() const { return this->mapping; };							// constant reference to the mapping
+	// get the information about the model params
+	std::string get_info(std::initializer_list<std::string> skip = {}) const {
+		auto tmp = split_str(this->info, ",");	
+		std::string tmp_str = "";
+		for(int i=0; i < tmp.size(); i++){
+			bool save = true;
+			for(auto & skip_param: skip)
+			{
+				// skip the element if we don't want it to be included in the info
+				if(split_str(tmp[i],"=")[0] == skip_param)
+					save = false;
+			}
+			if(save) tmp_str += tmp[i]+",";
+		}
+		tmp_str.pop_back();
+		return tmp_str; 
+	};
 
-	double get_eigenEnergy(u64 idx) const { return this->eigenvalues(idx); };						// get eigenenergy at a given idx
-	const Col<T>& get_eigenState(u64 idx) const { return this->eigenvectors.col(idx);};				// get an eigenstate at a given idx
+	u64 get_hilbert_size() const { return this->N; };											// get the Hilbert space size 2^N
+	const Mat<T>& get_hamiltonian() const {	return this->H;	};									// get the const reference to a Hamiltonian
+	const vec& get_eigenvalues() const { return this->eigenvalues; };							// get the const reference to eigenvalues
+	const Mat<T>& get_eigenvectors() const { return this->eigenvectors; };						// get the const reference to the eigenvectors
+	const std::vector<u64>& get_mapping() const { return this->mapping; };						// constant reference to the mapping
+
+	double get_eigenEnergy(u64 idx) const { return this->eigenvalues(idx); };					// get eigenenergy at a given idx
+	Col<T> get_eigenState(u64 idx) const { return this->eigenvectors.col(idx);};			// get an eigenstate at a given idx
 
 	// PRINTERS
 	void print_base_spin_sector(int Sz = 0);													// print basis state with a given total spin (for clarity purposes)
@@ -96,6 +113,7 @@ public:
 	// PHYSICAL QUANTITIES
 	double ipr(int state_idx);																	// calculate the ipr coeffincient (inverse participation ratio)
 	double information_entropy(u64 _id);														// calculate the information entropy in a given state (based on the ipr) Von Neuman type
+	double information_entropy(u64 _id, const IsingModel<T>& beta, u64 _min, u64 _max);			// calculate the information entropy in basis of other model from input
 	double eigenlevel_statistics(u64 _min, u64 _max);											// calculate the statistics based on eigenlevels (r coefficient)
 	vec eigenlevel_statistics_with_return();													// calculate the eigenlevel statistics and return the vector with the results
 	virtual double entaglement_entropy(u64 state_id, int subsystem_size) = 0;					// entanglement entropy based on the density matrices
@@ -122,11 +140,10 @@ public:
 	static double spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 
 	// TOOLS AND HELPERS
-		
-	template <typename T2>
-	friend double overlap(const IsingModel<T>& A, const IsingModel<T2>& B, int n_a, int n_b);			// creates the overlap between two eigenstates
+	
 };
-
+template <typename T>
+T overlap(const IsingModel<T>& A, const IsingModel<T>& B, int n_a, int n_b);			// creates the overlap between two eigenstates
 
 
 // ----------------------------------------- SYMMETRIC -----------------------------------------
