@@ -84,7 +84,6 @@ inline double tim_s(clk::time_point start){
 template <typename T> int sgn(T val) {
 	return int(T(0) < val) - int(val < T(0));
 }
-
 /* STRING BASED TOOLS DECLARATIONS */
 bool isNumber(const string& str);
 
@@ -97,6 +96,9 @@ std::string to_string_prec(const T a_value, const int n = 3) {
 	outie << std::fixed << a_value;
 	return outie.str();
 }
+
+
+void save_to_file(std::string dir, std::string name, const arma::vec& X, const arma::vec& Y);
 
 /* DEFINITIONS */
 /// <summary>
@@ -213,29 +215,6 @@ inline std::vector<int> get_neigh_vector(int _BC, int L, int corr_len){
 	return neis;
 }
 
-/// <summary>
-/// find non-unique elements in input array and store only elemetns, which did not have duplicates
-/// </summary>
-/// <param name="arr_in"> degenerated input array </param>
-/// <returns> indices to unique elements </returns>
-inline arma::vec get_NonDegenerated_Elements(const arma::vec& arr_in) {
-	std::vector<double> arr_degen;
-	u64 N = arr_in.size();
-	for (int k = 0; k < N - 1; k++)
-		if (abs(arr_in(k + 1) - arr_in(k)) < 1e-12)
-			arr_degen.push_back(arr_in(k));
-	if (abs(arr_in(N - 1) - arr_in(N - 2)) < 1e-12)
-		arr_degen.push_back(arr_in(N - 1));
-
-	std::vector<double> arr_unique = arma::conv_to<std::vector<double>>::from(arr_in);
-	for (auto& E : arr_degen){
-		auto new_end = remove_if(arr_unique.begin(), arr_unique.end(), [&](double a) {
-		return abs(a - E) < 1e-12;
-			});
-		arr_unique.erase(new_end, arr_unique.end());
-	}
-	return arma::unique((vec)arr_unique);
-}
 
 /// <summary>
 /// Overriding the ostream operator for pretty printing vectors.
@@ -253,40 +232,6 @@ std::ostream& operator<<(std::ostream& os, std::vector<T> vec) {
 	else
 		os << "Empty container!" << endl;
 	return os;
-}
-
-template <typename T>
-inline std::vector<T> operator+(const std::vector<T>& A, const std::vector<T>& B) {
-	std::vector<T> res(A.size());
-	assert(A.size() == B.size() && "stupid cunt, wonrg size of vectors\n");
-	for (int k = 0; k < A.size(); k++)
-		res[k] = A[k] + B[k];
-	return res;
-}
-
-template <typename T>
-inline std::vector<T> operator-(const std::vector<T>& A, const std::vector<T>& B) {
-	std::vector<T> res(A.size());
-	assert(A.size() == B.size() && "stupid cunt, wonrg size of vectors\n");
-	for (int k = 0; k < A.size(); k++)
-		res[k] = A[k] - B[k];
-	return res;
-}
-
-template <typename T, typename T2>
-inline std::vector<T> operator*(const T2 B, const std::vector<T>& A) {
-	std::vector<T> res(A.size());
-	for (int k = 0; k < A.size(); k++)
-		res[k] = B * A[k];
-	return res;
-}
-
-// RAFAL" GREAY IDEAS (FEW BUT STILL PRESENT)
-double simpson_rule(double a, double b,
-	int n, // Number of intervals
-	const arma::vec& f);
-inline arma::vec normalise_dist(const arma::vec& distribution, double _min, double _max) {
-	return distribution / simpson_rule(_min, _max, distribution.size() - 1, distribution);
 }
 
 /* MAKS' USELESS IDEAS */
@@ -319,11 +264,68 @@ inline void apply_permutation(std::vector<T>& vec, const std::vector<std::size_t
 }
 
 
-inline int getDistIdx(double min, double step, double elem){
+
+// DISTRIBUTION  AND DATASET RELATED FUNCTIONS
+/// <summary>
+/// 
+/// </summary>
+/// <param name="min"></param>
+/// <param name="step"></param>
+/// <param name="elem"></param>
+/// <returns></returns>
+inline int getDistIdx(double min, double step, double elem) {
 	return static_cast<int>((elem + abs(min)) / step);
 }
-
-inline void setDistElem(vec& dist, double min, double step, double elem){
+/// <summary>
+/// 
+/// </summary>
+/// <param name="a"></param>
+/// <param name="b"></param>
+/// <param name="n"></param>
+/// <param name="f"></param>
+/// <returns></returns>
+inline void setDistElem(vec& dist, double min, double step, double elem) {
 	const int idx = getDistIdx(min, step, elem);
 	if (idx >= 0 && idx < dist.size()) dist(idx) += 1;
 }
+
+
+double simpson_rule(double a, double b, int n, const arma::vec& f);
+inline arma::vec normalise_dist(const arma::vec& distribution, double _min, double _max) {
+	return distribution / simpson_rule(_min, _max, distribution.size() - 1, distribution);
+}
+
+/// <summary>
+/// 
+/// </summary>
+/// <param name="arr_in"></param>
+/// <param name="power"></param>
+/// <returns></returns>
+inline double moment(const arma::vec& arr_in, int power) {
+	return arma::mean(arma::pow(arr_in - mean(arr_in), power));
+}
+
+/// <summary>
+/// 
+/// </summary>
+/// <param name="arr_in"></param>
+/// <returns></returns>
+inline double kurtosis(const arma::vec& arr_in) {
+	double dev_inv = 1.0 / std::pow(arma::stddev(arr_in), 4);
+	return moment(arr_in, 4) * dev_inv;
+}
+double binder_cumulant(const arma::vec& arr_in);														// calculate binder cumulant of dataset
+arma::vec get_NonDegenerated_Elements(const arma::vec& arr_in);											// compute non-unique values in dataset
+
+/// <summary>
+/// Compute Gaussina function at value x with input mean and variance
+/// </summary>
+/// <param name="x"> input value </param>
+/// <param name="meam"> mean value of gaussian function </param>
+/// <param name="std_dev"> standard deviation of gaussian </param>
+template <class T>
+inline T gaussian(T x, double mean, double std_dev) {
+	T exponent = (x - mean) / std_dev;
+	return 1.0 / (std::sqrt(two_pi) * std_dev) * exp(-pow(exponent, 2) / 2.0);
+}
+
