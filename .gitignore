@@ -357,3 +357,4 @@ MigrationBackup/
 .ionide/
 *.dat
 *.zip
+*.pdf
