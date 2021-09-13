@@ -731,8 +731,10 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 /// <param name="omega_dist"></param>
 /// <param name="omega_gauss_max"></param>
 /// <param name="energy_constraint"></param>
-void isingUI::ui::matrix_elements_stat_sym(double min, double max, double step, double omega_dist, int omega_gauss_max, double energy_constraint, int energy_num, std::initializer_list<int> alfa_sym, std::initializer_list<int> beta_sym) const
+void isingUI::ui::matrix_elements_stat_sym(double min, double max, double step, double omega_dist, int omega_gauss_max,\
+	double energy_constraint, int energy_num, std::initializer_list<int> alfa_sym, std::initializer_list<int> beta_sym) const
 {
+	const auto start = std::chrono::high_resolution_clock::now();
 	// in order k, x, p because we can skip p for most cases, x as well but in different order
 	std::vector<int> alfa_syms = {0, 1, 1};
 	std::vector<int> beta_syms = {0, 1, 1};
@@ -745,12 +747,13 @@ void isingUI::ui::matrix_elements_stat_sym(double min, double max, double step, 
 	auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, alfa_syms[0], alfa_syms[2], alfa_syms[1], this->boundary_conditions);
 	auto beta = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, beta_syms[0], beta_syms[2], beta_syms[1], this->boundary_conditions);
 	alfa->diagonalization();
-	beta->diagonalization();
+	beta->diagonalization();	
+	stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << "\tand\t" << beta->get_info() << " - in time : " << tim_s(start) << "s\n";
 	const u64 Na = alfa->get_hilbert_size();
 	const u64 Nb = beta->get_hilbert_size();
 	const int size = static_cast<int>(abs(max - min) / step + 1);
 	const double omega_step = 0.025;
-	const int omega_num = static_cast<int>(omega_gauss_max / double(omega_step));
+	const int omega_num = static_cast<int>(omega_gauss_max / omega_step);
 	// files
 	ofstream gaussianity(this->saving_dir + "gaussianity_for_alfa=" + alfa->get_info() + "_beta=" + beta->get_info() + ".dat");
 	gaussianity << "omega" << "\t\t" << "sig_x" << "\t\t" << "sig_x_ex\n";
@@ -773,6 +776,8 @@ void isingUI::ui::matrix_elements_stat_sym(double min, double max, double step, 
 	// spin flip
 	//vec d_sigma_flip(size, arma::fill::zeros);
 
+	double E_av = alfa->get_eigenEnergy(alfa->E_av_idx);
+	E_av = (abs(E_av) <= 1e-3) ? 1.0 : E_av;
 	const int alfa_max_E = static_cast<int>(alfa->E_av_idx + energy_num / 2.0);
 	const int beta_max_E = static_cast<int>(beta->E_av_idx + energy_num / 2.0);
 	v_1d<int> counter(omega_num, 0);
@@ -782,13 +787,17 @@ void isingUI::ui::matrix_elements_stat_sym(double min, double max, double step, 
 		for(int b = beta->E_av_idx - energy_num / 2.; b < beta_max_E; b++){
 			if(b < 0 || b >= Nb) continue;
 			const double Eb = beta->get_eigenEnergy(b);
-			if (abs(Eb + Ea) / 2.0 > energy_constraint * this->L) continue;
+			if (abs((Eb + Ea) / (2.0 * E_av) - 1.0) > energy_constraint  / 2.0) continue;
 			const double omega = abs(Ea - Eb);
 			const auto omega_bucket = static_cast<int>(omega / omega_step);
 
 			// sigma_x
-			const double sigma_x = abs(av_operator(a, b, *alfa, *beta, sig_x, { 0 }));
-			const double sigma_x_ex = abs(av_operator(a, b, *alfa, *beta, sig_x));
+			double sigma_x;
+			double sigma_x_ex;
+			if ((omega_bucket < omega_num) || (omega < omega_dist)) {
+				sigma_x = abs(av_operator(a, b, *alfa, *beta, sig_x, { 0 }));
+				sigma_x_ex = abs(av_operator(a, b, *alfa, *beta, sig_x));
+			}
 			// sigma x to averages
 			if(omega_bucket < omega_num){
 				av_sigma_x[omega_bucket] += sigma_x;
@@ -810,7 +819,9 @@ void isingUI::ui::matrix_elements_stat_sym(double min, double max, double step, 
 				//rescale_Distribution(d_sigma_flip,min_sf,step,spin_flip_ex);
 			}
 		}
+		stout << " \t\t--> finished energy: " << alfa->get_eigenEnergy(a) << " in 1st sector -  in time : " << tim_s(start) << "s\n";
 	}
+	stout << " \t\t--> finished calculating off-diagonal elements - in time : " << tim_s(start) << "s\n";
 	d_sigma_x = normalise_dist(d_sigma_x, min, max); d_sigma_x_ex =  normalise_dist(d_sigma_x_ex, min, max);
 	d_sigma_z_nnn = normalise_dist(d_sigma_z_nnn, min, max); d_sigma_z_nnn_ex = normalise_dist(d_sigma_z_nnn_ex, min, max);
 	// d_sigma_flip = normalise_dist(d_sigma_flip, min, max); 
@@ -818,8 +829,8 @@ void isingUI::ui::matrix_elements_stat_sym(double min, double max, double step, 
 		op_prob_dist << i * step + min << "\t\t" << d_sigma_x(i) << "\t\t" << d_sigma_x_ex(i) << \
 		"\t\t" << d_sigma_z_nnn(i) << "\t\t" << d_sigma_z_nnn_ex(i) << "\t\t\n";// << d_sigma_flip(i) << "\n";
 	for (int i = 0; i < omega_num; i++) {
-		gaussianity << i * omega_step << "\t\t" << av_sigma_x2[i] / (av_sigma_x[i] * av_sigma_x[i]) * counter[i] <<\
-			"\t\t" << av_sigma_x2_ex[i] / (av_sigma_x_ex[i] * av_sigma_x_ex[i]) * counter[i] << std::endl;
+		gaussianity << i * omega_step << "\t\t" << (av_sigma_x2[i] / av_sigma_x[i]) / av_sigma_x[i] * counter[i] <<\
+			"\t\t" << (av_sigma_x2_ex[i] / av_sigma_x_ex[i]) * av_sigma_x_ex[i] * counter[i] << std::endl;
 	}
 	gaussianity.close();
 	op_prob_dist.close();
@@ -881,11 +892,11 @@ void isingUI::ui::make_sim()
 	//size_scaling_sym(2, 1, 1);
 	//this->L = 18;
 	//compare_energies();
-	parameter_sweep_sym(1, 1, 1);
+	//parameter_sweep_sym(1, 1, 1);
 	//fidelity({ 1, 1, 1 });
-	//
-	//matrix_elements_stat_sym(0, 1, 0.001, 0.02, 10, 0.025, 100, { 1, 1, 1 }, { 1, 1, 1 });
-	//matrix_elements_stat_sym(0, 1, 0.001, 0.02, 10, 0.025, 100, { 1, 1, 1 }, { 2, 1, 1 });
+	
+	matrix_elements_stat_sym(0, 1, 5e-4, 0.01, 10, 1e-1, 500, { 1, 1, 1 }, { 1, 1, 1 });
+	//matrix_elements_stat_sym(0, 1, 0.001, 0.1, 10, 0.05, 100, { 1, 1, 1 }, { 2, 1, 1 });
 	//
 	//this->h = 3.0;
 	//fidelity({ 1,1,1 });

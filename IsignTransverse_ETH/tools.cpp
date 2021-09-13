@@ -72,9 +72,8 @@ void save_to_file(std::string dir, std::string name, const arma::vec& X, const a
 	std::ofstream file(dir + name + ".dat");
 	double std_dev = arma::stddev(Y);
 	double mean = 0.0;// arma::mean(Y);
-	arma::vec gauss = gaussian(X, mean, std_dev);
 	for (int k = 0; k < X.size(); k++)
-		file << X(k) << "\t\t" << Y(k) << "\t\t" << gauss(k) << endl;
+		file << X(k) << "\t\t" << Y(k) << "\t\t" << gaussian(X(k), mean, std_dev) << endl;
 	file.close();
 }
 
