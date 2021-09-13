@@ -115,6 +115,7 @@ namespace isingUI
 		void fidelity(std::initializer_list<int> symetries);
 
 		void parameter_sweep_sym(int k, int p, int x);
+		void check_dist_other_sector();
 		void matrix_elements_stat_sym(double min, double max, double step, double omega_dist,\
 			int omega_gauss_max, double energy_constraint, int energy_num,\
 			std::initializer_list<int> alfa_sym = {},\
