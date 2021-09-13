@@ -15,7 +15,6 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 		",g0=" + to_string_prec(this->g0, 2) + \
 		",h=" + to_string_prec(this->h, 2) + \
 		",w=" + to_string_prec(this->w, 2);
-	set_binary_powers();
 	set_neighbors();
 	hamiltonian();
 }
@@ -71,18 +70,12 @@ void IsingModel_disorder::hamiltonian() {
 	this->dJ = create_random_vec(L, this->J0);                              // creates random exchange vector
 	this->dg = create_random_vec(L, this->g0);                              // creates random transverse field vector
 
-	std::vector<bool> base_vector(L);
 	for (long int k = 0; k < N; k++) {
-		int_to_binary(k, base_vector);                                      // check state number
 		double s_i, s_j;
 		for (int j = 0; j <= L - 1; j++) {
-			s_i = base_vector[j] ? 1.0 : -1.0;                              // true - spin up, false - spin down
-								
-			u64 new_idx = INT_MAX;
-			if (base_vector[j])
-				new_idx = u64((int64_t)k - (int64_t)this->BinaryPowers[L - 1 - j]);
-			else
-				new_idx = (int64_t)k + (int64_t)this->BinaryPowers[L - 1 - j];
+			s_i = checkBit(k,L-1-j) ? 1.0 : -1.0;;							 // true - spin up, false - spin down		
+
+			u64 new_idx = flip(k, BinaryPowers[this->L - 1 - j], this->L-1-j);
 			setHamiltonianElem(k, this->g + this->dg(j), new_idx);
 
 			/* disorder */
@@ -90,7 +83,7 @@ void IsingModel_disorder::hamiltonian() {
 
 			if (nearest_neighbors[j] >= 0) {
 				/* Ising-like spin correlation */
-				s_j = base_vector[nearest_neighbors[j]] ? 1.0 : -1.0;
+				s_j = checkBit(k, this->L-1 -nearest_neighbors[j]) ? 1.0 : -1.0;
 				this->H(k, k) += (this->J + this->dJ(j)) * s_i * s_j;		// setting the neighbors elements
 			}
 		}

@@ -52,18 +52,42 @@ static const char* kPathSeparator =
 
 //using u64 = unsigned long long;
 using cpx = std::complex<double>;
+using op_type = std::function<std::pair<cpx,u64>(u64,int, std::initializer_list<int>)>;
 
 template<class T>
-using v_3d = std::vector<std::vector<std::vector<T>>>;						// 3d double vector
+using v_3d = std::vector<std::vector<std::vector<T>>>;											// 3d double vector
 template<class T>
-using v_2d = std::vector<std::vector<T>>;									// 2d double vector
+using v_2d = std::vector<std::vector<T>>;														// 2d double vector
 template<class T>
-using v_1d = std::vector<T>;												// 1d double vector
+using v_1d = std::vector<T>;																	// 1d double vector
 
 // User compiler macro
 #define im cpx(0.0,1.0)
-#define stout std::cout << std::setprecision(16) << std::fixed				// standard outstream
-#define memory_over_performance false										// optimized by size --true-- (memory usage shortage) or performance --false--
+#define stout std::cout << std::setprecision(16) << std::fixed									// standard outstream
+#define memory_over_performance false															// optimized by size --true-- (memory usage shortage) or performance --false--
+
+
+// Macros to generate the lookup table (at compile-time)
+#define R2(n) n, n + 2*64, n + 1*64, n + 3*64
+#define R4(n) R2(n), R2(n + 2*16), R2(n + 1*16), R2(n + 3*16)
+#define R6(n) R4(n), R4(n + 2*4 ), R4(n + 1*4 ), R4(n + 3*4 )
+#define REVERSE_BITS R6(0), R6(2), R6(1), R6(3)
+#define ULLPOW(k) 1ULL << k 
+ 
+// lookup table to store the reverse of each index of the table.
+// The macro `REVERSE_BITS` generates the table
+const u64 lookup[256] = { REVERSE_BITS };
+
+
+const v_1d<u64> BinaryPowers = {ULLPOW(0), ULLPOW(1), ULLPOW(2), ULLPOW(3),
+								ULLPOW(4), ULLPOW(5), ULLPOW(6), ULLPOW(7),
+								ULLPOW(8), ULLPOW(9), ULLPOW(10), ULLPOW(11),
+								ULLPOW(12), ULLPOW(13), ULLPOW(14), ULLPOW(15),
+								ULLPOW(16), ULLPOW(17), ULLPOW(18), ULLPOW(19),
+								ULLPOW(20), ULLPOW(21), ULLPOW(22), ULLPOW(23),
+								ULLPOW(24), ULLPOW(25), ULLPOW(26), ULLPOW(27),
+								ULLPOW(28), ULLPOW(29), ULLPOW(30), ULLPOW(31)}; // vector containing powers of 2 from 2^0 to 2^(L-1)
+
 
 // Constants
 extern int num_of_threads;													// number of threads
@@ -99,7 +123,8 @@ std::string to_string_prec(const T a_value, const int n = 3) {
 
 void save_to_file(std::string dir, std::string name, const arma::vec& X, const arma::vec& Y);
 
-/* DEFINITIONS */
+// DEFINITIONS 
+
 /// <summary>
 /// Fiunding index of base vector in mapping to reduced basis
 /// </summary>
@@ -147,19 +172,52 @@ inline u64 binary_search(const std::vector<double>& arr, u64 l_point, u64 r_poin
 inline u64 rotate_left(u64 n, u64 maxPower) {
 	return (n >= maxPower) ? (((int64_t)n - (int64_t)maxPower) * 2 + 1) : n * 2;
 }
+/// <summary>
+/// Check the k'th bit
+/// </summary>
+/// <param name="n">Number on which the bit shall be checked</param>
+/// <param name="k">number of bit (from 0 to 63)</param>
+/// <returns>Bool on if the bit is set or not</returns>
+inline bool checkBit(u64 n, int k) {
+	if (n & (1ULL << k))
+        return true;
+    else
+        return false;
+
+}
 inline u64 flip(u64 n, u64 maxBinaryNum) {
 	return maxBinaryNum - n - 1;
 }
-inline u64 reverseBits(u64 n, int L, const v_1d<u64>& BinaryPowers) {
-	u64 temp = n;
-	u64 rev = 0;
-	for (int k = 0; k < L; k++) {
-		rev += (temp % 2) * BinaryPowers[L - k - 1];
-		temp = temp / 2.;
-		//1 >> temp;
-	}
-	return rev;
+/// <summary>
+/// Flip the bit on k'th site and return the number it belongs to. The bit is checked from right to left!
+/// </summary>
+/// <param name="n">number to be checked</param>
+/// <param name="kthPower">precalculated power of 2 for k'th site</param>
+/// <param name="k">k'th site for flip to be checked</param>
+/// <returns></returns>
+inline u64 flip(u64 n, u64 kthPower, int k) {
+	return checkBit(n,k) ? (int64_t(n) - (int64_t)kthPower) : (n + kthPower);
 }
+
+/// <summary>
+/// Function that calculates the bit reverse, note that 64 bit representation
+/// is now taken and one has to be sure that it doesn't exceede it (which it doesn't, we sure)
+/// </summary>
+/// <param name="n"></param>
+/// <param name="L"></param>
+/// <returns></returns>
+inline u64 reverseBits(u64 n, int L) {
+	u64 rev = (lookup[n & 0xffULL] << 56)|			// consider the first 8 bits
+	(lookup[(n >> 8) & 0xffULL] << 48)|				// consider the next 8 bits  
+	(lookup[(n >> 16) & 0xffULL] << 40)|			// consider the next 8 bits
+	(lookup[(n >> 24) & 0xffULL] << 32)|			// consider the next 8 bits
+	(lookup[(n >> 32) & 0xffULL] << 24)|			// consider the next 8 bits
+	(lookup[(n >> 40) & 0xffULL] << 16)|			// consider the next 8 bits
+	(lookup[(n >> 48) & 0xffULL] << 8)|				// consider the next 8 bits
+	(lookup[(n >> 54) & 0xffULL]);					// consider last 8 bits
+	return (rev >> (64 - L));						// get back to the original maximal number
+}
+
 
 /// <summary>
 /// Conversion to binary system
@@ -174,6 +232,8 @@ inline void int_to_binary(u64 idx, std::vector<bool>& vec) {
 		temp = temp / 2.;
 	}
 }
+
+
 
 /// <summary>
 /// conversion from binary to integer
@@ -254,9 +314,18 @@ inline std::vector<int> get_neigh_vector(int _BC, int L, int corr_len){
 /// <returns></returns>
 template<typename T>
 std::ostream& operator<<(std::ostream& os, std::vector<T> vec) {
+	int counter = 0;
 	if (vec.size() != 0) {
-		std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(os, " "));
-		os << vec.back() << ' ';
+		//std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(os, " "));
+		//os << vec.back() << ' ';
+		for (int i = 0; i < vec.size(); i++) {
+			os << vec[i] << ' ';
+			counter++;
+			if (counter % 8 == 0) {
+				os << "  ";
+				counter = 0;
+			}
+		}
 	}
 	else
 		os << "Empty container!" << endl;
@@ -357,4 +426,6 @@ inline T gaussian(T x, double mean, double std_dev) {
 	T exponent = (x - mean) / std_dev;
 	return 1.0 / (std::sqrt(two_pi) * std_dev) * exp(-pow(exponent, 2) / 2.0);
 }
+
+
 
