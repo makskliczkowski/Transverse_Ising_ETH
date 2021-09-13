@@ -15,6 +15,7 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 		",g0=" + to_string_prec(this->g0, 2) + \
 		",h=" + to_string_prec(this->h, 2) + \
 		",w=" + to_string_prec(this->w, 2);
+	set_binary_powers();
 	set_neighbors();
 	hamiltonian();
 }
@@ -50,9 +51,8 @@ void IsingModel_disorder::generate_mapping() {
 /// <param name="k"> index of the basis state acted upon with the Hamiltonian </param>
 /// <param name="value"> value of the given matrix element to be set </param>
 /// <param name="temp"> resulting vector form acting with the Hamiltonian operator on the k-th basis state </param>
-void IsingModel_disorder::setHamiltonianElem(u64 k, double value, std::vector<bool>& temp) {
-	u64 idx = binary_to_int(temp);
-	H(idx, k) += value;
+void IsingModel_disorder::setHamiltonianElem(u64 k, double value, u64 new_idx) {
+	H(new_idx, k) += value;
 }
 /// <summary>
 /// Generates the total Hamiltonian of the system. The diagonal part is straightforward,
@@ -72,16 +72,19 @@ void IsingModel_disorder::hamiltonian() {
 	this->dg = create_random_vec(L, this->g0);                              // creates random transverse field vector
 
 	std::vector<bool> base_vector(L);
-	std::vector<bool> temp(base_vector);                                    // changes under H action
 	for (long int k = 0; k < N; k++) {
 		int_to_binary(k, base_vector);                                      // check state number
 		double s_i, s_j;
 		for (int j = 0; j <= L - 1; j++) {
 			s_i = base_vector[j] ? 1.0 : -1.0;                              // true - spin up, false - spin down
-			/* transverse field */
-			temp = base_vector;
-			temp[j] = !base_vector[j];                                      // negates on that site
-			setHamiltonianElem(k, this->g + this->dg(j), temp);
+								
+			u64 new_idx = INT_MAX;
+			if (base_vector[j])
+				new_idx = u64((int64_t)k - (int64_t)this->BinaryPowers[L - 1 - j]);
+			else
+				new_idx = (int64_t)k + (int64_t)this->BinaryPowers[L - 1 - j];
+			setHamiltonianElem(k, this->g + this->dg(j), new_idx);
+
 			/* disorder */
 			H(k, k) += (this->h + dh(j)) * s_i;                             // diagonal elements setting
 

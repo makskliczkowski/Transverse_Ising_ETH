@@ -328,7 +328,7 @@ std::vector<std::string> user_interface::parseInputFile(std::string filename) co
 
 // ---- SIMULATIONS
 void isingUI::ui::compare_energies() {
-	auto Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w, boundary_conditions);
+	auto Hamil = std::make_unique<IsingModel_disorder>(L, J, 0, g, 0, h, 0, boundary_conditions);
 	u64 N = Hamil->get_hilbert_size();
 	Hamil->diagonalization();
 	vec E_dis = Hamil->get_eigenvalues();
@@ -337,7 +337,8 @@ void isingUI::ui::compare_energies() {
 	for (int k = 0; k < L; k++) {
 		if (k == 0 || k == this->L / 2.) {
 			for (int p = 0; p <= 1; p++) {
-				for (int x = 0; x <= 1; x++) {
+				int x_max = (this->h != 0)? 0 : 1;
+				for (int x = 0; x <= x_max; x++) {
 					auto Hamil = std::make_unique<IsingModel_sym>(L, J, g, h, k, p, x, boundary_conditions);
 					Hamil->diagonalization();
 					vec t = Hamil->get_eigenvalues();
@@ -348,7 +349,8 @@ void isingUI::ui::compare_energies() {
 			}
 		}
 		else {
-			for (int x = 0; x <= 1; x++) {
+			int x_max = (this->h != 0) ? 0 : 1;
+			for (int x = 0; x <= x_max; x++) {
 				auto Hamil = std::make_unique<IsingModel_sym>(L, J, g, h, k, 1, x, boundary_conditions);
 				Hamil->diagonalization();
 				vec t = Hamil->get_eigenvalues();
@@ -357,6 +359,7 @@ void isingUI::ui::compare_energies() {
 				symmetries.insert(symmetries.end(), std::make_move_iterator(temp_str.begin()), std::make_move_iterator(temp_str.end()));
 			}
 		}
+		stout << k << endl;
 		//out << Hamil->get_eigenvalues().t();
 	}
 	auto p = sort_permutation(E_sym, [](const double a, const double b) {
@@ -365,7 +368,7 @@ void isingUI::ui::compare_energies() {
 	//sort(E_sym.begin(), E_sym.end());
 	apply_permutation(E_sym, p);
 	apply_permutation(symmetries, p);
-	stout << E_sym.size() << endl;
+	stout << endl << E_sym.size() << endl;
 	for (int k = 0; k < E_dis.size(); k++) {
 		stout << symmetries[k] << "\t\t\t\t" << E_sym[k] << "\t\t\t\t" << E_dis(k) << "\t\t\t\t" << E_sym[k] - E_dis(k) << endl;
 	}
@@ -698,21 +701,21 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 			//probability_distribution(this->saving_dir, "ProbDistGap" + alfa->get_info(), r, 0, 1, 0.02);
 
 			// ipr & info entropy
-			double ipr = 0;
-			double ent = 0;
-			double r = 0;
-			int counter = 0;
-			for (int i = alfa->E_av_idx - mu/2.; i <= alfa->E_av_idx + mu/2.; i++){
-				ipr += alfa->ipr(i);
-				ent += alfa->information_entropy(i);
-				r += alfa->eigenlevel_statistics(i, i + 1);
-				counter++;
-			}
-			farante << hx << "\t\t" << gx << "\t\t" << ipr / double(counter * N) << "\t\t" << ent / double(counter) << "\t\t" << r / double(counter) << endl;
-			
-			//perturbative_stat_sym(2e-4, -0.1, 0.1, 1e-4, gx, hx);
-			perturbative_stat_sym(2e-4, -0.1, 0.1, 1e-3, gx, hx);
-			perturbative_stat_sym(5e-4, -0.2, 0.2, 1e-2, gx, hx);
+			//double ipr = 0;
+			//double ent = 0;
+			//double r = 0;
+			//int counter = 0;
+			//for (int i = alfa->E_av_idx - mu/2.; i <= alfa->E_av_idx + mu/2.; i++){
+			//	ipr += alfa->ipr(i);
+			//	ent += alfa->information_entropy(i);
+			//	r += alfa->eigenlevel_statistics(i, i + 1);
+			//	counter++;
+			//}
+			//farante << hx << "\t\t" << gx << "\t\t" << ipr / double(counter * N) << "\t\t" << ent / double(counter) << "\t\t" << r / double(counter) << endl;
+			//
+			////perturbative_stat_sym(2e-4, -0.1, 0.1, 1e-4, gx, hx);
+			//perturbative_stat_sym(2e-4, -0.1, 0.1, 1e-3, gx, hx);
+			//perturbative_stat_sym(5e-4, -0.2, 0.2, 1e-2, gx, hx);
 			//perturbative_stat_sym(5e-3, -0.2, 0.2, 1e-1, gx, hx);
 		}
 	}		 
@@ -877,17 +880,18 @@ void isingUI::ui::make_sim()
 	//size_scaling_sym(0, 1, 1);
 	//size_scaling_sym(2, 1, 1);
 	//this->L = 18;
+	//compare_energies();
 	parameter_sweep_sym(1, 1, 1);
-	fidelity({ 1, 1, 1 });
-	
-	matrix_elements_stat_sym(0, 1, 0.001, 0.02, 10, 0.025, 100, { 1, 1, 1 }, { 1, 1, 1 });
-	matrix_elements_stat_sym(0, 1, 0.001, 0.02, 10, 0.025, 100, { 1, 1, 1 }, { 2, 1, 1 });
-	
-	this->h = 3.0;
-	fidelity({ 1,1,1 });
-	
-	this->L = 13;
-	this->h = 1;
-	disorder();
+	//fidelity({ 1, 1, 1 });
+	//
+	//matrix_elements_stat_sym(0, 1, 0.001, 0.02, 10, 0.025, 100, { 1, 1, 1 }, { 1, 1, 1 });
+	//matrix_elements_stat_sym(0, 1, 0.001, 0.02, 10, 0.025, 100, { 1, 1, 1 }, { 2, 1, 1 });
+	//
+	//this->h = 3.0;
+	//fidelity({ 1,1,1 });
+	//
+	//this->L = 13;
+	//this->h = 1;
+	//disorder();
 	stout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - " << endl;						// simulation end
 }

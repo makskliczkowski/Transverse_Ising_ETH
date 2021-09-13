@@ -35,7 +35,6 @@
 
 
 
-
 // - - - - - namespaces - - - - -
 using namespace std;
 using namespace arma;
@@ -51,7 +50,7 @@ static const char* kPathSeparator =
 "/";
 #endif
 
-using u64 = unsigned long long;
+//using u64 = unsigned long long;
 using cpx = std::complex<double>;
 
 template<class T>
@@ -140,6 +139,29 @@ inline u64 binary_search(const std::vector<double>& arr, u64 l_point, u64 r_poin
 }
 
 /// <summary>
+/// Rotates the binary representation of the input decimal number by one left shift
+/// </summary>
+/// <param name="n"> number to rotate </param>
+/// <param name="maxPower"> maximal power of 2 </param>
+/// <returns> rotated number </returns>
+inline u64 rotate_left(u64 n, u64 maxPower) {
+	return (n >= maxPower) ? (((int64_t)n - (int64_t)maxPower) * 2 + 1) : n * 2;
+}
+inline u64 flip(u64 n, u64 maxBinaryNum) {
+	return maxBinaryNum - n - 1;
+}
+inline u64 reverseBits(u64 n, int L, const v_1d<u64>& BinaryPowers) {
+	u64 temp = n;
+	u64 rev = 0;
+	for (int k = 0; k < L; k++) {
+		rev += (temp % 2) * BinaryPowers[L - k - 1];
+		temp = temp / 2.;
+		//1 >> temp;
+	}
+	return rev;
+}
+
+/// <summary>
 /// Conversion to binary system
 /// </summary>
 /// <param name="idx"> numner for conversion </param>
@@ -148,8 +170,8 @@ inline void int_to_binary(u64 idx, std::vector<bool>& vec) {
 	u64 temp = idx;
 	const u64 size = vec.size();
 	for (int k = 0; k < size; k++) {
-		vec[size - 1 - k] = static_cast<bool>(temp % 2);
-		temp = static_cast<u64>((double)temp / 2.);
+		vec[size - 1 - k] = temp % 2;
+		temp = temp / 2.;
 	}
 }
 
@@ -166,6 +188,13 @@ inline u64 binary_to_int(const vector<bool>& vec) {
 		val += static_cast<u64>(vec[size - 1 - k]) * exp;
 		exp *= 2;
 	}
+	return val;
+}
+inline u64 binary_to_int(const vector<bool>& vec, const v_1d<u64>& powers){
+	u64 val = 0;
+	const u64 size = vec.size();
+	for (int k = 0; k < size; k++) 
+		val += static_cast<u64>(vec[size - 1 - k]) * powers[k];
 	return val;
 }
 

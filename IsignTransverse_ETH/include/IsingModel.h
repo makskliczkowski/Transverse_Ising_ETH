@@ -49,7 +49,7 @@ protected:
 	std::vector<cpx> normalisation;						// used for normalization in the symmetry case
 
 	virtual u64 map(u64 index) = 0;						// function returning either the mapping(symmetries) or the input index (no-symmetry: 1to1 correspondance)
-
+	v_1d<u64> BinaryPowers;								// vector containing powers of 2 from 2^0 to 2^(L-1)
 public:
 	u64 E_av_idx;										// average energy
 	/* MODEL BASED PARAMETERS */
@@ -100,9 +100,14 @@ public:
 	void print_state(u64 _id);																	// prints the eigenstate at a given idx
 
 	// METHODS
+	void set_binary_powers() {	
+		this->BinaryPowers = std::vector<u64>(L + 1);
+		for (int i = 0; i <= this->L; i++)
+			this->BinaryPowers[i] = std::pow(2, i);
+	}
 	void set_neighbors();																		// create neighbors list according to the boundary conditions
 	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
-	virtual void setHamiltonianElem(u64 k, double value, std::vector<bool>& temp) = 0;
+	virtual void setHamiltonianElem(u64 k, double value, u64 new_idx) = 0;
 
 	void diagonalization();																		// diagonalize the Hamiltonian
 
@@ -166,10 +171,10 @@ private:
 	bool k_sector;					// if the k-sector allows p symmetry
 	v_1d<cpx> k_exponents;			// precalculate the symmetry exponents for current k vector
 
-	std::tuple<u64, int> find_translation_representative(std::vector<bool>& base_vector) const;								
-	std::tuple<u64, int> find_SEC_representative(const std::vector<bool>& base_vector) const;
+	std::tuple<u64, int> find_translation_representative(u64 base_idx) const;								
+	std::tuple<u64, int> find_SEC_representative(u64 base_idx) const;
 
-	cpx get_symmetry_normalization(std::vector<bool>& base_vector, u64 k);
+	cpx get_symmetry_normalization(u64 base_idx);
 	void mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id);							// multithreaded mapping
 	void generate_mapping();																													// utilizes the mapping kernel
 
@@ -177,9 +182,9 @@ private:
 public:
 	// OVERRIDES OF THE MODEL METHODS
 	void hamiltonian() override;
-	void setHamiltonianElem(u64 k, double value, std::vector<bool>& temp) override;																
+	void setHamiltonianElem(u64 k, double value, u64 new_idx) override;
 
-	friend std::pair<u64, cpx> find_rep_and_sym_eigval(v_1d<bool>& base,\
+	friend std::pair<u64, cpx> find_rep_and_sym_eigval(u64 base_idx,\
 		const IsingModel_sym& sector_alfa, cpx normalisation_beta);																				// returns the index and the value of the minimum representative
 
 	double entaglement_entropy(u64 state_id, int subsystem_size) override {
@@ -287,7 +292,7 @@ private:
 public:
 	// METHODS
 	void hamiltonian() override;
-	void setHamiltonianElem(u64 k, double value, std::vector<bool>& temp) override;
+	void setHamiltonianElem(u64 k, double value, u64 new_idx) override;
 
 	// MATRICES & OPERATORS
 	double av_sigma_z(u64 alfa, u64 beta) override;											// check the sigma_z matrix element extensive
