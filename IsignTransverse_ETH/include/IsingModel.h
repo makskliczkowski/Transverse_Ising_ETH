@@ -49,7 +49,7 @@ protected:
 	std::vector<cpx> normalisation;						// used for normalization in the symmetry case
 
 	virtual u64 map(u64 index) = 0;						// function returning either the mapping(symmetries) or the input index (no-symmetry: 1to1 correspondance)
-	v_1d<u64> BinaryPowers;								// vector containing powers of 2 from 2^0 to 2^(L-1)
+
 public:
 	u64 E_av_idx;										// average energy
 	/* MODEL BASED PARAMETERS */
@@ -100,11 +100,6 @@ public:
 	void print_state(u64 _id);																	// prints the eigenstate at a given idx
 
 	// METHODS
-	void set_binary_powers() {	
-		this->BinaryPowers = std::vector<u64>(L + 1);
-		for (int i = 0; i <= this->L; i++)
-			this->BinaryPowers[i] = std::pow(2, i);
-	}
 	void set_neighbors();																		// create neighbors list according to the boundary conditions
 	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
 	virtual void setHamiltonianElem(u64 k, double value, u64 new_idx) = 0;
@@ -207,40 +202,40 @@ public:
 	cpx av_spin_current(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the spin current at given sites
 
 	// lambda functions for Sigmas - changes the state and returns the value on the base vector
-	static std::pair<cpx, v_1d<bool>> sigma_x(const v_1d<bool>& base_vec, std::initializer_list<int> sites) {
+	static std::pair<cpx, u64> sigma_x(u64 base_vec,int L, std::initializer_list<int> sites) {
 		auto tmp = base_vec;
 		for(auto& site: sites)
-			tmp[site] = !tmp[site];
-		return std::make_pair(1.0,tmp);
+			tmp = flip(tmp, BinaryPowers[L - 1 - site], L - 1 - site);
+		return std::make_pair(1.0, tmp);
 	};
-	static std::pair<cpx, v_1d<bool>> sigma_y(const v_1d<bool>& base_vec, std::initializer_list<int> sites) {
+	static std::pair<cpx, u64> sigma_y(u64 base_vec,int L, std::initializer_list<int> sites) {
 		auto tmp = base_vec;
 		cpx val = 1.0;
 		for(auto& site: sites){
-			val *= tmp[site] ? im : -im;
-			tmp[site] = !tmp[site];
+			val *= checkBit(tmp, L-1-site) ? im : -im;
+			tmp = flip(tmp, BinaryPowers[L - 1 - site], L - 1 - site);
 		}
 		return std::make_pair(val, tmp);
 	};
-	static std::pair<cpx, v_1d<bool>> sigma_z(const v_1d<bool>& base_vec, std::initializer_list<int> sites) {
+	static std::pair<cpx, u64> sigma_z(u64 base_vec,int L, std::initializer_list<int> sites) {
 		auto tmp = base_vec;
 		double val = 1.0;
 		for (auto& site : sites)
-			val *= tmp[site] ? 1.0 : -1.0;
+			val *= checkBit(tmp, L-1-site) ? 1.0 : -1.0;
 		return std::make_pair(val, tmp);
 	};
-	static std::pair<cpx, v_1d<bool>> spin_flip(const v_1d<bool>& base_vec, std::initializer_list<int> sites) {
+	static std::pair<cpx, u64> spin_flip(u64 base_vec,int L, std::initializer_list<int> sites) {
 		if (sites.size() > 2) throw "Not implemented such exotic operators, choose 1 or 2 sites\n";
 		auto tmp = base_vec;
 		cpx val = 0.0;
 		auto it = sites.begin() + 1;
 		auto it2 = sites.begin();
-		if (!base_vec[*it]) {
-			tmp[*it] = !tmp[*it];
+		if (!(checkBit(base_vec, L - 1 - *it))) {
+			tmp = flip(tmp,BinaryPowers[L - 1 - *it], L - 1 - *it);
 			val = 2.0;
 			if (sites.size() > 1) {
-				if (base_vec[*it2]) {
-					tmp[*it2] = !tmp[*it2];
+				if (checkBit(base_vec, L - 1 - *it2)) {
+					tmp = flip(tmp,BinaryPowers[L - 1 - *it2], L - 1 - *it2);
 					val *= 2.0;
 				}
 				else val = 0.0;
@@ -250,17 +245,12 @@ public:
 		return std::make_pair(val, tmp);
 	};
 	
-	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta,\
-		std::function<std::pair<cpx,v_1d<bool>>(const v_1d<bool>&, std::initializer_list<int>)> op, std::initializer_list<int> sites);							// calculates the matrix element of operator at given site
-	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta,\
-		std::function<std::pair<cpx,v_1d<bool>>(const v_1d<bool>&, std::initializer_list<int>)> op);																// calculates the matrix element of operator at given site in extensive form (a sum)
-	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta,\
-		std::function<std::pair<cpx,v_1d<bool>>(const v_1d<bool>&, std::initializer_list<int>)> op, int corr_len);												// calculates the matrix element of operator at given site in extensive form (a sum) with corr_len
+	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::initializer_list<int> sites);					// calculates the matrix element of operator at given site
+	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op);														// calculates the matrix element of operator at given site in extensive form (a sum)
+	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, int corr_len);										// calculates the matrix element of operator at given site in extensive form (a sum) with corr_len
 
-	friend cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, const v_1d<bool>& base_vec,\
-		const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta,\
-		std::function<std::pair<cpx,v_1d<bool>>(const v_1d<bool>&, std::initializer_list<int>)> op,\
-		std::initializer_list<int> sites);
+	friend cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, u64 base_vec, u64 k,\
+		const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op,	std::initializer_list<int> sites);
 
 	mat correlation_matrix(u64 state_id) override {
 		return mat();

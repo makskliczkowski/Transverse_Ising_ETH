@@ -890,6 +890,7 @@ void isingUI::ui::make_sim()
 
 	//size_scaling_sym(0, 1, 1);
 	//size_scaling_sym(2, 1, 1);
+	//compare_matrix_elements();
 	//this->L = 18;
 	//compare_energies();
 	//parameter_sweep_sym(1, 1, 1);
