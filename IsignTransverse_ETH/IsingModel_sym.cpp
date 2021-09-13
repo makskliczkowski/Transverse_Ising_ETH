@@ -62,10 +62,7 @@ std::tuple<u64, int> IsingModel_sym::find_translation_representative(u64 base_id
 /// <param name="base_vector"> current base vector to act with symmetries </param>
 /// <param name="min"> index of EC class representative by translation symmetry </param>
 /// <returns></returns>
-std::tuple<u64, int> IsingModel_sym::find_SEC_representative(u64 base_idx) const {
-	std::vector<u64> minima;
-
-	//check reflection symmetry
+std::tuple<u64, int> IsingModel_sym::find_SEC_representative(u64 base_idx, std::vector<u64>& minima) const {
 	u64 R = INT_MAX;
 	int eig_Rsym = 0;
 	u64 idx_R = 0;
@@ -75,19 +72,19 @@ std::tuple<u64, int> IsingModel_sym::find_SEC_representative(u64 base_idx) const
 		R = std::get<0>(tupleR);
 		eig_Rsym = std::get<1>(tupleR);
 	}
-	minima.push_back(R);
+	minima[0] = R;
 
 	if (this->h == 0) {
 
 		// check spin-flip
 		auto tupleX = find_translation_representative(flip(base_idx, BinaryPowers[L]));
-		minima.push_back(std::get<0>(tupleX));
+		minima[1] = std::get<0>(tupleX);
 
 		// check spin-flip and reflection
 		int eig_RXsym = INT_MAX;
 		if (this->k_sector) {
 			auto tupleRX = find_translation_representative(flip(idx_R, BinaryPowers[L]));
-			minima.push_back(std::get<0>(tupleRX));
+			minima[2] = std::get<0>(tupleRX);
 			eig_RXsym = std::get<1>(tupleRX);
 		}
 
@@ -156,6 +153,7 @@ cpx IsingModel_sym::get_symmetry_normalization(u64 base_idx) {
 /// <param name="_id"> identificator for a given thread </param>
 void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id) {
 	std::vector<bool> base_vector(this->L); // temporary dirac-notation base vector
+	std::vector<u64> minima(3);
 	for (u64 j = start; j < stop; j++) {
 		
 		if (this->g == 0) {
@@ -167,7 +165,8 @@ void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_t
 
 		u64 min_R_RX = INT_MAX;
 		if (min == j) {
-			auto tuple = find_SEC_representative(j);
+			minima.assign(3, INT_MAX);
+			auto tuple = find_SEC_representative(j, minima);
 			min_R_RX = std::get<0>(tuple);
 		}
 		if (min_R_RX < j) continue;
@@ -229,8 +228,9 @@ std::pair<u64, cpx> find_rep_and_sym_eigval(u64 base_idx, const IsingModel_sym& 
 	u64 idx = binary_search(sector_alfa.mapping, 0, sector_alfa.N - 1, base_idx);
 	int sym_eig = 1;
 	if (idx > sector_alfa.N) {
+		std::vector<u64> minima(3);
 		auto tup_T = sector_alfa.find_translation_representative(base_idx);
-		auto tup_S = sector_alfa.find_SEC_representative(base_idx);
+		auto tup_S = sector_alfa.find_SEC_representative(base_idx, minima);
 		auto [min, trans_eig] = (std::get<0>(tup_T) > std::get<0>(tup_S)) ? tup_S : tup_T;
 		sym_eig = trans_eig;
 		//finding index in reduced Hilbert space

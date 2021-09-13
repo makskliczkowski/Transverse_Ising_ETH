@@ -86,6 +86,7 @@ public:
 		return tmp_str; 
 	};
 
+
 	u64 get_hilbert_size() const { return this->N; };											// get the Hilbert space size 2^N
 	const Mat<T>& get_hamiltonian() const {	return this->H;	};									// get the const reference to a Hamiltonian
 	const vec& get_eigenvalues() const { return this->eigenvalues; };							// get the const reference to eigenvalues
@@ -167,7 +168,7 @@ private:
 	v_1d<cpx> k_exponents;			// precalculate the symmetry exponents for current k vector
 
 	std::tuple<u64, int> find_translation_representative(u64 base_idx) const;								
-	std::tuple<u64, int> find_SEC_representative(u64 base_idx) const;
+	std::tuple<u64, int> find_SEC_representative(u64 base_idx, std::vector<u64>& minima) const;
 
 	cpx get_symmetry_normalization(u64 base_idx);
 	void mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id);							// multithreaded mapping
@@ -245,6 +246,29 @@ public:
 		return std::make_pair(val, tmp);
 	};
 	
+	static std::string set_info(int L, double J, double g, double h, int k_sym, bool p_sym, bool x_sym, std::initializer_list<std::string> skip = {}) {
+		std::string name = "_L=" + std::to_string(L) + \
+			",g=" + to_string_prec(g, 2) + \
+			",h=" + to_string_prec(h, 2) + \
+			",k=" + std::to_string(k_sym) + \
+			",p=" + std::to_string((p_sym) ? 1 : -1) + \
+			",x=" + std::to_string(x_sym ? 1 : -1); 
+		auto tmp = split_str(name, ",");
+		std::string tmp_str = "";
+		for (int i = 0; i < tmp.size(); i++) {
+			bool save = true;
+			for (auto& skip_param : skip)
+			{
+				// skip the element if we don't want it to be included in the info
+				if (split_str(tmp[i], "=")[0] == skip_param)
+					save = false;
+			}
+			if (save) tmp_str += tmp[i] + ",";
+		}
+		tmp_str.pop_back();
+		return tmp_str;
+	}
+
 	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::initializer_list<int> sites);					// calculates the matrix element of operator at given site
 	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op);														// calculates the matrix element of operator at given site in extensive form (a sum)
 	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, int corr_len);										// calculates the matrix element of operator at given site in extensive form (a sum) with corr_len
@@ -302,6 +326,29 @@ public:
 	mat correlation_matrix(u64 state_id) override;
 
 	double entaglement_entropy(u64 state_id, int subsystem_size) override;
+
+	static std::string set_info(int L, double J, double J0, double g, double g0, double h, double w, std::initializer_list<std::string> skip = {}) {
+		std::string name =  "_L=" + std::to_string(L) + \
+			",J0=" + to_string_prec(J0, 2) + \
+			",g=" + to_string_prec(g, 2) + \
+			",g0=" + to_string_prec(g0, 2) + \
+			",h=" + to_string_prec(h, 2) + \
+			",w=" + to_string_prec(w, 2);
+		auto tmp = split_str(name, ",");
+		std::string tmp_str = "";
+		for (int i = 0; i < tmp.size(); i++) {
+			bool save = true;
+			for (auto& skip_param : skip)
+			{
+				// skip the element if we don't want it to be included in the info
+				if (split_str(tmp[i], "=")[0] == skip_param)
+					save = false;
+			}
+			if (save) tmp_str += tmp[i] + ",";
+		}
+		tmp_str.pop_back();
+		return tmp_str;
+	}
 };
 
 

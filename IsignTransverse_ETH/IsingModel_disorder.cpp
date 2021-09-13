@@ -9,7 +9,7 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 
 	this->ran = randomGen(global_seed);
 	//change info
-	this->info = ",L=" + std::to_string(this->L) + \
+	this->info = "_L=" + std::to_string(this->L) + \
 		",J0=" + to_string_prec(this->J0, 2) + \
 		",g=" + to_string_prec(this->g, 2) + \
 		",g0=" + to_string_prec(this->g0, 2) + \
