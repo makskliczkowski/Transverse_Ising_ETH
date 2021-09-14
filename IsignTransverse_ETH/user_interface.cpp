@@ -716,7 +716,7 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 	const double gmax = 0.4 + this->gn * this->gs;
 	const double hmax = 0.2 + this->hn * this->hs;
 
-	for (double gx = 0.4; gx < gmax; gx += this->gs) {
+	for (double gx = 0.91; gx < gmax; gx += this->gs) {
 		std::string info = IsingModel_sym::set_info(L, J, gx, h, k, p, x, { "h" });
 		std::ofstream kurt(this->saving_dir + "Moments" + info + ".dat");
 		std::ofstream farante(this->saving_dir + "IprScaling" + info + ".dat");
@@ -729,12 +729,14 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 			stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n";
 			//
 			// average sigma_x operator at first site prob dist
-			vec av_sigma_x(N, fill::zeros);
-			for (int i = 0; i < N; i++)
-				av_sigma_x(i) = alfa->av_sigma_x(i, i, { 0 });
+			vec av_sigma_x(mu, fill::zeros);
+			for (int i = alfa->E_av_idx - mu / 2.; i < alfa->E_av_idx + mu / 2.; i++) {
+				const int idx = i - (alfa->E_av_idx - mu / 2.);
+				av_sigma_x(idx) = alfa->av_sigma_x(i, i, { 0 });
+			}
 			//probability_distribution(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), data_fluctuations(av_sigma_x), -0.5, 0.5, 0.005);
-			arma::vec distSigmaX = probability_distribution_with_return(data_fluctuations(av_sigma_x), -0.5, 0.5, 0.005);
-			save_to_file(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), arma::linspace(-0.5, 0.5, distSigmaX.size()), distSigmaX);
+			arma::vec distSigmaX = probability_distribution_with_return(data_fluctuations(av_sigma_x), 0, 0.5, 0.001);
+			//save_to_file(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), arma::linspace(0, 0.5, distSigmaX.size()), distSigmaX);
 			kurt << hx << "\t\t" << binder_cumulant(distSigmaX) << "\t\t"\
 				<< kurtosis(distSigmaX) << "\t\t" << arma::stddev(distSigmaX) << endl;
 			stout << " \t\t--> finished prob dist of sigma_x for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n";
@@ -931,7 +933,7 @@ void isingUI::ui::make_sim()
 	clk::time_point start = std::chrono::high_resolution_clock::now();
 
 	parameter_sweep_sym(1, 1, 1);
-	for (double gx = 0.4; gx <= 2.2; gx += 0.6) {
+	/*for (double gx = 0.4; gx <= 2.2; gx += 0.6) {
 		for (double hx = 0.2; hx < 4.0; hx += 0.4) {
 			perturbative_stat_sym(5e-4, 0, 0.5, 1e-1, gx, hx);
 			perturbative_stat_sym(5e-4, 0, 0.5, 1e-2, gx, hx);
@@ -939,7 +941,7 @@ void isingUI::ui::make_sim()
 		}
 	}
 	check_dist_other_sector();
-
+	*/
 	//matrix_elements_stat_sym(0, 1, 5e-4, 0.01, 10, 1e-1, 500, { 1, 1, 1 }, { 1, 1, 1 });
 	//matrix_elements_stat_sym(0, 1, 0.001, 0.1, 10, 0.05, 100, { 1, 1, 1 }, { 2, 1, 1 });
 
