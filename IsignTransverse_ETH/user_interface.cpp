@@ -718,7 +718,7 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 
 	for (double gx = 0.91; gx < gmax; gx += this->gs) {
 		std::string info = IsingModel_sym::set_info(L, J, gx, h, k, p, x, { "h" });
-		std::ofstream kurt(this->saving_dir + "Moments" + info + ".dat");
+		//std::ofstream kurt(this->saving_dir + "Moments" + info + ".dat");
 		std::ofstream farante(this->saving_dir + "IprScaling" + info + ".dat");
 		for (double hx = 0.2; hx < hmax; hx += this->hs) {
 			auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, gx, hx, k, p, x, boundary_conditions);
@@ -729,17 +729,17 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 			stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n";
 			//
 			// average sigma_x operator at first site prob dist
-			vec av_sigma_x(mu, fill::zeros);
-			for (int i = alfa->E_av_idx - mu / 2.; i < alfa->E_av_idx + mu / 2.; i++) {
-				const int idx = i - (alfa->E_av_idx - mu / 2.);
-				av_sigma_x(idx) = alfa->av_sigma_x(i, i, { 0 });
-			}
-			//probability_distribution(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), data_fluctuations(av_sigma_x), -0.5, 0.5, 0.005);
-			arma::vec distSigmaX = probability_distribution_with_return(data_fluctuations(av_sigma_x), 0, 0.5, 0.001);
-			//save_to_file(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), arma::linspace(0, 0.5, distSigmaX.size()), distSigmaX);
-			kurt << hx << "\t\t" << binder_cumulant(distSigmaX) << "\t\t"\
-				<< kurtosis(distSigmaX) << "\t\t" << arma::stddev(distSigmaX) << endl;
-			stout << " \t\t--> finished prob dist of sigma_x for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n";
+			//vec av_sigma_x(mu, fill::zeros);
+			//for (int i = alfa->E_av_idx - mu / 2.; i < alfa->E_av_idx + mu / 2.; i++) {
+			//	const int idx = i - (alfa->E_av_idx - mu / 2.);
+			//	av_sigma_x(idx) = alfa->av_sigma_x(i, i, { 0 });
+			//}
+			////probability_distribution(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), data_fluctuations(av_sigma_x), -0.5, 0.5, 0.005);
+			//arma::vec distSigmaX = probability_distribution_with_return(data_fluctuations(av_sigma_x), 0, 0.5, 0.001);
+			////save_to_file(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), arma::linspace(0, 0.5, distSigmaX.size()), distSigmaX);
+			//kurt << hx << "\t\t" << binder_cumulant(distSigmaX) << "\t\t"\
+			//	<< kurtosis(distSigmaX) << "\t\t" << arma::stddev(distSigmaX) << endl;
+			//stout << " \t\t--> finished prob dist of sigma_x for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n";
 
 			
 			// eigenlevel statistics and prob distribution
@@ -762,7 +762,7 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 			
 		}
 		farante.close();
-		kurt.close();
+		//kurt.close();
 	}		 
 	stout << " - - - - - - FINISHED PARAMETER SCALING for:\nk = " << k << ", p = " << p << ", x = " << x << "IN : " << tim_s(start) << "s\n";
 }
