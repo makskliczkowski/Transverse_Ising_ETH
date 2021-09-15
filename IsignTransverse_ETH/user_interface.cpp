@@ -718,20 +718,24 @@ void isingUI::ui::size_scaling_sym(int k, int p, int x) {
 void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 {
 	const auto start = std::chrono::high_resolution_clock::now();
-	const double gmax = 0.4 + this->gn * this->gs;
-	const double hmax = 0.2 + this->hn * this->hs;
-
-	for (double gx = 0.91; gx < gmax; gx += this->gs) {
-		std::string info = IsingModel_sym::set_info(L, J, gx, h, k, p, x, { "h" });
+	const double gmax = 2.0;//0.4 + this->gn * this->gs;
+	const double hmax = 3.3;// + this->hn * this->hs;
+	std::string info = IsingModel_sym::set_info(L, J, g, h, k, p, x, { "h", "g"});
+	std::ofstream farante(this->saving_dir + "IprScalingMap" + info + ".dat");
+	unique_ptr<IsingModel_sym> alfa;
+	int counter_g = 0;
+	for (double gx = 0.5; gx < gmax; gx += this->gs) {
 		//std::ofstream kurt(this->saving_dir + "Moments" + info + ".dat");
-		std::ofstream farante(this->saving_dir + "IprScaling" + info + ".dat");
-		for (double hx = 0.2; hx < hmax; hx += this->hs) {
-			auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, gx, hx, k, p, x, boundary_conditions);
+		int counter_h = 0;
+		for (double hx = 0.5; hx < hmax; hx += this->hs) {
+			alfa.reset(new IsingModel_sym(this->L, this->J, gx, hx, \
+				this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions));
 			this->mu = 0.5 * alfa->get_hilbert_size();
+			const auto start_loop = std::chrono::high_resolution_clock::now();
 			stout << "\n\n------------------------------ Doing : " << alfa->get_info() << "------------------------------\n";
 			const u64 N = alfa->get_hilbert_size();
 			alfa->diagonalization();
-			stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n";
+			stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
 			//
 			// average sigma_x operator at first site prob dist
 			//vec av_sigma_x(mu, fill::zeros);
@@ -762,13 +766,18 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 				r += alfa->eigenlevel_statistics(i, i + 1);
 				counter++;
 			}
-			farante << hx << "\t\t" << ipr / double(counter * N) << "\t\t" << ent / double(counter) << "\t\t" << r / double(counter) << endl;
+			farante << gx << "\t\t" << hx << "\t\t" << ipr / double(counter * N) << "\t\t" << ent / double(counter) << "\t\t" << r / double(counter) << endl;
 			
-			
+			if (counter_g % 10 == 0 && counter_h % 14 == 0) {
+				this->perturbative_stat_sym(2e-4, 0, 1.0, 1e-3, gx, hx);
+			}
+			counter_h++;
+			stout << " \t\t\t--> finished calculating ETH params for " << alfa->get_info() << " - in time : " <<tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
 		}
-		farante.close();
 		//kurt.close();
+		counter_g++;
 	}		 
+	farante.close();
 	stout << " - - - - - - FINISHED PARAMETER SCALING for:\nk = " << k << ", p = " << p << ", x = " << x << "IN : " << tim_s(start) << "s\n";
 }
 /// <summary>
@@ -891,6 +900,7 @@ void isingUI::ui::matrix_elements_stat_sym(double min, double max, double step, 
 /// <param name="pert"></param>
 void isingUI::ui::perturbative_stat_sym(double dist_step, double min, double max, double pert, double gx, double hx)
 {
+
 	clk::time_point start = std::chrono::high_resolution_clock::now();
 	auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, gx, hx, \
 		this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
@@ -927,7 +937,7 @@ void isingUI::ui::perturbative_stat_sym(double dist_step, double min, double max
 	}
 
 	dis_op.close(); dis_E.close();
-	stout << " - - - - - - FINISHED perturbation = " << pert << " IN : " << tim_s(start) << " seconds - -----" << endl;
+	stout << "\t\t\t\t - - - - - - FINISHED perturbation = " << pert << " IN : " << tim_s(start) << " seconds - -----" << endl;
 }
 /// <summary>
 /// 
@@ -937,7 +947,7 @@ void isingUI::ui::make_sim()
 	using namespace std::chrono;
 	clk::time_point start = std::chrono::high_resolution_clock::now();
 
-	parameter_sweep_sym(1, 1, 1);
+	parameter_sweep_sym(3, 1, 1);
 	/*for (double gx = 0.4; gx <= 2.2; gx += 0.6) {
 		for (double hx = 0.2; hx < 4.0; hx += 0.4) {
 			perturbative_stat_sym(5e-4, 0, 0.5, 1e-1, gx, hx);
