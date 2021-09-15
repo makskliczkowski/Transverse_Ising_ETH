@@ -276,9 +276,7 @@ public:
 	friend cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, u64 base_vec, u64 k,\
 		const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op,	std::initializer_list<int> sites);
 
-	mat correlation_matrix(u64 state_id) override {
-		return mat();
-	};
+	mat correlation_matrix(u64 state_id) override;
 };
 
 //-------------------------------------------------------------------------------------------------------------------------------

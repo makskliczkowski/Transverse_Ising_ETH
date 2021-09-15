@@ -101,7 +101,8 @@ extern std::mt19937::result_type seed;
 extern std::mt19937_64 gen;
 
 inline double tim_s(clk::time_point start){
-	return double(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration(std::chrono::high_resolution_clock::now() - start)).count()) / 1000.0;
+	return double(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration(\
+		std::chrono::high_resolution_clock::now() - start)).count()) / 1000.0;
 }
 //--------------------------------------------------TOOLS--------------------------------------------------
 template <typename T> int sgn(T val) {
@@ -179,11 +180,7 @@ inline u64 rotate_left(u64 n, u64 maxPower) {
 /// <param name="k">number of bit (from 0 to 63)</param>
 /// <returns>Bool on if the bit is set or not</returns>
 inline bool checkBit(u64 n, int k) {
-	if (n & (1ULL << k))
-        return true;
-    else
-        return false;
-
+	return n & (1ULL << k);
 }
 inline u64 flip(u64 n, u64 maxBinaryNum) {
 	return maxBinaryNum - n - 1;

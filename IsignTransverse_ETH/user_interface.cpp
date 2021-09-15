@@ -650,54 +650,59 @@ void isingUI::ui::size_scaling_sym(int k, int p, int x) {
 	std::ofstream farante(this->saving_dir + "IprScaling" + beta->get_info({ "L" }) + ".dat");
 	std::ofstream fikolo(this->saving_dir + "SpectrumRapScalingSigmaX" + beta->get_info({ "L" }) + ".dat");
 	
-	for (int Lx = this->L; Lx <= L_max; Lx++) {
+	for (int Lx = this->L; Lx <= L_max; Lx += this->Ls) {
 		stout << "\n\n------------------------------Doing L = " << Lx << "------------------------------\n";
 		auto alfa = std::make_unique<IsingModel_sym>(Lx, J, g, h, k, p, x, boundary_conditions);
 		u64 N = alfa->get_hilbert_size();
+		if (N <= 0) continue;
 		alfa->diagonalization();
+		this->mu = 0.5 * N;
+		const long int E_min = alfa->E_av_idx - mu / 2.;
+		const long int E_max = alfa->E_av_idx + mu / 2.;
 		stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << " - in time : " << \
 			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 
 		// average sigma_x operator at first site
 		std::ofstream sigx(this->saving_dir + "SigmaX" + alfa->get_info() + ".dat");
-		vec av_sigma_x(N, fill::zeros);
-		for (int i = 0; i < N; i++) {
-			av_sigma_x(i) = alfa->av_sigma_x(i, i, { 0 });
-			sigx << alfa->get_eigenEnergy(i) / double(Lx) << "\t\t" << av_sigma_x(i) << endl;
+		vec av_sigma_x(mu, fill::zeros);
+		for (int i = E_min; i < E_max; i++) {
+			const int idx = i - (alfa->E_av_idx - mu / 2.);
+			av_sigma_x(idx) = alfa->av_sigma_x(i, i, { 0 });
+			sigx << alfa->get_eigenEnergy(idx) / double(Lx) << "\t\t" << av_sigma_x(idx) << endl;
 		}
 		sigx.close();
 
 		//outliers and prob distribution for sigma_x
-		vec r_sigma_x(N - 1);
+		vec r_sigma_x(mu - 1);
 #pragma omp parallel for
-		for (int i = 0; i < N - 1; i++)
-			r_sigma_x(i) = abs(av_sigma_x(i + 1) - av_sigma_x(i));
+		for (long int i = E_min; i < E_max - 1; i++) {
+			const int idx = i - (alfa->E_av_idx - mu / 2.);
+			r_sigma_x(idx) = abs(av_sigma_x(idx + 1) - av_sigma_x(idx));
+		}
 
 		vec outliers = statistics_average(r_sigma_x, 4);
 		fikolo << Lx << "\t\t" << outliers.t();
-		stout << " \t\t--> finished outliers for " << alfa->get_info() << " - in time : " << \
-			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
+		stout << " \t\t--> finished outliers for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
 
 		probability_distribution(this->saving_dir, "ProbDistSpecRapSigmaX" + alfa->get_info(), r_sigma_x, 0, 0.1, 0.001);
-		probability_distribution(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), data_fluctuations(av_sigma_x), -0.1, 0.1, 0.003);
-		stout << " \t\t--> finished prob dist for " << alfa->get_info() << " - in time : " << \
-			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
+		probability_distribution(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), data_fluctuations(av_sigma_x), 0, 1.5, 0.002);
+		stout << " \t\t--> finished prob dist for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
 
 		// eigenlevel statistics and prob distribution
-		vec r = alfa->eigenlevel_statistics_with_return();
-		probability_distribution(this->saving_dir, "ProbDistGap" + alfa->get_info(), r, 0, 1.0, 0.01);
+		//vec r = alfa->eigenlevel_statistics_with_return();
+		//probability_distribution(this->saving_dir, "ProbDistGap" + alfa->get_info(), r, 0, 1.0, 0.01);
 
 		// ipr & info entropy
-		double ipr = 0, ent = 0;
+		double ipr = 0, ent = 0, r = 0;
 		int counter = 0;
-		for (int i = alfa->E_av_idx - mu / 2.; i <= alfa->E_av_idx + mu / 2.; i++) {
+		for (int i = E_min; i < E_max; i++) {
 			ipr += alfa->ipr(i);
 			ent += alfa->information_entropy(i);
+			r += alfa->eigenlevel_statistics(i, i + 1);
 			counter++;
 		}
-		farante << Lx << "\t\t" << ipr / double(counter * N) << "\t\t" << ent / double(counter) << "\t\t" << mean(r) << endl;
-		stout << " \t\t--> finished farante for " << alfa->get_info() << " - in time : " << \
-			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
+		farante << Lx << "\t\t" << ipr / double(counter * N) << "\t\t" << ent / double(counter) << "\t\t" << r / double(counter) << endl;
+		stout << " \t\t--> finished farante for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
 
 	}
 	fikolo.close();
