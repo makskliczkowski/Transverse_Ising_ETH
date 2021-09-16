@@ -23,7 +23,7 @@
 	this->mapping = std::vector<u64>();
 	this->normalisation = std::vector<cpx>();
 	this->generate_mapping();
-
+	if (this->N <= 0) return;
 	this->set_neighbors(); // generate neighbors
 	this->hamiltonian();
 }
@@ -385,8 +385,10 @@ double IsingModel_sym::av_spin_flip(u64 alfa, u64 beta) {
 /// <param name="beta"></param>
 /// <param name="sites"></param>
 /// <returns></returns>
-double IsingModel_sym::av_spin_flip(u64 alfa, u64 beta, std::initializer_list<int> sites) {	 auto spin_flip = IsingModel_sym::spin_flip;
-	auto value = av_operator(alfa, beta, *this, *this, spin_flip, sites);	 value += conj(av_operator(beta, alfa, *this, *this, spin_flip, sites));
+double IsingModel_sym::av_spin_flip(u64 alfa, u64 beta, std::initializer_list<int> sites) {	 
+	auto spin_flip = IsingModel_sym::spin_flip;
+	auto value = av_operator(alfa, beta, *this, *this, spin_flip, sites);	 
+	value += conj(av_operator(beta, alfa, *this, *this, spin_flip, sites));
 	return 0.5 * real(value);
 }
 
@@ -415,6 +417,29 @@ cpx IsingModel_sym::av_spin_current(u64 alfa, u64 beta, std::initializer_list<in
 	auto value = im * av_operator(alfa, beta, *this, *this, spin_flip, sites);	 
 	value += conj(im * av_operator(beta, alfa, *this, *this, spin_flip, sites));	 
 	return 0.5i * value;
+}
+
+/// <summary>
+/// calculates spin-spin correlation matrix within a given state
+/// </summary>
+/// <param name="state_idx"> index of eigenstate to calculate correlation matrix </param>
+/// <returns> correlation matrix </returns>
+mat IsingModel_sym::correlation_matrix(u64 state_idx) {
+	mat corr_mat(this->L, this->L, arma::fill::zeros);
+	auto spin_flip = IsingModel_sym::spin_flip;
+	auto sig_z_nn = IsingModel_sym::sigma_z;
+	for (int i = 0; i < L; i++) {
+		for (int j = 0; j < L; j++) {
+			auto kinetic = 0.5 * av_operator(state_idx, state_idx, *this, *this, spin_flip, { i, j });
+			kinetic += conj(kinetic);
+			auto corr_zz = av_operator(state_idx, state_idx, *this, *this, sig_z_nn, { i, j });
+			corr_mat(i, j) = real(kinetic + corr_zz);
+		}
+		//for (int j = 0; j < i; j++) {
+		//	corr_mat(i, j) = corr_mat(j, i);
+		//}
+	}
+	return corr_mat;
 }
 
 // ----------------------------------------------------------------------------- WRAPPERS FOR SIGMA OPERATORS -----------------------------------------------------------------------------
@@ -614,13 +639,15 @@ cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_co
 	cpx overlap = 0.0;
 	for (int l = 0; l < sec_alfa.L; l++) {
 		auto T_eig = sec_beta.k_exponents[l];
-	
 		overlap += get_overlap_sym(Translation, T_eig);
+		Translation = rotate_left(Translation, BinaryPowers[L - 1]);
+
 		if (sec_beta.k_sector) {
 			auto PT_eig = T_eig * double(sec_beta.symmetries.p_sym);
 			overlap += get_overlap_sym(PT, PT_eig);
 			PT = rotate_left(PT, BinaryPowers[L - 1]);
 		}
+
 		if (sec_beta.h == 0) {
 			auto ZT_eig = T_eig * double(sec_beta.symmetries.x_sym);
 			overlap += get_overlap_sym(ZT, ZT_eig);
@@ -631,7 +658,6 @@ cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_co
 				PZT = rotate_left(PZT, BinaryPowers[L - 1]);
 			}
 		}
-		Translation = rotate_left(Translation, BinaryPowers[L - 1]);
 	}
 	return overlap;
 }

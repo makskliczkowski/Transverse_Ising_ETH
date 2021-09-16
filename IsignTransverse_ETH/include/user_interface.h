@@ -121,6 +121,7 @@ namespace isingUI
 			std::initializer_list<int> alfa_sym = {},\
 			std::initializer_list<int> beta_sym = {}) const;
 		void perturbative_stat_sym(double dist_step, double min, double max, double pert, double gx, double hx);
+		void perturbative_stat_sym(double dist_step, double min, double max, double pert, IsingModel_sym& alfa, IsingModel_sym& beta);
 	};
 }
 

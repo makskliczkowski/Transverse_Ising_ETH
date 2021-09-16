@@ -96,7 +96,9 @@ template <typename T> void IsingModel<T>::diagonalization() {
 /// <param name="corr_mat"> spin correlation matrix </param>
 /// <returns></returns>
 template <typename T> double IsingModel<T>::total_spin(const mat& corr_mat) {
-	return (sqrt(1 + 4 * arma::accu(corr_mat)) - 1.0) / 2.0;
+	double S2 = arma::accu(corr_mat);
+	if (S2 < -0.25) return 0;
+	return (sqrt(1 + 4 * S2) - 1.0) / 2.0;
 }
 
 /// <summary>
@@ -369,7 +371,7 @@ template<> cpx overlap<cpx>(const IsingModel<cpx>& A, const IsingModel<cpx>& B, 
 
 
 
-// SOME SHIT WE HAVE TO DO
+// UNRESOLVED TEMPLATE EXTERNALS< COMPILER DOESN"T KNOW SHIT
 template IsingModel<double>::~IsingModel();
 template IsingModel<cpx>::~IsingModel();
 template void IsingModel<double>::set_neighbors();
@@ -388,3 +390,5 @@ template double IsingModel<double>::information_entropy(u64, const IsingModel<do
 template double IsingModel<cpx>::information_entropy(u64, const IsingModel<cpx>&, u64, u64);
 template cpx overlap(const IsingModel<cpx>&, const IsingModel<cpx>&, int, int);
 template double overlap(const IsingModel<double>&, const IsingModel<double>&, int, int);
+template double IsingModel<cpx>::total_spin(const mat&);
+template double IsingModel<double>::total_spin(const mat&);
