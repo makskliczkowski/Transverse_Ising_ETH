@@ -616,20 +616,21 @@ void isingUI::ui::fidelity(std::initializer_list<int> symetries){
 	for (int i = 0; i < 3; i++) 
 		if (i < symetries.size())
 			sym[i] = *(symetries.begin() + i);
-	auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, sym[0], sym[2], sym[1], this->boundary_conditions);
+	auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, sym[0], sym[1], sym[2], this->boundary_conditions);
 	alfa->diagonalization();
 	stout << " \t\t--> finished diagonalizing 1st for " << alfa->get_info() << " - in time : " << tim_s(start) << "\nTotal time : " << tim_s(start) << "s\n";
 
 	this->mu = 0.5 * alfa->get_hilbert_size();
-	const long int E_min = alfa->E_av_idx - mu / 2.;
-	const long int E_max = alfa->E_av_idx + mu / 2.;
 	std::ofstream file(this->saving_dir + "Fidelity" + alfa->get_info({}) + ".dat");
 	std::unique_ptr<IsingModel_sym> beta;
-	arma::vec log_step = arma::logspace(-3, 2, 200);
+	arma::vec log_step = arma::logspace(-3, 1, 100);
+	stout << alfa->get_hilbert_size() << endl;
 	for (auto& de : log_step) {
 		const auto start_loop = std::chrono::high_resolution_clock::now();
-		beta.reset(new IsingModel_sym(this->L, this->J, this->g, this->h + de, sym[0], sym[2], sym[1], this->boundary_conditions));
+		beta.reset(new IsingModel_sym(this->L, this->J, this->g, this->h + de, sym[0], sym[1], sym[2], this->boundary_conditions));
 		beta->diagonalization();
+		const long int E_min = beta->E_av_idx - mu / 2.;
+		const long int E_max = beta->E_av_idx + mu / 2.;
 		double fidel = 0, entropy = 0;
 		int counter = 0;
 		for (int k = E_min; k < E_max; k++) {
@@ -637,9 +638,11 @@ void isingUI::ui::fidelity(std::initializer_list<int> symetries){
 			entropy += alfa->information_entropy(k, *beta, E_min, E_max);
 			counter++;
 		}
-		file << de << "\t\t" << fidel / (double)counter << "\t\t" << entropy / (double)counter << "\t\t" << endl;
-		stout << de << "\t\t" << fidel / (double)counter << "\t\t" << entropy / (double)counter << "\t\t" << endl;
-		//perturbative_stat_sym(de / 10., -0.5, 0.5, de, *alfa, *beta);
+		fidel /= double(counter);
+		entropy /= (double)counter;
+		file << de << "\t\t" << fidel << "\t\t" << entropy << endl;
+		stout << de << "\t\t" << fidel << "\t\t" << entropy << endl;
+		//perturbative_stat_sym((de >=0.1)? de / 25. : de / 10., -1.0, 1.0, de, *alfa, *beta);
 		//stout << "\t\t\t\t - - - - - - finished perturbation = " << de << " in : " << tim_s(start_loop) << " s" << "\nTotal time : " << tim_s(start) << "s\n";
 	}
 	stout << " \t\t--> finished fidelity for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n";
