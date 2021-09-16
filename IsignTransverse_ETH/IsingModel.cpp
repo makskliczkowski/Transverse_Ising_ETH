@@ -258,37 +258,29 @@ vec IsingModel<T>::operator_av_in_eigenstates_return(double (IsingModel<T>::* op
 /// <param name="_min"></param>
 /// <param name="_max"></param>
 /// <param name="step"></param>
-void probability_distribution(std::string dir, std::string name, const arma::vec& data, double _min, double _max, double step) {
+void probability_distribution(std::string dir, std::string name, const arma::vec& data, int n_bins) {
 	std::ofstream file(dir + name + ".dat");
-	int size = static_cast<int>((_max - _min) / step + 1);
-	arma::vec prob_dist(size, arma::fill::zeros);
-	for (int k = 1; k < data.size(); k++) {
-		if (data(k) > _min && data(k) < _max) {
-			const int bucket = static_cast<int>((data(k) + abs(_min)) / step);
-			// out << "data(k) + _min: " << data(k) + _min<< "bucket: " << bucket << std::endl;
-			prob_dist(bucket) += 1;
-		}
-	}
-	prob_dist = normalise_dist(prob_dist, _min, _max);
-	double std_dev = arma::stddev(data);
-	double mean = 0.0;// arma::mean(data);
-	for (int p = 0; p < size; p++) {
+	if (n_bins <= 0)
+		n_bins = 1 + 3.322 * log(data.size());
+	double _min = arma::min(data);
+	double _max = arma::max(data);
+	arma::vec prob_dist(n_bins, arma::fill::zeros);
+	prob_dist = normalise_dist(arma::conv_to<arma::vec>::from(arma::hist(data, n_bins)), _min, _max);
+	const double std_dev = arma::stddev(data);
+	const double mean = 0.0;// arma::mean(data);
+	const double step = abs(_max - _min) / (double)n_bins;
+	for (int p = 0; p < n_bins; p++) {
 		double x = p * step + _min;
 		file << x << "\t" << prob_dist(p) << "\t\t" << gaussian(x, mean, std_dev) << std::endl;
 	}
 	file.close();
 }
-arma::vec probability_distribution_with_return(const arma::vec& data, double _min, double _max, double step) {
-	int size = static_cast<int>((_max - _min) / step + 1);
-	arma::vec prob_dist(size, arma::fill::zeros);
-	//for (int k = 1; k < data.size(); k++) {
-	//	if (data(k) > _min && data(k) < _max) {
-	//		const int bucket = static_cast<int>((data(k) + abs(_min)) / step);
-	//		prob_dist(bucket) += 1;
-	//	}
-	//}
-	prob_dist = arma::conv_to<arma::vec>::from(arma::hist(data, size));
-	return normalise_dist(prob_dist, _min, _max);
+arma::vec probability_distribution_with_return(const arma::vec& data, int n_bins) {
+	if (n_bins <= 0)
+		n_bins = 1 + 3.322 * log(data.size());
+	arma::vec prob_dist(n_bins, arma::fill::zeros);
+	prob_dist = arma::conv_to<arma::vec>::from(arma::hist(data, n_bins));
+	return normalise_dist(prob_dist, arma::min(data), arma::max(data));
 }
 /// <summary>
 ///

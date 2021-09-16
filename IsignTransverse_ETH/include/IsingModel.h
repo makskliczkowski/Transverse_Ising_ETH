@@ -350,10 +350,9 @@ public:
 };
 
 
-void probability_distribution(std::string dir, std::string name, const arma::vec& data,\
-	double _min, double _max, double step = 0.05);												// creates the probability distribution on a given data and saves it to a directory
-arma::vec probability_distribution_with_return(const arma::vec& data,\
-	double _min, double _max, double step = 0.05);												// creates the probability distribution on a given data and returns a vector with it
+void probability_distribution(std::string dir, std::string name,\
+	const arma::vec& data, int n_bins = -1);													// creates the probability distribution on a given data and saves it to a directory
+arma::vec probability_distribution_with_return(const arma::vec& data, int n_bins = -1);			// creates the probability distribution on a given data and returns a vector with it
 arma::vec data_fluctuations(const arma::vec& data, int mu = 10);								// removes the average from the given data based on small buckets of size mu
 arma::vec statistics_average(const arma::vec& data, int num_of_outliers = 3);					// takes the average from the vector and the outliers
 

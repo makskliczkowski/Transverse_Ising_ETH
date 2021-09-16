@@ -92,7 +92,7 @@ double simpson_rule(double a, double b, int n, const arma::vec& f){
 	double sum_evens = 0.0;
 #pragma omp parallel for reduction(+: sum_evens)
 	for (int i = 2; i < n; i += 2) {
-		int idx = ((a+i * h) + abs(a)) / h;
+		int idx = ((a + i * h) + abs(a)) / h;
 		sum_evens += f(idx);
 	}
 	
