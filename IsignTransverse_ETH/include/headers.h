@@ -409,6 +409,26 @@ inline double kurtosis(const arma::vec& arr_in) {
 	double dev_inv = 1.0 / std::pow(arma::stddev(arr_in), 4);
 	return moment(arr_in, 4) * dev_inv;
 }
+
+inline double kurtosis_diff(const arma::vec& arr_in) {
+	double mean = arma::mean(arr_in);
+	double fourth = 0;
+	double second = 0;
+	double counter = 0;
+#pragma omp parallel for reduction (+: fourth, second, counter)
+	for (int i = 0; i < arr_in.size(); i++) {
+		double tmp = arr_in(i)-mean;
+		tmp *= tmp;
+		fourth += tmp*tmp;
+		second += tmp;
+		counter+=1;
+	}
+	fourth = fourth/counter;
+	second = second/counter;
+	return fourth/(second * second) - 3;
+}
+
+
 double binder_cumulant(const arma::vec& arr_in);														// calculate binder cumulant of dataset
 arma::vec get_NonDegenerated_Elements(const arma::vec& arr_in);											// compute non-unique values in dataset
 
