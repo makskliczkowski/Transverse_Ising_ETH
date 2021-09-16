@@ -281,13 +281,13 @@ void probability_distribution(std::string dir, std::string name, const arma::vec
 arma::vec probability_distribution_with_return(const arma::vec& data, double _min, double _max, double step) {
 	int size = static_cast<int>((_max - _min) / step + 1);
 	arma::vec prob_dist(size, arma::fill::zeros);
-	for (int k = 1; k < data.size(); k++) {
-		if (data(k) > _min && data(k) < _max) {
-			const int bucket = static_cast<int>((data(k) + abs(_min)) / step);
-			prob_dist(bucket) += 1;
-		}
-	}
-	//prob_dist = arma::conv_to<arma::vec>::from(arma::hist(data, size));
+	//for (int k = 1; k < data.size(); k++) {
+	//	if (data(k) > _min && data(k) < _max) {
+	//		const int bucket = static_cast<int>((data(k) + abs(_min)) / step);
+	//		prob_dist(bucket) += 1;
+	//	}
+	//}
+	prob_dist = arma::conv_to<arma::vec>::from(arma::hist(data, size));
 	return normalise_dist(prob_dist, _min, _max);
 }
 /// <summary>
