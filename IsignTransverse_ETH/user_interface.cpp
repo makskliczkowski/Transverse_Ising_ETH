@@ -1028,8 +1028,16 @@ v_1d<double> isingUI::ui::perturbative_stat_sym(double pert, double gx, double h
 std::vector<double> isingUI::ui::perturbative_stat_sym(double pert, IsingModel_sym& alfa , double gx, double hx){
 	clk::time_point start = std::chrono::high_resolution_clock::now();
 	long int size = 1 + 3.322 * log(this->mu);
-	int n_av = 20;
+	int n_av = 10;
+
+
 	double pert_change = pert / (double)n_av;
+	if(pert <= 0.005)
+		pert_change = 0.000025;
+	else if(pert >= 0.01 && pert <= 0.09)
+		pert_change = 0.0001;
+	else
+		pert_change = 0.001;
 	double pert_min = pert - n_av / 2. * pert_change;
 	double pert_max = pert + n_av / 2. * pert_change;
 
