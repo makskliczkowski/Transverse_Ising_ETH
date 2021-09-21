@@ -4,31 +4,31 @@
 #include "headers.h"
 
 /*-------------------- ISING MODEL WITH TRANSVERSE MAGNETIC FIELD ---------------------*
- * The Ising model with perpendicular magnetic field, known as the quantum Ising model *
- * is a perfect example of a quantum model than can exhibit various quantum phenomena. *
- * There exist plenty of theoretical methods that have tried to test them all but here *
- * we shall focus mainly on the exact diagonalization techniques for the testing of so *
- * called ETH hypothesis. In order to do this, two schemes of work are introduced. The *
- * first one is focusing on the introduction of the symmetries in the model, while the *
- * consideration of the symmetry sector can be controlled. Secondly, because the model *
- * with translational invariance is creating the degeneracy in the eigenstates, an ETH *
- * is impossible to be tested without symmetry sectors. To deal with it, perturbation  *
- * in the perpendicular magnetic field is introduced. For more information, please ref *
- * to:																		 *
- * -> https://github.com/makskliczkowski/Transverse_Ising_ETH						 *
- * The context is partially based on:											 *
- * -> arXiv:2009.09208v1														 *
- * -> 10.1103/PhysRevE.90.052105												 *
- * ------------------------------ All rights reserved -------------------------------- *
- * Authors:																	 *
- * - Rafa³ Œwiêtek, soon to be Phd student, Josef Stefan Institute					 *
- *	- email: 77swietek77.at.gmail.com											 *
- * - Maksymilian Kliczkowski Phd student, Wroc³aw University of Science and Technology *
- *	- email: maxgrom97.at.gmail.com												 *
- * ----------------------------------------------------------------------------------- *
- * Special thanks to dr Lev Vidmar at Institute Josef Stefan, with whose support       *
- * the work has been done, while staying in Ljubljana, Slovenia.					 *
- * ---------------------------------------------------------------------------------- */
+* The Ising model with perpendicular magnetic field, known as the quantum Ising model *
+* is a perfect example of a quantum model than can exhibit various quantum phenomena. *
+* There exist plenty of theoretical methods that have tried to test them all but here *
+* we shall focus mainly on the exact diagonalization techniques for the testing of so *
+* called ETH hypothesis. In order to do this, two schemes of work are introduced. The *
+* first one is focusing on the introduction of the symmetries in the model, while the *
+* consideration of the symmetry sector can be controlled. Secondly, because the model *
+* with translational invariance is creating the degeneracy in the eigenstates, an ETH *
+* is impossible to be tested without symmetry sectors. To deal with it, perturbation  *
+* in the perpendicular magnetic field is introduced. For more information, please ref *
+* to:																		 *
+* -> https://github.com/makskliczkowski/Transverse_Ising_ETH						 *
+* The context is partially based on:											 *
+* -> arXiv:2009.09208v1														 *
+* -> 10.1103/PhysRevE.90.052105												 *
+* ------------------------------ All rights reserved -------------------------------- *
+* Authors:																	 *
+* - Rafa³ Œwiêtek, soon to be Phd student, Josef Stefan Institute					 *
+*	- email: 77swietek77.at.gmail.com											 *
+* - Maksymilian Kliczkowski Phd student, Wroc³aw University of Science and Technology *
+*	- email: maxgrom97.at.gmail.com												 *
+* ----------------------------------------------------------------------------------- *
+* Special thanks to dr Lev Vidmar at Institute Josef Stefan, with whose support       *
+* the work has been done, while staying in Ljubljana, Slovenia.					 *
+* ---------------------------------------------------------------------------------- */
 
 template <typename T>
 class IsingModel {
@@ -59,59 +59,53 @@ public:
 	double h;											// perpendicular magnetic field
 	int _BC;											// boundary condition
 
-	// CONSTRUCTOR
+	// ---------------------------------- CONSTRUCTOR ----------------------------------
 	virtual ~IsingModel() = 0;
 
-	// Clone functions
-	//virtual std::unique_ptr<IsingModel> clone() const = 0;
-	//return unique_ptr<IsingModel>(new IsingModel(*this));
-	//virtual std::unique_ptr<IsingModel> move_clone() = 0;
-
-	// GETTERS & SETTERS
+	// ---------------------------------- GETTERS ----------------------------------
+	//
 	// get the information about the model params
 	std::string get_info(std::initializer_list<std::string> skip = {}) const {
-		auto tmp = split_str(this->info, ",");	
+		auto tmp = split_str(this->info, ",");
 		std::string tmp_str = "";
-		for(int i=0; i < tmp.size(); i++){
+		for (int i = 0; i < tmp.size(); i++) {
 			bool save = true;
-			for(auto & skip_param: skip)
+			for (auto& skip_param : skip)
 			{
 				// skip the element if we don't want it to be included in the info
-				if(split_str(tmp[i],"=")[0] == skip_param)
+				if (split_str(tmp[i], "=")[0] == skip_param)
 					save = false;
 			}
-			if(save) tmp_str += tmp[i]+",";
+			if (save) tmp_str += tmp[i] + ",";
 		}
 		tmp_str.pop_back();
-		return tmp_str; 
+		return tmp_str;
 	};
 
-
 	u64 get_hilbert_size() const { return this->N; };											// get the Hilbert space size 2^N
-	const Mat<T>& get_hamiltonian() const {	return this->H;	};									// get the const reference to a Hamiltonian
+	const Mat<T>& get_hamiltonian() const { return this->H; };									// get the const reference to a Hamiltonian
 	const vec& get_eigenvalues() const { return this->eigenvalues; };							// get the const reference to eigenvalues
 	const Mat<T>& get_eigenvectors() const { return this->eigenvectors; };						// get the const reference to the eigenvectors
 	const std::vector<u64>& get_mapping() const { return this->mapping; };						// constant reference to the mapping
 
 	double get_eigenEnergy(u64 idx) const { return this->eigenvalues(idx); };					// get eigenenergy at a given idx
-	Col<T> get_eigenState(u64 idx) const { return this->eigenvectors.col(idx);};			// get an eigenstate at a given idx
+	Col<T> get_eigenState(u64 idx) const { return this->eigenvectors.col(idx); };			    // get an eigenstate at a given idx
 
-	// PRINTERS
+	// ---------------------------------- PRINTERS ----------------------------------
 	void print_base_spin_sector(int Sz = 0);													// print basis state with a given total spin (for clarity purposes)
 	void print_state(u64 _id);																	// prints the eigenstate at a given idx
 
-	// METHODS
+	// ---------------------------------- GENERAL METHODS ----------------------------------
 	void set_neighbors();																		// create neighbors list according to the boundary conditions
-	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
-	virtual void setHamiltonianElem(u64 k, double value, u64 new_idx) = 0;
-
 	void diagonalization();																		// diagonalize the Hamiltonian
+	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
+	virtual void setHamiltonianElem(u64 k, double value, u64 new_idx) = 0;						// sets the Hamiltonian elements in a virtual way
 
-	// VIRTUALS
+	// ---------------------------------- VIRTUALS ----------------------------------
 	virtual mat correlation_matrix(u64 state_id) = 0;											// create the spin correlation matrix at a given state
 	static double total_spin(const mat& corr_mat);												// the diagonal part of a spin correlation matrix
 
-	// PHYSICAL QUANTITIES
+	// ---------------------------------- PHYSICAL QUANTITIES ----------------------------------
 	double ipr(int state_idx);																	// calculate the ipr coeffincient (inverse participation ratio)
 	double information_entropy(u64 _id);														// calculate the information entropy in a given state (based on the ipr) Von Neuman type
 	double information_entropy(u64 _id, const IsingModel<T>& beta, u64 _min, u64 _max);			// calculate the information entropy in basis of other model from input
@@ -119,7 +113,7 @@ public:
 	vec eigenlevel_statistics_with_return();													// calculate the eigenlevel statistics and return the vector with the results
 	virtual double entaglement_entropy(u64 state_id, int subsystem_size) = 0;					// entanglement entropy based on the density matrices
 
-	// PHYSICAL OPERATORS (model states dependent)
+	// ---------------------------------- PHYSICAL OPERATORS (model states dependent) ----------------------------------
 	virtual double av_sigma_z(u64 alfa, u64 beta) = 0;											// check the sigma_z matrix element extensive
 	virtual double av_sigma_z(u64 alfa, u64 beta, int corr_len) = 0;							// check the sigma_z matrix element with correlation length
 	virtual double av_sigma_z(u64 alfa, u64 beta, std::initializer_list<int> sites) = 0;		// check the matrix element of sigma_z elements sites correlation
@@ -130,22 +124,16 @@ public:
 
 	virtual double av_spin_flip(u64 alfa, u64 beta) = 0;										// check the spin flip element extensive
 	virtual double av_spin_flip(u64 alfa, u64 beta, std::initializer_list<int> sites) = 0;		// check the spin flip element at input sites (up to 2)
-	
+
 	virtual cpx av_spin_current(u64 alfa, u64 beta) = 0;										// check the spin current extensive
 	virtual cpx av_spin_current(u64 alfa, u64 beta, std::initializer_list<int> sites) = 0;		// check the spin current at given sites
 
-	// USING PHYSICAL QUANTITES FOR PARAMTER RANGES, ETC.
+	// ---------------------------------- USING PHYSICAL QUANTITES FOR PARAMTER RANGES, ETC. ----------------------------------
 	static void operator_av_in_eigenstates(double (IsingModel::* op)(int, int), IsingModel& A, int site, \
 		std::string name = "operator_averaged.txt", string separator = "\t\t");
 	static vec operator_av_in_eigenstates_return(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 	static double spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site);
-
-	// TOOLS AND HELPERS
-	
 };
-template <typename T>
-T overlap(const IsingModel<T>& A, const IsingModel<T>& B, int n_a, int n_b);			// creates the overlap between two eigenstates
-
 
 // ----------------------------------------- SYMMETRIC -----------------------------------------
 /// <summary>
@@ -167,7 +155,7 @@ private:
 	bool k_sector;					// if the k-sector allows p symmetry
 	v_1d<cpx> k_exponents;			// precalculate the symmetry exponents for current k vector
 
-	std::tuple<u64, int> find_translation_representative(u64 base_idx) const;								
+	std::tuple<u64, int> find_translation_representative(u64 base_idx) const;
 	std::tuple<u64, int> find_SEC_representative(u64 base_idx, std::vector<u64>& minima) const;
 
 	cpx get_symmetry_normalization(u64 base_idx);
@@ -180,13 +168,13 @@ public:
 	void hamiltonian() override;
 	void setHamiltonianElem(u64 k, double value, u64 new_idx) override;
 
-	friend std::pair<u64, cpx> find_rep_and_sym_eigval(u64 base_idx,\
+	friend std::pair<u64, cpx> find_rep_and_sym_eigval(u64 base_idx, \
 		const IsingModel_sym& sector_alfa, cpx normalisation_beta);																				// returns the index and the value of the minimum representative
 
 	double entaglement_entropy(u64 state_id, int subsystem_size) override {
 		return 0;
 	};
-	
+
 	// MATRICES & OPERATORS
 	double av_sigma_z(u64 alfa, u64 beta) override;											// check the sigma_z matrix element extensive
 	double av_sigma_z(u64 alfa, u64 beta, int corr_len) override;							// check the sigma_z matrix element with correlation length extensive
@@ -198,45 +186,45 @@ public:
 
 	double av_spin_flip(u64 alfa, u64 beta) override;										// check the spin flip element extensive
 	double av_spin_flip(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the spin flip element at input sites (up to 2)
-	
+
 	cpx av_spin_current(u64 alfa, u64 beta) override;										// check the extensive spin current
 	cpx av_spin_current(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the spin current at given sites
 
 	// lambda functions for Sigmas - changes the state and returns the value on the base vector
-	static std::pair<cpx, u64> sigma_x(u64 base_vec,int L, std::initializer_list<int> sites) {
+	static std::pair<cpx, u64> sigma_x(u64 base_vec, int L, std::initializer_list<int> sites) {
 		auto tmp = base_vec;
-		for(auto& site: sites)
+		for (auto& site : sites)
 			tmp = flip(tmp, BinaryPowers[L - 1 - site], L - 1 - site);
 		return std::make_pair(1.0, tmp);
 	};
-	static std::pair<cpx, u64> sigma_y(u64 base_vec,int L, std::initializer_list<int> sites) {
+	static std::pair<cpx, u64> sigma_y(u64 base_vec, int L, std::initializer_list<int> sites) {
 		auto tmp = base_vec;
 		cpx val = 1.0;
-		for(auto& site: sites){
-			val *= checkBit(tmp, L-1-site) ? im : -im;
+		for (auto& site : sites) {
+			val *= checkBit(tmp, L - 1 - site) ? im : -im;
 			tmp = flip(tmp, BinaryPowers[L - 1 - site], L - 1 - site);
 		}
 		return std::make_pair(val, tmp);
 	};
-	static std::pair<cpx, u64> sigma_z(u64 base_vec,int L, std::initializer_list<int> sites) {
+	static std::pair<cpx, u64> sigma_z(u64 base_vec, int L, std::initializer_list<int> sites) {
 		auto tmp = base_vec;
 		double val = 1.0;
 		for (auto& site : sites)
-			val *= checkBit(tmp, L-1-site) ? 1.0 : -1.0;
+			val *= checkBit(tmp, L - 1 - site) ? 1.0 : -1.0;
 		return std::make_pair(val, tmp);
 	};
-	static std::pair<cpx, u64> spin_flip(u64 base_vec,int L, std::initializer_list<int> sites) {
+	static std::pair<cpx, u64> spin_flip(u64 base_vec, int L, std::initializer_list<int> sites) {
 		if (sites.size() > 2) throw "Not implemented such exotic operators, choose 1 or 2 sites\n";
 		auto tmp = base_vec;
 		cpx val = 0.0;
 		auto it = sites.begin() + 1;
 		auto it2 = sites.begin();
 		if (!(checkBit(base_vec, L - 1 - *it))) {
-			tmp = flip(tmp,BinaryPowers[L - 1 - *it], L - 1 - *it);
+			tmp = flip(tmp, BinaryPowers[L - 1 - *it], L - 1 - *it);
 			val = 2.0;
 			if (sites.size() > 1) {
 				if (checkBit(base_vec, L - 1 - *it2)) {
-					tmp = flip(tmp,BinaryPowers[L - 1 - *it2], L - 1 - *it2);
+					tmp = flip(tmp, BinaryPowers[L - 1 - *it2], L - 1 - *it2);
 					val *= 2.0;
 				}
 				else val = 0.0;
@@ -245,14 +233,14 @@ public:
 		else val = 0.0;
 		return std::make_pair(val, tmp);
 	};
-	
+
 	static std::string set_info(int L, double J, double g, double h, int k_sym, bool p_sym, bool x_sym, std::initializer_list<std::string> skip = {}) {
 		std::string name = "_L=" + std::to_string(L) + \
 			",g=" + to_string_prec(g, 2) + \
 			",h=" + to_string_prec(h, 2) + \
 			",k=" + std::to_string(k_sym) + \
 			",p=" + std::to_string((p_sym) ? 1 : -1) + \
-			",x=" + std::to_string(x_sym ? 1 : -1); 
+			",x=" + std::to_string(x_sym ? 1 : -1);
 		auto tmp = split_str(name, ",");
 		std::string tmp_str = "";
 		for (int i = 0; i < tmp.size(); i++) {
@@ -273,8 +261,8 @@ public:
 	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op);														// calculates the matrix element of operator at given site in extensive form (a sum)
 	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, int corr_len);										// calculates the matrix element of operator at given site in extensive form (a sum) with corr_len
 
-	friend cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, u64 base_vec, u64 k,\
-		const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op,	std::initializer_list<int> sites);
+	friend cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, u64 base_vec, u64 k, \
+		const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::initializer_list<int> sites);
 
 	mat correlation_matrix(u64 state_id) override;
 };
@@ -317,7 +305,7 @@ public:
 
 	double av_spin_flip(u64 alfa, u64 beta) override;										// check the spin flip element extensive
 	double av_spin_flip(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the spin flip element at input sites (up to 2)
-	
+
 	cpx av_spin_current(u64 alfa, u64 beta) override;										// check the extensive spin current
 	cpx av_spin_current(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the spin current at given sites
 
@@ -326,7 +314,7 @@ public:
 	double entaglement_entropy(u64 state_id, int subsystem_size) override;
 
 	static std::string set_info(int L, double J, double J0, double g, double g0, double h, double w, std::initializer_list<std::string> skip = {}) {
-		std::string name =  "_L=" + std::to_string(L) + \
+		std::string name = "_L=" + std::to_string(L) + \
 			",J0=" + to_string_prec(J0, 2) + \
 			",g=" + to_string_prec(g, 2) + \
 			",g0=" + to_string_prec(g0, 2) + \
@@ -348,27 +336,22 @@ public:
 		return tmp_str;
 	}
 };
+// ---------------------------------- HELPERS ----------------------------------
+template <typename T>
+T overlap(const IsingModel<T>& A, const IsingModel<T>& B, int n_a, int n_b);								// creates the overlap between two eigenstates
 
+// ---------------------------------- PROBABILITY DISTRIBUTORS ----------------------------------
 
-void probability_distribution(std::string dir, std::string name,\
-	const arma::vec& data, int n_bins = -1);													// creates the probability distribution on a given data and saves it to a directory
-arma::vec probability_distribution_with_return(const arma::vec& data, int n_bins = -1);			// creates the probability distribution on a given data and returns a vector with it
-arma::vec data_fluctuations(const arma::vec& data, int mu = 10);								// removes the average from the given data based on small buckets of size mu
-arma::vec statistics_average(const arma::vec& data, int num_of_outliers = 3);					// takes the average from the vector and the outliers
+void probability_distribution(std::string dir, std::string name, const arma::vec& data, int n_bins = -1);	// creates the probability distribution on a given data and saves it to a directory
+arma::vec probability_distribution_with_return(const arma::vec& data, int n_bins = -1);						// creates the probability distribution on a given data and returns a vector with it
+arma::vec data_fluctuations(const arma::vec& data, int mu = 10);											// removes the average from the given data based on small buckets of size mu
+arma::vec statistics_average(const arma::vec& data, int num_of_outliers = 3);								// takes the average from the vector and the outliers
 
 /// <summary>
-/// nie pisz, póŸniej
+/// Mapping original energies and matches them by indices
 /// </summary>
-/// <typeparam name="T1"></typeparam>
-/// <typeparam name="T2"></typeparam>
-/// <param name="_min"></param>
-/// <param name="_max"></param>
-/// <param name="symmetry"></param>
-/// <param name="original"></param>
-/// <returns></returns>
 template <typename T1, typename T2>
-std::unordered_map<u64, u64> mapping_sym_to_original(u64 _min, u64 _max, \
-	const IsingModel<T1>& symmetry, const IsingModel<T2>& original) {
+std::unordered_map<u64, u64> mapping_sym_to_original(u64 _min, u64 _max, const IsingModel<T1>& symmetry, const IsingModel<T2>& original) {
 	std::unordered_map<u64, u64> map;
 	std::vector<double> E_dis = arma::conv_to<std::vector<double>>::from(original.get_eigenvalues());
 #pragma omp parallel for
@@ -387,7 +370,5 @@ std::unordered_map<u64, u64> mapping_sym_to_original(u64 _min, u64 _max, \
 	}
 	return map;
 };
-
-
 
 #endif
