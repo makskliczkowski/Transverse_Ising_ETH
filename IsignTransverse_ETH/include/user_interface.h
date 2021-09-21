@@ -4,43 +4,50 @@
 //#include "headers.h"
 #include "IsingModel.h"
 
+using namespace std;
 std::vector<std::string> change_input_to_vec_of_str(int argc, char** argv);
-
+// ----------------------------------------------------------------------------- GENERAL CLASS -----------------------------------------------------------------------------
 class user_interface {
 protected:
-	int thread_number;																						// number of threads
-	int boundary_conditions;																				// boundary conditions - 0 - PBC, 1 - OBC, 2 - ABC,...
-	std::string saving_dir;																					// directory for files to be saved onto
+	int thread_number;																								// number of threads
+	int boundary_conditions;																						// boundary conditions - 0 - PBC, 1 - OBC, 2 - ABC,...
+	string saving_dir;																								// directory for files to be saved onto
 
-	std::string getCmdOption(const v_1d<std::string>& vec, std::string option) const;					 	// get the option from cmd input
+	// ----------------------------------- FUNCTIONS FOR READING THE INPUT
+
+	string getCmdOption(const v_1d<string>& vec, string option) const;					 							// get the option from cmd input
+
+	// ----------------------------------- TEMPLATES
 
 	template <typename T>
-	void set_option(T& value, const v_1d<std::string>& argv, std::string choosen_option, bool geq_0 = true);	// set an option
+	void set_option(T& value, const v_1d<string>& argv, string choosen_option, bool geq_0 = true);					// set an option
 
 	template <typename T>
-	void set_default_msg(T& value, std::string option, std::string message, \
-		const std::unordered_map <std::string, std::string>& map) const;									// setting value to default and sending a message
-	// std::unique_ptr<LatticeModel> model;															 			// a unique pointer to the model used
+	void set_default_msg(T& value, string option, string message, const unordered_map <string, string>& map) const;	// setting value to default and sending a message
 
 public:
 	virtual ~user_interface() = default;
-	/* HELPING FUNCIONS */
-	virtual void set_default() = 0;																			// set default parameters
 
+	// ----------------------------------- HELPING FUNCIONS
+
+	virtual void set_default() = 0;																					// set default parameters
 	virtual void exit_with_help() const = 0;
-	/* REAL PARSING */
-	virtual void parseModel(int argc, std::vector<std::string> argv) = 0;									// the function to parse the command line
 
-/* NON-VIRTUALS */
-	std::vector<std::string> parseInputFile(std::string filename) const;									// if the input is taken from file we need to make it look the same way as the command line does
+	// ----------------------------------- REAL PARSING
 
-// SIMULATIONS
+	virtual void parseModel(int argc, std::vector<std::string> argv) = 0;											// the function to parse the command line
+
+	// ----------------------------------- NON-VIRTUALS
+
+	std::vector<std::string> parseInputFile(string filename) const;													// if the input is taken from file we need to make it look the same way as the command line does
+
+	// ----------------------------------- SIMULATIONS
 	virtual void make_sim() = 0;
 };
-
+// ---------------------------------------------------------------------- ISING MODEL TRANSVERSE UI ----------------------------------------------------------------------
 namespace isingUI
 {
-	/* MAP FOR STRINGS */
+	// ----------------------------------- MAP FOR STRINGS -----------------------------------
 	/// <summary>
 	/// The map is used to parse also the two letters
 	/// cases and create string variable from enum
@@ -74,6 +81,8 @@ namespace isingUI
 		{"th","1"},						// number of threads
 	};
 
+	// ----------------------------------- UI CLASS SPECIALISATION -----------------------------------
+
 	class ui : public user_interface {
 	protected:
 		// MODEL PARAMETERS
@@ -92,34 +101,45 @@ namespace isingUI
 			int p_sym;																	// parity symmetry generator
 			int x_sym;																	// spin-flip symmetry generator
 		} symmetries;
-		//std::unique_ptr<IsingModel<T>> model;											// pointer to a model
 	public:
-		// CONSTRUCTORS
+		// ----------------------------------- CONSTRUCTORS
 		ui() = default;
 		ui(int argc, char** argv);														// standard constructor
-	// PARSER FUNCTION FOR HELP
+		// ----------------------------------- PARSER FUNCTION FOR HELP
 		void exit_with_help() const override;
-		// HELPING FUNCIONS
+		// ----------------------------------- HELPING FUNCIONS
 		void set_default() override;													// set default parameters
-	// REAL PARSER
+		// ----------------------------------- REAL PARSER
 		void parseModel(int argc, std::vector<std::string> argv) override;				// the function to parse the command line
 
-	// SIMULATION
+		// ----------------------------------- SIMULATION
 		void make_sim() override;														// make default simulation
-		void compare_energies();
+		// --------------- DISORDER
 		void disorder();
-		
-		void compare_matrix_elements();
+		// --------------- COMPARISONS
+		void compare_energies();
+		void compare_matrix_elements(op_type op, int k_alfa, int k_beta, int p_alfa = 1, int p_beta = 1, int x_alfa = 1, int x_beta = 1);
+
+		// --------------- SYMMETRIES
 		void size_scaling_sym(int k, int p, int x);
 
 		void fidelity(std::initializer_list<int> symetries);
 
 		void parameter_sweep_sym(int k, int p, int x);
-		void matrix_elements_stat_sym(double min, double max, double step, double omega_dist,\
-			int omega_gauss_max, double energy_constraint, int energy_num,\
-			std::initializer_list<int> alfa_sym = {},\
+		void check_dist_other_sector();
+		void matrix_elements_stat_sym(double min, double max, double step, double omega_dist, \
+			int omega_gauss_max, double energy_constraint, int energy_num, \
+			std::initializer_list<int> alfa_sym = {}, \
 			std::initializer_list<int> beta_sym = {}) const;
-		void perturbative_stat_sym(double dist_step, double min, double max, double pert, double gx, double hx);
+		std::vector<double> perturbative_stat_sym(double pert, double gx, double hx);
+		std::vector<double> perturbative_stat_sym(double pert, IsingModel_sym& alfa, double gx, double hx);
+		std::vector<double> perturbative_stat_sym(double dist_step, double min, double max, double pert, IsingModel_sym& alfa, IsingModel_sym& beta);
+		std::vector<double> perturbative_stat_sym(double pert) {
+			return perturbative_stat_sym(pert, this->g, this->h);
+		}
+		std::vector<double> perturbative_stat_sym(double pert, IsingModel_sym& alfa) {
+			return perturbative_stat_sym(pert, alfa, this->g, this->h);
+		}
 	};
 }
 

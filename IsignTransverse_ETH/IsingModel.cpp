@@ -1,8 +1,8 @@
 #include "include/IsingModel.h"
-template<typename T> IsingModel<T>::~IsingModel() {
-}
+template<typename T> IsingModel<T>::~IsingModel() {}
 
-// ---- PRINTERS
+// ------------------------------------------------------------------------------------------------ PRINTERS ------------------------------------------------------------------------------------------------
+
 /// <summary>
 /// prints the basis vector in the given spin-symmetry block
 /// </summary>
@@ -19,6 +19,7 @@ template <typename T> void IsingModel<T>::print_base_spin_sector(int Sz) {
 			stout << k << "\t\t" << temp << endl;
 	}
 }
+
 /// <summary>
 /// prints the state in the regular basis (only the highest coefficients are present)
 /// </summary>
@@ -41,34 +42,35 @@ template <typename T> void IsingModel<T>::print_state(u64 _id) {
 /// </summary>
 template <typename T> void IsingModel<T>::set_neighbors() {
 	this->nearest_neighbors = std::vector<int>(L, 0);
-	this->next_nearest_neighbors = std::vector<int>(L,0);
+	this->next_nearest_neighbors = std::vector<int>(L, 0);
 	switch (this->_BC) {
 	case 0:
 		// periodic boundary conditions
-		for(int i = 0; i < this->L; i++){
-			this->nearest_neighbors[i] = (i+1) % this->L;
-			this->next_nearest_neighbors[i] = (i+2) % this->L;
+		for (int i = 0; i < this->L; i++) {
+			this->nearest_neighbors[i] = (i + 1) % this->L;
+			this->next_nearest_neighbors[i] = (i + 2) % this->L;
 		}
 		break;
-
 	case 1:
 		// open boundary conditions
-		for(int i = 0; i < this->L; i++){
-			this->nearest_neighbors[i] = (i+1) % this->L;
-			this->next_nearest_neighbors[i] = (i+2) % this->L;
+		for (int i = 0; i < this->L; i++) {
+			this->nearest_neighbors[i] = (i + 1) % this->L;
+			this->next_nearest_neighbors[i] = (i + 2) % this->L;
 		}
-		this->nearest_neighbors[L-1] = -1;
-		this->next_nearest_neighbors[L-2] = -1;
-		this->next_nearest_neighbors[L-1] = -1;
+		this->nearest_neighbors[L - 1] = -1;
+		this->next_nearest_neighbors[L - 2] = -1;
+		this->next_nearest_neighbors[L - 1] = -1;
 		break;
 	default:
-		for(int i = 0; i < this->L; i++){
-			this->nearest_neighbors[i] = (i+1) % this->L;
-			this->next_nearest_neighbors[i] = (i+2) % this->L;
+		for (int i = 0; i < this->L; i++) {
+			this->nearest_neighbors[i] = (i + 1) % this->L;
+			this->next_nearest_neighbors[i] = (i + 2) % this->L;
 		}
 		break;
 	}
 }
+
+// ------------------------------------------------------------------------------------------------ DIAGONALIZATIONS ------------------------------------------------------------------------------------------------
 
 /// <summary>
 /// General procedure to diagonalize the Hamiltonian using eig_sym from the Armadillo library
@@ -96,8 +98,12 @@ template <typename T> void IsingModel<T>::diagonalization() {
 /// <param name="corr_mat"> spin correlation matrix </param>
 /// <returns></returns>
 template <typename T> double IsingModel<T>::total_spin(const mat& corr_mat) {
-	return (sqrt(1 + 4 * arma::accu(corr_mat)) - 1.0) / 2.0;
+	double S2 = arma::accu(corr_mat);
+	if (S2 < -0.25) return 0;
+	return (sqrt(1 + 4 * S2) - 1.0) / 2.0;
 }
+
+// ------------------------------------------------------------------------------------------------ ERGODIC QUANTITIES ------------------------------------------------------------------------------------------------
 
 /// <summary>
 /// The IPR, also called the participation ratio, quantifies how delocalized a state is in a certain basis.
@@ -118,15 +124,16 @@ template <typename T> double IsingModel<T>::ipr(int state_idx) {
 }
 
 /// <summary>
-///
+/// The information entropy is basicaly calculated similarly to the inverse participation ratio but changes the way we add the values multiplying each
+/// by the logarithm in information entropy way
 /// </summary>
-/// <param name="_id"></param>
-/// <returns></returns>
+/// <param name="_id">index of the eigenstate</param>
+/// <returns>The information entropy</returns>
 template <typename T> double IsingModel<T>::information_entropy(u64 _id) {
 	arma::subview_col state = this->eigenvectors.col(_id);
 	double ent = 0;
 #pragma omp parallel for reduction(+: ent)
-	for (int k = 0; k < N; k++) {
+	for (int k = 0; k < this->N; k++) {
 		double val = abs(conj(state(k)) * state(k));
 		ent += val * log(val);
 	}
@@ -134,16 +141,18 @@ template <typename T> double IsingModel<T>::information_entropy(u64 _id) {
 }
 
 /// <summary>
-/// 
+/// Information entropy caluclated in the basis of the other model, quantity needed to check how te perturbation
+/// effects the information entropy at all and what is the difference between them
 /// </summary>
-/// <typeparam name="T"></typeparam>
-/// <param name="_id"></param>
-/// <param name="beta"></param>
-/// <returns></returns>
+/// <param name="_id">Index of the state in alfa sector</param>
+/// <param name="beta">second model</param>
+/// <param name="min">minimum state for beta basis</param>
+/// <param name="max">maximum state for beta basis</param>
+/// <returns>information entropy in beta model basis</returns>
 template <typename T> double IsingModel<T>::information_entropy(u64 _id, const IsingModel<T>& beta, u64 _min, u64 _max) {
 	arma::subview_col state_alfa = this->eigenvectors.col(_id);
 	double ent = 0;
-//#pragma omp parallel for reduction(+: ent)
+#pragma omp parallel for reduction(+: ent)
 	for (int k = _min; k < _max; k++) {
 		cpx c_k = cdot(beta.get_eigenState(k), state_alfa);
 		double val = abs(conj(c_k) * c_k);
@@ -163,20 +172,24 @@ template <typename T> double IsingModel<T>::eigenlevel_statistics(u64 _min, u64 
 	double r = 0;
 	if (_min <= 0) throw "too low index";
 	if (_max >= N) throw "index exceeding Hilbert space";
-	//double delta_n = eigenvalues(_min) - eigenvalues(_min - 1);
-	//double delta_n_next = 0;
+
 #pragma omp parallel for reduction(+: r)
 	for (int k = _min; k < _max; k++) {
 		const double delta_n = eigenvalues(k) - eigenvalues(k - 1);
 		const double delta_n_next = eigenvalues(k + 1) - eigenvalues(k);
 		const double min = std::min(delta_n, delta_n_next);
 		const double max = std::max(delta_n, delta_n_next);
-		if (abs(delta_n) <= 1e-14) continue;// throw "Degeneracy!!!\n";
+		if (abs(delta_n) <= 1e-14) throw "Degeneracy!!!\n";
 		r += min / max;
-		//delta_n = delta_n_next;
 	}
 	return r / double(_max - _min);
 }
+
+/// <summary>
+/// Calculates the energy-level statistics within the energy window denoted by the indices _min and _max
+/// computed as in: PHYSICAL REVIEW B 91, 081103(R) (2015)
+/// </summary>
+/// <returns>Vector for whole spectrum eigenlevel statistics</returns>
 template <typename T> vec IsingModel<T>::eigenlevel_statistics_with_return() {
 	vec r(N - 2);
 #pragma omp parallel for shared(r)
@@ -194,7 +207,7 @@ template <typename T> vec IsingModel<T>::eigenlevel_statistics_with_return() {
 /// <param name="A"> class instance </param>
 /// <param name="site"> position of the spin, where the operator is acted upon </param>
 /// <returns> returns the average spectrum repulsion </returns>
-template <typename T> 
+template <typename T>
 double IsingModel<T>::spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site) {
 	//double rn_next = 0, rn = (A.*op)(0, 1);
 	double average = 0;
@@ -208,9 +221,7 @@ double IsingModel<T>::spectrum_repulsion(double (IsingModel::* op)(int, int), Is
 	return average / (A.N - 1.0);
 }
 
-// - - - - - OPERATOR AVERAGES - - - - -
-
-// -----------------------------------------------------------> TO REFACTOR AND CREATE DESCRIPTION -------------------------------------------------------
+// ----------------------------------------------------------- OPERATORS AND AVERAGES -------------------------------------------------------
 
 /// <summary>
 /// Prints to file the average of a given operator in each eigenstate as a function of eigenenergies
@@ -221,8 +232,7 @@ double IsingModel<T>::spectrum_repulsion(double (IsingModel::* op)(int, int), Is
 /// <param name="name"> name of the file to print data </param>
 /// <param name="separator"> separator between columns in file </param>
 template <typename T>
-void IsingModel<T>::operator_av_in_eigenstates(double (IsingModel<T>::* op)(int, int), \
-	IsingModel<T>& A, int site, std::string name, std::string separator) {
+void IsingModel<T>::operator_av_in_eigenstates(double (IsingModel<T>::* op)(int, int), IsingModel<T>& A, int site, std::string name, std::string separator) {
 	std::ofstream file(name);                                                                  // file to write the average to
 	if (!file.is_open()) throw "Can't open file " + name + "\n Choose another file\n";
 	// vec res(A.get_hilbert_size(), fill::zeros);
@@ -237,6 +247,15 @@ void IsingModel<T>::operator_av_in_eigenstates(double (IsingModel<T>::* op)(int,
 	//    file << A.eigenvalues(k) / (double)A.L << separator << res(k) << endl;
 	file.close();
 }
+
+/// <summary>
+///
+/// </summary>
+/// <typeparam name="T"></typeparam>
+/// <param name="op"></param>
+/// <param name="A"></param>
+/// <param name="site"></param>
+/// <returns></returns>
 template <typename T>
 vec IsingModel<T>::operator_av_in_eigenstates_return(double (IsingModel<T>::* op)(int, int), IsingModel<T>& A, int site) {
 	vec temp(A.get_hilbert_size(), fill::zeros);
@@ -246,53 +265,45 @@ vec IsingModel<T>::operator_av_in_eigenstates_return(double (IsingModel<T>::* op
 	return temp;
 }
 
-// - - - - - STATISTICS AND PROBABILITIES - - - - - 
+// ------------------------------------------------------------------------------------------------ STATISTICS AND PROBABILITIES ------------------------------------------------------------------------------------------------
+
 /// <summary>
-///
+/// Creates a probabilty distribution of data and saves it in the directory
 /// </summary>
-/// <param name="dir"></param>
-/// <param name="name"></param>
-/// <param name="data"></param>
-/// <param name="_min"></param>
-/// <param name="_max"></param>
-/// <param name="step"></param>
-void probability_distribution(std::string dir, std::string name, const arma::vec& data, double _min, double _max, double step) {
+void probability_distribution(std::string dir, std::string name, const arma::vec& data, int n_bins) {
 	std::ofstream file(dir + name + ".dat");
-	int size = static_cast<int>((_max - _min) / step + 1);
-	arma::vec prob_dist(size, arma::fill::zeros);
-	for (int k = 1; k < data.size(); k++) {
-		if (data(k) > _min && data(k) < _max) {
-			const int bucket = static_cast<int>((data(k) + abs(_min)) / step);
-			// out << "data(k) + _min: " << data(k) + _min<< "bucket: " << bucket << std::endl;
-			prob_dist(bucket) += 1;
-		}
-	}
-	prob_dist = normalise_dist(prob_dist, _min, _max);
-	double std_dev = arma::stddev(data);
-	double mean = 0.0;// arma::mean(data);
-	for (int p = 0; p < size; p++) {
+	if (n_bins <= 0)
+		n_bins = 1 + 3.322 * log(data.size());
+	double _min = arma::min(data);
+	double _max = arma::max(data);
+	arma::vec prob_dist(n_bins, arma::fill::zeros);
+	prob_dist = normalise_dist(arma::conv_to<arma::vec>::from(arma::hist(data, n_bins)), _min, _max);
+	const double std_dev = arma::stddev(data);
+	const double mean = 0.0;// arma::mean(data);
+	const double step = abs(_max - _min) / (double)n_bins;
+	for (int p = 0; p < n_bins; p++) {
 		double x = p * step + _min;
-		file << x << "\t" << prob_dist(p) << "\t\t" << gaussian(x, mean, std_dev) << std::endl;
+		file << x << "\t\t" << prob_dist(p) << "\n";// << "\t\t" << gaussian(x, mean, std_dev) << std::endl;
 	}
 	file.close();
 }
-arma::vec probability_distribution_with_return(const arma::vec& data, double _min, double _max, double step) {
-	int size = static_cast<int>((_max - _min) / step + 1);
-	arma::vec prob_dist(size, arma::fill::zeros);
-	for (int k = 1; k < data.size(); k++) {
-		if (data(k) > _min && data(k) < _max) {
-			const int bucket = static_cast<int>((data(k) + abs(_min)) / step);
-			prob_dist(bucket) += 1;
-		}
-	}
-	//prob_dist = arma::conv_to<arma::vec>::from(arma::hist(data, size));
-	return normalise_dist(prob_dist, _min, _max);
-}
+
 /// <summary>
-///
+/// Creates a probabilty distribution of data and returns vector from it
 /// </summary>
-/// <param name="data"></param>
-/// <param name="mu"></param>
+arma::vec probability_distribution_with_return(const arma::vec& data, int n_bins) {
+	if (n_bins <= 0)
+		n_bins = 1 + 3.322 * log(data.size());
+	arma::vec prob_dist(n_bins, arma::fill::zeros);
+	prob_dist = arma::conv_to<arma::vec>::from(arma::hist(data, n_bins));
+	return normalise_dist(prob_dist, arma::min(data), arma::max(data));
+}
+
+/// <summary>
+/// Takes the vector and averages over small buckets of size mu symmetricaly in order to maintain only fluctuations
+/// </summary>
+/// <param name="data">vector to be characterized</param>
+/// <param name="mu">size of the bucket</param>
 /// <returns></returns>
 arma::vec data_fluctuations(const arma::vec& data, int mu) {
 	arma::vec fluct(data.size() - mu, arma::fill::zeros);
@@ -309,9 +320,9 @@ arma::vec data_fluctuations(const arma::vec& data, int mu) {
 }
 
 /// <summary>
-///
+/// Calculates a quantity similar to spectrum repulsion and finds the average of it and the biggest outliers
 /// </summary>
-/// <param name="data"></param>
+/// <param name="data">vector of data for the repulsion to be performed on</param>
 /// <returns></returns>
 arma::vec statistics_average(const arma::vec& data, int num_of_outliers) {
 	std::vector<double> spec_rep(num_of_outliers + 1, INT_MIN);
@@ -333,7 +344,7 @@ arma::vec statistics_average(const arma::vec& data, int num_of_outliers) {
 	return (vec)spec_rep;
 }
 
-// - - - - - TOOLS - - - - -
+// ------------------------------------------------------------------------------------------------ TOOLS ------------------------------------------------------------------------------------------------
 
 /// <summary>
 /// Overlapping of two eigenstates of possibly different matrices A and B
@@ -344,11 +355,20 @@ arma::vec statistics_average(const arma::vec& data, int num_of_outliers) {
 /// <param name="n_b">number of B eigenstate</param>
 /// <returns>A_n_a dot n_b_B</returns>
 template <typename T>
-T overlap(const IsingModel<T>& A, const IsingModel<T>& B, int n_a, int n_b){
+T overlap(const IsingModel<T>& A, const IsingModel<T>& B, int n_a, int n_b) {
 	if (A.get_hilbert_size() != B.get_hilbert_size()) throw "Incompatible Hilbert dimensions\n";
-	if(n_a >= A.get_hilbert_size() || n_b >= B.get_hilbert_size() || n_a < 0 || n_b < 0) throw "Cannot create an overlap between non-existing states\n";
+	if (n_a >= A.get_hilbert_size() || n_b >= B.get_hilbert_size() || n_a < 0 || n_b < 0) throw "Cannot create an overlap between non-existing states\n";
 	return arma::cdot(A.get_eigenState(n_a), B.get_eigenState(n_b));
 }
+
+/// <summary>
+/// Calculates the overlap between two given states
+/// </summary>
+/// <param name="A">Model for the left eigenvector</param>
+/// <param name="B">Model for the right eigenvector</param>
+/// <param name="n_a">number of the left eigenvector</param>
+/// <param name="n_b">number of the right eigenvector</param>
+/// <returns></returns>
 template<> cpx overlap<cpx>(const IsingModel<cpx>& A, const IsingModel<cpx>& B, int n_a, int n_b) {
 	if (A.get_hilbert_size() != B.get_hilbert_size()) throw "Incompatible Hilbert dimensions\n";
 	if (n_a >= A.get_hilbert_size() || n_b >= B.get_hilbert_size() || n_a < 0 || n_b < 0) throw "Cannot create an overlap between non-existing states\n";
@@ -366,10 +386,7 @@ template<> cpx overlap<cpx>(const IsingModel<cpx>& A, const IsingModel<cpx>& B, 
 	return cpx(overlap_real, overlap_imag);
 }
 
-
-
-
-// SOME SHIT WE HAVE TO DO
+// UNRESOLVED TEMPLATE EXTERNALS <- COMPILER DOESN"T KNOW ABOUT THEM SADLY
 template IsingModel<double>::~IsingModel();
 template IsingModel<cpx>::~IsingModel();
 template void IsingModel<double>::set_neighbors();
@@ -388,3 +405,5 @@ template double IsingModel<double>::information_entropy(u64, const IsingModel<do
 template double IsingModel<cpx>::information_entropy(u64, const IsingModel<cpx>&, u64, u64);
 template cpx overlap(const IsingModel<cpx>&, const IsingModel<cpx>&, int, int);
 template double overlap(const IsingModel<double>&, const IsingModel<double>&, int, int);
+template double IsingModel<cpx>::total_spin(const mat&);
+template double IsingModel<double>::total_spin(const mat&);
