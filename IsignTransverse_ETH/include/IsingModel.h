@@ -100,6 +100,9 @@ public:
 	void diagonalization();																		// diagonalize the Hamiltonian
 	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
 	virtual void setHamiltonianElem(u64 k, double value, u64 new_idx) = 0;						// sets the Hamiltonian elements in a virtual way
+	void reset_random() {
+		this->ran = randomGen(global_seed);
+	}
 
 	// ---------------------------------- VIRTUALS ----------------------------------
 	virtual mat correlation_matrix(u64 state_id) = 0;											// create the spin correlation matrix at a given state
@@ -112,6 +115,10 @@ public:
 	double eigenlevel_statistics(u64 _min, u64 _max);											// calculate the statistics based on eigenlevels (r coefficient)
 	vec eigenlevel_statistics_with_return();													// calculate the eigenlevel statistics and return the vector with the results
 	virtual double entaglement_entropy(u64 state_id, int subsystem_size) = 0;					// entanglement entropy based on the density matrices
+
+	// ---------------------------------- THERMODYNAMIC QUANTITIES ----------------------------------
+	std::tuple<arma::vec, arma::vec, arma::vec> thermal_quantities(const arma::vec& temperature);	// calculate thermal quantities with input temperature range
+																									// heat capacity, entropy, average energy
 
 	// ---------------------------------- PHYSICAL OPERATORS (model states dependent) ----------------------------------
 	virtual double av_sigma_z(u64 alfa, u64 beta) = 0;											// check the sigma_z matrix element extensive

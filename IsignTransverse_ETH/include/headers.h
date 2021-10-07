@@ -222,15 +222,15 @@ inline u64 flip(u64 n, u64 kthPower, int k) {
 /// <param name="L">We need to know how many bits does the number really take because the function can take up to 64</param>
 /// <returns>number with reversed bits moved to be maximally of size L again</returns>
 inline u64 reverseBits(u64 n, int L) {
-	u64 rev = (lookup[n & 0xffULL] << 56) |			// consider the first 8 bits
+	u64 rev = (lookup[n & 0xffULL] << 56) |					// consider the first 8 bits
 		(lookup[(n >> 8) & 0xffULL] << 48) |				// consider the next 8 bits
-		(lookup[(n >> 16) & 0xffULL] << 40) |			// consider the next 8 bits
-		(lookup[(n >> 24) & 0xffULL] << 32) |			// consider the next 8 bits
-		(lookup[(n >> 32) & 0xffULL] << 24) |			// consider the next 8 bits
-		(lookup[(n >> 40) & 0xffULL] << 16) |			// consider the next 8 bits
+		(lookup[(n >> 16) & 0xffULL] << 40) |				// consider the next 8 bits
+		(lookup[(n >> 24) & 0xffULL] << 32) |				// consider the next 8 bits
+		(lookup[(n >> 32) & 0xffULL] << 24) |				// consider the next 8 bits
+		(lookup[(n >> 40) & 0xffULL] << 16) |				// consider the next 8 bits
 		(lookup[(n >> 48) & 0xffULL] << 8) |				// consider the next 8 bits
-		(lookup[(n >> 54) & 0xffULL]);					// consider last 8 bits
-	return (rev >> (64 - L));						// get back to the original maximal number
+		(lookup[(n >> 54) & 0xffULL]);						// consider last 8 bits
+	return (rev >> (64 - L));								// get back to the original maximal number
 }
 
 /// <summary>
@@ -459,7 +459,7 @@ inline double kurtosis_diff(const arma::vec& arr_in) {
 	}
 	fourth = fourth / counter;
 	second = second / counter;
-	return fourth / (second * second) - 3;
+	return fourth / (second * second) - 3.0;
 }
 
 /// <summary>

@@ -102,6 +102,37 @@ template <typename T> double IsingModel<T>::total_spin(const mat& corr_mat) {
 	if (S2 < -0.25) return 0;
 	return (sqrt(1 + 4 * S2) - 1.0) / 2.0;
 }
+// ------------------------------------------------------------------------------------------------ THERMODYNAMIC QUANTITIES ------------------------------------------------------------------------------------------------
+
+/// <summary>
+/// 
+/// </summary>
+/// <typeparam name="T"></typeparam>
+/// <param name="temperature"></param>
+/// <returns></returns>
+template <typename Type> std::tuple<arma::vec, arma::vec, arma::vec> IsingModel<Type>::thermal_quantities(const arma::vec& temperature) {
+	arma::vec Cv(temperature.size(), arma::fill::zeros);
+	arma::vec S(temperature.size(), arma::fill::zeros);
+	arma::vec E(temperature.size(), arma::fill::zeros);
+#pragma omp parallel for shared(temperature)
+	for (int k = 0; k < temperature.size(); k++) {
+		const double T = temperature(k);
+		double Z = 0;
+		double E_av = 0, E_av2 = 0;
+		for (long int i = 0; i < this->N; i++) {
+			double gibbs = std::exp(-(this->eigenvalues(i) - this->eigenvalues(0)) / T);
+			Z += gibbs;
+			E_av += this->eigenvalues(i) * gibbs;
+			E_av2 += this->eigenvalues(i) * this->eigenvalues(i) * gibbs;
+		}
+		E_av /= Z;
+		E_av2 /= Z;
+		E(k) = E_av;
+		S(k) = (std::log(Z) + (E_av - this->eigenvalues(0)) / T) / (double)L;
+		Cv(k) = (E_av2 - E_av * E_av) / double(L * T * T);
+	}
+	return std::make_tuple(Cv, S, E);
+}
 
 // ------------------------------------------------------------------------------------------------ ERGODIC QUANTITIES ------------------------------------------------------------------------------------------------
 
@@ -407,3 +438,5 @@ template cpx overlap(const IsingModel<cpx>&, const IsingModel<cpx>&, int, int);
 template double overlap(const IsingModel<double>&, const IsingModel<double>&, int, int);
 template double IsingModel<cpx>::total_spin(const mat&);
 template double IsingModel<double>::total_spin(const mat&);
+template std::tuple<arma::vec, arma::vec, arma::vec> IsingModel<double>::thermal_quantities(const arma::vec&);
+template std::tuple<arma::vec, arma::vec, arma::vec> IsingModel<cpx>::thermal_quantities(const arma::vec&);
