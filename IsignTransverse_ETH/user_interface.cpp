@@ -1196,8 +1196,58 @@ void isingUI::ui::make_sim()
 	using namespace std::chrono;
 	clk::time_point start = std::chrono::high_resolution_clock::now();
 	//disorder();
-	for (this->L = 12; this->L <= 16; this->L += 1)
-		parameter_sweep_sym(1, 1, 1);
+	std::string info = IsingModel_sym::set_info(L, J, g, h, 1, 1, 1, {"L", "h"});
+	std::ofstream farante(this->saving_dir + "AGP" + info + ".dat");
+	std::ofstream scaling(this->saving_dir + "AGPsize_mu1" + info + ".dat");
+	farante << "hx\t\t\tL=10 susceptibiltiy\t\tAGP,\t\t11 susceptibiltiy\tAGP,\t\t12 susceptibiltiy\tAGP,\t\t13 susceptibiltiy\tAGP,\t\t14 susceptibiltiy\tAGP\n";
+	auto params = arma::logspace(-3, 1, 100);
+	//std::vector<double> params = { 0, 1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1 };
+	for (auto& hx : params) {
+		farante << hx << "\t\t";
+		scaling << "\"h = " << hx << "\"" << endl;
+		for (L = 6; L <= 12; L++) {
+			const auto start_loop = std::chrono::high_resolution_clock::now();
+			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, 0, this->g, 0, hx, 0);
+			//auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, hx, 1, 1, 1);
+			stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
+			alfa->diagonalization();
+			const u64 N = alfa->get_hilbert_size();
+			this->mu = 0.35 * N;
+			const double mu2 = double(L) / double(N);
+			const long int E_min = alfa->E_av_idx - mu / 2.;
+			const long int E_max = alfa->E_av_idx + mu / 2.;
+			stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
+			double typ_susc = 0;
+			double AGP = 0;
+			int counter = 0;
+			for (int i = E_min; i < E_max; i++) {
+				double susc = 0;
+//#pragma omp parallel for reduction(+: susc, AGP)
+				for (int j = E_min; j < E_max; j++) {
+					if (j != i) {
+						const cpx overlap = alfa->av_sigma_x(i, j, { 1 });
+						const double nominator = abs(overlap) * abs(overlap);
+						double omega = alfa->get_eigenEnergy(j) - alfa->get_eigenEnergy(i);
+						omega *= omega;
+						const double denominator = omega + mu2 * mu2;
+						susc += omega * nominator / (denominator * denominator);
+						AGP += omega * nominator / (denominator * denominator);
+					}
+				}
+				if (i < E_max && i > E_min)
+					typ_susc += log((double)L * susc);
+				counter++;
+			}
+			farante << exp(typ_susc / double(counter)) << "\t\t" << AGP / double(counter * N * L) << "\t\t";
+			scaling << L << "\t\t" << exp(typ_susc / double(counter)) << "\t\t" << AGP / double(N * L) << "\n";
+			farante.flush();
+			scaling.flush();
+		}
+		farante << endl;
+		scaling << endl << endl;
+	}
+	farante.close();
+	scaling.close();
 	//parameter_sweep_sym(0, 1, 1);
 	//this->h = 1.7; this->g = 0.8;
 	//check_dist_other_sector();
