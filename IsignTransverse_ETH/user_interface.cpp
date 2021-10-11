@@ -546,7 +546,6 @@ void isingUI::ui::compare_matrix_elements(op_type op, int k_alfa, int k_beta, in
 	alfa->diagonalization();
 	beta->diagonalization();
 
-	auto spin_flip = IsingModel_sym::spin_flip;
 	// maps
 	auto map_alfa = mapping_sym_to_original(0, model->get_hilbert_size() - 1, *alfa, *model);
 	auto map_beta = mapping_sym_to_original(0, model->get_hilbert_size() - 1, *beta, *model);
@@ -558,8 +557,8 @@ void isingUI::ui::compare_matrix_elements(op_type op, int k_alfa, int k_beta, in
 		"ENERGY ALFA (/'.')/" << "\t\t" << "<alfa|SIGMA_X|alfa>" << "\t\t" << "<non_sym|SIGMA_X|non_sym>" << "\t\t" << "DIFFERENCE" << endl;
 	for (auto& element : map_alfa) {
 		for (auto& t : map_alfa) {
-			cpx A = av_operator(element.first, t.first, *alfa, *alfa, spin_flip, { 1,2 });
-			cpx B = model->av_sigma_x(element.second, t.second, { 1,2 });
+			cpx A = av_operator(element.first, t.first, *alfa, *alfa, op);
+			cpx B = model->av_sigma_x(element.second, t.second);
 			stout << alfa->get_eigenEnergy(element.first) << "\t\t" << \
 				alfa->get_eigenEnergy(t.first) << "\t\t" << real(A) << "\t\t" << real(B) << "\t\t" << real(abs(A) - abs(B)) << endl;
 		}
@@ -568,8 +567,8 @@ void isingUI::ui::compare_matrix_elements(op_type op, int k_alfa, int k_beta, in
 		"ENERGY BETA (/'.')/" << "\t\t" << "<beta|SIGMA_X|beta>" << "\t\t" << "<non_sym|SIGMA_X|non_sym>" << "\t\t" << "DIFFERENCE" << endl;
 	for (auto& element : map_beta) {
 		for (auto& t : map_beta) {
-			cpx A = av_operator(element.first, t.first, *beta, *beta, spin_flip, { 1,2 });
-			cpx B = model->av_spin_current(element.second, t.second, { 1,2 });
+			cpx A = av_operator(element.first, t.first, *beta, *beta, op);
+			cpx B = model->av_sigma_x(element.second, t.second);
 			file << beta->get_eigenEnergy(element.first) << "\t\t" << \
 				beta->get_eigenEnergy(t.first) << "\t\t" << real(A) << "\t\t" << real(B) << "\t\t" << real(abs(A) - abs(B)) << endl;
 		}
@@ -578,10 +577,10 @@ void isingUI::ui::compare_matrix_elements(op_type op, int k_alfa, int k_beta, in
 		"ENERGY BETA (/'.')/" << "\t\t" << "<alfa|SIGMA_X|beta>" << "\t\t" << "<non_sym_a|SIGMA_X|non_sym_b>" << "\t\t" << "DIFFERENCE" << endl;
 	for (auto& element : map_alfa) {
 		for (auto& t : map_beta) {
-			cpx A = im * av_operator(element.first, t.first, *alfa, *beta, spin_flip, { 1,2 });
-			A += conj(im * av_operator(t.first, element.first, *beta, *alfa, spin_flip, { 1,2 }));
+			cpx A = im * av_operator(element.first, t.first, *alfa, *beta, op);
+			A += conj(im * av_operator(t.first, element.first, *beta, *alfa, op));
 			A *= 0.5i;
-			cpx B = model->av_spin_current(element.second, t.second, { 1,2 });
+			cpx B = model->av_sigma_x(element.second, t.second);
 			stout << alfa->get_eigenEnergy(element.first) << "\t\t" << \
 				beta->get_eigenEnergy(t.first) << "\t\t" << real(A) << "\t\t" << real(B) << "\t\t" << real(abs(A) - abs(B)) << endl;
 		}
@@ -1196,19 +1195,20 @@ void isingUI::ui::make_sim()
 	using namespace std::chrono;
 	clk::time_point start = std::chrono::high_resolution_clock::now();
 	//disorder();
-	std::string info = IsingModel_sym::set_info(L, J, g, h, 1, 1, 1, {"L", "h"});
+	std::string info = IsingModel_sym::set_info(L, J, g, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"L", "h"});
 	std::ofstream farante(this->saving_dir + "AGP" + info + ".dat");
 	std::ofstream scaling(this->saving_dir + "AGPsize_mu1" + info + ".dat");
 	farante << "hx\t\t\tL=10 susceptibiltiy\t\tAGP,\t\t11 susceptibiltiy\tAGP,\t\t12 susceptibiltiy\tAGP,\t\t13 susceptibiltiy\tAGP,\t\t14 susceptibiltiy\tAGP\n";
-	auto params = arma::logspace(-3, 1, 100);
-	//std::vector<double> params = { 0, 1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1 };
+	//auto params = arma::logspace(-4, -1, 10);
+	std::vector<double> params = { 0, 1e-4, 2.5e-4, 5e-4, 1e-3, 2.5e-3, 5e-3 };
+	//std::vector<double> params = { 1e-0 };
 	for (auto& hx : params) {
 		farante << hx << "\t\t";
 		scaling << "\"h = " << hx << "\"" << endl;
 		for (L = 6; L <= 12; L++) {
 			const auto start_loop = std::chrono::high_resolution_clock::now();
-			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, 0, this->g, 0, hx, 0);
-			//auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, hx, 1, 1, 1);
+			//auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, 0, this->g, 0, hx, 0, 0);
+			auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, hx, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym);
 			stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
 			alfa->diagonalization();
 			const u64 N = alfa->get_hilbert_size();
@@ -1220,34 +1220,48 @@ void isingUI::ui::make_sim()
 			double typ_susc = 0;
 			double AGP = 0;
 			int counter = 0;
-			for (int i = E_min; i < E_max; i++) {
+			const double omega_max = alfa->get_eigenEnergy(N - 1) - alfa->get_eigenEnergy(0);
+			arma::vec omega = arma::logspace(-4, 1, 2000);
+			arma::vec f_Sx(omega.size(), arma::fill::zeros);
+			for (int i = 0; i < N; i++) {
 				double susc = 0;
 //#pragma omp parallel for reduction(+: susc, AGP)
-				for (int j = E_min; j < E_max; j++) {
-					if (j != i) {
-						const cpx overlap = alfa->av_sigma_x(i, j, { 1 });
-						const double nominator = abs(overlap) * abs(overlap);
-						double omega = alfa->get_eigenEnergy(j) - alfa->get_eigenEnergy(i);
-						omega *= omega;
-						const double denominator = omega + mu2 * mu2;
-						susc += omega * nominator / (denominator * denominator);
-						AGP += omega * nominator / (denominator * denominator);
+				for (int j = 0; j < N && j != i; j++) { // if want AGP fast do sum over j > i
+					const cpx overlap = (double)L * alfa->av_sigma_x(i, j); // operators defined as 1/L*sum(..) !!!!!!!
+					const double nominator = abs(overlap) * abs(overlap);
+					const double omega_ij = alfa->get_eigenEnergy(j) - alfa->get_eigenEnergy(i);
+					const double denominator = omega_ij * omega_ij + mu2 * mu2;
+					susc += nominator / (omega_ij * omega_ij);
+					AGP += omega_ij * omega_ij * nominator / (denominator * denominator);
+					
+					//long int index = static_cast<long int>(omega_ij / domega - domega / 2.);
+					for (long int w = 0; w < omega.size(); w++) {
+						const double x = omega_ij - omega(w);
+						f_Sx(w) += nominator * 0.5 / pi * mu2 / (x * x + 0.25 * mu2 * mu2);
 					}
 				}
+				//susc *= 2.0;
 				if (i < E_max && i > E_min)
 					typ_susc += log((double)L * susc);
 				counter++;
 			}
-			farante << exp(typ_susc / double(counter)) << "\t\t" << AGP / double(counter * N * L) << "\t\t";
-			scaling << L << "\t\t" << exp(typ_susc / double(counter)) << "\t\t" << AGP / double(N * L) << "\n";
+			//AGP *= 2.;
+			farante << exp(typ_susc / double(counter)) << "\t\t" << AGP / double(counter * L) << "\t\t";
+			scaling << L << "\t\t" << exp(typ_susc / double(counter)) << "\t\t" << AGP / double(counter * L) << "\n";
 			farante.flush();
 			scaling.flush();
+			std::ofstream reponse_fun(this->saving_dir + "ResponseFunctionSigmaX" + alfa->get_info({ "h" }) + ",h=" + to_string_prec(hx, 4) + ".dat");
+			for (int m = 0; m < f_Sx.size(); m++)
+				reponse_fun << omega(m) << "\t\t" << f_Sx(m) / (double)N << endl;
+			reponse_fun.close();
 		}
 		farante << endl;
 		scaling << endl << endl;
 	}
 	farante.close();
 	scaling.close();
+
+
 	//parameter_sweep_sym(0, 1, 1);
 	//this->h = 1.7; this->g = 0.8;
 	//check_dist_other_sector();

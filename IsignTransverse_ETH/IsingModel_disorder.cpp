@@ -222,17 +222,11 @@ double IsingModel_disorder::av_sigma_x(u64 alfa, u64 beta) {
 	double overlap = 0;
 	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
 	arma::subview_col state_beta = this->eigenvectors.col(beta);
-#pragma omp parallel
-	{
-		std::vector<bool> base_vector(L, 0), temp(L);
-#pragma omp for reduction(+: overlap)
-		for (long int k = 0; k < N; k++) {
-			int_to_binary(k, base_vector);
-			for (int j = 0; j < this->L; j++) {
-				temp = base_vector;
-				temp[j] = !base_vector[j];
-				overlap += state_alfa(binary_to_int(temp)) * state_beta(k);
-			}
+#pragma omp parallel for reduction(+: overlap)
+	for (long int k = 0; k < N; k++) {
+		for (int j = 0; j < this->L; j++) {
+			u64 new_idx = flip(k, BinaryPowers[this->L - 1 - j], this->L - 1 - j);
+			overlap += state_alfa(new_idx) * state_beta(k);
 		}
 	}
 	return overlap / double(this->L);
