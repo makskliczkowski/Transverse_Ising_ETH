@@ -1194,26 +1194,33 @@ void isingUI::ui::make_sim()
 {
 	using namespace std::chrono;
 	clk::time_point start = std::chrono::high_resolution_clock::now();
+
+	
 	//disorder();
 	std::string info = IsingModel_sym::set_info(L, J, g, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"L", "h"});
-	std::ofstream farante(this->saving_dir + "AGP" + info + ".dat");
-	std::ofstream scaling(this->saving_dir + "AGPsize_mu1" + info + ".dat");
-	farante << "hx\t\t\tL=10 susceptibiltiy\t\tAGP,\t\t11 susceptibiltiy\tAGP,\t\t12 susceptibiltiy\tAGP,\t\t13 susceptibiltiy\tAGP,\t\t14 susceptibiltiy\tAGP\n";
-	//auto params = arma::logspace(-4, -1, 10);
-	std::vector<double> params = { 0, 1e-4, 2.5e-4, 5e-4, 1e-3, 2.5e-3, 5e-3 };
+	std::ofstream farante(this->saving_dir + "AGPtotal_dis" + info + ".dat");
+	std::ofstream scaling(this->saving_dir + "AGPsize_DELETE" + info + ".dat");
+	farante << std::setprecision(6) << std::scientific;
+	scaling << std::setprecision(6) << std::scientific;
+	//farante << "hx\t\t\tL=10 susceptibiltiy\t\tAGP,\t\t11 susceptibiltiy\tAGP,\t\t12 susceptibiltiy\tAGP,\t\t13 susceptibiltiy\tAGP,\t\t14 susceptibiltiy\tAGP\n";
+	farante << "hx\t\tL=8 AGP,\t\tL=9 AGP,\t\tL=10 AGP,\t\t11 AGP,\t\t12 AGP,\t\t13 AGP,\t\t14 AGP\n";
+	//auto params = arma::logspace(-4, 1, 100);
+	auto params = arma::linspace(1.0, 3.0, 41);
+	//std::vector<double> params = { 0, 1e-4, 2.5e-4, 5e-4, 1e-3, 2.5e-3, 5e-3 , 1e-2, 5e-2, 1e-1};
 	//std::vector<double> params = { 1e-0 };
 	for (auto& hx : params) {
 		farante << hx << "\t\t";
-		scaling << "\"h = " << hx << "\"" << endl;
-		for (L = 6; L <= 12; L++) {
+		scaling << "\"h = " + to_string_prec(hx, 2) << "\"" << endl;
+		for (L = 10; L <= 12; L++) {
 			const auto start_loop = std::chrono::high_resolution_clock::now();
-			//auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, 0, this->g, 0, hx, 0, 0);
-			auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, hx, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym);
+			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, 0, this->g, 0, hx, 1e-2, 0);
+			//auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, hx, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym);
 			stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
 			alfa->diagonalization();
 			const u64 N = alfa->get_hilbert_size();
-			this->mu = 0.35 * N;
+			this->mu = 0.5 * N;
 			const double mu2 = double(L) / double(N);
+			//const double mu2 = std::log(N) / log(2) / double(N);
 			const long int E_min = alfa->E_av_idx - mu / 2.;
 			const long int E_max = alfa->E_av_idx + mu / 2.;
 			stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
@@ -1221,12 +1228,11 @@ void isingUI::ui::make_sim()
 			double AGP = 0;
 			int counter = 0;
 			const double omega_max = alfa->get_eigenEnergy(N - 1) - alfa->get_eigenEnergy(0);
-			arma::vec omega = arma::logspace(-4, 1, 2000);
-			arma::vec f_Sx(omega.size(), arma::fill::zeros);
+			arma::mat mat_elem(N, N, arma::fill::zeros);
 			for (int i = 0; i < N; i++) {
 				double susc = 0;
 //#pragma omp parallel for reduction(+: susc, AGP)
-				for (int j = 0; j < N && j != i; j++) { // if want AGP fast do sum over j > i
+				for (int j = i + 1; j < N && j != i; j++) { // if want AGP fast do sum over j > i
 					const cpx overlap = (double)L * alfa->av_sigma_x(i, j); // operators defined as 1/L*sum(..) !!!!!!!
 					const double nominator = abs(overlap) * abs(overlap);
 					const double omega_ij = alfa->get_eigenEnergy(j) - alfa->get_eigenEnergy(i);
@@ -1234,25 +1240,60 @@ void isingUI::ui::make_sim()
 					susc += nominator / (omega_ij * omega_ij);
 					AGP += omega_ij * omega_ij * nominator / (denominator * denominator);
 					
-					//long int index = static_cast<long int>(omega_ij / domega - domega / 2.);
-					for (long int w = 0; w < omega.size(); w++) {
-						const double x = omega_ij - omega(w);
-						f_Sx(w) += nominator * 0.5 / pi * mu2 / (x * x + 0.25 * mu2 * mu2);
-					}
+					mat_elem(i, j) = nominator;
 				}
-				//susc *= 2.0;
 				if (i < E_max && i > E_min)
 					typ_susc += log((double)L * susc);
 				counter++;
 			}
-			//AGP *= 2.;
-			farante << exp(typ_susc / double(counter)) << "\t\t" << AGP / double(counter * L) << "\t\t";
-			scaling << L << "\t\t" << exp(typ_susc / double(counter)) << "\t\t" << AGP / double(counter * L) << "\n";
+			AGP *= 2.;
+			//farante << exp(typ_susc / double(counter)) << "\t\t" << AGP / double(counter * L) << "\t\t";
+			farante << AGP / double(counter * L) << "\t\t";
+			scaling << L << "\t\t" << exp(typ_susc / double(counter)) << "\t\t" << AGP / double(counter * L) << "\t\t" << std::log(N) / log(2) << "\n";
 			farante.flush();
 			scaling.flush();
-			std::ofstream reponse_fun(this->saving_dir + "ResponseFunctionSigmaX" + alfa->get_info({ "h" }) + ",h=" + to_string_prec(hx, 4) + ".dat");
-			for (int m = 0; m < f_Sx.size(); m++)
-				reponse_fun << omega(m) << "\t\t" << f_Sx(m) / (double)N << endl;
+
+			// Spectral Function
+			std::ofstream reponse_fun(this->saving_dir + "ResponseFunctionSigmaX" + alfa->get_info({ "h" }) + ",h=" + to_string_prec(hx, 5) + ".dat");
+			reponse_fun.flush();
+			v_1d<long int> idx_beta, idx_alfa;		// indices satysfying first condition in sum
+			v_1d<double> energy_diff;				// energy differnece(omega) of the above indices
+			const double tol = 0.005 * L;;
+			for (int i = 0; i < N; i++)
+				for (int j = i + 1; j < N && j != i; j++) 
+					if (abs((alfa->get_eigenEnergy(j) + alfa->get_eigenEnergy(i)) / 2. - alfa->get_eigenEnergy(alfa->E_av_idx)) < tol / 2.) {
+						idx_alfa.push_back(i);
+						idx_beta.push_back(j);
+						energy_diff.push_back(abs(alfa->get_eigenEnergy(j) - alfa->get_eigenEnergy(i)));
+					}
+			auto permut = sort_permutation(energy_diff, [](const double a, const double b) {return a < b; });
+			apply_permutation(energy_diff, permut);
+			apply_permutation(idx_beta, permut);
+			apply_permutation(idx_alfa, permut);
+			long int size = energy_diff.size();
+			v_1d<int> Mx = { 150, 300, 700 };
+			int M = Mx[L - 10];
+			long int bucket_num = int(size / (double)M);
+			for (int k = 0; k < bucket_num; k++){
+				double element = 0;
+				double omega = 0;
+				for (long int p = k * M; p < (k + 1) * M; p++) {
+					element += mat_elem(idx_alfa[p], idx_beta[p]);
+					omega += energy_diff[p];
+				}
+				reponse_fun << omega / (double)M << "\t\t" << 2. * element / double(M) * (double)N << endl;
+				reponse_fun.flush();
+			}
+			double element = 0;
+			double omega = 0;
+			counter = 0;
+			for (long int p = bucket_num * M; p < size; p++) {
+				element += mat_elem(idx_alfa[p], idx_beta[p]);
+				omega += energy_diff[p];
+				counter++;
+			}
+			reponse_fun << omega / (double)counter << "\t\t" << 2. * element / double(counter) * (double)N << endl;
+			reponse_fun.flush();
 			reponse_fun.close();
 		}
 		farante << endl;
@@ -1260,7 +1301,6 @@ void isingUI::ui::make_sim()
 	}
 	farante.close();
 	scaling.close();
-
 
 	//parameter_sweep_sym(0, 1, 1);
 	//this->h = 1.7; this->g = 0.8;
