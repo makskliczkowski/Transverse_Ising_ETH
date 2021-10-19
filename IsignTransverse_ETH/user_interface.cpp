@@ -767,29 +767,30 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 {
 	const auto start = std::chrono::high_resolution_clock::now();
 	std::string info = IsingModel_sym::set_info(L, J, g, h, k, p, x, { "h","g" });
-	//std::ofstream pertGaussMap(this->saving_dir + "PertGaussianityMap" + info + ".dat");
+	std::ofstream pertGaussMap(this->saving_dir + "PertGaussianityMap" + info + ".dat");
 	std::ofstream farante(this->saving_dir + "IprScalingMap" + info + ".dat");
-	//std::ofstream kurt(this->saving_dir + "Moments" + info + ".dat");
-	//kurt << "g\t\th\t\tSigmaX_kurtosis\tSigmaX_binder\tSigmaX_stddev\tSigmaZ_nnn_kurtosis\tSigmaZ_nnn_binder\tSigmaZ_nnn_stadev" << endl;
+	std::ofstream kurt(this->saving_dir + "Moments" + info + ".dat");
+	kurt << "g\t\th\t\tSigmaX_kurtosis\tSigmaX_binder\tSigmaX_stddev\tSigmaZ_nnn_kurtosis\tSigmaZ_nnn_binder\tSigmaZ_nnn_stadev" << endl;
 	farante << "g\t\th\t\tipr\t\t\tinformation entropy\tr\t\ttypical susceptiblity" << endl;
-	//pertGaussMap << "g" << "\t\t" << "h" << "\t\t" << "perturbation" << "\t\t" << "kurtosis sig_x" << "\t\t" << "kurtosis energy" << "\n";
+	pertGaussMap << "g" << "\t\t" << "h" << "\t\t" << "perturbation" << "\t\t" << "kurtosis sig_x" << "\t\t" << "kurtosis energy" << "\n";
 
 	// parameters for loops
+	const double hstart = 2.7;
 	const double gmax = 0.8 + this->gn * this->gs;
-	const double hmax = 0.4 + this->hn * this->hs;
+	const double hmax = hstart + 0.25;//0.4 + this->hn * this->hs;
 	std::unique_ptr<IsingModel_sym> alfa;
 	int counter_g = 0;
-	for (double gx = 0.8; gx < gmax; gx += this->gs) {
+	for (double gx = 0.6; gx < gmax; gx += this->gs) {
 		int counter_h = 0;
-		for(auto& hx : arma::logspace(-4, 1, 100)) {
-		//for (double hx = 0.4; hx < hmax; hx += this->hs) {
+		//for(auto& hx : arma::logspace(-4, 1, 100)) {
+		for (double hx = hstart; hx < hmax; hx += this->hs) {
 			//if (hx == 1.0) this->hs = 0.36;
 			//else if (hx > 1.8) this->hs = 0.2;
 			//else this->hs = 0.025;
 
 			info = IsingModel_sym::set_info(L, J, gx, hx, k, p, x, {});
-			//std::ofstream pertGauss(this->saving_dir + "PertGaussianity" + info + ".dat");
-			//pertGauss << "perturbation" << "\t\t" << "kurtosis sig_x" << "\t\t" << "kurtosis energy" << "\n";
+			std::ofstream pertGauss(this->saving_dir + "PertGaussianity" + info + ".dat");
+			pertGauss << "perturbation" << "\t\t" << "kurtosis sig_x" << "\t\t" << "kurtosis energy" << "\n";
 
 			const auto start_loop = std::chrono::high_resolution_clock::now();
 			stout << "\n\n------------------------------ Doing : g = " << gx << ", h = " << hx << "------------------------------\n";
@@ -799,30 +800,30 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 			stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
 			alfa->diagonalization();
 			const u64 N = alfa->get_hilbert_size();
-			this->mu = 0.25 * N;
+			this->mu = 0.4 * N;
 
 			const long int E_min = alfa->E_av_idx - mu / 2.;
 			const long int E_max = alfa->E_av_idx + mu / 2.;
 			stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
 
 			//average sigma_x operator at first site prob dist
-			//vec av_sigma_x(mu, fill::zeros);
-			////vec av_sigma_z_nnn(mu, fill::zeros);
-			//for (int i = E_min; i < E_max; i++) {
-			//	const int idx = i - E_min;
-			//	av_sigma_x(idx) = alfa->av_sigma_x(i, i, { 0 });
+			vec av_sigma_x(mu, fill::zeros);
+			///vec av_sigma_z_nnn(mu, fill::zeros);
+			for (int i = E_min; i < E_max; i++) {
+				const int idx = i - E_min;
+				av_sigma_x(idx) = alfa->av_sigma_x(i, i, { 0 });
 			//	//av_sigma_z_nnn(idx) = alfa->av_sigma_z(i, i, { 0,2 });
-			//}
+			}
 			//
-			//arma::vec distSigmaX = probability_distribution_with_return(data_fluctuations(av_sigma_x));
+			arma::vec distSigmaX = probability_distribution_with_return(data_fluctuations(av_sigma_x));
 			////arma::vec distSigmaZ_nnn = probability_distribution_with_return(data_fluctuations(av_sigma_z_nnn));
 			//
-			//kurt << gx << "\t\t" << hx << "\t\t" << binder_cumulant(distSigmaX) << "\t\t" << kurtosis_diff(distSigmaX) << "\t\t" << endl;// << binder_cumulant(distSigmaZ_nnn) << "\t\t"\
+			kurt << gx << "\t\t" << hx << "\t\t" << binder_cumulant(distSigmaX) << "\t\t" << kurtosis_diff(distSigmaX) << "\t\t" << endl;// << binder_cumulant(distSigmaZ_nnn) << "\t\t"\
 			//	<< kurtosis_diff(distSigmaZ_nnn) << "\t\t" << arma::stddev(distSigmaZ_nnn) << endl;
 			////if (counter_h % 5 == 0)
-			//save_to_file(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), arma::linspace(-1.0, 1.0, distSigmaX.size()), distSigmaX);
+			save_to_file(this->saving_dir, "ProbDistSigmaX" + alfa->get_info(), arma::linspace(-1.0, 1.0, distSigmaX.size()), distSigmaX);
 
-			//stout << " \t\t--> finished prob dist of sigma_x for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "s\n";
+			stout << " \t\t--> finished prob dist of sigma_x for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "s\n";
 
 			// ipr & info entropy
 			double ipr = 0;
@@ -834,47 +835,41 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 				ipr += alfa->ipr(i);
 				ent += alfa->information_entropy(i);
 				r += alfa->eigenlevel_statistics(i, i + 1);
-				double susc = 0;
-				for (int j = E_min; j < E_max; j++) {
-					if (j != i)	{
-						const cpx overlap = alfa->av_sigma_z(i, j, { 1, 2 });
-						const double omega = alfa->get_eigenEnergy(j) - alfa->get_eigenEnergy(i);
-						susc += abs(overlap) * abs(overlap) / (omega * omega);
-					}
-				}
-				typ_susc += log((double)L * susc);
+				//double susc = 0;
+				//for (int j = E_min; j < E_max; j++) {
+				//	if (j != i)	{
+				//		const cpx overlap = alfa->av_sigma_z(i, j, { 1, 2 });
+				//		const double omega = alfa->get_eigenEnergy(j) - alfa->get_eigenEnergy(i);
+				//		susc += abs(overlap) * abs(overlap) / (omega * omega);
+				//	}
+				//}
+				//typ_susc += log((double)L * susc);
 				counter++;
 			}
-			farante << gx << "\t\t" << hx << "\t\t" << ipr / double(counter * N) << "\t\t" << ent / double(counter) << \
+			farante << gx << "\t\t" << hx << "\t\t" << ipr / double(counter * N) << "\t\t" << ent / double(counter) << std::endl;// \
 				"\t\t" << r / double(counter) << "\t\t" << exp(typ_susc / double(counter)) << endl;
 
-//			if (((abs(hx - 1.0) <= 0.1 || abs(hx - 1.5) <= 0.2 || abs(hx - 2.0) <= 0.2 || abs(hx - 2.8) <= 0.2) && counter_h % 1 == 0) || counter_h % 10 == 0) {
-//				double pert_step = 0.05;
-//				double pert_max = 0.30;
-//				if (hx == 1.0 || (hx >= 1.36 && hx <= 1.64)) {
-//					pert_max = 0.3;
-//					pert_step = 0.01;
-//				}
-//				for (double pert = 0.005; pert <= pert_max; pert += pert_step) {
-//					auto vec = this->perturbative_stat_sym(pert, *alfa, gx, hx);
-//					pertGauss << pert << "\t\t" << vec[0] << "\t\t" << vec[1] << "\n";
-//					pertGaussMap << gx << "\t\t" << hx << "\t\t" << pert << "\t\t" << vec[0] << "\t\t" << vec[1] << "\n";
-//				}
-//				pertGauss.flush();
-//				pertGaussMap.flush();
-//				//outliers and prob distribution for sigma_x
-//				vec r_sigma_x(mu - 1);
-//				vec r_sigma_z_nnn(mu - 1);
-//#pragma omp parallel for
-//				for (long int i = E_min; i < E_max - 1; i++) {
-//					const int idx = i - E_min;
-//					r_sigma_x(idx) = abs(av_sigma_x(idx + 1) - av_sigma_x(idx));
-//					//r_sigma_z_nnn(idx) = abs(av_sigma_z_nnn(idx + 1) - av_sigma_z_nnn(idx));
-//				}
-				//probability_distribution(this->saving_dir, "ProbDistSpecRapSigmaX" + alfa->get_info(), r_sigma_x);
-				//probability_distribution(this->saving_dir, "ProbDistSpecRapSigmaZNNN" + alfa->get_info(), r_sigma_z_nnn);
-				//pertGauss.close();
-			//}
+			double pert_step = 0.02;
+			double pert_max = 0.41;
+			for (double pert = 0.01; pert <= pert_max; pert += pert_step) {
+				auto vec = this->perturbative_stat_sym(pert, *alfa, gx, hx);
+				pertGauss << pert << "\t\t" << vec[0] << "\t\t" << vec[1] << "\n";
+				pertGaussMap << gx << "\t\t" << hx << "\t\t" << pert << "\t\t" << vec[0] << "\t\t" << vec[1] << "\n";
+			}
+			pertGauss.flush();
+			pertGaussMap.flush();
+			//outliers and prob distribution for sigma_x
+			vec r_sigma_x(mu - 1);
+			//vec r_sigma_z_nnn(mu - 1);
+#pragma omp parallel for
+			for (long int i = E_min; i < E_max - 1; i++) {
+				const int idx = i - E_min;
+				r_sigma_x(idx) = abs(av_sigma_x(idx + 1) - av_sigma_x(idx));
+				//r_sigma_z_nnn(idx) = abs(av_sigma_z_nnn(idx + 1) - av_sigma_z_nnn(idx));
+			}
+			probability_distribution(this->saving_dir, "ProbDistSpecRapSigmaX" + alfa->get_info(), r_sigma_x);
+			//probability_distribution(this->saving_dir, "ProbDistSpecRapSigmaZNNN" + alfa->get_info(), r_sigma_z_nnn);
+			pertGauss.close();
 			counter_h++;
 			stout << "\t\t\t--> finished calculating ETH params for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
 		}
@@ -883,8 +878,8 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 	}
 	stout << " - - - - - - FINISHED PARAMETER SCALING for:\nk = " << k << ", p = " << p << ", x = " << x << "IN : " << tim_s(start) << "s\n";
 	farante.close();
-	//kurt.close();
-	//pertGaussMap.close();
+	kurt.close();
+	pertGaussMap.close();
 }
 /// <summary>
 ///
@@ -1077,15 +1072,15 @@ v_1d<double> isingUI::ui::perturbative_stat_sym(double pert, double gx, double h
 std::vector<double> isingUI::ui::perturbative_stat_sym(double pert, IsingModel_sym& alfa, double gx, double hx) {
 	clk::time_point start = std::chrono::high_resolution_clock::now();
 	long int size = 1 + 3.322 * log(this->mu);
-	const int n_av = 4;
+	const int n_av = 8;
 
 	double pert_change = pert / (double)n_av;
-	if (pert <= 0.005)
-		pert_change = 0.000025;
-	else if (pert >= 0.01 && pert <= 0.099)
-		pert_change = 0.0002;
-	else
+	if (pert <= 0.01)
+		pert_change = 0.0005;
+	else if (pert > 0.01 && pert <= 0.099)
 		pert_change = 0.001;
+	else
+		pert_change = 0.002;
 	double pert_min = pert - n_av / 2. * pert_change;
 	double pert_max = pert + n_av / 2. * pert_change;
 
@@ -1195,14 +1190,14 @@ void isingUI::ui::make_sim()
 	using namespace std::chrono;
 	clk::time_point start = std::chrono::high_resolution_clock::now();
 	//disorder();
-	std::string info = IsingModel_sym::set_info(L, J, g, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"L", "h"});
-	std::ofstream farante(this->saving_dir + "AGP" + info + ".dat");
-	std::ofstream scaling(this->saving_dir + "AGPsize_mu1" + info + ".dat");
-	farante << "hx\t\t\tL=10 susceptibiltiy\t\tAGP,\t\t11 susceptibiltiy\tAGP,\t\t12 susceptibiltiy\tAGP,\t\t13 susceptibiltiy\tAGP,\t\t14 susceptibiltiy\tAGP\n";
+	//std::string info = IsingModel_sym::set_info(L, J, g, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"L", "h"});
+	//std::ofstream farante(this->saving_dir + "AGP" + info + ".dat");
+	//std::ofstream scaling(this->saving_dir + "AGPsize_mu1" + info + ".dat");
+	//farante << "hx\t\t\tL=10 susceptibiltiy\t\tAGP,\t\t11 susceptibiltiy\tAGP,\t\t12 susceptibiltiy\tAGP,\t\t13 susceptibiltiy\tAGP,\t\t14 susceptibiltiy\tAGP\n";
 	//auto params = arma::logspace(-4, -1, 10);
-	std::vector<double> params = { 0, 1e-4, 2.5e-4, 5e-4, 1e-3, 2.5e-3, 5e-3 };
+	//std::vector<double> params = { 0, 1e-4, 2.5e-4, 5e-4, 1e-3, 2.5e-3, 5e-3 };
 	//std::vector<double> params = { 1e-0 };
-	for (auto& hx : params) {
+	/*for (auto& hx : params) {
 		farante << hx << "\t\t";
 		scaling << "\"h = " << hx << "\"" << endl;
 		for (L = 6; L <= 12; L++) {
@@ -1260,9 +1255,9 @@ void isingUI::ui::make_sim()
 	}
 	farante.close();
 	scaling.close();
+	*/
 
-
-	//parameter_sweep_sym(0, 1, 1);
+	parameter_sweep_sym(0, 1, 1);
 	//this->h = 1.7; this->g = 0.8;
 	//check_dist_other_sector();
 	// 
