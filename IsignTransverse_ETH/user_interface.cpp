@@ -1462,20 +1462,27 @@ template <typename _type> void isingUI::ui::adiabaticGaugePotential(clk::time_po
 	farante.close();
 	scaling.close();
 }
-std::pair<double, double> isingUI::ui::operator_norm(int system_size, int k_sym, bool p_sym, bool x_sym) {
+std::pair<double, double> isingUI::ui::operator_norm(std::initializer_list<op_type> operators, int system_size, int k_sym, bool p_sym, bool x_sym) {
 	auto alfa = std::make_unique<IsingModel_sym>(system_size, this->J, this->g, this->h, \
 		k_sym, p_sym, x_sym, this->boundary_conditions);
 	const u64 N = alfa->get_hilbert_size();
 	alfa->diagonalization();
-	arma::sp_cx_mat opMatrix = alfa->create_operator(IsingModel_sym::sigma_x);
-	//				opMatrix += (cx_mat)create_operator(*alfa, IsingModel_sym::sigma_z);
-	arma::cx_mat mat_elem = alfa->get_eigenvectors().t() * opMatrix * alfa->get_eigenvectors();
-	arma::cx_mat diagonal = arma::diagmat(mat_elem);
-	double norm_diag = arma::norm(diagonal, "fro") / sqrt(N);
-	norm_diag *= norm_diag;
-	double norm_off = arma::norm(mat_elem - diagonal, "fro") / sqrt(N);
-	norm_off *= norm_off;
-	return std::make_pair(norm_diag, norm_off);
+	arma::sp_cx_mat opMatrix(N, N);
+	for (auto& op : operators)
+		opMatrix += alfa->create_operator(op);
+	//arma::cx_mat mat_elem = alfa->get_eigenvectors().t() * opMatrix * alfa->get_eigenvectors();
+	double norm_diag = 0, norm_off = 0;
+#pragma omp parallel for reduction(+: norm_diag, norm_off)
+	for (long int k = 0; k < N; k++) {
+		cpx temp = opMatrix(k, k);
+		norm_diag += abs(temp * temp);
+		for (long int m = k + 1; m < N; m++) {
+			temp = opMatrix(k, m);
+			norm_off += 2 * abs(temp * temp);
+		}
+	}
+	//stout << arma::trace(opMatrix * opMatrix) / double(N) << endl;
+	return std::make_pair(norm_diag / double(N), norm_off / double(N));
 }
 
 //----------------------------------------------------------------------------------------------------------------UI main
@@ -1488,11 +1495,19 @@ void isingUI::ui::make_sim()
 	//compare_energies();
 	//disorder();
 	//auto params = arma::logspace(-4, 0, 200);
-	auto params = arma::linspace(0.6, 3.0, 50);
+	//auto params = arma::linspace(0.6, 3.0, 50);
 	//std::vector<double> params; auto append = arma::logspace(-4, 0, 100); params.insert(params.end(), append.begin(), append.end());
 	//append = arma::linspace(1.0, 5.0, 81); params.insert(params.end(), append.begin(), append.end());
 	//std::vector<double> params = { 1e-4, 5e-4, 1e-3, 5e-3 , 1e-2, 5e-2, 1e-1, 1.5e-1, 2e-1, 2.5e-1, 3.0e-1};
-	//std::vector<double> params = {this->h};
+	auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, \
+		this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+	for (long int k = 0; k < alfa->get_hilbert_size(); k++) {
+		const u64 idx = alfa->get_mapping()[k];
+		for (auto& G : alfa->get_sym_group())
+			stout << G(idx, this->L) << " ";
+		stout << endl;
+	}
+	std::vector<double> params = {this->h};
 	for (auto& hx : params) {
 		//farante << hx << "\t\t";
 		//scaling << "\"h = " + to_string_prec(hx, 5) << "\"" << endl;
@@ -1503,21 +1518,14 @@ void isingUI::ui::make_sim()
 			//auto alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, 0, this->g, 0, hx, 1e-2, 0);
 			auto alfa = std::make_unique<IsingModel_sym>(system_size, this->J, this->g, hx,\
 				this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-			stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
+			//stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
 			alfa->diagonalization();
-			stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
+			//stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
 			const u64 N = alfa->get_hilbert_size();
 			const double omegaH = alfa->mean_level_spacing_analytical();
 			this->mu = 0.5 * N;
-			//arma::sp_cx_mat opMatrix = alfa->create_operator(IsingModel_sym::sigma_x);
-			////				opMatrix += alfa->create_operator(IsingModel_sym::sigma_z);
-			//arma::cx_mat mat_elem = alfa->get_eigenvectors().t() * opMatrix * alfa->get_eigenvectors();
-			//arma::cx_mat diagonal = arma::diagmat(mat_elem);
-			//double norm_diag = arma::norm(diagonal, "fro") / sqrt(N); 
-			//norm_diag *= norm_diag;
-			//double norm_off = arma::norm(mat_elem - diagonal, "fro") / sqrt(N); 
-			//norm_off *= norm_off;
-			//stout << system_size << "\t\t" << N << "\t\t" << norm_diag << "\t\t" << norm_off << "\t\t" << norm_diag + norm_off  << endl;
+			auto [norm_diag, norm_off] = operator_norm({ IsingModel_sym::sigma_x }, system_size);
+			stout << system_size << "\t\t" << N << "\t\t" << norm_diag << "\t\t" << norm_off << "\t\t" << norm_diag + norm_off << endl;
 			//spectralFunction(*alfa);
 			//stout << "L = " << system_size << endl;
 			//for (int k = 0; k < L; k++) {
@@ -1526,7 +1534,7 @@ void isingUI::ui::make_sim()
 			//			// if the spin flip is unaviable we just use 1
 			//			const int x_max = (this->h != 0) ? 0 : 1;
 			//			for (int x = 0; x <= x_max; x++) {
-			//				auto [O_diag, O_off] = operator_norm(system_size, k, p, x);
+			//				auto [O_diag, O_off] = operator_norm({ IsingModel_sym::sigma_x }, system_size, k, p, x);
 			//				std::string sym = "\t\t-->k=" + std::to_string(k) + ",x=" + to_string(x) + ",p=" + to_string(p);
 			//				stout << sym << "\t\t" << O_diag << "\t\t" << O_off << endl;
 			//			}
@@ -1535,7 +1543,7 @@ void isingUI::ui::make_sim()
 			//	else {
 			//		int x_max = (this->h != 0) ? 0 : 1;
 			//		for (int x = 0; x <= x_max; x++) {
-			//			auto [O_diag, O_off] = operator_norm(system_size, k, p, x);
+			//			auto [O_diag, O_off] = operator_norm({ IsingModel_sym::sigma_x }, system_size, k, p, x);
 			//			std::string sym = "\t\t-->k=" + std::to_string(k) + ",x=" + to_string(x) + ",p=*";
 			//			stout << sym << "\t\t" << O_diag << "\t\t" << O_off << endl;
 			//		}
@@ -1547,13 +1555,14 @@ void isingUI::ui::make_sim()
 			//stout << perturbative_stat_sym(omegaH, *alfa, this->g, hx) << std::endl;
 			
 			//for (double pert = 0.001; pert <= 0.39; pert += 0.002)
-			std::ofstream kurtosis(this->saving_dir + "PertKurtosis" + alfa->get_info() + ".dat");
-			kurtosis << "h\t\tkurt(dE)\t\tkurt(dO)\n";
-			kurtosis << std::setprecision(6) << std::scientific;
-			arma::vec pert_vec = arma::logspace(-3, 0, 50);
-			for (auto& pert : pert_vec)
-				kurtosis << pert << "\t\t\t\t" << perturbative_stat_sym(pert, *alfa, this->g, hx) << std::endl;
-			kurtosis.close();
+			//std::ofstream kurtosis(this->saving_dir + "PertKurtosis" + alfa->get_info() + ".dat");
+			//kurtosis << "h\t\t\t\tkurt(dE)\t\tkurt(dO)\n";
+			//kurtosis << std::setprecision(6) << std::scientific;
+			//std::vector<double> pert_vec; auto append = arma::linspace(1e-3, 1e-2, 11); pert_vec.insert(pert_vec.end(), append.begin(), append.end());
+			//append = arma::linspace(1e-2, 3.9e-1, 20); pert_vec.insert(pert_vec.end(), append.begin(), append.end());
+			//for (auto& pert : pert_vec)
+			//	kurtosis << pert << "\t\t" << perturbative_stat_sym(pert, *alfa, this->g, hx) << std::endl;
+			//kurtosis.close();
 			//auto nonsense = perturbative_stat_sym(*alfa, this->g, hx);
 			//double val = 0;// (double)system_size / (double)N;
 			////for (int i = 0, j = 0, n = 0; (i < system_size && j < system_size && n < N); i++, j++, n++) 

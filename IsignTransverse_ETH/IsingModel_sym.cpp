@@ -12,6 +12,7 @@ IsingModel_sym::IsingModel_sym(int L, double J, double g, double h, int k_sym, b
 #pragma omp parallel for
 	for (int l = 0; l < this->L; l++)
 		this->k_exponents[l] = std::exp(-1i * this->symmetries.k_sym * double(l));
+	this->createSymmetryGroup();
 
 	this->info = "_L=" + std::to_string(this->L) + \
 		",g=" + to_string_prec(this->g, 2) + \
@@ -29,6 +30,31 @@ IsingModel_sym::IsingModel_sym(int L, double J, double g, double h, int k_sym, b
 }
 
 // ------------------------------------------------------------------------------------------------ BASE GENERATION, SEC CLASSES AND RAPPING ------------------------------------------------------------------------------------------------
+void IsingModel_sym::createSymmetryGroup() {
+	this->symmetry_group = std::vector<std::function<u64(u64, int)>>();
+	this->symmetry_eigVal = std::vector<cpx>();
+	std::function<u64(u64, int)> e = [](u64 n, int L)->u64 {return n; };		// neutral element
+	std::function<u64(u64, int)> T = e;											// in 1st iteration is neutral element
+	std::function<u64(u64, int)> Z = static_cast<u64(*)(u64, int)>(&flip);		// spin flip operator (all spins)
+	std::function<u64(u64, int)> P = reverseBits;								// parity operator
+	for (int k = 0; k < this->L; k++) {
+				this->symmetry_group.push_back(T);
+				this->symmetry_eigVal.push_back(this->k_exponents[k]);
+		if (this->h == 0) {
+				this->symmetry_group.push_back(multiply_operators(Z, T));
+				this->symmetry_eigVal.push_back(this->k_exponents[k] * double(this->symmetries.x_sym));
+		}
+		if (this->k_sector) {
+				this->symmetry_group.push_back(multiply_operators(P, T));
+				this->symmetry_eigVal.push_back(this->k_exponents[k] * double(this->symmetries.p_sym));
+			if (this->h == 0) {
+				this->symmetry_group.push_back(multiply_operators(multiply_operators(P, Z), T));
+				this->symmetry_eigVal.push_back(this->k_exponents[k] * double(this->symmetries.p_sym * this->symmetries.x_sym));
+			}
+		}
+		T = multiply_operators(rotate_left, T);
+	}
+}
 
 /// <summary>
 /// Takes the state from the index in mapping
@@ -49,7 +75,7 @@ std::tuple<u64, int> IsingModel_sym::find_translation_representative(u64 base_id
 	u64 base_rotate = EC_sym;
 	int counter = 1, count_to_rep = 1;
 	while (idx != base_idx) {
-		idx = rotate_left(base_rotate, BinaryPowers[L - 1]); // new rotate by decimal representation
+		idx = rotate_left(base_rotate, this->L); // new rotate by decimal representation
 		base_rotate = idx;
 		counter++;
 		if (idx < EC_sym) {
@@ -80,13 +106,13 @@ std::tuple<u64, int> IsingModel_sym::find_SEC_representative(u64 base_idx, std::
 
 	if (this->h == 0) {
 		// check spin-flip
-		auto tupleX = find_translation_representative(flip(base_idx, BinaryPowers[L]));
+		auto tupleX = find_translation_representative(flip(base_idx, this->L));
 		minima[1] = std::get<0>(tupleX);
 
 		// check spin-flip and reflection
 		int eig_RXsym = INT_MAX;
 		if (this->k_sector) {
-			auto tupleRX = find_translation_representative(flip(idx_R, BinaryPowers[L]));
+			auto tupleRX = find_translation_representative(flip(idx_R, this->L));
 			minima[2] = std::get<0>(tupleRX);
 			eig_RXsym = std::get<1>(tupleRX);
 		}
@@ -113,26 +139,26 @@ cpx IsingModel_sym::get_symmetry_normalization(u64 base_idx) {
 
 	u64 Translation = base_idx;
 	u64 PT = (k_sector) ? reverseBits(base_idx, this->L) : INT_MAX;
-	u64 ZT = flip(base_idx, BinaryPowers[L]);
-	u64 PZT = (k_sector) ? flip(PT, BinaryPowers[L]) : INT_MAX;
+	u64 ZT = flip(base_idx, this->L);
+	u64 PZT = (k_sector) ? flip(PT, this->L) : INT_MAX;
 
 	for (int l = 0; l < this->L; l++) {
 		if (Translation == base_idx)
 			normalisation += this->k_exponents[l];
-		Translation = rotate_left(Translation, BinaryPowers[L - 1]);
+		Translation = rotate_left(Translation, this->L);
 		if (this->k_sector) {
 			if (PT == base_idx)
 				normalisation += ((double)this->symmetries.p_sym) * this->k_exponents[l];
-			PT = rotate_left(PT, BinaryPowers[L - 1]);
+			PT = rotate_left(PT, this->L);
 		}
 		if ((this->h == 0)) {
 			if (ZT == base_idx)
 				normalisation += ((double)this->symmetries.x_sym) * this->k_exponents[l];
-			ZT = rotate_left(ZT, BinaryPowers[L - 1]);
+			ZT = rotate_left(ZT, this->L);
 			if (this->k_sector) {
 				if (PZT == base_idx)
 					normalisation += ((double)this->symmetries.p_sym * (double)this->symmetries.x_sym) * this->k_exponents[l];
-				PZT = rotate_left(PZT, BinaryPowers[L - 1]);
+				PZT = rotate_left(PZT, this->L);
 			}
 		}
 	}
@@ -151,7 +177,7 @@ cpx IsingModel_sym::get_symmetry_normalization(u64 base_idx) {
 /// <param name="map_threaded"> vector containing the mapping from the reduced basis to the original Hilbert space
 ///                             for a given thread, the whole mapping will be merged in the generate_mapping() procedure </param>
 /// <param name="_id"> identificator for a given thread </param>
-void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id) {
+void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id){
 	std::vector<u64> minima(3);
 	for (u64 j = start; j < stop; j++) {
 		if (this->g == 0) {
@@ -160,17 +186,23 @@ void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_t
 			if (std::accumulate(base_vector.begin(), base_vector.end(), 0) != this->L / 2.) continue;
 		}
 		//check translation
-		auto [min, trans_eig] = find_translation_representative(j);
-
-		u64 min_R_RX = INT_MAX;
-		if (min == j) {
-			minima.assign(3, INT_MAX);
-			auto tuple = find_SEC_representative(j, minima);
-			min_R_RX = std::get<0>(tuple);
+		//auto [min, trans_eig] = find_translation_representative(j);
+		//
+		//u64 min_R_RX = INT_MAX;
+		//if (min == j) {
+		//	minima.assign(3, INT_MAX);
+		//	auto tuple = find_SEC_representative(j, minima);
+		//	min_R_RX = std::get<0>(tuple);
+		//}
+		//if (min_R_RX < j) continue;
+		//std::min(min, min_R_RX)
+		u64 SEC = INT64_MAX;
+		for (auto& sym_op : this->symmetry_group) {
+			u64 new_idx = sym_op(j, this->L);
+			if (new_idx < SEC) SEC = new_idx;
 		}
-		if (min_R_RX < j) continue;
 
-		if (std::min(min, min_R_RX) == j) {
+		if (SEC == j) {
 			cpx N = get_symmetry_normalization(j);					// normalisation condition -- check wether state in basis
 			if (std::abs(N) > 1e-6) {
 				map_threaded.push_back(j);
@@ -599,44 +631,50 @@ cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_co
 		}
 		return overlap;
 	};
-
-	u64 Translation = base_vec;					// Translation
-	u64 PT;										// Parity translation
-	u64 ZT;										// Flip translation
-	u64 PZT;									// Parity Flip translation
-	if (sec_beta.k_sector) {
-		PT = reverseBits(base_vec, L);
-	}
-	if (sec_beta.h == 0) {
-		ZT = flip(base_vec, BinaryPowers[L]);
-		if (sec_beta.k_sector) {
-			PZT = reverseBits(ZT, L);
-		}
-	}
-
 	cpx overlap = 0.0;
-	for (int l = 0; l < sec_alfa.L; l++) {
-		auto T_eig = sec_beta.k_exponents[l];
-		overlap += get_overlap_sym(Translation, T_eig);
-		Translation = rotate_left(Translation, BinaryPowers[L - 1]);
-
-		if (sec_beta.k_sector) {
-			auto PT_eig = T_eig * double(sec_beta.symmetries.p_sym);
-			overlap += get_overlap_sym(PT, PT_eig);
-			PT = rotate_left(PT, BinaryPowers[L - 1]);
-		}
-
-		if (sec_beta.h == 0) {
-			auto ZT_eig = T_eig * double(sec_beta.symmetries.x_sym);
-			overlap += get_overlap_sym(ZT, ZT_eig);
-			ZT = rotate_left(ZT, BinaryPowers[L - 1]);
-			if (sec_beta.k_sector) {
-				auto PZT_eig = ZT_eig * double(sec_beta.symmetries.p_sym);
-				overlap += get_overlap_sym(PZT, PZT_eig);
-				PZT = rotate_left(PZT, BinaryPowers[L - 1]);
-			}
-		}
+	auto symmetry_group = sec_beta.get_sym_group();
+	auto symmetry_eigVal = sec_beta.get_sym_eigVal();
+	for (int k = 0; k < symmetry_group.size(); k++) {
+		auto sym_operation = symmetry_group[k];
+		auto symRepr = symmetry_eigVal[k];
+		overlap += get_overlap_sym(sym_operation(base_vec, L), symRepr);
 	}
+	//u64 Translation = base_vec;					// Translation
+	//u64 PT;										// Parity translation
+	//u64 ZT;										// Flip translation
+	//u64 PZT;									// Parity Flip translation
+	//if (sec_beta.k_sector) {
+	//	PT = reverseBits(base_vec, L);
+	//}
+	//if (sec_beta.h == 0) {
+	//	ZT = flip(base_vec, L);
+	//	if (sec_beta.k_sector) {
+	//		PZT = reverseBits(ZT, L);
+	//	}
+	//}
+	//
+	//for (int l = 0; l < sec_alfa.L; l++) {
+	//	auto T_eig = sec_beta.k_exponents[l];
+	//	overlap += get_overlap_sym(Translation, T_eig);
+	//	Translation = rotate_left(Translation, L);
+	//
+	//	if (sec_beta.k_sector) {
+	//		auto PT_eig = T_eig * double(sec_beta.symmetries.p_sym);
+	//		overlap += get_overlap_sym(PT, PT_eig);
+	//		PT = rotate_left(PT, L);
+	//	}
+	//
+	//	if (sec_beta.h == 0) {
+	//		auto ZT_eig = T_eig * double(sec_beta.symmetries.x_sym);
+	//		overlap += get_overlap_sym(ZT, ZT_eig);
+	//		ZT = rotate_left(ZT, L);
+	//		if (sec_beta.k_sector) {
+	//			auto PZT_eig = ZT_eig * double(sec_beta.symmetries.p_sym);
+	//			overlap += get_overlap_sym(PZT, PZT_eig);
+	//			PZT = rotate_left(PZT, L);
+	//		}
+	//	}
+	//}
 	return overlap;
 }
 
@@ -701,39 +739,43 @@ void IsingModel_sym::set_OperatorElem(op_type op, std::initializer_list<int> sit
 				operator_matrix(idx_sym, cur_idx) += sym_eigVal * op_value;
 		}
 	};
-
-	u64 Translation = base_vec;					// Translation
-	u64 PT;										// Parity translation
-	u64 ZT;										// Flip translation
-	u64 PZT;									// Parity Flip translation
-	if (this->k_sector)
-		PT = reverseBits(base_vec, L);
-	if (this->h == 0) {
-		ZT = flip(base_vec, BinaryPowers[L]);
-		if (this->k_sector)
-			PZT = reverseBits(ZT, L);
+	for (int k = 0; k < this->symmetry_group.size(); k++) {
+		auto sym_operation	= this->symmetry_group[k];
+		auto symRepr		= this->symmetry_eigVal[k];
+		set_MatrixElem(sym_operation(base_vec, this->L), symRepr);
 	}
-	cpx overlap = 0.0;
-	for (int l = 0; l < L; l++) {
-		auto T_eig = this->k_exponents[l];
-		set_MatrixElem(Translation, T_eig);
-		Translation = rotate_left(Translation, BinaryPowers[L - 1]);
 
-		if (this->k_sector) {
-			auto PT_eig = T_eig * double(this->symmetries.p_sym);
-			set_MatrixElem(PT, PT_eig);
-			PT = rotate_left(PT, BinaryPowers[L - 1]);
-		}
-		if (this->h == 0) {
-			auto ZT_eig = T_eig * double(this->symmetries.x_sym);
-			set_MatrixElem(ZT, ZT_eig);
-			ZT = rotate_left(ZT, BinaryPowers[L - 1]);
-			if (this->k_sector) {
-				auto PZT_eig = ZT_eig * double(this->symmetries.p_sym);
-				set_MatrixElem(PZT, PZT_eig);
-				PZT = rotate_left(PZT, BinaryPowers[L - 1]);
-			}
-		}
-	}
+	//u64 Translation = base_vec;					// Translation
+	//u64 PT;										// Parity translation
+	//u64 ZT;										// Flip translation
+	//u64 PZT;									// Parity Flip translation
+	//if (this->k_sector)
+	//	PT = reverseBits(base_vec, L);
+	//if (this->h == 0) {
+	//	ZT = flip(base_vec, this->L);
+	//	if (this->k_sector)
+	//		PZT = reverseBits(ZT, L);
+	//}
+	//cpx overlap = 0.0;
+	//for (int l = 0; l < L; l++) {
+	//	auto T_eig = this->k_exponents[l];
+	//	set_MatrixElem(Translation, T_eig);
+	//	Translation = rotate_left(Translation, this->L);
+	//
+	//	if (this->k_sector) {
+	//		auto PT_eig = T_eig * double(this->symmetries.p_sym);
+	//		set_MatrixElem(PT, PT_eig);
+	//		PT = rotate_left(PT, this->L);
+	//	}
+	//	if (this->h == 0) {
+	//		auto ZT_eig = T_eig * double(this->symmetries.x_sym);
+	//		set_MatrixElem(ZT, ZT_eig);
+	//		ZT = rotate_left(ZT, this->L);
+	//		if (this->k_sector) {
+	//			auto PZT_eig = ZT_eig * double(this->symmetries.p_sym);
+	//			set_MatrixElem(PZT, PZT_eig);
+	//			PZT = rotate_left(PZT, this->L);
+	//		}
+	//	}
+	//}
 }
-

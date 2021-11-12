@@ -162,12 +162,15 @@ public:
 private:
 	// REDUCED BASIS AS A SYMMETRY SECTOR
 	struct sym{
-		double k_sym;				// translational symmetry generator
-		int p_sym;					// parity symmetry generator
-		int x_sym;					// spin-flip symmetry generator
+		double k_sym;															// translational symmetry generator
+		int p_sym;																// parity symmetry generator
+		int x_sym;																// spin-flip symmetry generator
 	} symmetries;
-	bool k_sector;					// if the k-sector allows p symmetry
-	v_1d<cpx> k_exponents;			// precalculate the symmetry exponents for current k vector
+	bool k_sector;																// if the k-sector allows p symmetry
+	v_1d<cpx> k_exponents;														// precalculate the symmetry exponents for current k vector
+	std::vector<std::function<u64(u64, int)>> symmetry_group;					// full symmetry group containing all operations: T^k, P*T^k, ..
+	std::vector<cpx> symmetry_eigVal;											// eigenvalues for each symmetry operation
+	void createSymmetryGroup();													// create symmetry group elements and their eigenvalues
 
 	std::tuple<u64, int> find_translation_representative(u64 base_idx) const;
 	std::tuple<u64, int> find_SEC_representative(u64 base_idx, std::vector<u64>& minima) const;
@@ -182,6 +185,8 @@ public:
 	v_1d<cpx> get_k_exponents() const { return this->k_exponents; }
 	sym get_symmetries() const {	return this->symmetries;}
 	v_1d<cpx> get_norm() const { return this->normalisation; }
+	v_1d<std::function<u64(u64, int)>> get_sym_group() const { return this->symmetry_group; }
+	v_1d<cpx> get_sym_eigVal() const { return this->symmetry_eigVal; }
 	// OVERRIDES OF THE MODEL METHODS
 	void hamiltonian() override;
 	void setHamiltonianElem(u64 k, double value, u64 new_idx) override;

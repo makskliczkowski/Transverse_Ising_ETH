@@ -183,7 +183,8 @@ inline u64 binary_search(const std::vector<double>& arr, u64 l_point, u64 r_poin
 /// <param name="n"> number to rotate </param>
 /// <param name="maxPower"> maximal power of 2 </param>
 /// <returns> rotated number </returns>
-inline u64 rotate_left(u64 n, u64 maxPower) {
+inline u64 rotate_left(u64 n, int L) {
+	u64 maxPower = BinaryPowers[L - 1];
 	return (n >= maxPower) ? (((int64_t)n - (int64_t)maxPower) * 2 + 1) : n * 2;
 }
 
@@ -203,8 +204,8 @@ inline bool checkBit(u64 n, int k) {
 /// <param name="n">number to be flipped</param>
 /// <param name="maxBinaryNum">maximal power of 2 for given bit number(maximal length is 64 for ULL)</param>
 /// <returns>flipped number</returns>
-inline u64 flip(u64 n, u64 maxBinaryNum) {
-	return maxBinaryNum - n - 1;
+inline u64 flip(u64 n, int L) {
+	return BinaryPowers[L] - n - 1;
 }
 
 /// <summary>
@@ -234,6 +235,11 @@ inline u64 reverseBits(u64 n, int L) {
 		(lookup[(n >> 48) & 0xffULL] << 8) |				// consider the next 8 bits
 		(lookup[(n >> 54) & 0xffULL]);						// consider last 8 bits
 	return (rev >> (64 - L));								// get back to the original maximal number
+}
+
+inline std::function<u64(u64, int)> multiply_operators(const std::function<u64(u64, int)>& A, const std::function<u64(u64, int)>& B) {
+	std::function<u64(u64, int)> result = [A, B](u64 n, int L) { return A(B(n, L), L); };
+	return result;
 }
 
 /// <summary>
