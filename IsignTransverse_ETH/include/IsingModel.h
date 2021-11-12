@@ -30,14 +30,14 @@
 * the work has been done, while staying in Ljubljana, Slovenia.					 *
 * ---------------------------------------------------------------------------------- */
 
-template <typename T>
+template <typename _type>
 class IsingModel {
 protected:
 	std::string info;									// information about the model
 	randomGen ran;										// consistent quick random number generator
 
-	Mat<T> H;											// the Hamiltonian
-	Mat<T> eigenvectors;								// matrix of the eigenvectors in increasing order
+	Mat<_type> H;										// the Hamiltonian
+	Mat<_type> eigenvectors;							// matrix of the eigenvectors in increasing order
 	vec eigenvalues;									// eigenvalues vector
 
 	u64 N;												// the Hilbert space size
@@ -83,13 +83,13 @@ public:
 	};
 
 	u64 get_hilbert_size() const { return this->N; };											// get the Hilbert space size 2^N
-	const Mat<T>& get_hamiltonian() const { return this->H; };									// get the const reference to a Hamiltonian
+	const Mat<_type>& get_hamiltonian() const { return this->H; };								// get the const reference to a Hamiltonian
 	const vec& get_eigenvalues() const { return this->eigenvalues; };							// get the const reference to eigenvalues
-	const Mat<T>& get_eigenvectors() const { return this->eigenvectors; };						// get the const reference to the eigenvectors
+	const Mat<_type>& get_eigenvectors() const { return this->eigenvectors; };					// get the const reference to the eigenvectors
 	const std::vector<u64>& get_mapping() const { return this->mapping; };						// constant reference to the mapping
 
 	double get_eigenEnergy(u64 idx) const { return this->eigenvalues(idx); };					// get eigenenergy at a given idx
-	Col<T> get_eigenState(u64 idx) const { return this->eigenvectors.col(idx); };			    // get an eigenstate at a given idx
+	Col<_type> get_eigenState(u64 idx) const { return this->eigenvectors.col(idx); };			// get an eigenstate at a given idx
 
 	// ---------------------------------- PRINTERS ----------------------------------
 	void print_base_spin_sector(int Sz = 0);													// print basis state with a given total spin (for clarity purposes)
@@ -111,10 +111,13 @@ public:
 	// ---------------------------------- PHYSICAL QUANTITIES ----------------------------------
 	double ipr(int state_idx);																	// calculate the ipr coeffincient (inverse participation ratio)
 	double information_entropy(u64 _id);														// calculate the information entropy in a given state (based on the ipr) Von Neuman type
-	double information_entropy(u64 _id, const IsingModel<T>& beta, u64 _min, u64 _max);			// calculate the information entropy in basis of other model from input
+	double information_entropy(u64 _id, const IsingModel<_type>& beta, u64 _min, u64 _max);			// calculate the information entropy in basis of other model from input
 	double eigenlevel_statistics(u64 _min, u64 _max);											// calculate the statistics based on eigenlevels (r coefficient)
 	vec eigenlevel_statistics_with_return();													// calculate the eigenlevel statistics and return the vector with the results
 	virtual double entaglement_entropy(u64 state_id, int subsystem_size) = 0;					// entanglement entropy based on the density matrices
+	double mean_level_spacing_av(u64 _min, u64 _max);											// mean level spacing averaged over an input window
+	double mean_level_spacing_trace();															// mean level spacing from by variance of hamiltonian in T->inf
+	virtual double mean_level_spacing_analytical() = 0;											// mean level spacing from analytical formula calcula
 
 	// ---------------------------------- THERMODYNAMIC QUANTITIES ----------------------------------
 	std::tuple<arma::vec, arma::vec, arma::vec> thermal_quantities(const arma::vec& temperature);	// calculate thermal quantities with input temperature range
@@ -124,11 +127,11 @@ public:
 	virtual double av_sigma_z(u64 alfa, u64 beta) = 0;											// check the sigma_z matrix element extensive
 	virtual double av_sigma_z(u64 alfa, u64 beta, int corr_len) = 0;							// check the sigma_z matrix element with correlation length
 	virtual double av_sigma_z(u64 alfa, u64 beta, std::initializer_list<int> sites) = 0;		// check the matrix element of sigma_z elements sites correlation
-
+			
 	virtual double av_sigma_x(u64 alfa, u64 beta) = 0;											// check the sigma_z matrix element extensive
 	virtual double av_sigma_x(u64 alfa, u64 beta, int corr_len) = 0;							// check the sigma_z matrix element with correlation length
 	virtual double av_sigma_x(u64 alfa, u64 beta, std::initializer_list<int> sites) = 0;		// check the matrix element of sigma_x elements sites correlation
-
+			
 	virtual double av_spin_flip(u64 alfa, u64 beta) = 0;										// check the spin flip element extensive
 	virtual double av_spin_flip(u64 alfa, u64 beta, std::initializer_list<int> sites) = 0;		// check the spin flip element at input sites (up to 2)
 
@@ -140,6 +143,10 @@ public:
 		std::string name = "operator_averaged.txt", string separator = "\t\t");
 	static vec operator_av_in_eigenstates_return(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 	static double spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site);
+
+	virtual sp_cx_mat create_operator(op_type op) = 0;
+	virtual sp_cx_mat create_operator(op_type op, int corr_len) = 0;
+	virtual sp_cx_mat create_operator(op_type op, std::initializer_list<int> sites) = 0;
 };
 
 // ----------------------------------------- SYMMETRIC -----------------------------------------
@@ -154,7 +161,7 @@ public:
 
 private:
 	// REDUCED BASIS AS A SYMMETRY SECTOR
-	struct {
+	struct sym{
 		double k_sym;				// translational symmetry generator
 		int p_sym;					// parity symmetry generator
 		int x_sym;					// spin-flip symmetry generator
@@ -171,9 +178,17 @@ private:
 
 	u64 map(u64 index) override;																												// finds a map corresponding to index (for inheritance purpose)
 public:
+	bool get_k_sector() const { return this->k_sector; }
+	v_1d<cpx> get_k_exponents() const { return this->k_exponents; }
+	sym get_symmetries() const {	return this->symmetries;}
+	v_1d<cpx> get_norm() const { return this->normalisation; }
 	// OVERRIDES OF THE MODEL METHODS
 	void hamiltonian() override;
 	void setHamiltonianElem(u64 k, double value, u64 new_idx) override;
+	double mean_level_spacing_analytical() override {
+		const double chi = 0.341345;
+		return sqrt(L) / (chi * N) * sqrt(J * J + h * h + g * g);
+	}
 
 	friend std::pair<u64, cpx> find_rep_and_sym_eigval(u64 base_idx, \
 		const IsingModel_sym& sector_alfa, cpx normalisation_beta);																				// returns the index and the value of the minimum representative
@@ -197,6 +212,14 @@ public:
 	cpx av_spin_current(u64 alfa, u64 beta) override;										// check the extensive spin current
 	cpx av_spin_current(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the spin current at given sites
 
+	template <typename _type>
+	arma::cx_mat generateMatrixElements(_type (IsingModel_sym::* op)(u64, u64), const IsingModel_sym& A) {
+		arma::cx_mat mat_elem(A.get_hilbert_size(), A.get_hilbert_size(), arma::fill::zeros);
+		for (long int i = 0; i < A.get_hilbert_size(); i++)
+			for (long int j = i; j < A.get_hilbert_size(); j++)
+				mat_elem(i, j) = (A.*op)(i, j);
+		return mat_elem;
+	}
 	// lambda functions for Sigmas - changes the state and returns the value on the base vector
 	static std::pair<cpx, u64> sigma_x(u64 base_vec, int L, std::initializer_list<int> sites) {
 		auto tmp = base_vec;
@@ -240,7 +263,7 @@ public:
 		else val = 0.0;
 		return std::make_pair(val, tmp);
 	};
-
+	
 	static std::string set_info(int L, double J, double g, double h, int k_sym, bool p_sym, bool x_sym, std::initializer_list<std::string> skip = {}) {
 		std::string name = "_L=" + std::to_string(L) + \
 			",g=" + to_string_prec(g, 2) + \
@@ -270,6 +293,11 @@ public:
 
 	friend cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, u64 base_vec, u64 k, \
 		const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::initializer_list<int> sites);
+				
+	sp_cx_mat create_operator(op_type op) override;													
+	sp_cx_mat create_operator(op_type op, int corr_len) override;
+	sp_cx_mat create_operator(op_type op, std::initializer_list<int> sites) override;
+	void set_OperatorElem(op_type op, std::initializer_list<int> sites, sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx);
 
 	mat correlation_matrix(u64 state_id) override;
 };
@@ -300,6 +328,10 @@ public:
 	// METHODS
 	void hamiltonian() override;
 	void setHamiltonianElem(u64 k, double value, u64 new_idx) override;
+	double mean_level_spacing_analytical() override {
+		const double chi = 0.341345;
+		return sqrt(L) / (chi * N) * sqrt(J * J + h * h + g * g + (w * w + g0 * g0 + J0 * J0) / 3.);
+	}
 
 	// MATRICES & OPERATORS
 	double av_sigma_z(u64 alfa, u64 beta) override;											// check the sigma_z matrix element extensive
@@ -316,6 +348,18 @@ public:
 	cpx av_spin_current(u64 alfa, u64 beta) override;										// check the extensive spin current
 	cpx av_spin_current(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the spin current at given sites
 
+	sp_cx_mat create_operator(op_type op) override;
+	sp_cx_mat create_operator(op_type op, int corr_len) override;
+	sp_cx_mat create_operator(op_type op, std::initializer_list<int> sites) override;
+
+	template <typename _type>
+	arma::cx_mat generateMatrixElements(_type (IsingModel_disorder::* op)(u64, u64), const IsingModel_disorder& A) {
+		arma::cx_mat mat_elem(A.get_hilbert_size(), A.get_hilbert_size(), arma::fill::zeros);
+		for (long int i = 0; i < A.get_hilbert_size(); i++)
+			for (long int j = i; j < A.get_hilbert_size(); j++)
+				mat_elem(i, j) = (A.*op)(i, j);
+		return mat_elem;
+	}
 	mat correlation_matrix(u64 state_id) override;
 
 	double entaglement_entropy(u64 state_id, int subsystem_size) override;
@@ -344,8 +388,8 @@ public:
 	}
 };
 // ---------------------------------- HELPERS ----------------------------------
-template <typename T>
-T overlap(const IsingModel<T>& A, const IsingModel<T>& B, int n_a, int n_b);								// creates the overlap between two eigenstates
+template <typename _type>
+_type overlap(const IsingModel<_type>& A, const IsingModel<_type>& B, int n_a, int n_b);								// creates the overlap between two eigenstates
 
 // ---------------------------------- PROBABILITY DISTRIBUTORS ----------------------------------
 

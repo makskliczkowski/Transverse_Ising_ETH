@@ -131,14 +131,22 @@ namespace isingUI
 			int omega_gauss_max, double energy_constraint, int energy_num, \
 			std::initializer_list<int> alfa_sym = {}, \
 			std::initializer_list<int> beta_sym = {}) const;
+		template <typename _type> void spectralFunction(IsingModel<_type>& alfa);
+		std::pair<double, double> operator_norm(int system_size, int k_sym = 0, bool p_sym = 1, bool x_sym = 1);
+		template <typename _type> void adiabaticGaugePotential(clk::time_point start);
+		//template <typename T> void spectralFunction(int L, double gx, double hx);
 		std::vector<double> perturbative_stat_sym(double pert, double gx, double hx);
 		std::vector<double> perturbative_stat_sym(double pert, IsingModel_sym& alfa, double gx, double hx);
+		std::vector<double> perturbative_stat_sym(IsingModel_sym& alfa, double gx, double hx);
 		std::vector<double> perturbative_stat_sym(double dist_step, double min, double max, double pert, IsingModel_sym& alfa, IsingModel_sym& beta);
 		std::vector<double> perturbative_stat_sym(double pert) {
 			return perturbative_stat_sym(pert, this->g, this->h);
 		}
 		std::vector<double> perturbative_stat_sym(double pert, IsingModel_sym& alfa) {
 			return perturbative_stat_sym(pert, alfa, this->g, this->h);
+		}
+		std::vector<double> perturbative_stat_sym(IsingModel_sym& alfa) {
+			return perturbative_stat_sym(alfa, this->g, this->h);
 		}
 	};
 }

@@ -62,8 +62,11 @@ template<class T>
 using v_1d = std::vector<T>;																	// 1d double vector
 
 // ----------------------------------------------------------------------------- User compiler macro -----------------------------------------------------------------------------
+#if !defined(OPERATOR)
+	#define OPERATOR
+#endif
 #define im cpx(0.0,1.0)
-#define stout std::cout << std::setprecision(16) << std::fixed									// standard outstream
+#define stout std::cout << std::setprecision(8) << std::fixed									// standard outstream
 #define memory_over_performance false															// optimized by size --true-- (memory usage shortage) or performance --false--
 
 // ----------------------------------------------------------------------------- Macros to generate the lookup table (at compile-time) -----------------------------------------------------------------------------
@@ -344,12 +347,12 @@ std::ostream& operator<<(std::ostream& os, std::vector<T> vec) {
 		//std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(os, " "));
 		//os << vec.back() << ' ';
 		for (int i = 0; i < vec.size(); i++) {
-			os << vec[i] << ' ';
-			counter++;
-			if (counter % 8 == 0) {
-				os << "  ";
-				counter = 0;
-			}
+			os << vec[i] << '\t\t';
+			//counter++;
+			//if (counter % 8 == 0) {
+			//	os << "\t\t";
+			//	counter = 0;
+			//}
 		}
 	}
 	else

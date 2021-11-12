@@ -397,7 +397,7 @@ double IsingModel_sym::av_spin_flip(u64 alfa, u64 beta, std::initializer_list<in
 cpx IsingModel_sym::av_spin_current(u64 alfa, u64 beta) {
 	auto spin_flip = IsingModel_sym::spin_flip;
 	auto value = im * av_operator(alfa, beta, *this, *this, spin_flip, 1);
-	value += conj(im * av_operator(beta, alfa, *this, *this, spin_flip, 1));
+	value -= conj(im * av_operator(beta, alfa, *this, *this, spin_flip, 1));
 	return 0.5i * value;
 }
 
@@ -438,7 +438,7 @@ mat IsingModel_sym::correlation_matrix(u64 state_idx) {
 	return corr_mat;
 }
 
-// ----------------------------------------------------------------------------- WRAPPERS FOR SIGMA OPERATORS -----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------- WRAPPERS FOR SIGMA OPERATORS - getting overlap -----------------------------------------------------------------------------
 
 /// <summary>
 /// This form of average operators takes potentailly two symmetry sectors alfa and beta with
@@ -522,7 +522,7 @@ cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingM
 			}
 		}
 	}
-	return cpx(overlap_real, overlap_imag) / (G * sec_alfa.L);
+	return cpx(overlap_real, overlap_imag) / (G * sqrt(sec_alfa.L));
 }
 
 /// <summary>
@@ -570,7 +570,7 @@ cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingM
 			}
 		}
 	}
-	return cpx(overlap_real, overlap_imag) / (G * sec_alfa.L);
+	return cpx(overlap_real, overlap_imag) / (G * sqrt(sec_alfa.L));
 }
 
 /// <summary>
@@ -639,3 +639,101 @@ cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_co
 	}
 	return overlap;
 }
+
+
+// ----------------------------------------------------------------------------- WRAPPERS FOR SIGMA OPERATORS - creating matrix -----------------------------------------------------------------------------
+sp_cx_mat IsingModel_sym::create_operator(op_type op, std::initializer_list<int> sites) {
+	// throwables
+	for (auto& site : sites)
+		if ((site < 0 || site >= this->L)) throw "Site index exceeds chain or incompatible chain lengths. Your choice\n";
+	double G = this->L;
+	if (this->h == 0)
+		G += this->L;
+	if (this->k_sector) G += (this->h == 0) ? 2 * this->L : this->L;
+	// going through all sector beta states
+	sp_cx_mat operator_matrix(this->N, this->N);
+	for (int i = 0; i < this->N; i++) {
+		const u64 base_vec = this->mapping[i];
+		set_OperatorElem(op, sites, operator_matrix, base_vec, i);
+	}
+	return operator_matrix / (G * sqrt(this->L));
+}
+sp_cx_mat IsingModel_sym::create_operator(op_type op) {// calculating normalisation for both sector symmetry groups
+	double G = this->L;
+	if (this->h == 0)
+		G += this->L;
+	if (this->k_sector) G += (this->h == 0) ? 2 * this->L : this->L;
+	// going through all sector beta states
+	sp_cx_mat operator_matrix(this->N, this->N);
+	for (int i = 0; i < this->N; i++) {
+		const u64 base_vec = this->mapping[i];
+		for (int j = 0; j < this->L; j++)
+			set_OperatorElem(op, { j }, operator_matrix, base_vec, i);
+	}
+	return operator_matrix / (G * sqrt(this->L));
+}
+sp_cx_mat IsingModel_sym::create_operator(op_type op, int corr_len) {
+	double G = this->L;
+	if (this->h == 0)
+		G += this->L;
+	if (this->k_sector) G += (this->h == 0) ? 2 * this->L : this->L;
+	auto neis = get_neigh_vector(this->_BC, this->L, corr_len);
+	sp_cx_mat operator_matrix(this->N, this->N);
+	for (int i = 0; i < this->N; i++) {
+		const u64 base_vec = this->mapping[i];
+		for (int j = 0; j < this->L; j++) {
+			const int nei = neis[j];
+			if (nei >= 0) {
+				set_OperatorElem(op, { j, nei }, operator_matrix, base_vec, i);
+			}
+		}
+	}
+	return operator_matrix / (G * sqrt(this->L));
+}
+
+void IsingModel_sym::set_OperatorElem(op_type op, std::initializer_list<int> sites, sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx){
+	auto set_MatrixElem = [&](u64 vec_sym, cpx sym_eig) {
+		auto [op_value, vec_sym_tmp] = op(vec_sym, L, sites);
+		if (abs(op_value) > 1e-14) {
+			auto [idx_sym, sym_eigVal] = !(vec_sym == vec_sym_tmp) ? \
+				find_rep_and_sym_eigval(vec_sym_tmp, *this, this->normalisation[cur_idx]) : std::make_pair(vec_sym, conj(sym_eig));
+			if (idx_sym < N)
+				operator_matrix(idx_sym, cur_idx) += sym_eigVal * op_value;
+		}
+	};
+
+	u64 Translation = base_vec;					// Translation
+	u64 PT;										// Parity translation
+	u64 ZT;										// Flip translation
+	u64 PZT;									// Parity Flip translation
+	if (this->k_sector)
+		PT = reverseBits(base_vec, L);
+	if (this->h == 0) {
+		ZT = flip(base_vec, BinaryPowers[L]);
+		if (this->k_sector)
+			PZT = reverseBits(ZT, L);
+	}
+	cpx overlap = 0.0;
+	for (int l = 0; l < L; l++) {
+		auto T_eig = this->k_exponents[l];
+		set_MatrixElem(Translation, T_eig);
+		Translation = rotate_left(Translation, BinaryPowers[L - 1]);
+
+		if (this->k_sector) {
+			auto PT_eig = T_eig * double(this->symmetries.p_sym);
+			set_MatrixElem(PT, PT_eig);
+			PT = rotate_left(PT, BinaryPowers[L - 1]);
+		}
+		if (this->h == 0) {
+			auto ZT_eig = T_eig * double(this->symmetries.x_sym);
+			set_MatrixElem(ZT, ZT_eig);
+			ZT = rotate_left(ZT, BinaryPowers[L - 1]);
+			if (this->k_sector) {
+				auto PZT_eig = ZT_eig * double(this->symmetries.p_sym);
+				set_MatrixElem(PZT, PZT_eig);
+				PZT = rotate_left(PZT, BinaryPowers[L - 1]);
+			}
+		}
+	}
+}
+

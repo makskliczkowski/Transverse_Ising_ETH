@@ -252,6 +252,38 @@ double IsingModel<T>::spectrum_repulsion(double (IsingModel::* op)(int, int), Is
 	return average / (A.N - 1.0);
 }
 
+/// <summary>
+/// averages the distance between consecutive energy levels in the system
+/// </summary>
+/// <typeparam name="T"> does not matter </typeparam>
+/// <returns> mean level spacing </returns>
+template <typename T> double IsingModel<T>::mean_level_spacing_av(u64 _min, u64 _max) {
+	if (_min <= 0) throw "too low index";
+	if (_max > N) throw "index exceeding Hilbert space";
+	double omega_H = 0;
+#pragma omp parallel for reduction(+: omega_H)
+	for (long int k = _min; k < _max; k++)
+		omega_H += this->eigenvalues(k) - this->eigenvalues(k - 1);
+	return omega_H / double(_max - _min);
+}
+
+/// <summary>
+/// 
+/// </summary>
+/// <typeparam name="T"></typeparam>
+/// <returns></returns>
+template <typename T> double IsingModel<T>::mean_level_spacing_trace() {
+	const double chi = 0.341345;
+	double trace_H2 = 0;
+	double trace_H = 0;
+#pragma omp parallel for reduction(+: trace_H, trace_H2)
+	for (int k = 0; k < N; k++) {
+		trace_H += this->eigenvalues(k);
+		trace_H2 += this->eigenvalues(k) * this->eigenvalues(k);
+	}
+	return sqrt(trace_H2 / double(N) - trace_H * trace_H / double(N * N)) / (chi * N);
+}
+
 // ----------------------------------------------------------- OPERATORS AND AVERAGES -------------------------------------------------------
 
 /// <summary>
@@ -440,3 +472,7 @@ template double IsingModel<cpx>::total_spin(const mat&);
 template double IsingModel<double>::total_spin(const mat&);
 template std::tuple<arma::vec, arma::vec, arma::vec> IsingModel<double>::thermal_quantities(const arma::vec&);
 template std::tuple<arma::vec, arma::vec, arma::vec> IsingModel<cpx>::thermal_quantities(const arma::vec&);
+template double IsingModel<double>::mean_level_spacing_av(u64, u64);
+template double IsingModel<cpx>::mean_level_spacing_av(u64, u64);
+template double IsingModel<double>::mean_level_spacing_trace();
+template double IsingModel<cpx>::mean_level_spacing_trace();

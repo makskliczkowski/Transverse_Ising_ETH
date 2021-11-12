@@ -108,17 +108,12 @@ double IsingModel_disorder::av_sigma_z(u64 alfa, u64 beta, std::initializer_list
 	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
 	arma::subview_col state_beta = this->eigenvectors.col(beta);
 	double value = 0;
-#pragma omp parallel
-	{
-		std::vector<bool> base_vector(L);
-#pragma omp for reduction (+: value)
-		for (int k = 0; k < N; k++) {
-			int_to_binary(map(k), base_vector);
-			double S_z = 1;
-			for (auto& site : sites)
-				S_z *= base_vector[site] ? 1.0 : -1.0;
-			value += S_z * state_alfa(k) * state_beta(k);
-		}
+#pragma omp parallel for reduction (+: value)
+	for (int k = 0; k < N; k++) {
+		double S_z = 1;
+		for (auto& site : sites)
+			S_z *= checkBit(k, L - 1 - site) ? 1.0 : -1.0;
+		value += S_z * state_alfa(k) * state_beta(k);
 	}
 	return value;
 }
@@ -134,19 +129,14 @@ double IsingModel_disorder::av_sigma_z(u64 alfa, u64 beta)
 	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
 	arma::subview_col state_beta = this->eigenvectors.col(beta);
 	double value = 0;
-#pragma omp parallel
-	{
-		std::vector<bool> base_vector(L);
-#pragma omp for reduction (+: value)
-		for (int k = 0; k < N; k++) {
-			int_to_binary(map(k), base_vector);
-			for (int l = 0; l < this->L; l++) {
-				double Sz = base_vector[l] ? 1.0 : -1.0;
-				value += Sz * state_alfa(k) * state_beta(k);
-			}
+#pragma omp parallel for reduction (+: value)
+	for (int k = 0; k < N; k++) {
+		for (int l = 0; l < this->L; l++) {
+			double Sz = checkBit(k, L - 1 - l) ? 1.0 : -1.0;
+			value += Sz * state_alfa(k) * state_beta(k);
 		}
 	}
-	return value / (1. * this->L);
+	return value / sqrt(this->L);
 }
 
 /// <summary>
@@ -164,23 +154,17 @@ double IsingModel_disorder::av_sigma_z(u64 alfa, u64 beta, int corr_length)
 	arma::subview_col state_beta = this->eigenvectors.col(beta);
 	double value = 0;
 	auto neis = get_neigh_vector(this->_BC, this->L, corr_length);
-
-#pragma omp parallel
-	{
-		std::vector<bool> base_vector(L);
-#pragma omp for reduction (+: value)
-		for (int k = 0; k < N; k++) {
-			int_to_binary(map(k), base_vector);
-			for (int l = 0; l < this->L; l++) {
-				double Sz = base_vector[l] ? 1.0 : -1.0;
-				int nei = neis[l];
-				if (nei < 0) continue;
-				double Sz_corr = base_vector[nei] ? 1.0 : -1.0;
-				value += Sz * Sz_corr * state_alfa(k) * state_beta(k);
-			}
+#pragma omp parallel for reduction (+: value) collapse(2)
+	for (int k = 0; k < N; k++) {
+		for (int l = 0; l < this->L; l++) {
+			int nei = neis[l];
+			if (nei < 0) continue;
+			double Sz = checkBit(k, L - 1 - l) ? 1.0 : -1.0;
+			double Sz_corr = checkBit(k, L - 1 - nei) ? 1.0 : -1.0;
+			value += Sz * Sz_corr * state_alfa(k) * state_beta(k);
 		}
 	}
-	return value / (1. * this->L);
+	return value / sqrt(this->L);
 }
 
 /// <summary>
@@ -197,15 +181,10 @@ double IsingModel_disorder::av_sigma_x(u64 alfa, u64 beta, std::initializer_list
 	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
 	arma::subview_col state_beta = this->eigenvectors.col(beta);
 	double value = 0;
-#pragma omp parallel
-	{
-		std::vector<bool> base_vector(L);
-#pragma omp for reduction (+: value)
-		for (int k = 0; k < N; k++) {
-			int_to_binary(map(k), base_vector);
-			for (auto& site : sites)
-				base_vector[site] = !base_vector[site];
-			const u64 idx = binary_to_int(base_vector);
+#pragma omp parallel for reduction (+: value)
+	for (int k = 0; k < N; k++) {
+		for (auto& site : sites) {
+			u64 idx = flip(k, BinaryPowers[this->L - 1 - site], this->L - 1 - site);
 			value += state_alfa(idx) * state_beta(k);
 		}
 	}
@@ -213,7 +192,7 @@ double IsingModel_disorder::av_sigma_x(u64 alfa, u64 beta, std::initializer_list
 }
 
 /// <summary>
-/// Calculates the matrix element for sigma_x extensive
+/// Calculates the matrix element for sigma_x extensive (sum over the system)
 /// </summary>
 /// <param name="alfa">Left state</param>
 /// <param name="beta">Right state</param>
@@ -229,11 +208,11 @@ double IsingModel_disorder::av_sigma_x(u64 alfa, u64 beta) {
 			overlap += state_alfa(new_idx) * state_beta(k);
 		}
 	}
-	return overlap / double(this->L);
+	return overlap / sqrt(this->L);
 }
 
 /// <summary>
-/// Calculates the matrix element for sigma_x extensive correlations
+/// Calculates the matrix element for sigma_x extensive correlations : s^x_i s^x_i+1
 /// </summary>
 /// <param name="alfa">Left state</param>
 /// <param name="beta">Right state</param>
@@ -247,24 +226,17 @@ double IsingModel_disorder::av_sigma_x(u64 alfa, u64 beta, int corr_length)
 	arma::subview_col state_beta = this->eigenvectors.col(beta);
 	double value = 0;
 	auto neis = get_neigh_vector(this->_BC, this->L, corr_length);
-
-#pragma omp parallel
-	{
-		std::vector<bool> base_vector(L), temp(L);
-#pragma omp for reduction (+: value)
-		for (int k = 0; k < N; k++) {
-			int_to_binary(map(k), base_vector);
-			for (int l = 0; l < this->L; l++) {
-				temp = base_vector;
-				temp[l] = !base_vector[l];
-				int nei = neis[l];
-				if (nei < 0) continue;
-				temp[nei] = !base_vector[nei];
-				value += state_alfa(binary_to_int(temp)) * state_beta(k);
-			}
+#pragma omp parallel for reduction (+: value)
+	for (int k = 0; k < N; k++) {
+		for (int l = 0; l < this->L; l++) {
+			int nei = neis[l];
+			if (nei < 0) continue;
+			u64 idx = flip(k, BinaryPowers[this->L - 1 - nei], this->L - 1 - nei);
+			u64 new_idx = flip(idx, BinaryPowers[this->L - 1 - l], this->L - 1 - l);
+			value += state_alfa(new_idx) * state_beta(k);
 		}
 	}
-	return value / (1. * this->L);
+	return value / sqrt(this->L);
 }
 
 /// <summary>
@@ -331,7 +303,7 @@ double IsingModel_disorder::av_spin_flip(u64 alfa, u64 beta) {
 			}
 		}
 	}
-	return 2.0 * value;
+	return 2.0 * value / sqrt(L);
 }
 
 /// <summary>
@@ -416,8 +388,49 @@ cpx IsingModel_disorder::av_spin_current(u64 alfa, u64 beta) {
 			}
 		}
 	}
-	return 2i * cpx(value_real, value_imag);
+	return 2i * cpx(value_real, value_imag) / sqrt(this->L);
 }
+// ----------------------------------------------------------------------------- CREATE OPERATOR TO CALCULATE MATRIX ELEMENTS -----------------------------------------------------------------------------
+sp_cx_mat IsingModel_disorder::create_operator(op_type op, std::initializer_list<int> sites) {
+	arma::sp_cx_mat opMatrix(this->N, this->N);
+#pragma omp parallel for
+	for (long int k = 0; k < N; k++) {
+		for (auto& j : sites) {
+			auto [value, idx] = op(k, this->L, { j });
+#pragma omp critical
+			opMatrix(idx, k) += value;
+		}
+	}
+	return opMatrix / sqrt(this->L);
+}
+sp_cx_mat IsingModel_disorder::create_operator(op_type op) {
+	arma::sp_cx_mat opMatrix(this->N, this->N);
+#pragma omp parallel for
+	for (long int k = 0; k < N; k++) {
+		for (int j = 0; j < this->L; j++) {
+			auto [value, idx] = op(k, this->L, { j });
+		#pragma omp critical
+			opMatrix(idx, k) += value;
+		}
+	}
+	return opMatrix / sqrt(this->L);
+}
+sp_cx_mat IsingModel_disorder::create_operator(op_type op, int corr_len) {
+	arma::sp_cx_mat opMatrix(this->N, this->N);
+	auto neis = get_neigh_vector(this->_BC, this->L, corr_len);
+#pragma omp parallel for
+	for (long int k = 0; k < N; k++) {
+		for (int j = 0; j < this->L; j++) {
+			const int nei = neis[j];
+			if (nei < 0) continue;
+			auto [value, idx] = op(k, this->L, { j, nei });
+#pragma omp critical
+			opMatrix(idx, k) += value;
+		}
+	}
+	return opMatrix / sqrt(this->L);
+}
+
 
 // ----------------------------------------------------------------------------- TO REFACTOR AND CREATE DESCRIPTION -----------------------------------------------------------------------------
 
