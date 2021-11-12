@@ -1552,7 +1552,7 @@ void isingUI::ui::make_sim()
 			kurtosis << std::setprecision(6) << std::scientific;
 			arma::vec pert_vec = arma::logspace(-3, 0, 50);
 			for (auto& pert : pert_vec)
-				kurtosis << hx << "\t\t" << perturbative_stat_sym(pert, *alfa, this->g, hx) << std::endl;
+				kurtosis << hx << "\t\t\t\t" << perturbative_stat_sym(pert, *alfa, this->g, hx) << std::endl;
 			kurtosis.close();
 			//auto nonsense = perturbative_stat_sym(*alfa, this->g, hx);
 			//double val = 0;// (double)system_size / (double)N;

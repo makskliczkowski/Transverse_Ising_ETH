@@ -344,16 +344,16 @@ template<typename T>
 std::ostream& operator<<(std::ostream& os, std::vector<T> vec) {
 	int counter = 0;
 	if (vec.size() != 0) {
-		//std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(os, " "));
-		//os << vec.back() << ' ';
-		for (int i = 0; i < vec.size(); i++) {
-			os << vec[i] << '\t\t';
-			//counter++;
-			//if (counter % 8 == 0) {
-			//	os << "\t\t";
-			//	counter = 0;
-			//}
-		}
+		std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(os, "\t\t"));
+		os << vec.back() << ' ';
+		//for (int i = 0; i < vec.size(); i++) {
+		//	os << vec[i] << "\t\t";
+		//	//counter++;
+		//	//if (counter % 8 == 0) {
+		//	//	os << "\t\t";
+		//	//	counter = 0;
+		//	//}
+		//}
 	}
 	else
 		os << "Empty container!" << endl;
