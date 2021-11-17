@@ -132,7 +132,7 @@ namespace isingUI
 			std::initializer_list<int> alfa_sym = {}, \
 			std::initializer_list<int> beta_sym = {}) const;
 		template <typename _type> void spectralFunction(IsingModel<_type>& alfa);
-		std::pair<double, double> operator_norm(std::initializer_list<op_type> operators, int system_size, int k_sym = 0, bool p_sym = 1, bool x_sym = 1);
+		template <typename _type> std::pair<double, double> operator_norm(std::initializer_list<op_type> operators, IsingModel<_type>& alfa, int k_sym = 0, bool p_sym = 1, bool x_sym = 1);
 		template <typename _type> void adiabaticGaugePotential(clk::time_point start);
 		//template <typename T> void spectralFunction(int L, double gx, double hx);
 		std::vector<double> perturbative_stat_sym(double pert, double gx, double hx);

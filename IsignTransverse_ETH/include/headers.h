@@ -367,12 +367,16 @@ std::ostream& operator<<(std::ostream& os, std::vector<T> vec) {
 }
 
 // ----------------------------------------------------------------------------- MAKS' USELESS IDEAS -----------------------------------------------------------------------------
+// get address of function
+template<typename T, typename T2, typename... U> inline size_t getAddress(const op_type& f) {
+	op_type** fnPointer = f.template target<op_type*>();
+	return (size_t)*fnPointer;
+}
 
 /// <summary>
 /// Sorts the vector and saves the permutation with a lambda like function compare
 /// </summary>
-template <typename T, typename Compare>
-inline std::vector<std::size_t> sort_permutation(const std::vector<T>& vec, Compare compare) {
+template <typename T, typename Compare> inline std::vector<std::size_t> sort_permutation(const std::vector<T>& vec, Compare compare) {
 	std::vector<std::size_t> p(vec.size());
 	std::iota(p.begin(), p.end(), 0);
 	std::sort(p.begin(), p.end(),
@@ -385,8 +389,7 @@ inline std::vector<std::size_t> sort_permutation(const std::vector<T>& vec, Comp
 /// <summary>
 /// Applies permutation on a given vector
 /// </summary>
-template <typename T>
-inline void apply_permutation(std::vector<T>& vec, const std::vector<std::size_t>& p) {
+template <typename T> inline void apply_permutation(std::vector<T>& vec, const std::vector<std::size_t>& p) {
 	std::vector<bool> done(vec.size());
 	for (std::size_t i = 0; i < vec.size(); ++i) {
 		if (done[i]) continue;

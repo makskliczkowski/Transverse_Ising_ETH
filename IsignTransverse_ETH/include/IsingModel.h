@@ -144,9 +144,9 @@ public:
 	static vec operator_av_in_eigenstates_return(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 	static double spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 
-	virtual sp_cx_mat create_operator(op_type op) = 0;
-	virtual sp_cx_mat create_operator(op_type op, int corr_len) = 0;
-	virtual sp_cx_mat create_operator(op_type op, std::initializer_list<int> sites) = 0;
+	virtual sp_cx_mat create_operator(std::initializer_list<op_type> operators) = 0;
+	virtual sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) = 0;
+	virtual sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::initializer_list<int> sites) = 0;
 };
 
 // ----------------------------------------- SYMMETRIC -----------------------------------------
@@ -172,8 +172,8 @@ private:
 	std::vector<cpx> symmetry_eigVal;											// eigenvalues for each symmetry operation
 	void createSymmetryGroup();													// create symmetry group elements and their eigenvalues
 
-	std::tuple<u64, int> find_translation_representative(u64 base_idx) const;
-	std::tuple<u64, int> find_SEC_representative(u64 base_idx, std::vector<u64>& minima) const;
+	//std::tuple<u64, int> find_translation_representative(u64 base_idx) const;
+	std::pair<u64, cpx> find_SEC_representative(u64 base_idx) const;
 
 	cpx get_symmetry_normalization(u64 base_idx);
 	void mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id);							// multithreaded mapping
@@ -299,10 +299,10 @@ public:
 	friend cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, u64 base_vec, u64 k, \
 		const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::initializer_list<int> sites);
 				
-	sp_cx_mat create_operator(op_type op) override;													
-	sp_cx_mat create_operator(op_type op, int corr_len) override;
-	sp_cx_mat create_operator(op_type op, std::initializer_list<int> sites) override;
-	void set_OperatorElem(op_type op, std::initializer_list<int> sites, sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx);
+	sp_cx_mat create_operator(std::initializer_list<op_type> operators) override;													
+	sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) override;
+	sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::initializer_list<int> sites) override;
+	void set_OperatorElem(std::initializer_list<op_type> operators, std::initializer_list<int> sites, sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx);
 
 	mat correlation_matrix(u64 state_id) override;
 };
@@ -353,9 +353,9 @@ public:
 	cpx av_spin_current(u64 alfa, u64 beta) override;										// check the extensive spin current
 	cpx av_spin_current(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the spin current at given sites
 
-	sp_cx_mat create_operator(op_type op) override;
-	sp_cx_mat create_operator(op_type op, int corr_len) override;
-	sp_cx_mat create_operator(op_type op, std::initializer_list<int> sites) override;
+	sp_cx_mat create_operator(std::initializer_list<op_type> operators) override;
+	sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) override;
+	sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::initializer_list<int> sites) override;
 
 	template <typename _type>
 	arma::cx_mat generateMatrixElements(_type (IsingModel_disorder::* op)(u64, u64), const IsingModel_disorder& A) {
@@ -419,10 +419,10 @@ std::unordered_map<u64, u64> mapping_sym_to_original(u64 _min, u64 _max, const I
 		double E_prev = (idx == 0) ? (original.get_eigenEnergy(0) - 1.0) : original.get_eigenEnergy(idx - 1);
 		double E_next = (idx == original.get_hilbert_size() - 1) ? \
 			(original.get_eigenEnergy(original.get_hilbert_size() - 1) + 1.0) : original.get_eigenEnergy(idx + 1);
-		if (abs(E - E_prev) > 1e-8 && abs(E - E_next) > 1e-8) {
+		//if (abs(E - E_prev) > 1e-8 && abs(E - E_next) > 1e-8) {
 #pragma omp critical
 			map[k] = idx;
-		}
+		//}
 	}
 	return map;
 };

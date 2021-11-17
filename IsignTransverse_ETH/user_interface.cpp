@@ -343,7 +343,7 @@ void isingUI::ui::compare_energies() {
 	auto Hamil = std::make_unique<IsingModel_disorder>(L, J, 0, g, 0, h, 0, boundary_conditions);
 	Hamil->diagonalization();
 	const vec E_dis = Hamil->get_eigenvalues();
-	arma::cx_mat opMatrix = Hamil->get_eigenvectors().t() * Hamil->create_operator(IsingModel_sym::sigma_x) * Hamil->get_eigenvectors();
+	arma::cx_mat opMatrix = Hamil->get_eigenvectors().t() * Hamil->create_operator({ IsingModel_sym::sigma_x }) * Hamil->get_eigenvectors();
 	Hamil.release();
 	// here we push back the energies from symmetries
 	std::vector<double> E_sym = v_1d<double>();
@@ -538,13 +538,13 @@ void isingUI::ui::compare_matrix_elements(op_type op, int k_alfa, int k_beta, in
 	// disorder
 	auto model = std::make_unique<IsingModel_disorder>(L, J, 0, g, 0, h, 0);
 	model->diagonalization();
-	sp_cx_mat opMatrix = model->create_operator(op, { 0 });
+	sp_cx_mat opMatrix = model->create_operator({ op });
 	file << "WHOLE SIZE = " << model->get_hilbert_size() << endl;
 	// symmetries
 	std::unique_ptr<IsingModel_sym> alfa = std::make_unique<IsingModel_sym>(L, J, g, h, k_alfa, p_alfa, x_alfa);
 	std::unique_ptr<IsingModel_sym> beta = std::make_unique<IsingModel_sym>(L, J, g, h, k_beta, p_beta, x_beta);
-	sp_cx_mat opMatrix_alfa = alfa->create_operator(op, { 0 });
-	sp_cx_mat opMatrix_beta = beta->create_operator(op, { 0 });
+	sp_cx_mat opMatrix_alfa = alfa->create_operator({op});
+	sp_cx_mat opMatrix_beta = beta->create_operator({op});
 	file << "ALFA SECTOR SIZE = " << alfa->get_hilbert_size() << endl;
 	file << "BETA SECTOR SIZE = " << alfa->get_hilbert_size() << endl;
 	alfa->diagonalization();
@@ -1011,58 +1011,88 @@ void isingUI::ui::matrix_elements_stat_sym(double min, double max, double step, 
 /// <returns></returns>
 v_1d < double> isingUI::ui::perturbative_stat_sym(IsingModel_sym& alfa, double gx, double hx) {
 	clk::time_point start = std::chrono::high_resolution_clock::now();
-	long int size = 1 + 3.322 * log(alfa.get_hilbert_size());
-	const long int N = alfa.get_hilbert_size();
+	const u64 N = alfa.get_hilbert_size();
+	long int size = 1 + 3.322 * log(this->mu);
+	long int sizeE = 1 + 3.322 * log(N);
 	const int n_av = 0;
-	// saving sigma_x from alfa not to recalculate it again
-	v_1d<double> sigma_x;
-	for (long int i = 0; i < N; i++)
-		sigma_x.push_back(alfa.av_sigma_x(i, i, { 0 }));
+	const long int E_min = 0;// alfa.E_av_idx - mu / 2.;
+	const long int E_max = N;// alfa.E_av_idx + mu / 2.;
+	// ANALITYCAL
+	sp_cx_mat pertMatrix = alfa.create_operator({ IsingModel_sym::sigma_x, IsingModel_sym::sigma_z }) * sqrt(alfa.L);
+	//pertMatrix /= sqrt(arma::trace(pertMatrix * pertMatrix) / double(N));
+	cx_mat U = alfa.get_eigenvectors();
+	cx_mat mat_elem = U.t() * pertMatrix * U;
+	cpx order_2nd = 0.0, order_3rd = 0.0, order_4th = 0.0, AGP = 0;
+	for (long int n = 0; n < N; n++) {
+		double temp = 0;
+		for (long int m = 0; m < N && m != n; m++) {
+			double omega = alfa.get_eigenEnergy(n) - alfa.get_eigenEnergy(m);
+			double elem = abs(mat_elem(n, m));
+			temp += elem * elem / omega;
+			AGP += elem * elem / (omega * omega);
+		}
+		cpx diag = mat_elem(n, n);
+		order_2nd += diag * diag;
+		order_3rd += diag * temp;
+		order_4th += temp * temp / 4.0;
+	}
+	order_2nd /= double(N);
+	order_3rd /= double(N);
+	order_4th /= double(N);
+#if defined(OPERATOR)
+	arma::sp_cx_mat opMatrix = alfa.create_operator({ IsingModel_sym::sigma_x }, { 0 });
+	cpx opVar = arma::trace(opMatrix * opMatrix) / double(N * N);
+	arma::cx_vec sigma_x(mu, arma::fill::zeros);// = arma::diagvec(alfa.get_eigenvectors().t() * opMatrix * alfa.get_eigenvectors());
+#pragma omp parallel for
+	for (long int k = E_min; k < E_max; k++)
+		sigma_x(k - E_min) = arma::cdot(alfa.get_eigenState(k), opMatrix * alfa.get_eigenState(k));
+	stout << "\t\t\t\t\t - - - - - - FINISHED building operator IN : " << tim_s(start) << " seconds - -----" << endl;
+	double _min_sig_x = INT_MAX, _max_sig_x = INT_MIN;
+	arma::vec dis_sig_x(size, arma::fill::zeros);
+#endif
 	std::ofstream mom_sig(this->saving_dir + "perturbationOperatorsMoments" + alfa.get_info() + ".dat");
 	std::ofstream mom_E(this->saving_dir + "perturbationEnergyMoments" + alfa.get_info() + ".dat");
-	mom_sig << "de\t\tmean\t\tvar\t\tkurtosis\n";
-	mom_E << "de\t\tmean\t\tvar\t\tkurtosis\n";
-	auto perturbation = arma::logspace(-4, 0, 100);
+	mom_sig << "de\t\t\t\tmean\t\tvar\t\tkurtosis\t\tAnalitycal formula\n";
+	mom_E	<< "de\t\t\t\tmean\t\tvar\t\tkurtosis\t\tAnalitycal formula\n";
+	auto perturbation = arma::logspace(-4, 0, 30);
 	//auto perturbation = arma::linspace(0.01, 0.39, 20);
 	for (auto& pert : perturbation) {
-		double pert_change = pert / (double)n_av;
-		if (pert <= 1e-3)
-			pert_change = 1e-6;
-		else if (pert <= 5e-3)
-			pert_change = 2.5e-5;
-		else if (pert >= 0.01 && pert <= 0.099)
-			pert_change = 2e-4;
-		else
-			pert_change = 0.001;
-		double pert_min = pert - n_av / 2. * pert_change;
-		double pert_max = pert + n_av / 2. * pert_change;
+		const double pert_change = pert / 50. / (n_av == 0 ? 1. : (double)n_av);
+		const double pert_min = pert - n_av / 2. * pert_change;
+		const double pert_max = pert + n_av / 2. * pert_change;
 
 		double _min_sig_x = INT_MAX, _max_sig_x = INT_MIN;
 		double _min_E = INT_MAX, _max_E = INT_MIN;
+		arma::vec dis_delta_E(sizeE, arma::fill::zeros);
 		//arma::vec dis_sig_x(size, arma::fill::zeros);
 		//arma::vec dis_delta_E(size, arma::fill::zeros);
 		int counter = 0;
 		double mean = 0, variance = 0, kurtosis = 0;
 		double mean_E = 0, variance_E = 0, kurtosis_E = 0;
 		for (double deps = pert_min; deps <= pert_max; deps += pert_change) {
-			auto beta = std::make_unique<IsingModel_sym>(this->L, this->J, gx + deps, hx + deps, \
+			auto beta = std::make_unique<IsingModel_sym>(alfa.L, alfa.J, gx + deps, hx + deps, \
 				this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 			beta->diagonalization();
-			const long int E_min = 0;// beta->E_av_idx - mu / 2.;
-			const long int E_max = N;// beta->E_av_idx + mu / 2.;
-			// operators
-			arma::vec delta_sig_x(N, arma::fill::zeros);
-			arma::vec delta_E(N, arma::fill::zeros);
+#if defined(OPERATOR)
+			arma::vec delta_sig_x(mu, arma::fill::zeros);
+#pragma omp parallel for
 			for (long int i = E_min; i < E_max; i++) {
 				const long int idx = i - E_min;
-				delta_sig_x(idx) = beta->av_sigma_x(i, i, { 0 }) - sigma_x[i];
-				delta_E(idx) = beta->get_eigenEnergy(i) - alfa.get_eigenEnergy(i);
-				// save mins and maxes
-				if (delta_sig_x(idx) > _max_sig_x) _max_sig_x = delta_sig_x(idx);
-				else if (delta_sig_x(idx) < _min_sig_x) _min_sig_x = delta_sig_x(idx);
-				if (delta_E(idx) > _max_E) _max_E = delta_E(idx);
-				else if (delta_E(idx) < _min_E) _min_E = delta_E(idx);
+				arma::subview_col state = beta->get_eigenvectors().col(i);
+				delta_sig_x(idx) = real(arma::cdot(state, opMatrix * state) - sigma_x(idx));
 			}
+			_max_sig_x = arma::max(delta_sig_x);
+			_min_sig_x = arma::min(delta_sig_x);
+			dis_sig_x += probability_distribution_with_return(delta_sig_x, size);
+#endif
+			arma::vec delta_E(N, arma::fill::zeros);
+#pragma omp parallel for
+			for (long int i = 0; i < N; i++)
+				delta_E(i) = beta->get_eigenEnergy(i) - alfa.get_eigenEnergy(i);
+			_max_E = arma::max(delta_E);
+			_min_E = arma::min(delta_E);
+			dis_delta_E += probability_distribution_with_return(delta_E, sizeE);
+			counter++;
 			mean += arma::mean(delta_sig_x);
 			variance += arma::stddev(delta_sig_x);
 			kurtosis += kurtosis_diff(delta_sig_x);
@@ -1074,24 +1104,31 @@ v_1d < double> isingUI::ui::perturbative_stat_sym(IsingModel_sym& alfa, double g
 			//dis_delta_E += probability_distribution_with_return(delta_E, size);
 			counter++;
 		}
+#if defined(OPERATOR)
 		//dis_sig_x /= double(counter);
-		//dis_delta_E /= double(counter);
-
-		mom_sig << pert << "\t\t" << mean / double(counter) << "\t\t" << variance / double(counter) << "\t\t" << kurtosis / double(counter) << std::endl;
-		mom_sig.flush();
-		mom_E << pert << "\t\t" << mean_E / double(counter) << "\t\t" << variance_E / double(counter) << "\t\t" << kurtosis_E / double(counter) << std::endl;
-		mom_E.flush();
-
-		//ofstream dis_op(this->saving_dir + "perturbationOperatorsDist" + alfa.get_info() + ",pert=" + to_string_prec(pert, 4) + ".dat");
-		//dis_op << "P(O_aa)\t\tsig_x\n";
-		//ofstream dis_E(this->saving_dir + "perturbationEnergyDiffDist" + alfa.get_info() + ",pert=" + to_string_prec(pert, 4) + ".dat");
+		//kurtos[1] /= double(counter);
 		//const double step_sig_x = abs(_max_sig_x - _min_sig_x) / (double)size;
-		//const double step_E = abs(_max_E - _min_E) / (double)size;
-		//for (int i = 0; i < size; i++) {
+		//ofstream dis_op(this->saving_dir + "/perturbation data/OperatorDiff/perturbationOperatorsDist" + alfa.get_info() + ",pert=" + to_string_prec(pert, 4) + ".dat");
+		//dis_op << "P(O_aa)\t\tsig_x\n";
+		//for (int i = 0; i < size; i++)
 		//	dis_op << step_sig_x * i + _min_sig_x << "\t\t" << dis_sig_x(i) << "\n";
+		//dis_op.close();
+#endif
+
+		//dis_delta_E /= double(counter);
+		//kurtos[0] /= double(counter);
+		//ofstream dis_E(this->saving_dir + "/perturbation data/EnergyDiff/perturbationEnergyDiffDist" + alfa.get_info() + ",pert=" + to_string_prec(pert, 4) + ".dat");
+		//const double step_E = abs(_max_E - _min_E) / (double)sizeE;
+		//for (int i = 0; i < sizeE; i++)
 		//	dis_E << step_E * i + _min_E << "\t\t" << dis_delta_E(i) << "\n";
-		//}
-		//dis_op.close(); dis_E.close();
+		//dis_E.close();
+		mom_sig << pert << "\t\t" << mean / double(counter) << "\t\t" << variance / double(counter) << "\t\t"\
+			<< kurtosis / double(counter) << "\t\t" << real(2 * pert * pert * opVar * AGP) << std::endl;
+		mom_sig.flush();
+		cpx vardE_analitycal = order_2nd * std::pow(pert, 2) + order_3rd * std::pow(pert, 3) + order_4th * std::pow(pert, 4);
+		mom_E << pert << "\t\t" << mean_E / double(counter) << "\t\t" << variance_E / double(counter) << "\t\t"\
+			<< kurtosis_E / double(counter) << "\t\t" << vardE_analitycal.real() << std::endl;
+		mom_E.flush();
 		stout << "\t\t\t\t - - - - - - FINISHED perturbation = " << pert << " IN : " << tim_s(start) << " seconds - -----" << endl;
 	}
 	mom_E.close();
@@ -1182,14 +1219,6 @@ std::vector<double> isingUI::ui::perturbative_stat_sym(double pert, IsingModel_s
 	const int n_av = 10;
 
 	double pert_change = pert / 50. / (double)n_av;
-	// pert_min = pert / 50.
-	// pert_max = pert / 50.
-	//if (pert <= 0.005)
-	//	pert_change = 1e-5;
-	//else if (pert >= 0.01 && pert <= 0.099)
-	//	pert_change = 2e-4;
-	//else
-	//	pert_change = 0.001;
 	double pert_min = pert - n_av / 2. * pert_change;
 	double pert_max = pert + n_av / 2. * pert_change;
 
@@ -1198,7 +1227,7 @@ std::vector<double> isingUI::ui::perturbative_stat_sym(double pert, IsingModel_s
 	// saving sigma_x from alfa not to recalculate it again
 	v_1d<double> kurtos(2, 0.0);
 #if defined(OPERATOR)
-	arma::sp_cx_mat opMatrix = alfa.create_operator(IsingModel_sym::sigma_x, { 0 });
+	arma::sp_cx_mat opMatrix = alfa.create_operator({ IsingModel_sym::sigma_x }, { 0 });
 	arma::cx_vec sigma_x(mu, arma::fill::zeros);// = arma::diagvec(alfa.get_eigenvectors().t() * opMatrix * alfa.get_eigenvectors());
 #pragma omp parallel for
 	for (long int k = E_min; k < E_max; k++)
@@ -1462,22 +1491,17 @@ template <typename _type> void isingUI::ui::adiabaticGaugePotential(clk::time_po
 	farante.close();
 	scaling.close();
 }
-std::pair<double, double> isingUI::ui::operator_norm(std::initializer_list<op_type> operators, int system_size, int k_sym, bool p_sym, bool x_sym) {
-	auto alfa = std::make_unique<IsingModel_sym>(system_size, this->J, this->g, this->h, \
-		k_sym, p_sym, x_sym, this->boundary_conditions);
-	const u64 N = alfa->get_hilbert_size();
-	alfa->diagonalization();
-	arma::sp_cx_mat opMatrix(N, N);
-	for (auto& op : operators)
-		opMatrix += alfa->create_operator(op);
-	//arma::cx_mat mat_elem = alfa->get_eigenvectors().t() * opMatrix * alfa->get_eigenvectors();
+template <typename _type> std::pair<double, double> isingUI::ui::operator_norm(std::initializer_list<op_type> operators, IsingModel<_type>& alfa, int k_sym, bool p_sym, bool x_sym) {
+	const u64 N = alfa.get_hilbert_size();
+	arma::sp_cx_mat opMatrix = alfa.create_operator(operators);
+	arma::cx_mat mat_elem = alfa.get_eigenvectors().t() * opMatrix * alfa.get_eigenvectors();
 	double norm_diag = 0, norm_off = 0;
 #pragma omp parallel for reduction(+: norm_diag, norm_off)
 	for (long int k = 0; k < N; k++) {
-		cpx temp = opMatrix(k, k);
+		cpx temp = mat_elem(k, k);
 		norm_diag += abs(temp * temp);
 		for (long int m = k + 1; m < N; m++) {
-			temp = opMatrix(k, m);
+			temp = mat_elem(k, m);
 			norm_off += 2 * abs(temp * temp);
 		}
 	}
@@ -1490,42 +1514,55 @@ void isingUI::ui::make_sim()
 {
 	using namespace std::chrono;
 	clk::time_point start = std::chrono::high_resolution_clock::now();
-	//compare_matrix_elements(IsingModel_sym::sigma_x, this->symmetries.k_sym, this->symmetries.k_sym, this->symmetries.p_sym,\
-		this->symmetries.p_sym, this->symmetries.x_sym, this->symmetries.x_sym);
+	compare_matrix_elements(IsingModel_sym::sigma_x, this->symmetries.k_sym, this->symmetries.k_sym, this->symmetries.p_sym,\
+		0, this->symmetries.x_sym, this->symmetries.x_sym);
 	//compare_energies();
 	//disorder();
 	//auto params = arma::logspace(-4, 0, 200);
-	//auto params = arma::linspace(0.6, 3.0, 50);
+	auto params = arma::linspace(0.2, 2.2, 41);
 	//std::vector<double> params; auto append = arma::logspace(-4, 0, 100); params.insert(params.end(), append.begin(), append.end());
 	//append = arma::linspace(1.0, 5.0, 81); params.insert(params.end(), append.begin(), append.end());
 	//std::vector<double> params = { 1e-4, 5e-4, 1e-3, 5e-3 , 1e-2, 5e-2, 1e-1, 1.5e-1, 2e-1, 2.5e-1, 3.0e-1};
-	auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, \
-		this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-	for (long int k = 0; k < alfa->get_hilbert_size(); k++) {
-		const u64 idx = alfa->get_mapping()[k];
-		for (auto& G : alfa->get_sym_group())
-			stout << G(idx, this->L) << " ";
-		stout << endl;
-	}
-	std::vector<double> params = {this->h};
-	for (auto& hx : params) {
-		//farante << hx << "\t\t";
-		//scaling << "\"h = " + to_string_prec(hx, 5) << "\"" << endl;
-		stout << "\nh = " << hx << "\t\t\n";
-		//ener << hx << "\t\t";
-		for (int system_size = this->L; system_size < this->L + this->Ls * this->Ln; system_size += this->Ls) {
+	//std::vector<double> params = {this->h};
+	for (int system_size = this->L; system_size < this->L + this->Ls * this->Ln; system_size += this->Ls) {
+	std::ofstream norm(this->saving_dir + "normsZ" + \
+		IsingModel_sym::set_info(system_size, J, g, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"h"}) + ".txt");
+		for (auto& hx : params) {
+			stout << "\nh = " << hx << "\t\t";
 			const auto start_loop = std::chrono::high_resolution_clock::now();
-			//auto alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, 0, this->g, 0, hx, 1e-2, 0);
-			auto alfa = std::make_unique<IsingModel_sym>(system_size, this->J, this->g, hx,\
+			//auto alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, 0, this->g, 0, hx, 1e-1, 0);
+			//alfa->reset_random();
+			//alfa->hamiltonian();
+			auto alfa = std::make_unique<IsingModel_sym>(system_size, this->J, this->g, hx, \
 				this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-			//stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
+			std::ofstream ener(this->saving_dir + "Energies" + alfa->get_info({}) + ".dat");
+			stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
 			alfa->diagonalization();
-			//stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
+			stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
 			const u64 N = alfa->get_hilbert_size();
 			const double omegaH = alfa->mean_level_spacing_analytical();
 			this->mu = 0.5 * N;
-			auto [norm_diag, norm_off] = operator_norm({ IsingModel_sym::sigma_x }, system_size);
-			stout << system_size << "\t\t" << N << "\t\t" << norm_diag << "\t\t" << norm_off << "\t\t" << norm_diag + norm_off << endl;
+			long int E_min = alfa->E_av_idx - mu / 2.;
+			long int E_max = alfa->E_av_idx + mu / 2.;
+			//sp_cx_mat opMatrix = alfa->create_operator({ IsingModel_sym::sigma_x, IsingModel_sym::sigma_z });
+			//cx_mat U = alfa->get_eigenvectors();
+			//cx_mat mat_elem = U.t() * opMatrix * U;
+			//cpx var = arma::accu(arma::diagmat(arma::square(mat_elem))) / double(N);
+			//stout << var << endl;
+			auto [norm_diag, norm_off] = operator_norm({ IsingModel_sym::sigma_x }, *alfa);
+			double level_spacing = alfa->eigenlevel_statistics(E_min, E_max);
+			//std::vector<int> realis = { 100, 50, 25, 10, 5 };
+			//for (int r = 0; r < realis[system_size - 8]; r++) {
+			//	alfa->hamiltonian();
+			//	alfa->diagonalization();
+			//	level_spacing += alfa->eigenlevel_statistics(E_min, E_max);
+			//	stout << r << ", ";
+			//}
+			//stout << std::endl;
+			//level_spacing /= double(realis[system_size - 8] + 1);
+			norm << hx << "\t\t" << norm_diag / (norm_diag + norm_off) << "\t\t" << norm_off / (norm_diag + norm_off) << "\t\t" << level_spacing << std::endl;
+			norm.flush();
+			//stout << system_size << "\t\t" << N << "\t\t" << norm_diag << "\t\t" << norm_off << "\t\t" << norm_diag + norm_off << endl;
 			//spectralFunction(*alfa);
 			//stout << "L = " << system_size << endl;
 			//for (int k = 0; k < L; k++) {
@@ -1550,8 +1587,34 @@ void isingUI::ui::make_sim()
 			//	}
 			//}
 			//stout << E_min << " " << E_max << endl;
-			//for (long int i = E_min; i < E_max; i++)
-			//	ener << alfa->get_eigenEnergy(i) << "\t\t";
+			sp_cx_mat pertMatrix = alfa->create_operator({ IsingModel_sym::sigma_x, IsingModel_sym::sigma_z }) * sqrt(alfa->L);
+			//pertMatrix /= sqrt(arma::trace(pertMatrix * pertMatrix) / double(N));
+			cx_mat U = alfa->get_eigenvectors();
+			cx_mat mat_elem = U.t() * pertMatrix * U;
+			auto energyEvolution = [&](int i, double pert)->double {
+				double second_order = 0;
+				for (long int m = 0; m < N && m != i; m++) {
+					double omega = alfa->get_eigenEnergy(i) - alfa->get_eigenEnergy(m);
+					double elem = abs(mat_elem(i, m));
+					second_order += elem * elem / omega;
+				}
+				cpx diag = mat_elem(i, i);
+				return real(alfa->get_eigenEnergy(i) + diag * pert + pert * pert / 2. * second_order);
+			};
+			this->mu = 10;
+			E_min = alfa->E_av_idx - mu / 2.;
+			E_max = alfa->E_av_idx + mu / 2.;
+			arma::vec perturb = arma::logspace(-4, -1, 50);
+			for (auto& pert : perturb) {
+				ener << pert << "\t\t";
+				auto beta = std::make_unique<IsingModel_sym>(system_size, this->J, this->g + pert, hx + pert, \
+					this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+				beta->diagonalization();
+				for (long int i = E_min; i < E_max; i++) {
+					ener << beta->get_eigenEnergy(i) << "\t\t" << energyEvolution(i, pert) << "\t\t";
+				}
+				ener << std::endl;
+			}
 			//stout << perturbative_stat_sym(omegaH, *alfa, this->g, hx) << std::endl;
 			
 			//for (double pert = 0.001; pert <= 0.39; pert += 0.002)
@@ -1564,14 +1627,8 @@ void isingUI::ui::make_sim()
 			//	kurtosis << pert << "\t\t" << perturbative_stat_sym(pert, *alfa, this->g, hx) << std::endl;
 			//kurtosis.close();
 			//auto nonsense = perturbative_stat_sym(*alfa, this->g, hx);
-			//double val = 0;// (double)system_size / (double)N;
-			////for (int i = 0, j = 0, n = 0; (i < system_size && j < system_size && n < N); i++, j++, n++) 
-			//for (int i = 0; i < system_size; i++)
-			//	for (int j = 0; j < system_size && j != i; j++)
-			//		for (int n = 0; n < N; n++)
-			//			val += alfa->av_sigma_x(n, n, { i,j }) / double(N * N);
-			//stout << "\t\t" << val;
 		}
+		norm.close();
 	}
 
 	//parameter_sweep_sym(0, 1, 1);

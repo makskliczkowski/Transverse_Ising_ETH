@@ -391,31 +391,33 @@ cpx IsingModel_disorder::av_spin_current(u64 alfa, u64 beta) {
 	return 2i * cpx(value_real, value_imag) / sqrt(this->L);
 }
 // ----------------------------------------------------------------------------- CREATE OPERATOR TO CALCULATE MATRIX ELEMENTS -----------------------------------------------------------------------------
-sp_cx_mat IsingModel_disorder::create_operator(op_type op, std::initializer_list<int> sites) {
+sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators, std::initializer_list<int> sites) {
 	arma::sp_cx_mat opMatrix(this->N, this->N);
 #pragma omp parallel for
 	for (long int k = 0; k < N; k++) {
-		for (auto& j : sites) {
-			auto [value, idx] = op(k, this->L, { j });
+		for (auto& op : operators) {
+			auto [value, idx] = op(k, this->L, sites);
 #pragma omp critical
 			opMatrix(idx, k) += value;
 		}
 	}
-	return opMatrix / sqrt(this->L);
+	return opMatrix;
 }
-sp_cx_mat IsingModel_disorder::create_operator(op_type op) {
+sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators) {
 	arma::sp_cx_mat opMatrix(this->N, this->N);
 #pragma omp parallel for
 	for (long int k = 0; k < N; k++) {
 		for (int j = 0; j < this->L; j++) {
-			auto [value, idx] = op(k, this->L, { j });
-		#pragma omp critical
-			opMatrix(idx, k) += value;
+			for (auto& op : operators) {
+				auto [value, idx] = op(k, this->L, { j });
+#pragma omp critical
+				opMatrix(idx, k) += value;
+			}
 		}
 	}
 	return opMatrix / sqrt(this->L);
 }
-sp_cx_mat IsingModel_disorder::create_operator(op_type op, int corr_len) {
+sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators, int corr_len) {
 	arma::sp_cx_mat opMatrix(this->N, this->N);
 	auto neis = get_neigh_vector(this->_BC, this->L, corr_len);
 #pragma omp parallel for
@@ -423,9 +425,11 @@ sp_cx_mat IsingModel_disorder::create_operator(op_type op, int corr_len) {
 		for (int j = 0; j < this->L; j++) {
 			const int nei = neis[j];
 			if (nei < 0) continue;
-			auto [value, idx] = op(k, this->L, { j, nei });
+			for (auto& op : operators) {
+				auto [value, idx] = op(k, this->L, { j, nei });
 #pragma omp critical
-			opMatrix(idx, k) += value;
+				opMatrix(idx, k) += value;
+			}
 		}
 	}
 	return opMatrix / sqrt(this->L);
