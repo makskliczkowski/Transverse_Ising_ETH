@@ -343,7 +343,6 @@ void isingUI::ui::compare_energies() {
 	auto Hamil = std::make_unique<IsingModel_disorder>(L, J, 0, g, 0, h, 0, boundary_conditions);
 	Hamil->diagonalization();
 	const vec E_dis = Hamil->get_eigenvalues();
-	arma::cx_mat opMatrix = Hamil->get_eigenvectors().t() * Hamil->create_operator({ IsingModel_sym::sigma_x }) * Hamil->get_eigenvectors();
 	Hamil.release();
 	// here we push back the energies from symmetries
 	std::vector<double> E_sym = v_1d<double>();
@@ -384,7 +383,7 @@ void isingUI::ui::compare_energies() {
 	stout << endl << E_sym.size() << endl;
 	stout << "symmetry sector\t\tEnergy sym\t\tEnergy total\t\tdifference\t\t <n|X|n>" << endl;
 	for (int k = 0; k < E_dis.size(); k++) {
-		stout << symms[k] << "\t\t" << E_sym[k] << "\t\t" << E_dis(k) << "\t\t" << E_sym[k] - E_dis(k) << "\t\t" << abs(opMatrix(k, k)) << endl;
+		stout << symms[k] << "\t\t" << E_sym[k] << "\t\t" << E_dis(k) << "\t\t" << E_sym[k] - E_dis(k) << endl;
 	}
 }
 
@@ -532,21 +531,21 @@ void isingUI::ui::disorder() {
 /// Compares matrix elements between disorder and not and saves it to file
 /// </summary>
 void isingUI::ui::compare_matrix_elements(op_type op, int k_alfa, int k_beta, int p_alfa, int p_beta, int x_alfa, int x_beta) {
-	string name = IsingModel_sym::set_info(this->L, this->J, this->g, this->h, k_alfa, p_alfa, x_alfa, { "k","p","x" });
+	string name = IsingModel_sym::set_info(this->L, this->J, this->g, this->h, k_alfa, p_alfa, x_alfa, { "k","p","x"});
 	//name = name + "k_ab=" + to_string(k_alfa) + ":" + to_string(k_beta) + "p_ab=" + to_string(p_alfa) + ":" + to_string(p_beta) + "x_ab=" + to_string(x_alfa) + ":" + to_string(x_beta);
 	std::ofstream file(this->saving_dir + "matrix_comparison" + name + ".dat");
 	// disorder
 	auto model = std::make_unique<IsingModel_disorder>(L, J, 0, g, 0, h, 0);
 	model->diagonalization();
-	sp_cx_mat opMatrix = model->create_operator({ op });
+	sp_cx_mat opMatrix = model->create_operator({ op, IsingModel_sym::sigma_z });
 	file << "WHOLE SIZE = " << model->get_hilbert_size() << endl;
 	// symmetries
 	std::unique_ptr<IsingModel_sym> alfa = std::make_unique<IsingModel_sym>(L, J, g, h, k_alfa, p_alfa, x_alfa);
 	std::unique_ptr<IsingModel_sym> beta = std::make_unique<IsingModel_sym>(L, J, g, h, k_beta, p_beta, x_beta);
-	sp_cx_mat opMatrix_alfa = alfa->create_operator({op});
-	sp_cx_mat opMatrix_beta = beta->create_operator({op});
+	sp_cx_mat opMatrix_alfa = alfa->create_operator({ op,IsingModel_sym::sigma_z });
+	sp_cx_mat opMatrix_beta = beta->create_operator({ op,IsingModel_sym::sigma_z });
 	file << "ALFA SECTOR SIZE = " << alfa->get_hilbert_size() << endl;
-	file << "BETA SECTOR SIZE = " << alfa->get_hilbert_size() << endl;
+	file << "BETA SECTOR SIZE = " << beta->get_hilbert_size() << endl;
 	alfa->diagonalization();
 	beta->diagonalization();
 
@@ -554,37 +553,46 @@ void isingUI::ui::compare_matrix_elements(op_type op, int k_alfa, int k_beta, in
 	auto map_alfa = mapping_sym_to_original(0, model->get_hilbert_size() - 1, *alfa, *model);
 	auto map_beta = mapping_sym_to_original(0, model->get_hilbert_size() - 1, *beta, *model);
 	file << "alfa sector size for nondegenerate mapping is : " << map_alfa.size() << endl;
-	file << "beta sector size for nondegenerate mapping is : " << map_alfa.size() << endl;
+	file << "beta sector size for nondegenerate mapping is : " << map_beta.size() << endl;
 	
-	file << "ALPHA SECTOR : " + alfa->get_info({ "L","J","g","h" }) + ", BETA SECTOR :" + beta->get_info({ "L","J","g","h" }) + "\n\n";
+	file << "ALPHA SECTOR : " + alfa->get_info({ "L","J","g","h" }) + "\n BETA SECTOR :" + beta->get_info({ "L","J","g","h" }) + "\n\n";
 	file << " - - - - - - SAME SECTORS - - - - - - \n" << " - - - - > FOR ALFA - ALFA: \n" << "ENERGY ALPHA |('.'|)" << "\t\t" << \
-		"ENERGY ALFA (/'.')/" << "\t\t" << "<alfa|SIGMA_X|alfa>" << "\t\t" << "<non_sym|SIGMA_X|non_sym>" << "\t\t" << "DIFFERENCE" << endl;
+		"ENERGY ALFA (/'.')/" << "\t\t" << "<alfa|SIGMA_X|alfa>" << "\t\t" << "<non_sym|SIGMA_X|non_sym>" << "\t\t" << "DIFFERENCE\t\tA/B" << endl;
 	for (auto& element : map_alfa) {
 		for (auto& t : map_alfa) {
 			cpx A = arma::cdot(alfa->get_eigenState(element.first), opMatrix_alfa * alfa->get_eigenState(t.first));
+			//cpx A = av_operator(element.first, t.first, *alfa, *alfa, op);
 			cpx B = arma::dot(model->get_eigenState(element.second), opMatrix * model->get_eigenState(t.second));
-			file << alfa->get_eigenEnergy(element.first) << "\t\t" << \
-				alfa->get_eigenEnergy(t.first) << "\t\t" << A << "\t\t" << B << "\t\t" << abs(A) - abs(B) << endl;
+			if (abs(abs(A) - abs(B)) >= 1e-14)
+				file << alfa->get_eigenEnergy(element.first) << "\t\t\t\t\t" << \
+				alfa->get_eigenEnergy(t.first) << "\t\t\t\t" << A << "\t\t\t\t" << B << \
+				"\t\t\t\t" << abs(A) - abs(B) << "\t\t\t\t" << abs(A) / abs(B) << std::endl;
 		}
 	}
 	file << "\n - - - - > FOR BETA - BETA: \n" << "ENERGY BETA |('.'|)" << "\t\t" << \
-		"ENERGY BETA (/'.')/" << "\t\t" << "<beta|SIGMA_X|beta>" << "\t\t" << "<non_sym|SIGMA_X|non_sym>" << "\t\t" << "DIFFERENCE" << endl;
+		"ENERGY BETA (/'.')/" << "\t\t" << "<beta|SIGMA_X|beta>" << "\t\t" << "<non_sym|SIGMA_X|non_sym>\t\tDIFFERENCE\t\tA/B" << endl;
 	for (auto& element : map_beta) {
 		for (auto& t : map_beta) {
-			cpx A = arma::cdot(alfa->get_eigenState(element.first), opMatrix_alfa * alfa->get_eigenState(t.first));
+			cpx A = arma::cdot(beta->get_eigenState(element.first), opMatrix_beta * beta->get_eigenState(t.first));
+			//cpx A = av_operator(element.first, t.first, *beta, *beta, op);
 			cpx B = arma::dot(model->get_eigenState(element.second), opMatrix * model->get_eigenState(t.second));
-			file << beta->get_eigenEnergy(element.first) << "\t\t" << \
-				beta->get_eigenEnergy(t.first) << "\t\t" << A << "\t\t" << B << "\t\t" << abs(A) - abs(B) << endl;
+			if (abs(abs(A) - abs(B)) >= 1e-14)
+				file << beta->get_eigenEnergy(element.first) << "\t\t\t\t\t" << \
+				beta->get_eigenEnergy(t.first) << "\t\t\t\t" << A << "\t\t\t\t" << B << \
+				"\t\t\t\t" << abs(A) - abs(B) << "\t\t\t\t" << abs(A) / abs(B) << std::endl;
 		}
 	}
 	file << "\n\n - - - - - - DIFFERENT SECTORS - - - - - - \n" << " - - - - > FOR ALFA - BETA: \n" << "ENERGY ALPHA |('.'|)" << "\t\t" << \
-		"ENERGY BETA (/'.')/" << "\t\t" << "<alfa|SIGMA_X|beta>" << "\t\t" << "<non_sym_a|SIGMA_X|non_sym_b>" << "\t\t" << "DIFFERENCE" << endl;
+		"ENERGY BETA (/'.')/" << "\t\t" << "<alfa|SIGMA_X|beta>" << "\t\t" << "<non_sym_a|SIGMA_X|non_sym_b>" << "\t\t" << "DIFFERENCE\t\tA/B" << endl;
 	for (auto& element : map_alfa) {
 		for (auto& t : map_beta) {
-			cpx A = arma::cdot(alfa->get_eigenState(element.first), opMatrix_beta * beta->get_eigenState(t.first));
+			//cpx A = arma::cdot(alfa->get_eigenState(element.first), opMatrix_beta * beta->get_eigenState(t.first));
+			cpx A = av_operator(element.first, t.first, *alfa, *beta, op) + av_operator(element.first, t.first, *alfa, *beta, IsingModel_sym::sigma_z);
 			cpx B = arma::dot(model->get_eigenState(element.second), opMatrix * model->get_eigenState(t.second));
-			file << alfa->get_eigenEnergy(element.first) << "\t\t" << \
-				beta->get_eigenEnergy(t.first) << "\t\t" << A << "\t\t" << B << "\t\t" << abs(A) - abs(B) << endl;
+			if (abs(abs(A) - abs(B)) >= 1e-14)
+				file << alfa->get_eigenEnergy(element.first) << "\t\t\t\t\t" << \
+				beta->get_eigenEnergy(t.first) << "\t\t\t\t" << A << "\t\t\t\t" << B << \
+				"\t\t\t\t" << abs(A) - abs(B) << "\t\t\t\t" << abs(A) / abs(B) << std::endl;
 		}
 	}
 	file.flush();
@@ -1332,59 +1340,49 @@ std::vector<double> isingUI::ui::perturbative_stat_sym(double dist_step, double 
 	return kurtos;
 }
 
-template <typename _type> void isingUI::ui::spectralFunction(IsingModel<_type>& alfa) {
+template <typename _type> void isingUI::ui::spectralFunction(IsingModel<_type>& alfa, std::initializer_list<op_type> operators) {
+	const cx_mat U = alfa.get_eigenvectors();
+	arma::sp_cx_mat opMatrix = alfa.create_operator(operators);
+	arma::cx_mat mat_elem = U.t() * opMatrix * U;
+
 	const u64 N = alfa.get_hilbert_size();
-	arma::mat mat_elem(N, N, arma::fill::zeros);
-	//std::ofstream reponse_fun(this->saving_dir + "/ResponseFunction/ResponseFunctionSpinCur" + alfa.get_info({ "h" }) + \
-	//	",h=" + to_string_prec(alfa.h, 5) + ".dat");
-	//reponse_fun.flush();
-	v_1d<long int> idx_beta, idx_alfa;		// indices satysfying first condition in sum
-	v_1d<double> energy_diff;				// energy differnece(omega) of the above indices
-	const double tol = INT_MAX;// 1;
-	double norm_diag = 0, norm_off = 0;
-	for (long int i = 0; i < N; i++) {
-		for (long int j = 0; j < N; j++) {
-			//if (abs((alfa.get_eigenEnergy(j) + alfa.get_eigenEnergy(i)) / 2. - alfa.get_eigenEnergy(alfa.E_av_idx)) < tol / 2.) {
-				//const cpx overlap = alfa.av_spin_current(i, j) * sqrt(L); // operators defined as 1/sqrt(L)*sum(..) !!!!!!!
-			const cpx overlap = alfa.av_sigma_x(i, j);// *sqrt(alfa.L);// / sqrt(sqrt(19 * alfa.L)); // local operators
-			const double nominator = abs(overlap * conj(overlap));
-			mat_elem(i, j) = nominator;
-			if (j != i) {
-				norm_off += nominator;
-				idx_alfa.push_back(i);
-				idx_beta.push_back(j);
-				energy_diff.push_back(abs(alfa.get_eigenEnergy(j) - alfa.get_eigenEnergy(i)));
+	std::ofstream reponse_fun(this->saving_dir + "/ResponseFunction/ResponseFunctionSigmaX" + alfa.get_info({ "h" }) + \
+		",h=" + to_string_prec(alfa.h, 5) + ".dat");
+	reponse_fun.flush();
+	//auto omega = arma::logspace(-2, -1, 50);
+	double omegaH = alfa.mean_level_spacing_analytical();
+	stout << "wH = " << omegaH << endl;
+	const int om_num = 1.5 / (omegaH * sqrt(alfa.L));
+	std::vector<double> omega; auto append = arma::logspace(log10(omegaH), 0, om_num); omega.insert(omega.end(), append.begin(), append.end()); 
+	append = arma::regspace(2.0, 0.9, 30); omega.insert(omega.end(), append.begin(), append.end());
+	//auto omega = arma::linspace(0.01, 10, 1000);
+	arma::vec spectral(omega.size(), arma::fill::zeros);
+	for (int w = 1; w < omega.size() - 1; w++) {
+		for (long int i = 0; i < N; i++) {
+			for (long int j = 0; j < N && j != i; j++) {
+				if (abs(alfa.get_eigenEnergy(j) - alfa.get_eigenEnergy(i)) >= omega[w] - (omega[w] - omega[w - 1]) / 2. && \
+					abs(alfa.get_eigenEnergy(j) - alfa.get_eigenEnergy(i)) < omega[w] + (omega[w + 1] - omega[w]) / 2.) {
+					spectral(w) += abs(mat_elem(i, j) * mat_elem(i, j));
+				}
 			}
-			else
-				norm_diag += nominator;
-			//}
 		}
 	}
-	double norm = N;// norm_diag / (double)N + norm_off / (double)N;
-	//mat_elem /= norm;
-	//stout << norm_diag / norm << " " << norm_off / norm << " ";
-	stout << norm_diag / norm + norm_off / norm << "\t\t\n";
-	//auto omega = arma::logspace(-2, -1, 50);
-	//double omegaH = alfa.mean_level_spacing_analytical();
-	//stout << "wH = " << omegaH << endl;
-	//const int om_num = 1.5 / (omegaH * sqrt(alfa.L));
-	//std::vector<double> omega; auto append = arma::logspace(log10(omegaH), 0, om_num); omega.insert(omega.end(), append.begin(), append.end()); 
-	//append = arma::regspace(2.0, 0.9, 30); omega.insert(omega.end(), append.begin(), append.end());
-	////auto omega = arma::linspace(0.01, 10, 1000);
-	//arma::vec spectral(omega.size(), arma::fill::zeros);
-	//for (int w = 1; w < omega.size() - 1; w++) {
-	//	for (long int i = 0; i < N; i++) {
-	//		for (long int j = 0; j < N && j != i; j++) {
-	//			if (abs(alfa.get_eigenEnergy(j) - alfa.get_eigenEnergy(i)) >= omega[w] - (omega[w] - omega[w - 1]) / 2. && \
-	//				abs(alfa.get_eigenEnergy(j) - alfa.get_eigenEnergy(i)) < omega[w] + (omega[w + 1] - omega[w]) / 2.) {
-	//				spectral(w) += mat_elem(i, j);
-	//			}
+	for (int w = 0; w < omega.size() - 1; w++)
+		if (omega[w] >= omegaH)
+			reponse_fun << omega[w] << "\t\t" << spectral(w) / double(N) << endl;
+
+	//v_1d<long int> idx_beta, idx_alfa;		// indices satysfying first condition in sum
+	//v_1d<double> energy_diff;				// energy differnece(omega) of the above indices
+	//const double tol = INT_MAX;// 1;
+	//for (long int i = 0; i < N; i++) {
+	//	for (long int j = 0; j < N && j != i; j++) {
+	//		if (abs((alfa.get_eigenEnergy(j) + alfa.get_eigenEnergy(i)) / 2. - alfa.get_eigenEnergy(alfa.E_av_idx)) < tol / 2.) {
+	//			idx_alfa.push_back(i);
+	//			idx_beta.push_back(j);
+	//			energy_diff.push_back(abs(alfa.get_eigenEnergy(j) - alfa.get_eigenEnergy(i)));
 	//		}
 	//	}
 	//}
-	//for (int w = 0; w < omega.size() - 1; w++)
-	//	if (omega[w] >= omegaH)
-	//		reponse_fun << omega[w] << "\t\t" << spectral(w) / double(N) << endl;
 	//auto permut = sort_permutation(energy_diff, [](const double a, const double b) {return a < b; });
 	//apply_permutation(energy_diff, permut);
 	//apply_permutation(idx_beta, permut);
@@ -1413,26 +1411,26 @@ template <typename _type> void isingUI::ui::spectralFunction(IsingModel<_type>& 
 	//	counter++;
 	//}
 	//reponse_fun << omega / (double)counter << "\t\t" << element / double(counter) * (double)N << endl;
-	//reponse_fun.flush();
-	//reponse_fun.close();
+	reponse_fun.flush();
+	reponse_fun.close();
 }
-template <typename _type> void isingUI::ui::adiabaticGaugePotential(clk::time_point start) {
+void isingUI::ui::adiabaticGaugePotential() {
+	clk::time_point start = std::chrono::high_resolution_clock::now();
 	std::string info = IsingModel_sym::set_info(L, J, g, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, { "L" });
-	std::ofstream farante(this->saving_dir + "AGPsymDELETE" + info + ".dat");
-	std::ofstream scaling(this->saving_dir + "AGPsize_DELETE" + info + ".dat");
+	std::ofstream farante(this->saving_dir + "AGPsymX" + info + ".dat");
 	farante << std::setprecision(6) << std::scientific;
-	scaling << std::setprecision(6) << std::scientific;
-	farante << "hx\t\t\tL=12 susceptibiltiy\t\tAGP,\t\t13 susceptibiltiy\tAGP,\t\t14 susceptibiltiy\tAGP,\t\t15 susceptibiltiy\tAGP,\t\t16 susceptibiltiy\tAGP\n";
-	farante << "hx\t\tL=8 AGP,\t\tL=9 AGP,\t\tL=10 AGP,\t\t11 AGP,\t\t12 AGP,\t\t13 AGP,\t\t14 AGP\n";
-	//auto params = arma::logspace(-4, 0, 200);
+	//std::ofstream scaling(this->saving_dir + "AGPsize_DELETE" + info + ".dat");
+	//scaling << std::setprecision(6) << std::scientific;
+	farante << "hx\t\t\t susceptibiltiy\t\tAGP,\t\tsusceptibiltiy\tAGP,\t\t susceptibiltiy\tAGP,\t\t susceptibiltiy\tAGP,\t\t susceptibiltiy\tAGP\n";
+	auto params = arma::logspace(-4, 1, 400);
 	//auto params = arma::linspace(0.6, 3.0, 25);
 	//std::vector<double> params; auto append = arma::logspace(-4, 0, 100); params.insert(params.end(), append.begin(), append.end());
 	//append = arma::linspace(1.0, 5.0, 81); params.insert(params.end(), append.begin(), append.end());
 	//std::vector<double> params = { 1e-4, 5e-4, 1e-3, 5e-3 , 1e-2, 5e-2, 1e-1, 1.5e-1, 2e-1, 2.5e-1, 3.0e-1};
-	std::vector<double> params = { this->h };
+	//std::vector<double> params = { this->h };
 	for (auto& hx : params) {
 		farante << hx << "\t\t";
-		scaling << "\"h = " + to_string_prec(hx, 5) << "\"" << endl;
+		//scaling << "\"h = " + to_string_prec(hx, 5) << "\"" << endl;
 		stout << "\nh = " << hx << "\t\t";
 		for (int system_size = this->L; system_size < this->L + this->Ls * this->Ln; system_size += this->Ls) {
 			const auto start_loop = std::chrono::high_resolution_clock::now();
@@ -1453,18 +1451,15 @@ template <typename _type> void isingUI::ui::adiabaticGaugePotential(clk::time_po
 			double typ_susc = 0;
 			double AGP = 0;
 			int counter = 0;
-			//const double omega_H = alfa->mean_level_spacing_av(E_min, E_max);
-			//stout << "L= " << L << "\t\tN= " << N << "\t\twH= " << omega_H << endl;
+			const cx_mat U = alfa->get_eigenvectors();
+			arma::sp_cx_mat opMatrix = alfa->create_operator({ IsingModel_sym::sigma_x });
+			arma::cx_mat mat_elem = U.t() * opMatrix * U;
 			//const double rescale = 1.0 / double(L * L);
 			const double rescale = (double)N* omegaH * omegaH / (double)L;
-			const double omega_max = alfa->get_eigenEnergy(N - 1) - alfa->get_eigenEnergy(0);
 			for (long int i = 0; i < N; i++) {
 				double susc = 0;
-				for (long int j = 0; j < N && j != i; j++) { // if want AGP fast do sum over j > i
-					const cpx overlap = alfa->av_sigma_x(i, j) *(double)L; // operators defined as 1/L*sum(..) !!!!!!!
-					const cpx overlap2 = alfa->av_sigma_z(i, j) * (double)L;
-					//const cpx overlap = alfa->av_sigma_z(i, j, {1}); // local operators
-					const double nominator = abs(overlap * conj(overlap)) + abs(overlap2 * conj(overlap2)) +2 * real(overlap * conj(overlap2));
+				for (long int j = 0; j < N && j != i; j++) {
+					const double nominator = abs(mat_elem(i, j) * conj(mat_elem(i, j)));
 					const double omega_ij = alfa->get_eigenEnergy(j) - alfa->get_eigenEnergy(i);
 					const double denominator = omega_ij * omega_ij + mu2 * mu2;
 					AGP += omega_ij * omega_ij * nominator / (denominator * denominator);
@@ -1475,21 +1470,19 @@ template <typename _type> void isingUI::ui::adiabaticGaugePotential(clk::time_po
 					typ_susc += log((double)L * susc);
 				counter++;
 			}
-			typ_susc = exp(typ_susc / double(this->mu)) * rescale;
-			AGP = AGP / double(counter * L);
-			//AGP *= 2.;
+			typ_susc = exp(typ_susc / double(this->mu));
+			AGP = AGP / double(counter); // AGP /= L is neglected due to 1/L in operator definition
 			farante << typ_susc << "\t\t" << AGP << "\t\t";
-			//farante << AGP / double(counter * L) << "\t\t";
-			scaling << L << "\t\t" << typ_susc << "\t\t" << AGP << "\t\t" << std::log(N) / log(2) << "\n";
 			farante.flush();
-			scaling.flush();
+			//scaling << L << "\t\t" << typ_susc << "\t\t" << AGP << "\t\t" << std::log(N) / log(2) << "\n";
+			//scaling.flush();
 
 		}
 		farante << endl;
-		scaling << endl << endl;
+		//scaling << endl << endl;
 	}
 	farante.close();
-	scaling.close();
+	//scaling.close();
 }
 template <typename _type> std::pair<double, double> isingUI::ui::operator_norm(std::initializer_list<op_type> operators, IsingModel<_type>& alfa, int k_sym, bool p_sym, bool x_sym) {
 	const u64 N = alfa.get_hilbert_size();
@@ -1508,16 +1501,46 @@ template <typename _type> std::pair<double, double> isingUI::ui::operator_norm(s
 	//stout << arma::trace(opMatrix * opMatrix) / double(N) << endl;
 	return std::make_pair(norm_diag / double(N), norm_off / double(N));
 }
+template <typename _type> void isingUI::ui::energyEvolution(IsingModel<_type > model) {
+	sp_cx_mat pertMatrix = alfa->create_operator({ IsingModel_sym::sigma_x, IsingModel_sym::sigma_z }) * sqrt(alfa->L);
+	cx_mat U = alfa->get_eigenvectors();
+	cx_mat mat_elem = U.t() * pertMatrix * U;
+	auto energyEvolution = [&](int i, double pert)->double {
+		double second_order = 0;
+		for (long int m = 0; m < N && m != i; m++) {
+			double omega = alfa->get_eigenEnergy(i) - alfa->get_eigenEnergy(m);
+			double elem = abs(mat_elem(i, m));
+			second_order += elem * elem / omega;
+		}
+		cpx diag = mat_elem(i, i);
+		return real(alfa->get_eigenEnergy(i) + diag * pert + pert * pert / 2. * second_order);
+	};
+	this->mu = 10;
+	E_min = alfa->E_av_idx - mu / 2.;
+	E_max = alfa->E_av_idx + mu / 2.;
+	arma::vec perturb = arma::logspace(-4, -1, 50);
+	for (auto& pert : perturb) {
+		ener << pert << "\t\t";
+		auto beta = std::make_unique<IsingModel_sym>(system_size, this->J, this->g + pert, hx + pert, \
+			this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+		beta->diagonalization();
+		for (long int i = E_min; i < E_max; i++) {
+			ener << beta->get_eigenEnergy(i) << "\t\t" << energyEvolution(i, pert) << "\t\t";
+		}
+		ener << std::endl;
+	}
+}
 
 //----------------------------------------------------------------------------------------------------------------UI main
 void isingUI::ui::make_sim()
 {
 	using namespace std::chrono;
 	clk::time_point start = std::chrono::high_resolution_clock::now();
-	compare_matrix_elements(IsingModel_sym::sigma_x, this->symmetries.k_sym, this->symmetries.k_sym, this->symmetries.p_sym,\
+	//compare_matrix_elements(IsingModel_sym::sigma_x, this->symmetries.k_sym, 0, this->symmetries.p_sym, \
 		0, this->symmetries.x_sym, this->symmetries.x_sym);
 	//compare_energies();
 	//disorder();
+	adiabaticGaugePotential();
 	//auto params = arma::logspace(-4, 0, 200);
 	auto params = arma::linspace(0.2, 2.2, 41);
 	//std::vector<double> params; auto append = arma::logspace(-4, 0, 100); params.insert(params.end(), append.begin(), append.end());
@@ -1525,7 +1548,7 @@ void isingUI::ui::make_sim()
 	//std::vector<double> params = { 1e-4, 5e-4, 1e-3, 5e-3 , 1e-2, 5e-2, 1e-1, 1.5e-1, 2e-1, 2.5e-1, 3.0e-1};
 	//std::vector<double> params = {this->h};
 	for (int system_size = this->L; system_size < this->L + this->Ls * this->Ln; system_size += this->Ls) {
-	std::ofstream norm(this->saving_dir + "normsZ" + \
+	std::ofstream norm(this->saving_dir + "normsX" + \
 		IsingModel_sym::set_info(system_size, J, g, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"h"}) + ".txt");
 		for (auto& hx : params) {
 			stout << "\nh = " << hx << "\t\t";
@@ -1544,11 +1567,6 @@ void isingUI::ui::make_sim()
 			this->mu = 0.5 * N;
 			long int E_min = alfa->E_av_idx - mu / 2.;
 			long int E_max = alfa->E_av_idx + mu / 2.;
-			//sp_cx_mat opMatrix = alfa->create_operator({ IsingModel_sym::sigma_x, IsingModel_sym::sigma_z });
-			//cx_mat U = alfa->get_eigenvectors();
-			//cx_mat mat_elem = U.t() * opMatrix * U;
-			//cpx var = arma::accu(arma::diagmat(arma::square(mat_elem))) / double(N);
-			//stout << var << endl;
 			auto [norm_diag, norm_off] = operator_norm({ IsingModel_sym::sigma_x }, *alfa);
 			double level_spacing = alfa->eigenlevel_statistics(E_min, E_max);
 			//std::vector<int> realis = { 100, 50, 25, 10, 5 };
@@ -1563,59 +1581,7 @@ void isingUI::ui::make_sim()
 			norm << hx << "\t\t" << norm_diag / (norm_diag + norm_off) << "\t\t" << norm_off / (norm_diag + norm_off) << "\t\t" << level_spacing << std::endl;
 			norm.flush();
 			//stout << system_size << "\t\t" << N << "\t\t" << norm_diag << "\t\t" << norm_off << "\t\t" << norm_diag + norm_off << endl;
-			//spectralFunction(*alfa);
-			//stout << "L = " << system_size << endl;
-			//for (int k = 0; k < L; k++) {
-			//	if (k == 0 || k == this->L / 2.) {
-			//		for (int p = 0; p <= 1; p++) {
-			//			// if the spin flip is unaviable we just use 1
-			//			const int x_max = (this->h != 0) ? 0 : 1;
-			//			for (int x = 0; x <= x_max; x++) {
-			//				auto [O_diag, O_off] = operator_norm({ IsingModel_sym::sigma_x }, system_size, k, p, x);
-			//				std::string sym = "\t\t-->k=" + std::to_string(k) + ",x=" + to_string(x) + ",p=" + to_string(p);
-			//				stout << sym << "\t\t" << O_diag << "\t\t" << O_off << endl;
-			//			}
-			//		}
-			//	}
-			//	else {
-			//		int x_max = (this->h != 0) ? 0 : 1;
-			//		for (int x = 0; x <= x_max; x++) {
-			//			auto [O_diag, O_off] = operator_norm({ IsingModel_sym::sigma_x }, system_size, k, p, x);
-			//			std::string sym = "\t\t-->k=" + std::to_string(k) + ",x=" + to_string(x) + ",p=*";
-			//			stout << sym << "\t\t" << O_diag << "\t\t" << O_off << endl;
-			//		}
-			//	}
-			//}
-			//stout << E_min << " " << E_max << endl;
-			sp_cx_mat pertMatrix = alfa->create_operator({ IsingModel_sym::sigma_x, IsingModel_sym::sigma_z }) * sqrt(alfa->L);
-			//pertMatrix /= sqrt(arma::trace(pertMatrix * pertMatrix) / double(N));
-			cx_mat U = alfa->get_eigenvectors();
-			cx_mat mat_elem = U.t() * pertMatrix * U;
-			auto energyEvolution = [&](int i, double pert)->double {
-				double second_order = 0;
-				for (long int m = 0; m < N && m != i; m++) {
-					double omega = alfa->get_eigenEnergy(i) - alfa->get_eigenEnergy(m);
-					double elem = abs(mat_elem(i, m));
-					second_order += elem * elem / omega;
-				}
-				cpx diag = mat_elem(i, i);
-				return real(alfa->get_eigenEnergy(i) + diag * pert + pert * pert / 2. * second_order);
-			};
-			this->mu = 10;
-			E_min = alfa->E_av_idx - mu / 2.;
-			E_max = alfa->E_av_idx + mu / 2.;
-			arma::vec perturb = arma::logspace(-4, -1, 50);
-			for (auto& pert : perturb) {
-				ener << pert << "\t\t";
-				auto beta = std::make_unique<IsingModel_sym>(system_size, this->J, this->g + pert, hx + pert, \
-					this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-				beta->diagonalization();
-				for (long int i = E_min; i < E_max; i++) {
-					ener << beta->get_eigenEnergy(i) << "\t\t" << energyEvolution(i, pert) << "\t\t";
-				}
-				ener << std::endl;
-			}
-			//stout << perturbative_stat_sym(omegaH, *alfa, this->g, hx) << std::endl;
+			spectralFunction(*alfa, { IsingModel_sym::sigma_x });
 			
 			//for (double pert = 0.001; pert <= 0.39; pert += 0.002)
 			//std::ofstream kurtosis(this->saving_dir + "PertKurtosis" + alfa->get_info() + ".dat");

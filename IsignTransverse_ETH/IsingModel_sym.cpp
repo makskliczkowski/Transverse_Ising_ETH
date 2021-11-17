@@ -396,15 +396,12 @@ cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingM
 	// going through all sector beta states
 	double overlap_real = 0;
 	double overlap_imag = 0;
-#pragma omp parallel
-	{
-#pragma omp for reduction(+:overlap_real, overlap_imag)
-		for (int i = 0; i < sec_beta.N; i++) {
-			const u64 base_vec = sec_beta.mapping[i];
-			cpx overlap = apply_sym_overlap(state_alfa, state_beta, base_vec, i, sec_alfa, sec_beta, op, sites);
-			overlap_real += overlap.real();
-			overlap_imag += overlap.imag();
-		}
+#pragma omp parallel for reduction(+:overlap_real, overlap_imag)
+	for (int i = 0; i < sec_beta.N; i++) {
+		const u64 base_vec = sec_beta.mapping[i];
+		cpx overlap = apply_sym_overlap(state_alfa, state_beta, base_vec, i, sec_alfa, sec_beta, op, sites);
+		overlap_real += overlap.real();
+		overlap_imag += overlap.imag();
 	}
 	return cpx(overlap_real, overlap_imag) / G;
 }
@@ -430,17 +427,13 @@ cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingM
 	// going through all sector beta states
 	double overlap_real = 0;
 	double overlap_imag = 0;
-#pragma omp parallel
-	{
-		std::vector<bool> base_vector(sec_beta.L, 0);
-#pragma omp for reduction(+:overlap_real, overlap_imag)
-		for (int i = 0; i < sec_beta.N; i++) {
-			for (int l = 0; l < sec_beta.L; l++) {
-				const u64 base_vec = sec_beta.mapping[i];
-				cpx overlap = apply_sym_overlap(state_alfa, state_beta, base_vec, i, sec_alfa, sec_beta, op, { l });
-				overlap_real += overlap.real();
-				overlap_imag += overlap.imag();
-			}
+#pragma omp parallel for reduction(+:overlap_real, overlap_imag)
+	for (int i = 0; i < sec_beta.N; i++) {
+		for (int l = 0; l < sec_beta.L; l++) {
+			const u64 base_vec = sec_beta.mapping[i];
+			cpx overlap = apply_sym_overlap(state_alfa, state_beta, base_vec, i, sec_alfa, sec_beta, op, { l });
+			overlap_real += overlap.real();
+			overlap_imag += overlap.imag();
 		}
 	}
 	return cpx(overlap_real, overlap_imag) / (G * sqrt(sec_alfa.L));
@@ -470,18 +463,15 @@ cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingM
 
 	double overlap_real = 0;
 	double overlap_imag = 0;
-#pragma omp parallel
-	{
-#pragma omp for reduction(+:overlap_real, overlap_imag)
-		for (int i = 0; i < sec_beta.N; i++) {
-			for (int l = 0; l < sec_beta.L; l++) {
-				const u64 base_vec = sec_beta.mapping[i];
-				const int nei = neis[l];
-				if (nei >= 0) {
-					cpx overlap = apply_sym_overlap(state_alfa, state_beta, base_vec, i, sec_alfa, sec_beta, op, { l, nei });
-					overlap_real += overlap.real();
-					overlap_imag += overlap.imag();
-				}
+#pragma omp parallel for reduction(+:overlap_real, overlap_imag)
+	for (int i = 0; i < sec_beta.N; i++) {
+		for (int l = 0; l < sec_beta.L; l++) {
+			const u64 base_vec = sec_beta.mapping[i];
+			const int nei = neis[l];
+			if (nei >= 0) {
+				cpx overlap = apply_sym_overlap(state_alfa, state_beta, base_vec, i, sec_alfa, sec_beta, op, { l, nei });
+				overlap_real += overlap.real();
+				overlap_imag += overlap.imag();
 			}
 		}
 	}
@@ -506,9 +496,9 @@ cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_co
 		cpx overlap = 0.0;
 		auto [val_sym_beta, vec_sym_tmp] = op(vec_sym, L, sites);
 		if (abs(val_sym_beta) > 1e-14) {
-			auto [idx_sym, val_sym_alfa] = !(vec_sym == vec_sym_tmp) ? \
-				find_rep_and_sym_eigval(vec_sym_tmp, sec_alfa, sec_beta.normalisation[k]) : \
-				std::make_pair(vec_sym, conj(sym_eig));
+			auto [idx_sym, val_sym_alfa] = (vec_sym == vec_sym_tmp) ? \
+				std::make_pair(k, sym_eig) : \
+				find_rep_and_sym_eigval(vec_sym_tmp, sec_alfa, sec_beta.normalisation[k]);
 			if (idx_sym < sec_alfa.N)
 				overlap = sym_eig * conj(val_sym_alfa * alfa(idx_sym)) * beta(k) * val_sym_beta;
 		}
@@ -518,65 +508,29 @@ cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_co
 	auto symmetry_group = sec_beta.get_sym_group();
 	auto symmetry_eigVal = sec_beta.get_sym_eigVal();
 	for (int k = 0; k < symmetry_group.size(); k++) {
-		auto sym_operation = symmetry_group[k];
-		auto symRepr = symmetry_eigVal[k];
+		auto sym_operation	= symmetry_group[k];
+		auto symRepr		= symmetry_eigVal[k];
 		overlap += get_overlap_sym(sym_operation(base_vec, L), symRepr);
 	}
-	//u64 Translation = base_vec;					// Translation
-	//u64 PT;										// Parity translation
-	//u64 ZT;										// Flip translation
-	//u64 PZT;									// Parity Flip translation
-	//if (sec_beta.k_sector) {
-	//	PT = reverseBits(base_vec, L);
-	//}
-	//if (sec_beta.h == 0) {
-	//	ZT = flip(base_vec, L);
-	//	if (sec_beta.k_sector) {
-	//		PZT = reverseBits(ZT, L);
-	//	}
-	//}
-	//
-	//for (int l = 0; l < sec_alfa.L; l++) {
-	//	auto T_eig = sec_beta.k_exponents[l];
-	//	overlap += get_overlap_sym(Translation, T_eig);
-	//	Translation = rotate_left(Translation, L);
-	//
-	//	if (sec_beta.k_sector) {
-	//		auto PT_eig = T_eig * double(sec_beta.symmetries.p_sym);
-	//		overlap += get_overlap_sym(PT, PT_eig);
-	//		PT = rotate_left(PT, L);
-	//	}
-	//
-	//	if (sec_beta.h == 0) {
-	//		auto ZT_eig = T_eig * double(sec_beta.symmetries.x_sym);
-	//		overlap += get_overlap_sym(ZT, ZT_eig);
-	//		ZT = rotate_left(ZT, L);
-	//		if (sec_beta.k_sector) {
-	//			auto PZT_eig = ZT_eig * double(sec_beta.symmetries.p_sym);
-	//			overlap += get_overlap_sym(PZT, PZT_eig);
-	//			PZT = rotate_left(PZT, L);
-	//		}
-	//	}
-	//}
 	return overlap;
 }
 
 
 // ----------------------------------------------------------------------------- WRAPPERS FOR SIGMA OPERATORS - creating matrix -----------------------------------------------------------------------------
 sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators, std::initializer_list<int> sites) {
+	const double G = this->symmetry_group.size();
 	// throwables
 	for (auto& site : sites)
-		if ((site < 0 || site >= this->L)) throw "Site index exceeds chain or incompatible chain lengths. Your choice\n";
-	double G = this->symmetry_group.size();
+		if ((site < 0 || site >= this->L)) throw "Site index exceeds chain\n";
 	sp_cx_mat operator_matrix(this->N, this->N);
 	for (int i = 0; i < this->N; i++) {
 		const u64 base_vec = this->mapping[i];
 		set_OperatorElem(operators, sites, operator_matrix, base_vec, i);
 	}
-	return operator_matrix / (G);
+	return operator_matrix / G;
 }
 sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators) {// calculating normalisation for both sector symmetry groups
-	double G = this->symmetry_group.size();
+	const double G = this->symmetry_group.size();
 	sp_cx_mat operator_matrix(this->N, this->N);
 	for (int i = 0; i < this->N; i++) {
 		const u64 base_vec = this->mapping[i];
@@ -586,7 +540,7 @@ sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operato
 	return operator_matrix / (G * sqrt(this->L));
 };
 sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators, int corr_len) {
-	double G = this->symmetry_group.size();
+	const double G = this->symmetry_group.size();
 	auto neis = get_neigh_vector(this->_BC, this->L, corr_len);
 	sp_cx_mat operator_matrix(this->N, this->N);
 	for (int i = 0; i < this->N; i++) {
@@ -602,20 +556,21 @@ sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operato
 }
 
 void IsingModel_sym::set_OperatorElem(std::initializer_list<op_type> operators, std::initializer_list<int> sites, sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx){
-	auto set_MatrixElem = [&](u64 vec_sym, cpx sym_eig) {
-		for (auto& op : operators) {
-			auto [op_value, vec_sym_tmp] = op(vec_sym, L, sites);
-			if (abs(op_value) > 1e-14) {
-				auto [idx_sym, sym_eigVal] = !(vec_sym == vec_sym_tmp) ? \
-					find_rep_and_sym_eigval(vec_sym_tmp, *this, this->normalisation[cur_idx]) : std::make_pair(vec_sym, conj(sym_eig));
-				if (idx_sym < N)
-					operator_matrix(idx_sym, cur_idx) += sym_eigVal * op_value;
-			}
+	auto set_MatrixElem = [&](u64 vec_sym, cpx sym_eig, op_type op) {
+		auto [op_value, vec_sym_tmp] = op(vec_sym, L, sites);
+		if (abs(op_value) > 1e-14) {
+			auto [idx_sym, sym_eigVal] = (vec_sym == vec_sym_tmp) ? \
+				std::make_pair(cur_idx, conj(sym_eig)) :\
+				find_rep_and_sym_eigval(vec_sym_tmp, *this, this->normalisation[cur_idx]);
+			if (idx_sym < this->N)
+				operator_matrix(idx_sym, cur_idx) += conj(sym_eigVal) * op_value * sym_eig;
 		}
 	};
-	for (int k = 0; k < this->symmetry_group.size(); k++) {
-		auto sym_operation	= this->symmetry_group[k];
-		auto symRep			= this->symmetry_eigVal[k];
-		set_MatrixElem(sym_operation(base_vec, this->L), symRep);
+	for (auto& op : operators) {
+		for (int k = 0; k < this->symmetry_group.size(); k++) {
+			auto sym_operation = this->symmetry_group[k];
+			auto symRep = this->symmetry_eigVal[k];
+			set_MatrixElem(sym_operation(base_vec, this->L), symRep, op);
+		}
 	}
 }

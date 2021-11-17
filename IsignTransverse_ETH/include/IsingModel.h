@@ -65,7 +65,7 @@ public:
 	// ---------------------------------- GETTERS ----------------------------------
 	//
 	// get the information about the model params
-	std::string get_info(std::initializer_list<std::string> skip = {}) const {
+	auto get_info(std::initializer_list<std::string> skip = {}) const->std::string {
 		auto tmp = split_str(this->info, ",");
 		std::string tmp_str = "";
 		for (int i = 0; i < tmp.size(); i++) {
@@ -82,14 +82,13 @@ public:
 		return tmp_str;
 	};
 
-	u64 get_hilbert_size() const { return this->N; };											// get the Hilbert space size 2^N
-	const Mat<_type>& get_hamiltonian() const { return this->H; };								// get the const reference to a Hamiltonian
-	const vec& get_eigenvalues() const { return this->eigenvalues; };							// get the const reference to eigenvalues
-	const Mat<_type>& get_eigenvectors() const { return this->eigenvectors; };					// get the const reference to the eigenvectors
-	const std::vector<u64>& get_mapping() const { return this->mapping; };						// constant reference to the mapping
-
-	double get_eigenEnergy(u64 idx) const { return this->eigenvalues(idx); };					// get eigenenergy at a given idx
-	Col<_type> get_eigenState(u64 idx) const { return this->eigenvectors.col(idx); };			// get an eigenstate at a given idx
+	auto get_hilbert_size()		  const -> u64					    { return this->N; };					 // get the Hilbert space size 2^N
+	auto get_mapping()			  const -> const std::vector<u64>&  { return this->mapping; };				 // constant reference to the mapping
+	auto get_hamiltonian()		  const -> const arma::Mat<_type>&  { return this->H; };					 // get the const reference to a Hamiltonian
+	auto get_eigenvectors()		  const -> const arma::Mat<_type>&  { return this->eigenvectors; };			 // get the const reference to the eigenvectors
+	auto get_eigenvalues()		  const -> const arma::vec&		    { return this->eigenvalues; };			 // get the const reference to eigenvalues
+	auto get_eigenEnergy(u64 idx) const -> double				    { return this->eigenvalues(idx); };		 // get eigenenergy at a given idx
+	auto get_eigenState(u64 idx)  const -> arma::subview_col<_type> { return this->eigenvectors.col(idx); }; // get an eigenstate at a given idx
 
 	// ---------------------------------- PRINTERS ----------------------------------
 	void print_base_spin_sector(int Sz = 0);													// print basis state with a given total spin (for clarity purposes)
@@ -111,13 +110,13 @@ public:
 	// ---------------------------------- PHYSICAL QUANTITIES ----------------------------------
 	double ipr(int state_idx);																	// calculate the ipr coeffincient (inverse participation ratio)
 	double information_entropy(u64 _id);														// calculate the information entropy in a given state (based on the ipr) Von Neuman type
-	double information_entropy(u64 _id, const IsingModel<_type>& beta, u64 _min, u64 _max);			// calculate the information entropy in basis of other model from input
+	double information_entropy(u64 _id, const IsingModel<_type>& beta, u64 _min, u64 _max);		// calculate the information entropy in basis of other model from input
 	double eigenlevel_statistics(u64 _min, u64 _max);											// calculate the statistics based on eigenlevels (r coefficient)
 	vec eigenlevel_statistics_with_return();													// calculate the eigenlevel statistics and return the vector with the results
 	virtual double entaglement_entropy(u64 state_id, int subsystem_size) = 0;					// entanglement entropy based on the density matrices
+	virtual double mean_level_spacing_analytical() = 0;											// mean level spacing from analytical formula calcula
 	double mean_level_spacing_av(u64 _min, u64 _max);											// mean level spacing averaged over an input window
 	double mean_level_spacing_trace();															// mean level spacing from by variance of hamiltonian in T->inf
-	virtual double mean_level_spacing_analytical() = 0;											// mean level spacing from analytical formula calcula
 
 	// ---------------------------------- THERMODYNAMIC QUANTITIES ----------------------------------
 	std::tuple<arma::vec, arma::vec, arma::vec> thermal_quantities(const arma::vec& temperature);	// calculate thermal quantities with input temperature range
@@ -246,7 +245,7 @@ public:
 		double val = 1.0;
 		for (auto& site : sites)
 			val *= checkBit(tmp, L - 1 - site) ? 1.0 : -1.0;
-		return std::make_pair(val, tmp);
+		return std::make_pair(val, base_vec);
 	};
 	static std::pair<cpx, u64> spin_flip(u64 base_vec, int L, std::initializer_list<int> sites) {
 		if (sites.size() > 2) throw "Not implemented such exotic operators, choose 1 or 2 sites\n";
@@ -270,7 +269,7 @@ public:
 	};
 	
 	static std::string set_info(int L, double J, double g, double h, int k_sym, bool p_sym, bool x_sym, std::initializer_list<std::string> skip = {}) {
-		std::string name = "_L=" + std::to_string(L) + \
+		std::string name = ",L=" + std::to_string(L) + \
 			",g=" + to_string_prec(g, 2) + \
 			",h=" + to_string_prec(h, 2) + \
 			",k=" + std::to_string(k_sym) + \
@@ -410,19 +409,24 @@ template <typename T1, typename T2>
 std::unordered_map<u64, u64> mapping_sym_to_original(u64 _min, u64 _max, const IsingModel<T1>& symmetry, const IsingModel<T2>& original) {
 	std::unordered_map<u64, u64> map;
 	std::vector<double> E_dis = arma::conv_to<std::vector<double>>::from(original.get_eigenvalues());
+	const u64 N_tot = original.get_hilbert_size();
 #pragma omp parallel for
 	for (int k = 0; k < symmetry.get_hilbert_size(); k++) {
 		double E = symmetry.get_eigenEnergy(k);
 		if (E < original.get_eigenEnergy(_min) && E >= original.get_eigenEnergy(_max)) continue;
 		auto idx = binary_search(E_dis, _min, _max, E);
-		if (idx >= original.get_hilbert_size()) continue;
-		double E_prev = (idx == 0) ? (original.get_eigenEnergy(0) - 1.0) : original.get_eigenEnergy(idx - 1);
-		double E_next = (idx == original.get_hilbert_size() - 1) ? \
-			(original.get_eigenEnergy(original.get_hilbert_size() - 1) + 1.0) : original.get_eigenEnergy(idx + 1);
-		//if (abs(E - E_prev) > 1e-8 && abs(E - E_next) > 1e-8) {
-#pragma omp critical
+		if (idx >= original.get_hilbert_size()) throw "Energy not found";
+#if defined (DEGENERACIES)
+	#pragma omp critical
+		map[k] = idx;
+#else 
+		double E_prev = (idx == 0)			? (original.get_eigenEnergy(0) - 1.0)			: original.get_eigenEnergy(idx - 1);
+		double E_next = (idx == N_tot - 1)	? (original.get_eigenEnergy(N_tot - 1) + 1.0)	: original.get_eigenEnergy(idx + 1);
+		if (abs(E - E_prev) > 1e-8 && abs(E - E_next) > 1e-8) {
+	#pragma omp critical
 			map[k] = idx;
-		//}
+		}
+#endif
 	}
 	return map;
 };

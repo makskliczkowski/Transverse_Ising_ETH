@@ -65,6 +65,9 @@ using v_1d = std::vector<T>;																	// 1d double vector
 #if !defined(OPERATOR)
 	#define OPERATOR
 #endif
+#if !defined(DEGENERACIES)
+	//#define DEGENERACIES
+#endif
 #define im cpx(0.0,1.0)
 #define stout std::cout << std::setprecision(8) << std::fixed									// standard outstream
 #define memory_over_performance false															// optimized by size --true-- (memory usage shortage) or performance --false--
@@ -367,12 +370,6 @@ std::ostream& operator<<(std::ostream& os, std::vector<T> vec) {
 }
 
 // ----------------------------------------------------------------------------- MAKS' USELESS IDEAS -----------------------------------------------------------------------------
-// get address of function
-template<typename T, typename T2, typename... U> inline size_t getAddress(const op_type& f) {
-	op_type** fnPointer = f.template target<op_type*>();
-	return (size_t)*fnPointer;
-}
-
 /// <summary>
 /// Sorts the vector and saves the permutation with a lambda like function compare
 /// </summary>
