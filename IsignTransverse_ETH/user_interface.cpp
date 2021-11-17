@@ -1346,7 +1346,7 @@ template <typename _type> void isingUI::ui::spectralFunction(IsingModel<_type>& 
 	arma::cx_mat mat_elem = U.t() * opMatrix * U;
 
 	const u64 N = alfa.get_hilbert_size();
-	std::ofstream reponse_fun(this->saving_dir + "/ResponseFunction/ResponseFunctionSigmaX" + alfa.get_info({ "h" }) + \
+	std::ofstream reponse_fun(this->saving_dir + "/ResponseFunction/ResponseFunctionSigmaZ" + alfa.get_info({ "h" }) + \
 		",h=" + to_string_prec(alfa.h, 5) + ".dat");
 	reponse_fun.flush();
 	//auto omega = arma::logspace(-2, -1, 50);
@@ -1417,12 +1417,12 @@ template <typename _type> void isingUI::ui::spectralFunction(IsingModel<_type>& 
 void isingUI::ui::adiabaticGaugePotential() {
 	clk::time_point start = std::chrono::high_resolution_clock::now();
 	std::string info = IsingModel_sym::set_info(L, J, g, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, { "L" });
-	std::ofstream farante(this->saving_dir + "AGPsymX" + info + ".dat");
+	std::ofstream farante(this->saving_dir + "AGPsymZ" + info + ".dat");
 	farante << std::setprecision(6) << std::scientific;
 	//std::ofstream scaling(this->saving_dir + "AGPsize_DELETE" + info + ".dat");
 	//scaling << std::setprecision(6) << std::scientific;
 	farante << "hx\t\t\t susceptibiltiy\t\tAGP,\t\tsusceptibiltiy\tAGP,\t\t susceptibiltiy\tAGP,\t\t susceptibiltiy\tAGP,\t\t susceptibiltiy\tAGP\n";
-	auto params = arma::logspace(-4, 1, 400);
+	auto params = arma::logspace(-4, 1, 300);
 	//auto params = arma::linspace(0.6, 3.0, 25);
 	//std::vector<double> params; auto append = arma::logspace(-4, 0, 100); params.insert(params.end(), append.begin(), append.end());
 	//append = arma::linspace(1.0, 5.0, 81); params.insert(params.end(), append.begin(), append.end());
@@ -1452,7 +1452,7 @@ void isingUI::ui::adiabaticGaugePotential() {
 			double AGP = 0;
 			int counter = 0;
 			const cx_mat U = alfa->get_eigenvectors();
-			arma::sp_cx_mat opMatrix = alfa->create_operator({ IsingModel_sym::sigma_x });
+			arma::sp_cx_mat opMatrix = alfa->create_operator({ IsingModel_sym::sigma_z });
 			arma::cx_mat mat_elem = U.t() * opMatrix * U;
 			//const double rescale = 1.0 / double(L * L);
 			const double rescale = (double)N* omegaH * omegaH / (double)L;
@@ -1548,7 +1548,7 @@ void isingUI::ui::make_sim()
 	//std::vector<double> params = { 1e-4, 5e-4, 1e-3, 5e-3 , 1e-2, 5e-2, 1e-1, 1.5e-1, 2e-1, 2.5e-1, 3.0e-1};
 	//std::vector<double> params = {this->h};
 	for (int system_size = this->L; system_size < this->L + this->Ls * this->Ln; system_size += this->Ls) {
-	std::ofstream norm(this->saving_dir + "normsX" + \
+	std::ofstream norm(this->saving_dir + "normsZ" + \
 		IsingModel_sym::set_info(system_size, J, g, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"h"}) + ".txt");
 		for (auto& hx : params) {
 			stout << "\nh = " << hx << "\t\t";
@@ -1558,7 +1558,7 @@ void isingUI::ui::make_sim()
 			//alfa->hamiltonian();
 			auto alfa = std::make_unique<IsingModel_sym>(system_size, this->J, this->g, hx, \
 				this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-			std::ofstream ener(this->saving_dir + "Energies" + alfa->get_info({}) + ".dat");
+			//std::ofstream ener(this->saving_dir + "Energies" + alfa->get_info({}) + ".dat");
 			stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
 			alfa->diagonalization();
 			stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
@@ -1581,7 +1581,7 @@ void isingUI::ui::make_sim()
 			norm << hx << "\t\t" << norm_diag / (norm_diag + norm_off) << "\t\t" << norm_off / (norm_diag + norm_off) << "\t\t" << level_spacing << std::endl;
 			norm.flush();
 			//stout << system_size << "\t\t" << N << "\t\t" << norm_diag << "\t\t" << norm_off << "\t\t" << norm_diag + norm_off << endl;
-			spectralFunction(*alfa, { IsingModel_sym::sigma_x });
+			spectralFunction(*alfa, { IsingModel_sym::sigma_z });
 			
 			//for (double pert = 0.001; pert <= 0.39; pert += 0.002)
 			//std::ofstream kurtosis(this->saving_dir + "PertKurtosis" + alfa->get_info() + ".dat");
