@@ -89,7 +89,7 @@ public:
 	auto get_eigenvalues()		  const -> const arma::vec&		    { return this->eigenvalues; };			 // get the const reference to eigenvalues
 	auto get_eigenEnergy(u64 idx) const -> double				    { return this->eigenvalues(idx); };		 // get eigenenergy at a given idx
 	auto get_eigenState(u64 idx)  const -> arma::subview_col<_type> { return this->eigenvectors.col(idx); }; // get an eigenstate at a given idx
-
+	auto get_eigenStateValue(u64 idx, u64 elem) const -> _type { return this->eigenvectors(elem,idx); };	 // get an eigenstate at a given idx
 	// ---------------------------------- PRINTERS ----------------------------------
 	void print_base_spin_sector(int Sz = 0);													// print basis state with a given total spin (for clarity purposes)
 	void print_state(u64 _id);																	// prints the eigenstate at a given idx
