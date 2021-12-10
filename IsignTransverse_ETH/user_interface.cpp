@@ -470,7 +470,6 @@ void isingUI::ui::disorder() {
 	realisations = 300;
 	for (double w = 0.0; w <= 5.0; w += 0.2) {
 		auto Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, g0, h, w);
-		gen = std::mt19937_64(seed);
 		stout << "\n\n------------------------------ Doing : " << Hamil->get_info() << "------------------------------\n";
 		const u64 N = Hamil->get_hilbert_size();
 		Hamil->diagonalization();
@@ -1345,6 +1344,14 @@ std::vector<double> isingUI::ui::perturbative_stat_sym(double dist_step, double 
 void isingUI::ui::make_sim(){
 	using namespace std::chrono;
 	clk::time_point start = std::chrono::high_resolution_clock::now();
+	seed = 2718281828459L;
+	gen = std::mt19937_64(seed);
+	std::uniform_int_distribution<int> dist;
+	stout << "test randoms \n" << dist(gen) << "\t" << dist(gen) << "\t" << dist(gen) << std::endl;
+	gen = std::mt19937_64(seed);
+	stout << dist(gen) << "\t" << dist(gen) << "\t" << dist(gen) << std::endl;
+
+
 	stout << "making: " + to_string_prec(this->m) + "\n";
 	if (this->m == 1) {
 		auto params = arma::linspace(this->h, this->hs, this->hn);
@@ -1390,7 +1397,7 @@ void isingUI::ui::make_sim(){
 					to_string_prec(r/double(counter), 8), to_string_prec(entropy/double(counter),8) }, 10, true);
 
 
-				this->mu = 0.2 * N;
+				this->mu = 0.3 * N;
 				E_min = alfa->E_av_idx - mu / 2.;
 				E_max = alfa->E_av_idx + mu / 2.;
 				// let's go over that stuff
@@ -1418,94 +1425,93 @@ void isingUI::ui::make_sim(){
 		// diorder :3
 		stout << "making disorder\n";
 		const int realisations = 600;
-		std::ofstream coeffLog;
-		openFile(coeffLog, this->saving_dir + "coeffLog"+std::to_string(this->L) + ".dat", std::ios::out | ios::app);
-		printSeparated(coeffLog, "\t", {"g", "h","w","ipr", "eig_lev_stat","entropy"}, 10,true);
-		for (double w = 0.1; w <= 3.0; w += 0.1) {
-			auto Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, 0.0, h, w);
+		const int realisations_waves = 50;
+		for (double my_w = 0.1; my_w <= 3.0; my_w += 0.05) {
+			// generator 
+			seed = 2718281828459L;
 			gen = std::mt19937_64(seed);
-			stout << "\n\n------------------------------ Doing : " << Hamil->get_info() << "------------------------------\n";
+			auto Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, 0.0, h, my_w);
+			stout << "\n\n------------------------------ Doing : " <<\
+				Hamil->get_info() << "------------------------------\n";
 			const u64 N = Hamil->get_hilbert_size();
-			Hamil->diagonalization();
-			stout << " \t\t--> finished diagonalizing for " << Hamil->get_info() <<\
-				" - in time : " << tim_s(start) << "s\n";
-
+			// make folders
 			const std::string saving_folder = this->saving_dir + Hamil->get_info() + kPSep;
+			const std::string saving_folder_nondiag = saving_folder + "nondiag" + kPSep;
 			const std::string saving_folder_wavefun = saving_folder + "wavefunctions" + kPSep;
 			fs::create_directories(saving_folder);
 			fs::create_directories(saving_folder_wavefun);
-			std::ofstream wavefunLog;
-			openFile(wavefunLog, saving_folder + "wavefun_log.dat", ios::out|ios::app);
-			printSeparated(wavefunLog, "\t", { "filenum","sigma_x(0)"}, 10, true);
+			fs::create_directories(saving_folder_nondiag );
 
-
-			this->mu = 0.3 * N;
-			long int E_min = Hamil->E_av_idx - mu / 2.;
-			long int E_max = Hamil->E_av_idx + mu / 2.;
-			auto w_c = 0;
-			vec av_sigma_x(mu, arma::fill::zeros);
-			for (u64 k = E_min; k < E_max; k++) {
-				const int idx = k - E_min;
-				av_sigma_x(idx) = Hamil->av_sigma_x(k, k, { 0 });
-				// check sigma_x
-				std::ofstream wavefun;
-				openFile(wavefun, saving_folder_wavefun + to_string_prec(w,3) +"_"+ std::to_string(w_c) \
-					+ "_wavefun_" + Hamil->get_info() + ".dat", ios::out);
-
-				const auto sigma_x = Hamil->av_sigma_x(k, k, { 0 });
-				printSeparated(wavefunLog, "\t", { to_string_prec(w,3)+"_" + std::to_string(w_c)\
-					, to_string_prec(sigma_x,8) }, 10, true);
-				for (u64 j = 0; j < N; j++) {
-					wavefun << Hamil->get_eigenStateValue(k, j) << std::endl;
-				}
-				wavefun.close();
-				w_c += 1;
-			}
-			wavefunLog.close();
-
-
-			vec fluct = data_fluctuations(av_sigma_x);
-			double _min = -2.0, _max = 2.0, step = 2e-3;
-			stout << "\t\t--> finished writing the sigma _x fluctuations for w = " << w << " <--\n";
-
-			arma::vec prob_dist = probability_distribution_with_return(fluct);
-			arma::vec prob_dist_GOE = probability_distribution_with_return(Hamil->eigenlevel_statistics_with_return());
-
-			double ipr = 0;
-			double r = 0;
-			double entropy = 0;
-			for (int k = 0; k < realisations - 1; k++) {
-				Hamil->hamiltonian();
+			//auto w_c = 0;
+			for (int realis = 0; realis < realisations_waves; realis++) {
+				Hamil->hamiltonian(); // restart Hamiltonian for new values of disorder
 				Hamil->diagonalization();
+				stout << " \t\t--> finished diagonalizing for " << Hamil->get_info() << \
+					" - in time : " << tim_s(start) << "s. Realisation -> " << realis << "\n";
+				// make file for log
+				std::ofstream wavefunLog;
+				std::ofstream wavefunLog2;
+				// save to wavefunctions log
+				openFile(wavefunLog, saving_folder + "wavefun_log_"+ std::to_string(realis) +".dat"\
+					, ios::out);
+				openFile(wavefunLog2, saving_folder_nondiag + "wavefun_log_"+ std::to_string(realis) +".dat"\
+					, ios::out);
+
+				printSeparated(wavefunLog, "\t", { "filenum" }, 10, false);
+				for (int i = 0; i < this->L; i++) {
+					printSeparated(wavefunLog, "\t", { "sigma_x(" + std::to_string(i) + ")"}, 10, false);
+				}
+				printSeparated(wavefunLog, "\t", { "E(i)"}, 10, true);
+
+				printSeparated(wavefunLog2, "\t", { "<alfa|beta>" }, 10, false);
+				for (int i = 0; i < this->L; i++) {
+					printSeparated(wavefunLog2, "\t", { "sigma_x(" + std::to_string(i) + ")"}, 10, false);
+				}
+				wavefunLog2 << "\n";
+				// set states from the middle of the spectrum
+				this->mu = 0.2 * N;
+				long int E_min = Hamil->E_av_idx - mu / 2.;
+				long int E_max = Hamil->E_av_idx + mu / 2.;
+
+				const auto mu2 = 0.008 * N;
+				long int E_min2 = Hamil->E_av_idx - mu2 / 2.;
+				long int E_max2 = Hamil->E_av_idx + mu2 / 2.;
+				stout << "\n\n\t\t\t------------------------------ Starting oberators for: " <<\
+				Hamil->get_info() << "------------------------------\n";
+				// go through the eigenstates
 				for (u64 k = E_min; k < E_max; k++) {
 					const int idx = k - E_min;
-					av_sigma_x(idx) = Hamil->av_sigma_x(k, k, { 0 });
-				}
-				fluct = data_fluctuations(av_sigma_x);
+					// check sigma_x
+					// print k state
+					printSeparated(wavefunLog, "\t", { std::to_string(k) }, 6, false);
+					for (int i = 0; i < this->L; i++) {
+						const auto sigma_x = Hamil->av_sigma_x(k, k, { i });
+						printSeparated(wavefunLog, "\t", { to_string_prec(sigma_x,8) }, 10, false);
+					}
+					printSeparated(wavefunLog, "\t", { to_string_prec(Hamil->get_eigenEnergy(k),8) }, 10, true);
 
-				prob_dist += probability_distribution_with_return(fluct);
-				prob_dist_GOE += probability_distribution_with_return(Hamil->eigenlevel_statistics_with_return());
 
-				// average in middle spectrum
-				for (long int f = E_min; f < E_max; f++) {
-					ipr += Hamil->ipr(f);
-					entropy += Hamil->information_entropy(f);
-					r += Hamil->eigenlevel_statistics(f, f + 1);
+					// give nondiagonal elements
+					for (u64 k2 = E_min2; k2 < E_max2; k2++) {
+						if(k==k2 || k < E_min2 || k > E_max2) continue;
+						printSeparated(wavefunLog2, "\t", { "<"+std::to_string(k) + "|" + std::to_string(k2)+">"}, 10, false);
+						for (int i = 0; i < this->L; i++) {
+							const auto sigma_x = Hamil->av_sigma_x(k, k2, { i });
+							printSeparated(wavefunLog2, "\t", { to_string_prec(sigma_x,8) }, 10, false);
+						}
+						wavefunLog2 << std::endl;
+					}
+
+
+					//for (u64 j = 0; j < N; j++) {
+					//	wavefun << Hamil->get_eigenStateValue(k, j) << std::endl;
+					//}
+					//wavefun.close();
 				}
-				
+				wavefunLog.close();
+				wavefunLog2.close();
 			}
-			
-			stout << "--> finished loop over realisations for w = " << w << " <--\n";
-
-			save_to_file(this->saving_dir, "ProbDistSigmaX" + Hamil->get_info(), arma::linspace(_min, _max, prob_dist.size()), prob_dist);
-			save_to_file(this->saving_dir, "ProbDistGap" + Hamil->get_info(), arma::linspace(0, 1, prob_dist_GOE.size()), prob_dist_GOE);
-			double norm = realisations * w_c;
-			printSeparated(coeffLog, "\t", {to_string_prec(this->g, 8), to_string_prec(this->h,8),\
-				to_string_prec(w),to_string_prec(ipr / norm / (double)N, 8),to_string_prec(r / norm, 8),\
-				to_string_prec(entropy / norm, 8)}, 10,true);
-			stout << " \t\t--> w = " << w << " - in time : " << tim_s(start) << "s" << std::endl;
 		}
-		coeffLog.close();
 	}
 
 
