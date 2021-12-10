@@ -390,6 +390,56 @@ cpx IsingModel_disorder::av_spin_current(u64 alfa, u64 beta) {
 	}
 	return 2i * cpx(value_real, value_imag) / sqrt(this->L);
 }
+// ----------------------------------------------------------------------------- CALCULATE MATRIX ELEMENTS VIA INPUT OPERATOR -----------------------------------------------------------------------------
+cpx IsingModel_disorder::av_operator(u64 alfa, u64 beta, op_type op, std::vector<int> sites) {
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+	double overlap_real = 0, overlap_imag = 0;
+#pragma omp parallel for reduction(+: overlap_real, overlap_imag)
+	for (int k = 0; k < N; k++) {
+		auto [ret_val, new_idx] = op(k, this->L, sites);
+		cpx overlap = ret_val * state_alfa(new_idx) * state_beta(k);
+		overlap_real += real(overlap);
+		overlap_imag += imag(overlap);
+	}
+	return cpx(overlap_real, overlap_imag);
+}
+cpx IsingModel_disorder::av_operator(u64 alfa, u64 beta, op_type op) {
+	double overlap_real = 0, overlap_imag = 0;
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+#pragma omp parallel for reduction(+: overlap_real, overlap_imag)
+	for (long int k = 0; k < N; k++) {
+		for (int j = 0; j < this->L; j++) {
+			auto [ret_val, new_idx] = op(k, this->L, { j });
+			cpx overlap = ret_val * state_alfa(new_idx) * state_beta(k);
+			overlap_real += real(overlap);
+			overlap_imag += imag(overlap);
+		}
+	}
+	return cpx(overlap_real, overlap_imag) / sqrt(this->L);
+}
+cpx IsingModel_disorder::av_operator(u64 alfa, u64 beta, op_type op, int corr_len) {
+	if (corr_len >= L) throw "exceeding correlation length\n";
+
+	double overlap_real = 0, overlap_imag = 0;
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+	auto neis = get_neigh_vector(this->_BC, this->L, corr_len);
+#pragma omp parallel for reduction(+: overlap_real, overlap_imag)
+	for (int k = 0; k < N; k++) {
+		for (int l = 0; l < this->L; l++) {
+			int nei = neis[l];
+			if (nei < 0) continue;
+			auto [ret_val, new_idx] = op(k, this->L, { l, nei });
+			cpx overlap = state_alfa(new_idx) * state_beta(k);
+			overlap_real += real(overlap);
+			overlap_imag += imag(overlap);
+		}
+	}
+	return cpx(overlap_real, overlap_imag) / sqrt(this->L);
+}
+
 // ----------------------------------------------------------------------------- CREATE OPERATOR TO CALCULATE MATRIX ELEMENTS -----------------------------------------------------------------------------
 sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) {
 	arma::sp_cx_mat opMatrix(this->N, this->N);

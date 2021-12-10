@@ -115,8 +115,8 @@ const v_1d<u64> BinaryPowers = { ULLPOW(0), ULLPOW(1), ULLPOW(2), ULLPOW(3),
 extern int num_of_threads;													// number of threads
 constexpr long double pi = 3.141592653589793238462643383279502884L;			// it is me, pi
 constexpr long double two_pi = 2 * 3.141592653589793238462643383279502884L;	// it is me, 2pi
-//const auto global_seed = std::random_device{}();							// global seed for classes
-
+const auto global_seed = std::random_device{}();							// global seed for classes
+const std::string kPSep = std::string(kPathSeparator);
 // ----------------------------------------------------------------------------- TIME FUNCTIONS -----------------------------------------------------------------------------
 
 inline double tim_s(clk::time_point start) {
@@ -394,7 +394,34 @@ std::ostream& operator<<(std::ostream& os, std::vector<T> vec) {
 	return os;
 }
 
-// ----------------------------------------------------------------------------- MAKS' USELESS IDEAS -----------------------------------------------------------------------------
+/// <summary>
+///
+/// </summary>
+/// <param name="filename"></param>
+/// <param name="mode"></param>
+/// <returns></returns>
+template <typename T>
+inline void openFile(T& file, std::string filename, std::ios_base::openmode mode = std::ios::out) {
+	file.open(filename, mode);
+	if (!file.is_open()) throw "couldn't open a file: " + filename + "\n";
+}
+
+/// <summary>
+///
+/// </summary>
+/// <typeparam name="T"></typeparam>
+/// <param name="output"></param>
+/// <param name="elements"></param>
+/// <param name="separtator"></param>
+template <typename T>
+inline void printSeparated(std::ostream& output, std::string separtator = "\t", std::initializer_list<T> elements = {}, arma::u16 width = 8, bool endline = true) {
+	for (auto elem : elements) {
+		output.width(width); output << elem << separtator;
+	}
+	if (endline) output << std::endl;
+}
+
+// ----------------------------------------------------------------------------- MAKS' IDEAS -----------------------------------------------------------------------------
 /// <summary>
 /// Sorts the vector and saves the permutation with a lambda like function compare
 /// </summary>
@@ -427,6 +454,20 @@ template <typename T> inline void apply_permutation(std::vector<T>& vec, const s
 	}
 }
 
+template <typename T>
+inline T variance(T value, T average, int norm) {
+	return std::sqrt((value / norm - average * average) / norm);
+}
+
+inline void checkRandom(unsigned int seed) {
+	gen = std::mt19937_64(seed);
+	std::uniform_int_distribution<int> dist;
+	stout << "test randoms \n" << dist(gen) << "\t" << dist(gen) << "\t" << dist(gen) << std::endl;
+	gen = std::mt19937_64(seed);
+	stout << "reset seed!" << std::endl;
+	stout << dist(gen) << "\t" << dist(gen) << "\t" << dist(gen) << std::endl;
+	stout << "Same? Good continue!\n\n";
+}
 // ----------------------------------------------------------------------------- DISTRIBUTION AND DATASET RELATED FUNCTIONS -----------------------------------------------------------------------------
 
 // ------------------------------------- definitions
@@ -507,3 +548,55 @@ inline T gaussian(T x, double mean, double std_dev) {
 	T exponent = (x - mean) / std_dev;
 	return 1.0 / (std::sqrt(two_pi) * std_dev) * exp(-pow(exponent, 2) / 2.0);
 }
+
+// --------------------------------- PROGRESS BAR ---------------------------------
+class pBar {
+public:
+	void update(double newProgress) {
+		currentProgress += newProgress;
+		amountOfFiller = (int)((currentProgress / neededProgress) * (double)pBarLength);
+	}
+	void print() {
+		currUpdateVal %= pBarUpdater.length();
+		stout << "\r";															// Bring cursor to start of line
+		stout << firstPartOfpBar;												// Print out first part of pBar
+		for (int a = 0; a < amountOfFiller; a++) {								// Print out current progress
+			stout << pBarFiller;
+		}
+		stout << pBarUpdater[currUpdateVal];
+		for (int b = 0; b < pBarLength - amountOfFiller; b++) {					// Print out spaces
+			stout << " ";
+		}
+		stout << lastPartOfpBar;												// Print out last part of progress bar
+		stout << " (" << (int)(100 * (currentProgress / neededProgress)) << "%)";	// This just prints out the percent
+		stout << std::flush;
+		currUpdateVal += 1;
+	}
+	void printWithTime(const std::string& message, double percentage) {
+#pragma omp critical
+		{
+			stout << "\t\t\t\t-> time: " << tim_s(timer) << message << " : \n";
+			this->print();
+			stout << std::endl;
+		}
+		this->update(percentage);
+	}
+	// constructor
+	pBar() {
+		timer = std::chrono::high_resolution_clock::now();
+		amountOfFiller = 0;
+	}
+private:
+	// --------------------------- STRING ENDS
+	std::string firstPartOfpBar = "\t\t\t\t[";
+	std::string lastPartOfpBar = "]";
+	std::string pBarFiller = "|";
+	std::string pBarUpdater = "/-\\|";
+	// --------------------------- PROGRESS
+	clk::time_point timer;														// inner clock
+	int amountOfFiller;															// length of filled elements
+	int pBarLength = 50;														// length of a progress bar
+	int currUpdateVal = 0;														//
+	double currentProgress = 0;													// current progress
+	double neededProgress = 100;												// final progress
+};

@@ -399,6 +399,10 @@ public:
 	}
 	mat correlation_matrix(u64 state_id) override;
 
+	cpx av_operator(u64 alfa, u64 beta, op_type op, std::vector<int> sites);	// calculates the matrix element of operator at given site
+	cpx av_operator(u64 alfa, u64 beta, op_type op);							// calculates the matrix element of operator at given site in extensive form (a sum)
+	cpx av_operator(u64 alfa, u64 beta, op_type op, int corr_len);
+
 	double entaglement_entropy(u64 state_id, int subsystem_size) override;
 
 	static std::string set_info(int L, double J, double J0, double g, double g0, double h, double w, std::vector<std::string> skip = {}) {

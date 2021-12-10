@@ -125,21 +125,32 @@ namespace isingUI
 
 		void fidelity(std::initializer_list<int> symetries);
 
+		//-------------------------------------------------------------------------- RARELY USED SWEEPS OF PARAMETERS
 		void parameter_sweep_sym(int k, int p, int x);
 		void check_dist_other_sector();
 		void matrix_elements_stat_sym(double min, double max, double step, double omega_dist, \
 			int omega_gauss_max, double energy_constraint, int energy_num, \
 			std::initializer_list<int> alfa_sym = {}, \
 			std::initializer_list<int> beta_sym = {}) const;
+
+		//-------------------------------------------------------------------------- SPECTRAL PROPERTIES
 		template <typename _type> void spectralFunction(IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, std::string name);
 		template <typename _type> void timeEvolution(IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, std::string name);
 		
 		template <typename _type> std::pair<double, double> operator_norm(std::initializer_list<op_type> operators, IsingModel<_type>& alfa, int k_sym = 0, bool p_sym = 1, bool x_sym = 1);
 		void adiabaticGaugePotential(bool SigmaZ = 0, bool avSymSectors = 0);
 		template <typename _type> void energyEvolution(IsingModel<_type>& model);
-		//template <typename T> void spectralFunction(int L, double gx, double hx);
+
+		/// <summary>
+		/// saves matrix elements for using in the autoencoder
+		/// </summary>
+		/// <param name="operators"> inializer list of different local operators and also their global friend </param>
+		/// <param name="names"> names of operators set in input, must be equal size as operators</param>
+		void saveDataForAutoEncoder_disorder(std::initializer_list<op_type> operators, std::initializer_list<std::string> names);
+		void saveDataForAutoEncoder_symmetries(std::initializer_list<op_type> operators, std::initializer_list<std::string> names);
 
 
+		//------------------------------------------------------------------------------ PERTURBATIVE METHODS (DISTRIBUTIONS WITH PERTURBATIONS)
 		std::vector<double> perturbative_stat_sym(double pert, double gx, double hx);
 		std::vector<double> perturbative_stat_sym(double pert, IsingModel_sym& alfa, double gx, double hx);
 		std::vector<double> perturbative_stat_sym(IsingModel_sym& alfa, double gx, double hx);
