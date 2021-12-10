@@ -1660,18 +1660,21 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 	using namespace std::chrono;
 	clk::time_point start = std::chrono::high_resolution_clock::now();
 	// diorder :3
-	auto Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, 0.0, h, 1.0);
+	auto Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, 0.0, h, this->w - this->ws);
+	const u64 N = Hamil->get_hilbert_size();
 	const int realisations = 50;
-	const double delta = 0.025 * this->L; // width of offdiagonal in taking off-diagonal matrix elements
-	const int M = 500;					  // number of states taken across the offdiagonal
-	for (double my_w = 0.1; my_w <= 4.0; my_w += 0.05) {
+	const double delta = 0.025 * this->L; // width of offdiagonal in taking off-diagonal matrix elements -- to be updated maybe
+	const int M = 500;					  // number of states taken across the offdiagonal -- for now chosen randomly
+	std::ofstream map;
+	openFile(map, this->saving_dir + "PhaseMap" + Hamil->get_info({ "w" }) + ".dat", ios::out);
+	const double w_end = this->w + this->wn * this->ws;
+	for (double my_w = this->w; my_w <= w_end; my_w += this->ws) {
 		// generator 
 		seed = 2718281828459L;
 		gen = std::mt19937_64(seed);
 		Hamil.reset(new IsingModel_disorder(L, J, J0, g, 0.0, h, my_w));
 		stout << "\n\n------------------------------ Doing : " << \
 			Hamil->get_info() << "------------------------------\n";
-		const u64 N = Hamil->get_hilbert_size();
 		
 		//create main folder
 		const std::string saving_folder = this->saving_dir + Hamil->get_info() + kPSep;
@@ -1689,13 +1692,25 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 			opDirDiag.push_back(saving_folder_nondiag);
 			opDirNonDiag.push_back(saving_folder_nondiag);
 		}
-		
+		double r = 0, c = 0, r_var = 0;
 		for (int realis = 0; realis < realisations; realis++) {
 			Hamil->hamiltonian(); // restart Hamiltonian for new values of disorder
 			Hamil->diagonalization();
 			stout << " \t\t--> finished diagonalizing for " << Hamil->get_info() << \
 				" - in time : " << tim_s(start) << "s. Realisation -> " << realis << "\n";
+
+			// set states from the middle of the spectrum
+			this->mu = (M > N) ? 0.5 * N : M / 2;
+			long int E_min = Hamil->E_av_idx - mu / 2.;
+			long int E_max = Hamil->E_av_idx + mu / 2.;
 			
+			double level_stat = Hamil->eigenlevel_statistics(E_min, E_max);
+			r += level_stat;
+			r_var += level_stat;
+			arma::mat H_diag = arma::diagmat(Hamil->get_hamiltonian());
+			arma::mat H_offdiag = Hamil->get_hamiltonian() - H_diag;
+			c += matrixVariance(H_diag) / matrixVariance(H_offdiag);
+
 			// iterate over input lists
 			for (int q = 0; q < operators.size(); q++) {
 				// assign by iterator
@@ -1719,11 +1734,6 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 				}
 				printSeparated(wavefunLog, "\t", { "E_i" }, 10, true);
 				printSeparated(wavefunLog2, "\t", { "E_i - E_j" }, 10, true);
-				
-				// set states from the middle of the spectrum
-				this->mu = (M > N) ? 0.5 * N : M / 2;
-				long int E_min = Hamil->E_av_idx - mu / 2.;
-				long int E_max = Hamil->E_av_idx + mu / 2.;
 
 				stout << "\n\n\t\t\t------------------------------ Starting operator " + opName + " for: " << \
 					Hamil->get_info() << "------------------------------\n";
@@ -1744,7 +1754,10 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 					// give nondiagonal elements
 					for (int iter = 0; iter < M; iter++) {
 						//if (k == k2 || k < E_min2 || k > E_max2) continue;
-						const int k2 = std::uniform_int_distribution<uint64_t>(0, N)(gen);
+						int k2 = k;
+						while (k2 != k) {
+							k2 = std::uniform_int_distribution<uint64_t>(0, N)(gen);
+						}
 						printSeparated(wavefunLog2, "\t", { "<" + std::to_string(k) + "|" + std::to_string(k2) + ">" }, 10, false);
 						for (int i = 0; i < this->L; i++) {
 							const auto opElem = Hamil->av_operator(k, k2, op, { i });
@@ -1758,7 +1771,9 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 				wavefunLog2.close();
 			}
 		}
+		printSeparated(map, "\t", { my_w, c, r, r_var }, 10, true);
 	}
+	map.close();
 }
 
 //----------------------------------------------------------------------------------------------------------------UI main

@@ -459,6 +459,19 @@ inline T variance(T value, T average, int norm) {
 	return std::sqrt((value / norm - average * average) / norm);
 }
 
+template <typename _Ty>
+inline _Ty matrixVariance(const arma::Mat<_Ty>& mat) {
+	_Ty var = 0, mean = 0;
+#pragma omp parallel for reduction(+: var, mean) collapse(2)
+	for (long int n = 0; n < mat.size(); n++)
+		for (long int m = 0; m < mat.size(); m++) {
+			var += mat(n, m) * mat(n, m);
+			mean += mat(n, m);
+		}
+	var /= double(mat.n_cols);
+	mean /= double(mat.n_cols);
+	return var - mean * mean;
+}
 inline void checkRandom(unsigned int seed) {
 	gen = std::mt19937_64(seed);
 	std::uniform_int_distribution<int> dist;
