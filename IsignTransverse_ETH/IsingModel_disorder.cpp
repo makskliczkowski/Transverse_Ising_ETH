@@ -7,7 +7,7 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 	this->N = static_cast<u64>(std::pow(2, L));
 	this->_BC = _BC;
 
-	this->ran = randomGen(global_seed);
+	this->ran.reset();
 	//change info
 	this->info = "_L=" + std::to_string(this->L) + \
 		",J0=" + to_string_prec(this->J0, 2) + \
@@ -101,7 +101,7 @@ void IsingModel_disorder::hamiltonian() {
 /// <param name="alfa">Left state</param>
 /// <param name="beta">Right state</param>
 /// <returns>The matrix element</returns>
-double IsingModel_disorder::av_sigma_z(u64 alfa, u64 beta, std::initializer_list<int> sites) {
+double IsingModel_disorder::av_sigma_z(u64 alfa, u64 beta, std::vector<int> sites) {
 	for (auto& site : sites)
 		if (site < 0 || site >= L) throw "Site index exceeds chain";
 
@@ -174,7 +174,7 @@ double IsingModel_disorder::av_sigma_z(u64 alfa, u64 beta, int corr_length)
 /// <param name="alfa">Left state</param>
 /// <param name="beta">Right state</param>
 /// <returns>The matrix element</returns>
-double IsingModel_disorder::av_sigma_x(u64 alfa, u64 beta, std::initializer_list<int> sites) {
+double IsingModel_disorder::av_sigma_x(u64 alfa, u64 beta, std::vector<int> sites) {
 	for (auto& site : sites) {
 		if (site < 0 || site >= L) throw "Site index exceeds chain";
 	}
@@ -246,7 +246,7 @@ double IsingModel_disorder::av_sigma_x(u64 alfa, u64 beta, int corr_length)
 /// <param name="beta"></param>
 /// <param name="sites"></param>
 /// <returns></returns>
-double IsingModel_disorder::av_spin_flip(u64 alfa, u64 beta, std::initializer_list<int> sites) {
+double IsingModel_disorder::av_spin_flip(u64 alfa, u64 beta, std::vector<int> sites) {
 	if (sites.size() != 2) throw "Not implemented such exotic operators, choose 1 or 2 sites\n";
 	for (auto& site : sites) {
 		if (site < 0 || site >= L) throw "Site index exceeds chain";
@@ -313,7 +313,7 @@ double IsingModel_disorder::av_spin_flip(u64 alfa, u64 beta) {
 /// <param name="beta"></param>
 /// <param name="sites"></param>
 /// <returns></returns>
-cpx IsingModel_disorder::av_spin_current(u64 alfa, u64 beta, std::initializer_list<int> sites) {
+cpx IsingModel_disorder::av_spin_current(u64 alfa, u64 beta, std::vector<int> sites) {
 	if (sites.size() != 2) throw "Not implemented such exotic operators, choose 1 or 2 sites\n";
 	for (auto& site : sites) {
 		if (site < 0 || site >= L) throw "Site index exceeds chain";
@@ -391,7 +391,7 @@ cpx IsingModel_disorder::av_spin_current(u64 alfa, u64 beta) {
 	return 2i * cpx(value_real, value_imag) / sqrt(this->L);
 }
 // ----------------------------------------------------------------------------- CREATE OPERATOR TO CALCULATE MATRIX ELEMENTS -----------------------------------------------------------------------------
-sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators, std::initializer_list<int> sites) {
+sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) {
 	arma::sp_cx_mat opMatrix(this->N, this->N);
 #pragma omp parallel for
 	for (long int k = 0; k < N; k++) {

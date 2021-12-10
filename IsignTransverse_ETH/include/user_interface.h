@@ -97,7 +97,7 @@ namespace isingUI
 		int site;																		// site for operator averages
 
 		struct {
-			double k_sym;																// translational symmetry generator
+			int k_sym;																	// translational symmetry generator
 			int p_sym;																	// parity symmetry generator
 			int x_sym;																	// spin-flip symmetry generator
 		} symmetries;
@@ -131,10 +131,12 @@ namespace isingUI
 			int omega_gauss_max, double energy_constraint, int energy_num, \
 			std::initializer_list<int> alfa_sym = {}, \
 			std::initializer_list<int> beta_sym = {}) const;
-		template <typename _type> void spectralFunction(IsingModel<_type>& alfa, std::initializer_list<op_type> operators);
+		template <typename _type> void spectralFunction(IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, std::string name);
+		template <typename _type> void timeEvolution(IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, std::string name);
+		
 		template <typename _type> std::pair<double, double> operator_norm(std::initializer_list<op_type> operators, IsingModel<_type>& alfa, int k_sym = 0, bool p_sym = 1, bool x_sym = 1);
-		void adiabaticGaugePotential();
-		template <typename _type> void energyEvolution(IsingModel<_type> model);
+		void adiabaticGaugePotential(bool SigmaZ = 0, bool avSymSectors = 0);
+		template <typename _type> void energyEvolution(IsingModel<_type>& model);
 		//template <typename T> void spectralFunction(int L, double gx, double hx);
 
 

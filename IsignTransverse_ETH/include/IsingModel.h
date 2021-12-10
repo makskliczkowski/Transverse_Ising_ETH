@@ -65,7 +65,7 @@ public:
 	// ---------------------------------- GETTERS ----------------------------------
 	//
 	// get the information about the model params
-	auto get_info(std::initializer_list<std::string> skip = {}) const->std::string {
+	auto get_info(std::vector<std::string> skip = {}) const->std::string {
 		auto tmp = split_str(this->info, ",");
 		std::string tmp_str = "";
 		for (int i = 0; i < tmp.size(); i++) {
@@ -83,10 +83,10 @@ public:
 	};
 
 	auto get_hilbert_size()		  const -> u64					    { return this->N; };					 // get the Hilbert space size 2^N
-	auto get_mapping()			  const -> const std::vector<u64>&  { return this->mapping; };				 // constant reference to the mapping
-	auto get_hamiltonian()		  const -> const arma::Mat<_type>&  { return this->H; };					 // get the const reference to a Hamiltonian
-	auto get_eigenvectors()		  const -> const arma::Mat<_type>&  { return this->eigenvectors; };			 // get the const reference to the eigenvectors
-	auto get_eigenvalues()		  const -> const arma::vec&		    { return this->eigenvalues; };			 // get the const reference to eigenvalues
+	auto get_mapping()			  const -> std::vector<u64>			{ return this->mapping; };				 // constant reference to the mapping
+	auto get_hamiltonian()		  const -> arma::Mat<_type>			{ return this->H; };					 // get the const reference to a Hamiltonian
+	auto get_eigenvectors()		  const -> arma::Mat<_type>			{ return this->eigenvectors; };			 // get the const reference to the eigenvectors
+	auto get_eigenvalues()		  const -> arma::vec				{ return this->eigenvalues; };			 // get the const reference to eigenvalues
 	auto get_eigenEnergy(u64 idx) const -> double				    { return this->eigenvalues(idx); };		 // get eigenenergy at a given idx
 	auto get_eigenState(u64 idx)  const -> arma::subview_col<_type> { return this->eigenvectors.col(idx); }; // get an eigenstate at a given idx
 
@@ -96,11 +96,29 @@ public:
 
 	// ---------------------------------- GENERAL METHODS ----------------------------------
 	void set_neighbors();																		// create neighbors list according to the boundary conditions
-	void diagonalization();																		// diagonalize the Hamiltonian
+	void diagonalization(bool withoutEigenVec = false);											// diagonalize the Hamiltonian
 	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
 	virtual void setHamiltonianElem(u64 k, double value, u64 new_idx) = 0;						// sets the Hamiltonian elements in a virtual way
 	void reset_random() {
-		this->ran = randomGen(global_seed);
+		this->ran.reset();
+	}
+	double getRandomValue(const double _min, const double _max) {
+		return this->ran.randomReal_uni(_min, _max);
+	}
+	int properSite(int site) {
+		if (_BC == 0) {
+			if (site < 0)
+				return L - (abs(site) % L);
+			if (site >= L)
+				return site % L;
+			return site;
+		}
+		else {
+			if (site < 0 || site >= L)
+				assert(false && "exceeding chain with open boundary conditions!\n Please choos PBC or go to hell!");
+			return site;
+		}
+		return INT_MAX;
 	}
 
 	// ---------------------------------- VIRTUALS ----------------------------------
@@ -117,25 +135,74 @@ public:
 	virtual double mean_level_spacing_analytical() = 0;											// mean level spacing from analytical formula calcula
 	double mean_level_spacing_av(u64 _min, u64 _max);											// mean level spacing averaged over an input window
 	double mean_level_spacing_trace();															// mean level spacing from by variance of hamiltonian in T->inf
-
+	
 	// ---------------------------------- THERMODYNAMIC QUANTITIES ----------------------------------
 	std::tuple<arma::vec, arma::vec, arma::vec> thermal_quantities(const arma::vec& temperature);	// calculate thermal quantities with input temperature range
 																									// heat capacity, entropy, average energy
+	// lambda functions for Sigmas - changes the state and returns the value on the base vector
+	static std::pair<cpx, u64> sigma_x(u64 base_vec, int L, std::vector<int> sites) {
+		for (auto& site : sites) {
+			//site = properSite(site);
+			base_vec = flip(base_vec, BinaryPowers[L - 1 - site], L - 1 - site);
+		}
+		return std::make_pair(1.0, base_vec);
+	};
+	static std::pair<cpx, u64> sigma_y(u64 base_vec, int L, std::vector<int> sites) {
+		auto tmp = base_vec;
+		cpx val = 1.0;
+		for (auto& site : sites) {
+			//site = properSite(site);
+			val *= checkBit(tmp, L - 1 - site) ? im : -im;
+			tmp = flip(tmp, BinaryPowers[L - 1 - site], L - 1 - site);
+		}
+		return std::make_pair(val, tmp);
+	};
+	static std::pair<cpx, u64> sigma_z(u64 base_vec, int L, std::vector<int> sites) {
+		auto tmp = base_vec;
+		double val = 1.0;
+		for (auto& site : sites) {
+			//site = properSite(site);
+			val *= checkBit(tmp, L - 1 - site) ? 1.0 : -1.0;
+		}
+		return std::make_pair(val, base_vec);
+	};
+	static std::pair<cpx, u64> spin_flip(u64 base_vec, int L, std::vector<int> sites) {
+		if (sites.size() > 2) throw "Not implemented such exotic operators, choose 1 or 2 sites\n";
+		auto tmp = base_vec;
+		cpx val = 0.0;
+		auto it = sites.begin() + 1;
+		auto it2 = sites.begin();
+		if (!(checkBit(base_vec, L - 1 - *it))) {
+			tmp = flip(tmp, BinaryPowers[L - 1 - *it], L - 1 - *it);
+			val = 2.0;
+			if (sites.size() > 1) {
+				if (checkBit(base_vec, L - 1 - *it2)) {
+					tmp = flip(tmp, BinaryPowers[L - 1 - *it2], L - 1 - *it2);
+					val *= 2.0;
+				}
+				else val = 0.0;
+			}
+		}
+		else val = 0.0;
+		return std::make_pair(val, tmp);
+	};
+
 
 	// ---------------------------------- PHYSICAL OPERATORS (model states dependent) ----------------------------------
 	virtual double av_sigma_z(u64 alfa, u64 beta) = 0;											// check the sigma_z matrix element extensive
 	virtual double av_sigma_z(u64 alfa, u64 beta, int corr_len) = 0;							// check the sigma_z matrix element with correlation length
-	virtual double av_sigma_z(u64 alfa, u64 beta, std::initializer_list<int> sites) = 0;		// check the matrix element of sigma_z elements sites correlation
+	virtual double av_sigma_z(u64 alfa, u64 beta, std::vector<int> sites) = 0;		// check the matrix element of sigma_z elements sites correlation
 			
 	virtual double av_sigma_x(u64 alfa, u64 beta) = 0;											// check the sigma_z matrix element extensive
 	virtual double av_sigma_x(u64 alfa, u64 beta, int corr_len) = 0;							// check the sigma_z matrix element with correlation length
-	virtual double av_sigma_x(u64 alfa, u64 beta, std::initializer_list<int> sites) = 0;		// check the matrix element of sigma_x elements sites correlation
+	virtual double av_sigma_x(u64 alfa, u64 beta, std::vector<int> sites) = 0;		// check the matrix element of sigma_x elements sites correlation
 			
 	virtual double av_spin_flip(u64 alfa, u64 beta) = 0;										// check the spin flip element extensive
-	virtual double av_spin_flip(u64 alfa, u64 beta, std::initializer_list<int> sites) = 0;		// check the spin flip element at input sites (up to 2)
+	virtual double av_spin_flip(u64 alfa, u64 beta, std::vector<int> sites) = 0;		// check the spin flip element at input sites (up to 2)
 
 	virtual cpx av_spin_current(u64 alfa, u64 beta) = 0;										// check the spin current extensive
-	virtual cpx av_spin_current(u64 alfa, u64 beta, std::initializer_list<int> sites) = 0;		// check the spin current at given sites
+	virtual cpx av_spin_current(u64 alfa, u64 beta, std::vector<int> sites) = 0;		// check the spin current at given sites
+
 
 	// ---------------------------------- USING PHYSICAL QUANTITES FOR PARAMTER RANGES, ETC. ----------------------------------
 	static void operator_av_in_eigenstates(double (IsingModel::* op)(int, int), IsingModel& A, int site, \
@@ -145,7 +212,10 @@ public:
 
 	virtual sp_cx_mat create_operator(std::initializer_list<op_type> operators) = 0;
 	virtual sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) = 0;
-	virtual sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::initializer_list<int> sites) = 0;
+	virtual sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) = 0;
+	// transverse-field Ising LIOMs operator densities
+	virtual sp_cx_mat create_LIOMoperator_densities(int n, int j) = 0;
+	virtual sp_cx_mat create_LIOMoperator(int n) = 0;
 };
 
 // ----------------------------------------- SYMMETRIC -----------------------------------------
@@ -204,17 +274,17 @@ public:
 	// MATRICES & OPERATORS
 	double av_sigma_z(u64 alfa, u64 beta) override;											// check the sigma_z matrix element extensive
 	double av_sigma_z(u64 alfa, u64 beta, int corr_len) override;							// check the sigma_z matrix element with correlation length extensive
-	double av_sigma_z(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the matrix element of sigma_z elements sites correlation
+	double av_sigma_z(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the matrix element of sigma_z elements sites correlation
 
 	double av_sigma_x(u64 alfa, u64 beta) override;											// check the sigma_z matrix element extensive
 	double av_sigma_x(u64 alfa, u64 beta, int corr_len) override;							// check the sigma_z matrix element with correlation length extensive
-	double av_sigma_x(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the matrix element of sigma_x elements sites correlation
+	double av_sigma_x(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the matrix element of sigma_x elements sites correlation
 
 	double av_spin_flip(u64 alfa, u64 beta) override;										// check the spin flip element extensive
-	double av_spin_flip(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the spin flip element at input sites (up to 2)
+	double av_spin_flip(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the spin flip element at input sites (up to 2)
 
 	cpx av_spin_current(u64 alfa, u64 beta) override;										// check the extensive spin current
-	cpx av_spin_current(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the spin current at given sites
+	cpx av_spin_current(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the spin current at given sites
 
 	template <typename _type>
 	arma::cx_mat generateMatrixElements(_type (IsingModel_sym::* op)(u64, u64), const IsingModel_sym& A) {
@@ -224,51 +294,8 @@ public:
 				mat_elem(i, j) = (A.*op)(i, j);
 		return mat_elem;
 	}
-	// lambda functions for Sigmas - changes the state and returns the value on the base vector
-	static std::pair<cpx, u64> sigma_x(u64 base_vec, int L, std::initializer_list<int> sites) {
-		auto tmp = base_vec;
-		for (auto& site : sites)
-			tmp = flip(tmp, BinaryPowers[L - 1 - site], L - 1 - site);
-		return std::make_pair(1.0, tmp);
-	};
-	static std::pair<cpx, u64> sigma_y(u64 base_vec, int L, std::initializer_list<int> sites) {
-		auto tmp = base_vec;
-		cpx val = 1.0;
-		for (auto& site : sites) {
-			val *= checkBit(tmp, L - 1 - site) ? im : -im;
-			tmp = flip(tmp, BinaryPowers[L - 1 - site], L - 1 - site);
-		}
-		return std::make_pair(val, tmp);
-	};
-	static std::pair<cpx, u64> sigma_z(u64 base_vec, int L, std::initializer_list<int> sites) {
-		auto tmp = base_vec;
-		double val = 1.0;
-		for (auto& site : sites)
-			val *= checkBit(tmp, L - 1 - site) ? 1.0 : -1.0;
-		return std::make_pair(val, base_vec);
-	};
-	static std::pair<cpx, u64> spin_flip(u64 base_vec, int L, std::initializer_list<int> sites) {
-		if (sites.size() > 2) throw "Not implemented such exotic operators, choose 1 or 2 sites\n";
-		auto tmp = base_vec;
-		cpx val = 0.0;
-		auto it = sites.begin() + 1;
-		auto it2 = sites.begin();
-		if (!(checkBit(base_vec, L - 1 - *it))) {
-			tmp = flip(tmp, BinaryPowers[L - 1 - *it], L - 1 - *it);
-			val = 2.0;
-			if (sites.size() > 1) {
-				if (checkBit(base_vec, L - 1 - *it2)) {
-					tmp = flip(tmp, BinaryPowers[L - 1 - *it2], L - 1 - *it2);
-					val *= 2.0;
-				}
-				else val = 0.0;
-			}
-		}
-		else val = 0.0;
-		return std::make_pair(val, tmp);
-	};
 	
-	static std::string set_info(int L, double J, double g, double h, int k_sym, bool p_sym, bool x_sym, std::initializer_list<std::string> skip = {}) {
+	static std::string set_info(int L, double J, double g, double h, int k_sym, bool p_sym, bool x_sym, std::vector<std::string> skip = {}) {
 		std::string name = ",L=" + std::to_string(L) + \
 			",g=" + to_string_prec(g, 2) + \
 			",h=" + to_string_prec(h, 2) + \
@@ -291,17 +318,25 @@ public:
 		return tmp_str;
 	}
 
-	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::initializer_list<int> sites);					// calculates the matrix element of operator at given site
+	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::vector<int> sites);					// calculates the matrix element of operator at given site
 	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op);														// calculates the matrix element of operator at given site in extensive form (a sum)
 	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, int corr_len);										// calculates the matrix element of operator at given site in extensive form (a sum) with corr_len
 
 	friend cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, u64 base_vec, u64 k, \
-		const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::initializer_list<int> sites);
+		const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::vector<int> sites);
 				
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators) override;													
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) override;
-	sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::initializer_list<int> sites) override;
-	void set_OperatorElem(std::initializer_list<op_type> operators, std::initializer_list<int> sites, sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx);
+	sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) override;
+	void set_OperatorElem(std::vector<op_type> operators, std::vector<int> sites, sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx);
+	sp_cx_mat create_StringOperator(coordinate alfa, coordinate beta, int j, int k);
+	sp_cx_mat create_LIOMoperator_densities(int n, int ell) override;
+	sp_cx_mat create_LIOMoperator(int n) override {
+		sp_cx_mat LIOM = create_LIOMoperator_densities(n, 0);
+		for (int i = 1; i < this->L; i++)
+			LIOM += create_LIOMoperator_densities(n, i);
+		return LIOM;
+	}
 
 	mat correlation_matrix(u64 state_id) override;
 };
@@ -340,35 +375,33 @@ public:
 	// MATRICES & OPERATORS
 	double av_sigma_z(u64 alfa, u64 beta) override;											// check the sigma_z matrix element extensive
 	double av_sigma_z(u64 alfa, u64 beta, int corr_len) override;							// check the sigma_z matrix element with correlation length
-	double av_sigma_z(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the matrix element of sigma_z elements sites correlation
+	double av_sigma_z(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the matrix element of sigma_z elements sites correlation
 
 	double av_sigma_x(u64 alfa, u64 beta) override;											// check the sigma_z matrix element extensive
 	double av_sigma_x(u64 alfa, u64 beta, int corr_len) override;							// check the sigma_z matrix element with correlation length
-	double av_sigma_x(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the matrix element of sigma_x elements sites correlation
+	double av_sigma_x(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the matrix element of sigma_x elements sites correlation
 
 	double av_spin_flip(u64 alfa, u64 beta) override;										// check the spin flip element extensive
-	double av_spin_flip(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the spin flip element at input sites (up to 2)
+	double av_spin_flip(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the spin flip element at input sites (up to 2)
 
 	cpx av_spin_current(u64 alfa, u64 beta) override;										// check the extensive spin current
-	cpx av_spin_current(u64 alfa, u64 beta, std::initializer_list<int> sites) override;		// check the spin current at given sites
+	cpx av_spin_current(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the spin current at given sites
 
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators) override;
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) override;
-	sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::initializer_list<int> sites) override;
-
-	template <typename _type>
-	arma::cx_mat generateMatrixElements(_type (IsingModel_disorder::* op)(u64, u64), const IsingModel_disorder& A) {
-		arma::cx_mat mat_elem(A.get_hilbert_size(), A.get_hilbert_size(), arma::fill::zeros);
-		for (long int i = 0; i < A.get_hilbert_size(); i++)
-			for (long int j = i; j < A.get_hilbert_size(); j++)
-				mat_elem(i, j) = (A.*op)(i, j);
-		return mat_elem;
+	sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) override;
+	sp_cx_mat create_LIOMoperator_densities(int n, int j) override { return sp_cx_mat(this->N, this->N); };
+	sp_cx_mat create_LIOMoperator(int n) override {
+		sp_cx_mat LIOM = create_LIOMoperator_densities(n, 0);
+		for (int i = 1; i < this->L; i++)
+			LIOM += create_LIOMoperator_densities(n, i);
+		return LIOM;
 	}
 	mat correlation_matrix(u64 state_id) override;
 
 	double entaglement_entropy(u64 state_id, int subsystem_size) override;
 
-	static std::string set_info(int L, double J, double J0, double g, double g0, double h, double w, std::initializer_list<std::string> skip = {}) {
+	static std::string set_info(int L, double J, double J0, double g, double g0, double h, double w, std::vector<std::string> skip = {}) {
 		std::string name = "_L=" + std::to_string(L) + \
 			",J0=" + to_string_prec(J0, 2) + \
 			",g=" + to_string_prec(g, 2) + \
@@ -406,8 +439,8 @@ arma::vec statistics_average(const arma::vec& data, int num_of_outliers = 3);			
 /// Mapping original energies and matches them by indices
 /// </summary>
 template <typename T1, typename T2>
-std::unordered_map<u64, u64> mapping_sym_to_original(u64 _min, u64 _max, const IsingModel<T1>& symmetry, const IsingModel<T2>& original) {
-	std::unordered_map<u64, u64> map;
+std::unordered_map<uint64_t, uint64_t> mapping_sym_to_original(uint64_t _min, uint64_t _max, const IsingModel<T1>& symmetry, const IsingModel<T2>& original) {
+	std::unordered_map<uint64_t, uint64_t> map;
 	std::vector<double> E_dis = arma::conv_to<std::vector<double>>::from(original.get_eigenvalues());
 	const u64 N_tot = original.get_hilbert_size();
 #pragma omp parallel for

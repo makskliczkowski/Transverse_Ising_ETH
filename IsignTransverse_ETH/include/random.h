@@ -2,7 +2,7 @@
 #ifndef RANDOM_H
 #define RANDOM_H
 
-#include "xoshiro_pp.h"
+//#include "xoshiro_pp.h"
 #include <random>
 #include <ctime>
 #include <numeric>
@@ -12,10 +12,13 @@
 /// </summary>
 class randomGen {
 private:
-	XoshiroCpp::Xoshiro256PlusPlus engine;
+	//XoshiroCpp::Xoshiro256PlusPlus engine; 
+	std::mt19937_64 engine;
+	std::mt19937::result_type seed = 87178291199L;
 public:
 	randomGen(std::uint64_t seed = std::random_device{}()) {
-		this->engine = XoshiroCpp::Xoshiro256PlusPlus(this->SeedInit(seed));
+		//this->engine = XoshiroCpp::Xoshiro256PlusPlus(this->SeedInit(seed));
+		this->engine = std::mt19937_64(seed);
 	}
 	uint64_t SeedInit(uint64_t n) const
 	{
@@ -23,6 +26,9 @@ public:
 		z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9;
 		z = (z ^ (z >> 27)) * 0x94d049bb133111eb;
 		return z ^ (z >> 31);
+	}
+	void reset() {
+		this->engine = std::mt19937_64(seed);
 	}
 
 	/* WRAPPERS ON RANDOM FUNCTIONS */

@@ -359,3 +359,8 @@ MigrationBackup/
 *.zip
 *.pdf
 *.rar
+IsignTransverse_ETH/results/symmetries/PBC/ResponseFun.gp
+IsignTransverse_ETH/results/symmetries/PBC/perturbation data/EnergyDiff/perturbationOperatorsDist_L=18,g=0.80,h=1.10,k=0,p=1,x=1_vs_pert.gif
+IsignTransverse_ETH/results/symmetries/PBC/perturbation data/EnergyDiff/perturbationOperatorsDist_L=18,g=0.80,k=0,p=1,x=1,pert=0.0100_vs_h.gif
+IsignTransverse_ETH/results/symmetries/PBC/perturbation data/OperatorDiff/perturbationOperatorsDist_L=18,g=0.80,k=0,p=1,x=1,pert=0.0010_vs_h.gif
+IsignTransverse_ETH/results/symmetries/PBC/perturbation data/OperatorDiff/perturbationOperatorsDist_L=18,g=0.80,k=0,p=1,x=1,pert=0.0028_vs_h.gif

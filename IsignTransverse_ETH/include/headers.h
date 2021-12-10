@@ -10,7 +10,7 @@
 #include <complex>
 #include <cmath>
 #include <algorithm>
-#include <filesystem>
+//#include <filesystem>
 // armadillo flags:
 #define ARMA_64BIT_WORD // enabling 64 integers in armadillo obbjects
 #define ARMA_BLAS_LONG_LONG // using long long inside LAPACK call
@@ -26,12 +26,32 @@
 #include <utility> // auto, etc.
 #include <memory> // smart ptr
 #include <thread>
+#include <future>
 #include <mutex>
 //#include <condition_variable>
 #include <functional>
 //#include <execution>
-
+#ifdef __has_include
+#  if __has_include(<filesystem>)
+#    include <filesystem>
+#    define have_filesystem 1
+namespace fs = std::filesystem;
+#  elif __has_include(<experimental/filesystem>)
+#    include <experimental/filesystem>
+#    define have_filesystem 1
+#    define experimental_filesystem
+namespace fs = std::experimental::filesystem;
+#  else
+#    define have_filesystem 0
+#  endif
+#endif
 #include "random.h"
+#ifdef _MSC_VER
+	#include <intrin.h>
+	#include <nmmintrin.h>
+	#define __builtin_popcount __popcnt
+	#define __builtin_popcountll _mm_popcnt_u64
+#endif
 
 extern std::random_device rd;
 extern std::mt19937::result_type seed;
@@ -39,7 +59,6 @@ extern std::mt19937_64 gen;
 // ----------------------------------------------------------------------------- namespaces -----------------------------------------------------------------------------
 using namespace std;
 using namespace arma;
-namespace fs = std::filesystem;
 using clk = std::chrono::steady_clock;
 //namespace exec = std::execution;
 
@@ -52,7 +71,7 @@ static const char* kPathSeparator =
 #endif
 
 using cpx = std::complex<double>;
-using op_type = std::function<std::pair<cpx, u64>(u64, int, std::initializer_list<int>)>;
+using op_type = std::function<std::pair<cpx, u64>(u64, int, std::vector<int>)>;
 
 template<class T>
 using v_3d = std::vector<std::vector<std::vector<T>>>;											// 3d double vector
@@ -96,7 +115,7 @@ const v_1d<u64> BinaryPowers = { ULLPOW(0), ULLPOW(1), ULLPOW(2), ULLPOW(3),
 extern int num_of_threads;													// number of threads
 constexpr long double pi = 3.141592653589793238462643383279502884L;			// it is me, pi
 constexpr long double two_pi = 2 * 3.141592653589793238462643383279502884L;	// it is me, 2pi
-const auto global_seed = std::random_device{}();							// global seed for classes
+//const auto global_seed = std::random_device{}();							// global seed for classes
 
 // ----------------------------------------------------------------------------- TIME FUNCTIONS -----------------------------------------------------------------------------
 
@@ -105,6 +124,12 @@ inline double tim_s(clk::time_point start) {
 		std::chrono::high_resolution_clock::now() - start)).count()) / 1000.0;
 }
 // ----------------------------------------------------------------------------- TOOLS -----------------------------------------------------------------------------
+enum class coordinate {
+	x, 
+	y,
+	z,
+	t // 4th coordinate as time
+};
 
 /// <summary>
 /// Calculates the sign of a value

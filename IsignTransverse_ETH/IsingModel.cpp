@@ -75,10 +75,11 @@ template <typename T> void IsingModel<T>::set_neighbors() {
 /// <summary>
 /// General procedure to diagonalize the Hamiltonian using eig_sym from the Armadillo library
 /// </summary>
-template <typename T> void IsingModel<T>::diagonalization() {
+template <typename T> void IsingModel<T>::diagonalization(bool withoutEigenVec) {
 	//out << real(H) << endl;
 	try {
-		arma::eig_sym(eigenvalues, eigenvectors, H);
+		if (withoutEigenVec) arma::eig_sym(this->eigenvalues, this->H);
+		else				 arma::eig_sym(this->eigenvalues, this->eigenvectors, this->H);
 	}
 	catch (const bad_alloc& e) {
 		stout << "Memory exceeded" << e.what() << "\n";
@@ -201,20 +202,20 @@ template <typename T> double IsingModel<T>::information_entropy(u64 _id, const I
 /// <returns></returns>
 template <typename T> double IsingModel<T>::eigenlevel_statistics(u64 _min, u64 _max) {
 	double r = 0;
-	if (_min <= 0) throw "too low index";
-	if (_max >= N) throw "index exceeding Hilbert space";
-
+	if (_min <= 0) assert(false && "too low index");
+	if (_max >= N) assert(false && "index exceeding Hilbert space");
 #pragma omp parallel for reduction(+: r)
 	for (int k = _min; k < _max; k++) {
-		const double delta_n = eigenvalues(k) - eigenvalues(k - 1);
+		const double delta_n	  = eigenvalues(k) - eigenvalues(k - 1);
 		const double delta_n_next = eigenvalues(k + 1) - eigenvalues(k);
 		const double min = std::min(delta_n, delta_n_next);
 		const double max = std::max(delta_n, delta_n_next);
-		if (abs(delta_n) <= 1e-14) throw "Degeneracy!!!\n";
+		if (abs(delta_n) <= 1e-15) assert(false && "Degeneracy!!!\n");
 		r += min / max;
 	}
 	return r / double(_max - _min);
 }
+
 
 /// <summary>
 /// Calculates the energy-level statistics within the energy window denoted by the indices _min and _max
@@ -454,8 +455,8 @@ template IsingModel<double>::~IsingModel();
 template IsingModel<cpx>::~IsingModel();
 template void IsingModel<double>::set_neighbors();
 template void IsingModel<cpx>::set_neighbors();
-template void IsingModel<cpx>::diagonalization();
-template void IsingModel<double>::diagonalization();
+template void IsingModel<cpx>::diagonalization(bool);
+template void IsingModel<double>::diagonalization(bool);
 template double IsingModel<cpx>::eigenlevel_statistics(u64, u64);
 template double IsingModel<double>::eigenlevel_statistics(u64, u64);
 template vec IsingModel<cpx>::eigenlevel_statistics_with_return();

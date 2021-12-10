@@ -110,11 +110,7 @@ cpx IsingModel_sym::get_symmetry_normalization(u64 base_idx) {
 void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id){
 	std::vector<u64> minima(3);
 	for (u64 j = start; j < stop; j++) {
-		if (this->g == 0) {
-			std::vector<bool> base_vector(this->L); // temporary dirac-notation base vector
-			int_to_binary(j, base_vector);
-			if (std::accumulate(base_vector.begin(), base_vector.end(), 0) != this->L / 2.) continue;
-		}
+		if (this->g == 0 && __builtin_popcount(j) != this->L / 2.) continue;
 		auto [SEC, some_value] = find_SEC_representative(j);
 		if (SEC == j) {
 			cpx N = get_symmetry_normalization(j);					// normalisation condition -- check wether state in basis
@@ -232,8 +228,8 @@ void IsingModel_sym::hamiltonian() {
 /// <param name="alfa">Left state</param>
 /// <param name="beta">Right state</param>
 /// <returns>The matrix element</returns>
-double IsingModel_sym::av_sigma_z(u64 alfa, u64 beta, std::initializer_list<int> sites) {
-	auto sig_z = IsingModel_sym::sigma_z;
+double IsingModel_sym::av_sigma_z(u64 alfa, u64 beta, std::vector<int> sites) {
+	auto sig_z = IsingModel::sigma_z;
 	return real(av_operator(alfa, beta, *this, *this, sig_z, sites));
 }
 
@@ -244,7 +240,7 @@ double IsingModel_sym::av_sigma_z(u64 alfa, u64 beta, std::initializer_list<int>
 /// <param name="beta">Right state</param>
 /// <returns>The matrix element</returns>
 double IsingModel_sym::av_sigma_z(u64 alfa, u64 beta) {
-	auto sig_z = IsingModel_sym::sigma_z;
+	auto sig_z = IsingModel::sigma_z;
 	return real(av_operator(alfa, beta, *this, *this, sig_z));
 }
 
@@ -256,7 +252,7 @@ double IsingModel_sym::av_sigma_z(u64 alfa, u64 beta) {
 /// <param name="corr_length">correlation length</param>
 /// <returns>The matrix element</returns>
 double IsingModel_sym::av_sigma_z(u64 alfa, u64 beta, int corr_length) {
-	auto sig_z = IsingModel_sym::sigma_z;
+	auto sig_z = IsingModel::sigma_z;
 	return real(av_operator(alfa, beta, *this, *this, sig_z, corr_length));
 }
 
@@ -267,8 +263,8 @@ double IsingModel_sym::av_sigma_z(u64 alfa, u64 beta, int corr_length) {
 /// <param name="alfa">Left state</param>
 /// <param name="beta">Right state</param>
 /// <returns>The matrix element</returns>
-double IsingModel_sym::av_sigma_x(u64 alfa, u64 beta, std::initializer_list<int> sites) {
-	auto sig_x = IsingModel_sym::sigma_x;
+double IsingModel_sym::av_sigma_x(u64 alfa, u64 beta, std::vector<int> sites) {
+	auto sig_x = IsingModel::sigma_x;
 	return real(av_operator(alfa, beta, *this, *this, sig_x, sites));
 }
 
@@ -279,7 +275,7 @@ double IsingModel_sym::av_sigma_x(u64 alfa, u64 beta, std::initializer_list<int>
 /// <param name="beta">Right state</param>
 /// <returns>The matrix element</returns>
 double IsingModel_sym::av_sigma_x(const u64 alfa, const u64 beta) {
-	auto sig_x = IsingModel_sym::sigma_x;
+	auto sig_x = IsingModel::sigma_x;
 	return real(av_operator(alfa, beta, *this, *this, sig_x));
 }
 
@@ -291,7 +287,7 @@ double IsingModel_sym::av_sigma_x(const u64 alfa, const u64 beta) {
 /// <param name="corr_length">correlation length</param>
 /// <returns>The matrix element</returns>
 double IsingModel_sym::av_sigma_x(u64 alfa, u64 beta, int corr_length) {
-	auto sig_x = IsingModel_sym::sigma_x;
+	auto sig_x = IsingModel::sigma_x;
 	return real(av_operator(alfa, beta, *this, *this, sig_x, corr_length));
 }
 
@@ -302,7 +298,7 @@ double IsingModel_sym::av_sigma_x(u64 alfa, u64 beta, int corr_length) {
 /// <param name="beta"></param>
 /// <returns></returns>
 double IsingModel_sym::av_spin_flip(u64 alfa, u64 beta) {
-	auto spin_flip = IsingModel_sym::spin_flip;
+	auto spin_flip = IsingModel::spin_flip;
 	auto value = av_operator(alfa, beta, *this, *this, spin_flip);
 	value += conj(av_operator(beta, alfa, *this, *this, spin_flip));
 	return 0.5 * real(value);
@@ -315,8 +311,8 @@ double IsingModel_sym::av_spin_flip(u64 alfa, u64 beta) {
 /// <param name="beta"></param>
 /// <param name="sites"></param>
 /// <returns></returns>
-double IsingModel_sym::av_spin_flip(u64 alfa, u64 beta, std::initializer_list<int> sites) {
-	auto spin_flip = IsingModel_sym::spin_flip;
+double IsingModel_sym::av_spin_flip(u64 alfa, u64 beta, std::vector<int> sites) {
+	auto spin_flip = IsingModel::spin_flip;
 	auto value = av_operator(alfa, beta, *this, *this, spin_flip, sites);
 	value += conj(av_operator(beta, alfa, *this, *this, spin_flip, sites));
 	return 0.5 * real(value);
@@ -329,7 +325,7 @@ double IsingModel_sym::av_spin_flip(u64 alfa, u64 beta, std::initializer_list<in
 /// <param name="beta"></param>
 /// <returns></returns>
 cpx IsingModel_sym::av_spin_current(u64 alfa, u64 beta) {
-	auto spin_flip = IsingModel_sym::spin_flip;
+	auto spin_flip = IsingModel::spin_flip;
 	auto value = im * av_operator(alfa, beta, *this, *this, spin_flip, 1);
 	value -= conj(im * av_operator(beta, alfa, *this, *this, spin_flip, 1));
 	return 0.5i * value;
@@ -342,8 +338,8 @@ cpx IsingModel_sym::av_spin_current(u64 alfa, u64 beta) {
 /// <param name="beta"></param>
 /// <param name="sites"></param>
 /// <returns></returns>
-cpx IsingModel_sym::av_spin_current(u64 alfa, u64 beta, std::initializer_list<int> sites) {
-	auto spin_flip = IsingModel_sym::spin_flip;
+cpx IsingModel_sym::av_spin_current(u64 alfa, u64 beta, std::vector<int> sites) {
+	auto spin_flip = IsingModel::spin_flip;
 	auto value = im * av_operator(alfa, beta, *this, *this, spin_flip, sites);
 	value += conj(im * av_operator(beta, alfa, *this, *this, spin_flip, sites));
 	return 0.5i * value;
@@ -378,7 +374,7 @@ mat IsingModel_sym::correlation_matrix(u64 state_idx) {
 /// according states and tries to find a matrix element <alfa|op|beta>. Additionally it takes the
 /// list of sites that the operator works on as a multiplication (f.e. op_0 * op_1 |beta> with {0, 1}
 /// </summary>
-cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::initializer_list<int> sites) {
+cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::vector<int> sites) {
 	// throwables
 	for (auto& site : sites)
 		if ((site < 0 || site >= sec_alfa.L) && sec_alfa.L != sec_beta.L) throw "Site index exceeds chain or incompatible chain lengths. Your choice\n";
@@ -489,7 +485,7 @@ cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingM
 /// <param name="sites">sites that stand for multiplication of operators</param>
 /// <returns> overlap of <alfa| coeff(k) |base_vec> </returns>
 cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, u64 base_vec, u64 k, const IsingModel_sym& sec_alfa, \
-	const IsingModel_sym& sec_beta, op_type op, std::initializer_list<int> sites)
+	const IsingModel_sym& sec_beta, op_type op, std::vector<int> sites)
 {
 	const int L = sec_alfa.L;
 	auto get_overlap_sym = [&](u64 vec_sym, cpx sym_eig) {
@@ -517,11 +513,11 @@ cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_co
 
 
 // ----------------------------------------------------------------------------- WRAPPERS FOR SIGMA OPERATORS - creating matrix -----------------------------------------------------------------------------
-sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators, std::initializer_list<int> sites) {
+sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) {
 	const double G = this->symmetry_group.size();
-	// throwables
-	for (auto& site : sites)
-		if ((site < 0 || site >= this->L)) throw "Site index exceeds chain\n";
+	//// throwables
+	//for (auto& site : sites)
+	//	if ((site < 0 || site >= this->L)) throw "Site index exceeds chain\n";
 	sp_cx_mat operator_matrix(this->N, this->N);
 	for (int i = 0; i < this->N; i++) {
 		const u64 base_vec = this->mapping[i];
@@ -555,7 +551,7 @@ sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operato
 	return operator_matrix / (G * sqrt(this->L));
 }
 
-void IsingModel_sym::set_OperatorElem(std::initializer_list<op_type> operators, std::initializer_list<int> sites, sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx){
+void IsingModel_sym::set_OperatorElem(std::vector<op_type> operators, std::vector<int> sites, sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx){
 	auto set_MatrixElem = [&](u64 vec_sym, cpx sym_eig, op_type op) {
 		auto [op_value, vec_sym_tmp] = op(vec_sym, L, sites);
 		if (abs(op_value) > 1e-14) {
@@ -572,5 +568,52 @@ void IsingModel_sym::set_OperatorElem(std::initializer_list<op_type> operators, 
 			auto symRep = this->symmetry_eigVal[k];
 			set_MatrixElem(sym_operation(base_vec, this->L), symRep, op);
 		}
+	}
+}
+
+sp_cx_mat IsingModel_sym::create_StringOperator(coordinate alfa, coordinate beta, int j, int ell) {
+	if (ell < 0) assert(false && "last argument is positive, duh");
+	op_type op_alfa, op_beta;
+	switch (alfa) {
+		case coordinate::x: op_alfa = IsingModel_sym::sigma_x; break;
+		case coordinate::y: op_alfa = IsingModel_sym::sigma_y; break;
+		case coordinate::z: op_alfa = IsingModel_sym::sigma_z; break;
+	}
+	switch (beta) {
+		case coordinate::x: op_beta = IsingModel_sym::sigma_x; break;
+		case coordinate::y: op_beta = IsingModel_sym::sigma_y; break;
+		case coordinate::z: op_beta = IsingModel_sym::sigma_z; break;
+	}
+	sp_cx_mat SigmaAlfa = create_operator({ op_alfa }, { properSite(j) });
+	sp_cx_mat SigmaBeta = create_operator({ op_beta }, { properSite(j + ell) });
+	sp_cx_mat SigmaZstring;
+	if (ell == 0) {
+		if (alfa == beta && alfa == coordinate::y) return -create_operator({ IsingModel_sym::sigma_z });
+		else assert(false && "Don't know what this could possibly be, check again if you need this");
+	} else if (ell == 1) {
+		SigmaZstring = arma::eye<sp_cx_mat>(this->N, this->N);
+	} else {
+		std::vector<int> sites;
+		for (int k = 1; k <= ell - 1; k++)
+			sites.push_back(properSite(j + k));
+		SigmaZstring = create_operator({ IsingModel_sym::sigma_z }, sites);
+	}
+	return SigmaAlfa * SigmaZstring * SigmaBeta;
+}
+sp_cx_mat IsingModel_sym::create_LIOMoperator_densities(int n, int j) {
+	if (n < 0) assert(false && "Only positive integers for LIOMs");
+	using enum coordinate;
+	auto S = [this](coordinate alfa, coordinate beta, int j, int ell) {
+		return create_StringOperator(alfa, beta, j, ell);
+	};
+	if (n % 2 == 0) {
+		if (n == 0) 
+			return SpMat<cpx>(this->H);
+		else
+			return this->J * (S(x, x, j, j + n) + S(y, y, j, j + n - 2)) 
+				+ this->g * (S(x, x, j, j + n - 1) + S(y, y, j, j + n - 1));
+	}
+	else {
+		return S(x, y, j, j + n) - S(y, x, j, j + n);
 	}
 }
