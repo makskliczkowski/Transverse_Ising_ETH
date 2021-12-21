@@ -329,6 +329,59 @@ vec IsingModel<T>::operator_av_in_eigenstates_return(double (IsingModel<T>::* op
 	return temp;
 }
 
+//-------------------------------------------------------------------------------------------------LIOMs
+
+template <typename _type>
+sp_cx_mat IsingModel<_type>::create_StringOperator(coordinate alfa, coordinate beta, int j, int ell) {
+	if (ell < 0) assert(false && "last argument is positive, duh");
+	op_type op_alfa, op_beta;
+	switch (alfa) {
+	case coordinate::x: op_alfa = IsingModel::sigma_x; break;
+	case coordinate::y: op_alfa = IsingModel::sigma_y; break;
+	case coordinate::z: op_alfa = IsingModel::sigma_z; break;
+	}
+	switch (beta) {
+	case coordinate::x: op_beta = IsingModel::sigma_x; break;
+	case coordinate::y: op_beta = IsingModel::sigma_y; break;
+	case coordinate::z: op_beta = IsingModel::sigma_z; break;
+	}
+	sp_cx_mat SigmaAlfa = create_operator({ op_alfa }, { properSite(j) });
+	sp_cx_mat SigmaBeta = create_operator({ op_beta }, { properSite(j + ell) });
+	sp_cx_mat SigmaZstring;
+	if (ell == 0) {
+		if (alfa == beta && alfa == coordinate::y) return -create_operator({ IsingModel_sym::sigma_z });
+		else assert(false && "Don't know what this could possibly be, check again if you need this");
+	}
+	else if (ell == 1) {
+		SigmaZstring = arma::eye<sp_cx_mat>(this->N, this->N);
+	}
+	else {
+		std::vector<int> sites;
+		for (int k = 1; k <= ell - 1; k++)
+			sites.push_back(properSite(j + k));
+		SigmaZstring = create_operator({ IsingModel_sym::sigma_z }, sites);
+	}
+	return SigmaAlfa * SigmaZstring * SigmaBeta;
+}
+
+template <typename _type>
+sp_cx_mat IsingModel<_type>::create_LIOMoperator_densities(int n, int j) {
+	if (n < 0) assert(false && "Only positive integers for LIOMs");
+	auto S = [this](coordinate alfa, coordinate beta, int j, int ell) {
+		return create_StringOperator(alfa, beta, j, ell);
+	};
+	if (n % 2 == 0) {
+		//if (n == 0)
+		//	return SpMat<cpx>(arma::real(this->H), arma::imag(this->H));
+		//else
+			return this->J * (S(coordinate::x, coordinate::x, j, j + n) + S(coordinate::y, coordinate::y, j, j + n - 2))
+			+ this->g * (S(coordinate::x, coordinate::x, j, j + n - 1) + S(coordinate::y, coordinate::y, j, j + n - 1));
+	}
+	else {
+		return S(coordinate::x, coordinate::y, j, j + n) - S(coordinate::y, coordinate::x, j, j + n);
+	}
+}
+
 // ------------------------------------------------------------------------------------------------ STATISTICS AND PROBABILITIES ------------------------------------------------------------------------------------------------
 
 /// <summary>
@@ -340,7 +393,7 @@ void probability_distribution(std::string dir, std::string name, const arma::vec
 		n_bins = 1 + 3.322 * log(data.size());
 	double _min = arma::min(data);
 	double _max = arma::max(data);
-	arma::vec prob_dist(n_bins, arma::fill::zeros);
+	arma::vec prob_dist(n_bins + 1, arma::fill::zeros);
 	prob_dist = normalise_dist(arma::conv_to<arma::vec>::from(arma::hist(data, n_bins)), _min, _max);
 	const double std_dev = arma::stddev(data);
 	const double mean = 0.0;// arma::mean(data);
@@ -358,9 +411,8 @@ void probability_distribution(std::string dir, std::string name, const arma::vec
 arma::vec probability_distribution_with_return(const arma::vec& data, int n_bins) {
 	if (n_bins <= 0)
 		n_bins = 1 + 3.322 * log(data.size());
-	arma::vec prob_dist(n_bins, arma::fill::zeros);
-	prob_dist = arma::conv_to<arma::vec>::from(arma::hist(data, n_bins));
-	return normalise_dist(prob_dist, arma::min(data), arma::max(data));
+	return normalise_dist(arma::conv_to<arma::vec>::from(arma::hist(data, n_bins)),
+		arma::min(data), arma::max(data));
 }
 
 /// <summary>
@@ -477,3 +529,7 @@ template double IsingModel<double>::mean_level_spacing_av(u64, u64);
 template double IsingModel<cpx>::mean_level_spacing_av(u64, u64);
 template double IsingModel<double>::mean_level_spacing_trace();
 template double IsingModel<cpx>::mean_level_spacing_trace();
+template sp_cx_mat IsingModel<cpx>::create_StringOperator(coordinate, coordinate, int,int);
+template sp_cx_mat IsingModel<double>::create_StringOperator(coordinate, coordinate, int, int);
+template sp_cx_mat IsingModel<cpx>::create_LIOMoperator_densities(int, int);
+template sp_cx_mat IsingModel<double>::create_LIOMoperator_densities(int, int);

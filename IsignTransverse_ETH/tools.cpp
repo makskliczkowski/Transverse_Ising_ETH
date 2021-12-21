@@ -85,14 +85,14 @@ double simpson_rule(double a, double b, int n, const arma::vec& f) {
 #pragma omp parallel for reduction(+: sum_odds)
 	for (int i = 1; i < n; i += 2) {
 		int idx = ((a + i * h) + abs(a)) / h;
-		sum_odds += f(idx);
+		sum_odds += (idx < f.size()) ? f(idx) : 0.0;
 	}
 
 	double sum_evens = 0.0;
 #pragma omp parallel for reduction(+: sum_evens)
 	for (int i = 2; i < n; i += 2) {
 		int idx = ((a + i * h) + abs(a)) / h;
-		sum_evens += f(idx);
+		sum_evens += (idx < f.size()) ? f(idx) : 0.0;
 	}
 
 	return (f(0) + f(f.size() - 1) + 2 * sum_evens + 4 * sum_odds) * h / 3;

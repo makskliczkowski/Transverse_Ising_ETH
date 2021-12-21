@@ -136,8 +136,11 @@ namespace isingUI
 		//-------------------------------------------------------------------------- SPECTRAL PROPERTIES
 		template <typename _type> void spectralFunction(IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, std::string name);
 		template <typename _type> void timeEvolution(IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, std::string name);
-		
-		template <typename _type> std::pair<double, double> operator_norm(std::initializer_list<op_type> operators, IsingModel<_type>& alfa, int k_sym = 0, bool p_sym = 1, bool x_sym = 1);
+		template <typename _type> void IsingLIOMs(IsingModel<_type>& alfa);
+		void TFIsingLIOMs(IsingModel_sym& alfa);
+
+		template <typename _type> void LevelSpacingDist(IsingModel<_type>& alfa);
+		template <typename _type> std::pair<double, double> operator_norm(arma::sp_cx_mat& opMatrix, IsingModel<_type>& alfa);
 		void adiabaticGaugePotential(bool SigmaZ = 0, bool avSymSectors = 0);
 		template <typename _type> void energyEvolution(IsingModel<_type>& model);
 

@@ -214,10 +214,22 @@ public:
 	virtual sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) = 0;
 	virtual sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) = 0;
 	// transverse-field Ising LIOMs operator densities
-	virtual sp_cx_mat create_LIOMoperator_densities(int n, int j) = 0;
-	virtual sp_cx_mat create_LIOMoperator(int n) = 0;
+	sp_cx_mat create_StringOperator(coordinate alfa, coordinate beta, int j, int k);
+	sp_cx_mat create_LIOMoperator_densities(int n, int ell);
+	sp_cx_mat create_LIOMoperator(int n) {
+		sp_cx_mat LIOM = create_LIOMoperator_densities(n, 0);
+		for (int i = 1; i < this->L; i++)
+			LIOM += create_LIOMoperator_densities(n, i);
+		return LIOM;
+	}
+
 };
 
+inline void normaliseOp(arma::sp_cx_mat& op) {
+	const u64 N = op.n_cols;
+	const cpx norm = arma::trace(op * op) / double(N);
+	op /= (abs(norm) <= 1e-12) ? 1. : norm; // normalize if non-zero norm
+}
 // ----------------------------------------- SYMMETRIC -----------------------------------------
 /// <summary>
 /// Model with included symmetries and uniform perpendicular magnetic field
@@ -329,15 +341,7 @@ public:
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) override;
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) override;
 	void set_OperatorElem(std::vector<op_type> operators, std::vector<int> sites, sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx);
-	sp_cx_mat create_StringOperator(coordinate alfa, coordinate beta, int j, int k);
-	sp_cx_mat create_LIOMoperator_densities(int n, int ell) override;
-	sp_cx_mat create_LIOMoperator(int n) override {
-		sp_cx_mat LIOM = create_LIOMoperator_densities(n, 0);
-		for (int i = 1; i < this->L; i++)
-			LIOM += create_LIOMoperator_densities(n, i);
-		return LIOM;
-	}
-
+	
 	mat correlation_matrix(u64 state_id) override;
 };
 
@@ -390,13 +394,6 @@ public:
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators) override;
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) override;
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) override;
-	sp_cx_mat create_LIOMoperator_densities(int n, int j) override { return sp_cx_mat(this->N, this->N); };
-	sp_cx_mat create_LIOMoperator(int n) override {
-		sp_cx_mat LIOM = create_LIOMoperator_densities(n, 0);
-		for (int i = 1; i < this->L; i++)
-			LIOM += create_LIOMoperator_densities(n, i);
-		return LIOM;
-	}
 	mat correlation_matrix(u64 state_id) override;
 
 	cpx av_operator(u64 alfa, u64 beta, op_type op, std::vector<int> sites);	// calculates the matrix element of operator at given site
