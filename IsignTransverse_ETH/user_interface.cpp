@@ -96,6 +96,8 @@ void isingUI::ui::set_default() {
 	this->gn = 1;
 
 	this->g0 = 0;
+	this->g0s = 0.0;
+	this->g0n = 1;
 
 	this->symmetries.k_sym = 0;
 	this->symmetries.p_sym = 0;
@@ -145,6 +147,8 @@ void isingUI::ui::exit_with_help() const {
 		"-gs transverse magnetic field (x-) constant step: (default 0.0)\n"
 		"-gn transverse magnetic field (x-) constant number: (default 1)\n"
 		"-g0 random transverse field set in uniform distribution [-g0,g0]\n"
+		"-g0s transverse disorder strength step: (default 0.0)\n"
+		"-g0n transverse disorder strength number: (default 1)\n"
 		"-h perpendicular (z-) magnetic field constant: (default 0)\n"
 		"-hs perpendicular (z-) magnetic field constant step: (default 0.0)\n"
 		"-hn perpendicular (z-) magnetic field constant number: (default 1)\n"
@@ -204,6 +208,10 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv) {
 	// transverse field disorder
 	choosen_option = "-g0";
 	this->set_option(this->g0, argv, choosen_option);
+	choosen_option = "-g0s";
+	this->set_option(this->g0s, argv, choosen_option);
+	choosen_option = "-g0n";
+	this->set_option(this->g0n, argv, choosen_option);
 
 	// perpendicular field
 	choosen_option = "-h";
@@ -1733,122 +1741,127 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 	const double delta = 0.025 * this->L; // width of offdiagonal in taking off-diagonal matrix elements -- to be updated maybe
 	const int M = 500;					  // number of states taken across the offdiagonal -- for now chosen randomly
 	const double w_end = this->w + this->wn * this->ws;
-	for (double my_w = this->w; my_w <= w_end; my_w += this->ws) {
-		// generator 
-		seed = 2718281828459L;
-		gen = std::mt19937_64(seed);
-		Hamil.reset(new IsingModel_disorder(L, J, J0, g, 0.0, h, my_w));
-		stout << "\n\n------------------------------ Doing : " << \
-			Hamil->get_info() << "------------------------------\n";
-		
-		std::ofstream map;
-		openFile(map, this->saving_dir + "map.dat", ios::out);
+	const double g0_end = this->g0 + this->g0n * this->g0s;
+	for (double my_g0 = this->g0; my_g0 < g0_end; my_g0 += this->g0s) {
+		for (double my_w = this->w; my_w < w_end; my_w += this->ws) {
+			// generator 
+			seed = 2718281828459L;
+			gen = std::mt19937_64(seed);
+			Hamil.reset(new IsingModel_disorder(this->L, this->J, this->J0, this->g, my_g0, this->h, my_w));
+			stout << "\n\n------------------------------ Doing : " << \
+				Hamil->get_info() << "------------------------------\n";
 
-		//create main folder
-		const std::string saving_folder = this->saving_dir + Hamil->get_info() + kPSep;
-		fs::create_directories(saving_folder);
+			std::ofstream map;
+			openFile(map, this->saving_dir + "map.dat", ios::out);
+			printSeparated(map, "\t", { "umubare", "trans imvururu", "long imvururu", "si", "er", "erwar" }, 10, true);
 
-		// make folders for each operator separetely
-		std::vector<std::string> opDirDiag, opDirNonDiag;
-		const std::string saving_folder_wave = saving_folder + "wavefunctions" + kPSep;
-		fs::create_directories(saving_folder_wave);
+			//create main folder
+			const std::string saving_folder = this->saving_dir + Hamil->get_info() + kPSep;
+			fs::create_directories(saving_folder);
 
-		for (auto& opName : names) {
-			const std::string saving_folder_operator = saving_folder + opName;
-			fs::create_directories(saving_folder_operator);
-			const std::string saving_folder_nondiag = saving_folder_operator + "NonDiagonalMatrixElements" + kPSep;
-			const std::string saving_folder_diag = saving_folder_operator + "DiagonalMatrixElements" + kPSep;
-			fs::create_directories(saving_folder_diag);
-			fs::create_directories(saving_folder_nondiag);
-			opDirDiag.push_back(saving_folder_nondiag);
-			opDirNonDiag.push_back(saving_folder_nondiag); 
-		}
+			// make folders for each operator separetely
+			std::vector<std::string> opDirDiag, opDirNonDiag;
+			const std::string saving_folder_wave = saving_folder + "wavefunctions" + kPSep;
+			fs::create_directories(saving_folder_wave);
 
-		for (int realis = 0; realis < realisations; realis++) {
-			Hamil->hamiltonian(); // restart Hamiltonian for new values of disorder
-			Hamil->diagonalization();
-			stout << " \t\t--> finished diagonalizing for " << Hamil->get_info() << \
-				" - in time : " << tim_s(start) << "s. Realisation -> " << realis << "\n";
-
-			// set states from the middle of the spectrum
-			this->mu = (M > N) ? 0.5 * N : M / 2; // to include small system not not exceed Hilbert space
-			long int E_min = Hamil->E_av_idx - mu / 2.;
-			long int E_max = Hamil->E_av_idx + mu / 2.;
-
-			double r = 0, c = 0, r_var = 0;
-			for (int k = E_min; k < E_max; k++) {
-				double level_stat = Hamil->eigenlevel_statistics(k, k + 1);
-				r += level_stat;
-				r_var += level_stat * level_stat;
+			for (auto& opName : names) {
+				const std::string saving_folder_operator = saving_folder + opName;
+				fs::create_directories(saving_folder_operator);
+				const std::string saving_folder_nondiag = saving_folder_operator + "NonDiagonalMatrixElements" + kPSep;
+				const std::string saving_folder_diag = saving_folder_operator + "DiagonalMatrixElements" + kPSep;
+				fs::create_directories(saving_folder_diag);
+				fs::create_directories(saving_folder_nondiag);
+				opDirDiag.push_back(saving_folder_nondiag);
+				opDirNonDiag.push_back(saving_folder_nondiag);
 			}
-			r /= double(E_min - E_max);		// 1st moment - mean
-			r_var /= double(E_min - E_max); // 2nd moment
-			r_var = r_var - r * r;			// variance
 
-			arma::mat H_diag = arma::diagmat(Hamil->get_hamiltonian());
-			arma::mat H_offdiag = Hamil->get_hamiltonian() - H_diag;
-			c += matrixVariance(H_diag) / matrixVariance(H_offdiag);
+			for (int realis = 0; realis < realisations; realis++) {
+				Hamil->hamiltonian(); // restart Hamiltonian for new values of disorder
+				Hamil->diagonalization();
+				stout << " \t\t--> finished diagonalizing for " << Hamil->get_info() << \
+					" - in time : " << tim_s(start) << "s. Realisation -> " << realis << "\n";
 
-			// iterate over input lists
-			for (int q = 0; q < operators.size(); q++) {
-				// assign by iterator
-				op_type op = *(operators.begin() + q);
-				std::string opName = *(names.begin() + q);
+				// set states from the middle of the spectrum
+				this->mu = (M > N) ? 0.5 * N : M / 2; // to include small system not not exceed Hilbert space
+				long int E_min = Hamil->E_av_idx - mu / 2.;
+				long int E_max = Hamil->E_av_idx + mu / 2.;
 
-				// make file for log
-				std::ofstream MatElemDiag;
-				std::ofstream MatElemLogNonDiag;
-				// save to wavefunctions log
-				openFile(MatElemDiag, opDirDiag[q] + "MatrixElements_" + std::to_string(realis) + ".dat"\
-					, ios::out);
-				openFile(MatElemLogNonDiag, opDirNonDiag[q] + "MatrixElements_" + std::to_string(realis) + ".dat"\
-					, ios::out);
-
-				printSeparated(MatElemDiag, "\t", { "stateNum" }, 10, false);
-				printSeparated(MatElemLogNonDiag, "\t", { "<i|j>" }, 10, false);
-				for (int i = 0; i < this->L; i++) {
-					printSeparated(MatElemDiag, "\t", { opName + "(" + std::to_string(i) + ")" }, 10, false);
-					printSeparated(MatElemLogNonDiag, "\t", { opName + "(" + std::to_string(i) + ")" }, 10, false);
+				// calculate level statistics 
+				double r = 0, c = 0, r_var = 0;
+				for (int k = E_min; k < E_max; k++) {
+					double level_stat = Hamil->eigenlevel_statistics(k, k + 1);
+					r += level_stat;
+					r_var += level_stat * level_stat;
 				}
-				printSeparated(MatElemDiag, "\t", { "E_i" }, 10, true);
-				printSeparated(MatElemLogNonDiag, "\t", { "E_i - E_j" }, 10, true);
+				r /= double(E_min - E_max);		// 1st moment - mean
+				r_var /= double(E_min - E_max); // 2nd moment
+				r_var = r_var - r * r;			// variance
 
-				stout << "\n\n\t\t\t------------------------------ Starting operator " + opName + " for: " << \
-					Hamil->get_info() << "------------------------------\n";
-				// go through the eigenstates
-				for (u64 k = E_min; k < E_max; k++) {
-					std::string wavename = std::to_string(k) + "," + std::to_string(realis) + "," + to_string_prec(my_w, 2) + "," + to_string_prec(c, 8);
-					std::ofstream wavefunctionsLog;
-					openFile(wavefunctionsLog, wavename + ".dat"\
+				arma::mat H_diag = arma::diagmat(Hamil->get_hamiltonian());
+				arma::mat H_offdiag = Hamil->get_hamiltonian() - H_diag;
+				c += matrixVariance(H_diag) / matrixVariance(H_offdiag);
+
+				// iterate over input lists
+				for (int q = 0; q < operators.size(); q++) {
+					// assign by iterator
+					op_type op = *(operators.begin() + q);
+					std::string opName = *(names.begin() + q);
+
+					// make file for log
+					std::ofstream MatElemDiag;
+					std::ofstream MatElemLogNonDiag;
+					// save to wavefunctions log
+					openFile(MatElemDiag, opDirDiag[q] + "MatrixElements_" + std::to_string(realis) + ".dat"\
 						, ios::out);
-					const int idx = k - E_min;
-					// check sigma_x
-					// print k state
-					printSeparated(MatElemDiag, "\t", { std::to_string(k) }, 6, false);
-					for (int i = 0; i < this->L; i++) {
-						const auto opElem = Hamil->av_operator(k, k, op, { i });
-						//const auto opElem = Hamil->av_op
-						printSeparated(MatElemDiag, "\t", { to_string_prec(opElem,8) }, 10, false);
-					}
-					printSeparated(MatElemDiag, "\t", { to_string_prec(Hamil->get_eigenEnergy(k),8) }, 10, true);
+					openFile(MatElemLogNonDiag, opDirNonDiag[q] + "MatrixElements_" + std::to_string(realis) + ".dat"\
+						, ios::out);
 
-					// give nondiagonal elements
-					long int k2 = N - k;
-					printSeparated(MatElemLogNonDiag, "\t", { "<" + std::to_string(k) + "|" + std::to_string(k2) + ">" }, 10, false);
+					printSeparated(MatElemDiag, "\t", { "stateNum" }, 10, false);
+					printSeparated(MatElemLogNonDiag, "\t", { "<i|j>" }, 10, false);
 					for (int i = 0; i < this->L; i++) {
-						const auto opElem = Hamil->av_operator(k, k2, op, { i });
-						printSeparated(MatElemLogNonDiag, "\t", { to_string_prec(opElem, 8) }, 10, false);
+						printSeparated(MatElemDiag, "\t", { opName + "(" + std::to_string(i) + ")" }, 10, false);
+						printSeparated(MatElemLogNonDiag, "\t", { opName + "(" + std::to_string(i) + ")" }, 10, false);
 					}
-					printSeparated(MatElemLogNonDiag, "\t", { to_string_prec(Hamil->get_eigenEnergy(k) - Hamil->get_eigenEnergy(k2),8) }, 10, true);
-					wavefunctionsLog << Hamil->get_eigenState(k);
-					wavefunctionsLog.close();
+					printSeparated(MatElemDiag, "\t", { "E_i" }, 10, true);
+					printSeparated(MatElemLogNonDiag, "\t", { "E_i - E_j" }, 10, true);
+
+					stout << "\n\n\t\t\t------------------------------ Starting operator " + opName + " for: " << \
+						Hamil->get_info() << "------------------------------\n";
+					// go through the eigenstates
+					for (u64 k = E_min; k < E_max; k++) {
+						std::string wavename = std::to_string(k) + "," + std::to_string(realis) + "," + to_string_prec(my_w, 2) + "," + to_string_prec(c, 8);
+						std::ofstream wavefunctionsLog;
+						openFile(wavefunctionsLog, wavename + ".dat"\
+							, ios::out);
+						const int idx = k - E_min;
+						// check sigma_x
+						// print k state
+						printSeparated(MatElemDiag, "\t", { std::to_string(k) }, 6, false);
+						for (int i = 0; i < this->L; i++) {
+							const auto opElem = Hamil->av_operator(k, k, op, { i });
+							//const auto opElem = Hamil->av_op
+							printSeparated(MatElemDiag, "\t", { to_string_prec(opElem,8) }, 10, false);
+						}
+						printSeparated(MatElemDiag, "\t", { to_string_prec(Hamil->get_eigenEnergy(k),8) }, 10, true);
+
+						// give nondiagonal elements
+						long int k2 = N - k;
+						printSeparated(MatElemLogNonDiag, "\t", { "<" + std::to_string(k) + "|" + std::to_string(k2) + ">" }, 10, false);
+						for (int i = 0; i < this->L; i++) {
+							const auto opElem = Hamil->av_operator(k, k2, op, { i });
+							printSeparated(MatElemLogNonDiag, "\t", { to_string_prec(opElem, 8) }, 10, false);
+						}
+						printSeparated(MatElemLogNonDiag, "\t", { to_string_prec(Hamil->get_eigenEnergy(k) - Hamil->get_eigenEnergy(k2),8) }, 10, true);
+						wavefunctionsLog << Hamil->get_eigenState(k);
+						wavefunctionsLog.close();
+					}
+					MatElemDiag.close();
+					MatElemLogNonDiag.close();
 				}
-				MatElemDiag.close();
-				MatElemLogNonDiag.close();
+				printSeparated(map, "\t", { (double)realis, my_g0, my_w, c, r, r_var }, 10, true);
 			}
-			printSeparated(map, "\t", { (double)realis, my_w, c, r, r_var }, 10, true);
+			map.close();
 		}
-		map.close();
 	}
 }
 
@@ -1862,7 +1875,7 @@ void isingUI::ui::make_sim(){
 	//disorder();
 	//adiabaticGaugePotential(0, 0);
 	//auto params = arma::logspace(-4, 0, 200);
-	auto params = arma::linspace(this->h, this->h + this->hn * this->hs, this->hn );
+	//auto params = arma::linspace(this->h, this->h + this->hn * this->hs, this->hn );
 	
 	//std::vector<double> params = { 1e-4, 5e-4, 1e-3, 5e-3 , 1e-2, 5e-2, 1e-1, 1.5e-1, 2e-1, 2.5e-1, 3.0e-1};
 	//std::vector<double> params = {this->h};

@@ -60,12 +60,14 @@ namespace isingUI
 		{"hn","1"},						// longitudal magnetic field sweep number
 		{"hs","0.0"},					// longitudal magnetic field sweep step
 		{"w","1.0"},					// disorder strength
-		{"wn","1"},						// disorder change number
-		{"ws","0.0"},					// disorder change step
+		{"wn","1"},						// longitudal disorder change number
+		{"ws","0.0"},					// longitudal disorder change step
 		{"g","1.0"},					// transverse magnetic field constant
 		{"gn","1"},						// parameter scaling g number
 		{"gs","0.0"},					// parameter scaling g step
 		{"g0","0.0"},					// transverse field randomness maximum (-g0 to g0)
+		{"g0n","1"},						// transverse disorder change number
+		{"g0s","0.0"},					// transverse disorder change step
 		{"L","4"},						// chain length
 		{"Ln","1"},						// chain length step in size scaling
 		{"Ls","0"},						// number of chain lengths in size scaling
@@ -87,8 +89,8 @@ namespace isingUI
 	protected:
 		// MODEL PARAMETERS
 		double J, h, g;																	// external fields
-		int hn, gn, wn;																	// external fields number of points
-		double hs, gs, ws;																// external fields step
+		int hn, gn, wn, g0n;															// external fields number of points
+		double hs, gs, ws, g0s;															// external fields step
 		double w, g0, J0;																// disorder strengths
 		int L, Ls, Ln, m;																// lattice params
 		bool p, q;																		//
