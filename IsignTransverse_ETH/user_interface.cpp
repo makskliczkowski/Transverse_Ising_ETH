@@ -1727,7 +1727,7 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 	using namespace std::chrono;
 	clk::time_point start = std::chrono::high_resolution_clock::now();
 	// diorder :3
-	auto Hamil = std::make_unique<IsingModel_disorder>(L, J, J0, g, 0.0, h, this->w - this->ws);
+	auto Hamil = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w - this->ws);
 	const u64 N = Hamil->get_hilbert_size();
 	const int realisations = 50;
 	const double delta = 0.025 * this->L; // width of offdiagonal in taking off-diagonal matrix elements -- to be updated maybe
@@ -1752,6 +1752,7 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 		std::vector<std::string> opDirDiag, opDirNonDiag;
 		const std::string saving_folder_wave = saving_folder + "wavefunctions" + kPSep;
 		fs::create_directories(saving_folder_wave);
+
 		for (auto& opName : names) {
 			const std::string saving_folder_operator = saving_folder + opName;
 			fs::create_directories(saving_folder_operator);
@@ -1770,7 +1771,7 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 				" - in time : " << tim_s(start) << "s. Realisation -> " << realis << "\n";
 
 			// set states from the middle of the spectrum
-			this->mu = (M > N) ? 0.5 * N : M / 2;
+			this->mu = (M > N) ? 0.5 * N : M / 2; // to include small system not not exceed Hilbert space
 			long int E_min = Hamil->E_av_idx - mu / 2.;
 			long int E_max = Hamil->E_av_idx + mu / 2.;
 
@@ -1780,8 +1781,9 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 				r += level_stat;
 				r_var += level_stat * level_stat;
 			}
-			r /= double(E_min - E_max);
-			r_var /= double(E_min - E_max);
+			r /= double(E_min - E_max);		// 1st moment - mean
+			r_var /= double(E_min - E_max); // 2nd moment
+			r_var = r_var - r * r;			// variance
 
 			arma::mat H_diag = arma::diagmat(Hamil->get_hamiltonian());
 			arma::mat H_offdiag = Hamil->get_hamiltonian() - H_diag;
@@ -1802,8 +1804,8 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 				openFile(MatElemLogNonDiag, opDirNonDiag[q] + "MatrixElements_" + std::to_string(realis) + ".dat"\
 					, ios::out);
 
-				printSeparated(MatElemDiag, "\t", { "filenum" }, 10, false);
-				printSeparated(MatElemLogNonDiag, "\t", { "<alfa|beta>" }, 10, false);
+				printSeparated(MatElemDiag, "\t", { "stateNum" }, 10, false);
+				printSeparated(MatElemLogNonDiag, "\t", { "<i|j>" }, 10, false);
 				for (int i = 0; i < this->L; i++) {
 					printSeparated(MatElemDiag, "\t", { opName + "(" + std::to_string(i) + ")" }, 10, false);
 					printSeparated(MatElemLogNonDiag, "\t", { opName + "(" + std::to_string(i) + ")" }, 10, false);
@@ -1860,25 +1862,27 @@ void isingUI::ui::make_sim(){
 	//disorder();
 	//adiabaticGaugePotential(0, 0);
 	//auto params = arma::logspace(-4, 0, 200);
-	auto params = arma::linspace(this->h, this->h + this->hn * this->hs, this->hn + 1);
+	auto params = arma::linspace(this->h, this->h + this->hn * this->hs, this->hn );
 	
 	//std::vector<double> params = { 1e-4, 5e-4, 1e-3, 5e-3 , 1e-2, 5e-2, 1e-1, 1.5e-1, 2e-1, 2.5e-1, 3.0e-1};
 	//std::vector<double> params = {this->h};
 	//std::vector<double> params = { 0.8 };
-	const int Lmin = this->L;
-	const double gmin = this->g;
-	for (int system_size = Lmin; system_size < Lmin + this->Ls * this->Ln; system_size += this->Ls) {
+	const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
+	const double gmin = this->g, gmax = this->g + this->gn * this->gs;
+	const double hmin = this->h, hmax = this->h + this->hn * this->hs;
+	for (int system_size = Lmin; system_size < Lmax; system_size += this->Ls) {
 		//stout << "\nL = " << system_size << "\n";
 		std::ofstream map;
 		openFile(map, this->saving_dir + "FullMap" + IsingModel_sym::set_info(system_size, J, g, h, \
 			this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, { "h", "g" }) + ".dat", ios::out);
-		for (double gx = gmin; gx < gmin + this->gn * this->gs; gx += this->gs) {
+		for (double gx = gmin; gx < gmax; gx += this->gs) {
 			//stout << "\ng = " << gx << "\n";
 		//std::ofstream norm(this->saving_dir + "levelStat" + \
 				IsingModel_sym::set_info(system_size, J, gx, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, { "h" }) + ".txt");
-			for (auto& hx : params) {
+			for (double hx = hmin; hx < hmin; hx += this->hs) {
 				const auto start_loop = std::chrono::high_resolution_clock::now();
 				stout << "h = " << hx << "\t\t";
+				saveDataForAutoEncoder_disorder({ IsingModel_sym::sigma_x , IsingModel_sym::sigma_z }, { "SigmaX","SigmaZ" });
 				//this->L = system_size;
 				//this->g = gx;
 				//this->h = hx;
@@ -1886,36 +1890,37 @@ void isingUI::ui::make_sim(){
 				//auto alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, 0, this->g, 0, hx, 5e-2, 0);
 				//alfa->reset_random();
 				//alfa->hamiltonian();
-				auto alfa = std::make_unique<IsingModel_sym>(system_size, this->J, gx, hx, \
-					this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-				stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
-				alfa->diagonalization();
-				stout << " \t\t	--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
-				const u64 N = alfa->get_hilbert_size();
-				this->mu = 0.5 * N;
-				long int E_min = alfa->E_av_idx - mu / 2.;
-				long int E_max = alfa->E_av_idx + mu / 2.;
-
-				double r = 0, ipr = 0, S = 0;
-				for (long int k = E_min; k < E_max; k++) {
-					r += alfa->eigenlevel_statistics(k, k + 1);
-					ipr += alfa->ipr(k);
-					S += alfa->information_entropy(k);
-				}
-				r /= double(E_max - E_min);
-				ipr /= double(E_max - E_min) * N;
-				S /= double(E_max - E_min);
-				int nums = 10;
-				for (int i = 0; i < nums; i++) {
-					double dg = alfa->getRandomValue(-gx / 100., gx / 100.);
-					auto beta = std::make_unique<IsingModel_sym>(system_size, this->J, gx + dg, hx, \
-						this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-					beta->diagonalization();
-					r += beta->eigenlevel_statistics(E_min, E_max);
-				}
-				r /= double(nums + 1);
-
-				printSeparated(map, "\t", { gx, hx, r,ipr,S }, 12, true);
+				//auto alfa = std::make_unique<IsingModel_sym>(system_size, this->J, gx, hx, \
+				//	this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+				//stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
+				//alfa->diagonalization();
+				//stout << " \t\t	--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
+				//const u64 N = alfa->get_hilbert_size();
+				//this->mu = 0.5 * N;
+				//long int E_min = alfa->E_av_idx - mu / 2.;
+				//long int E_max = alfa->E_av_idx + mu / 2.;
+				//
+				//double r = 0, ipr = 0, S = 0;
+				//for (long int k = E_min; k < E_max; k++) {
+				//	r += alfa->eigenlevel_statistics(k, k + 1);
+				//	ipr += alfa->ipr(k);
+				//	S += alfa->information_entropy(k);
+				//}
+				//r /= double(E_max - E_min);
+				//ipr /= double(E_max - E_min) * N;
+				//S /= double(E_max - E_min);
+				//int nums = 10;
+				//for (int i = 0; i < nums; i++) {
+				//	double dg = alfa->getRandomValue(-gx / 100., gx / 100.);
+				//	auto beta = std::make_unique<IsingModel_sym>(system_size, this->J, gx + dg, hx, \
+				//		this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+				//	beta->diagonalization();
+				//	r += beta->eigenlevel_statistics(E_min, E_max);
+				//}
+				//r /= double(nums + 1);
+				//
+				//printSeparated(map, "\t", { gx, hx, r,ipr,S }, 12, true);
+				
 				//probability_distribution(this->saving_dir + "LevelSpacing" + kPSep, "LevelSpacing" + alfa->get_info({}), level_spacing);
 
 				//IsingLIOMs(*alfa);
