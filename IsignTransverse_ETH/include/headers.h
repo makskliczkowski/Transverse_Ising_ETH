@@ -463,13 +463,13 @@ template <typename _Ty>
 inline _Ty matrixVariance(const arma::Mat<_Ty>& mat) {
 	_Ty var = 0, mean = 0;
 #pragma omp parallel for reduction(+: var, mean) collapse(2)
-	for (long int n = 0; n < mat.size(); n++)
-		for (long int m = 0; m < mat.size(); m++) {
+	for (long int n = 0; n < mat.n_cols; n++)
+		for (long int m = 0; m < mat.n_rows; m++) {
 			var += mat(n, m) * mat(n, m);
 			mean += mat(n, m);
 		}
-	var /= double(mat.n_cols);
-	mean /= double(mat.n_cols);
+	var /= double(mat.n_cols*mat.n_rows);
+	mean /= double(mat.n_cols*mat.n_rows);
 	return var - mean * mean;
 }
 inline void checkRandom(unsigned int seed) {

@@ -1735,25 +1735,25 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 	using namespace std::chrono;
 	clk::time_point start = std::chrono::high_resolution_clock::now();
 	// diorder :3
-	auto Hamil = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w - this->ws);
-	const u64 N = Hamil->get_hilbert_size();
+
+
 	const int realisations = 50;
 	const double delta = 0.025 * this->L; // width of offdiagonal in taking off-diagonal matrix elements -- to be updated maybe
 	const int M = 500;					  // number of states taken across the offdiagonal -- for now chosen randomly
 	const double w_end = this->w + this->wn * this->ws;
 	const double g0_end = this->g0 + this->g0n * this->g0s;
+	std::ofstream map;
+	openFile(map, this->saving_dir + "map.dat", ios::out);
+	printSeparated(map, "\t", { "real", "w", "g0", "c", "r", "rvar" }, 10, true);
 	for (double my_g0 = this->g0; my_g0 < g0_end; my_g0 += this->g0s) {
 		for (double my_w = this->w; my_w < w_end; my_w += this->ws) {
 			// generator 
-			seed = 2718281828459L;
+			seed = 271828182L;
 			gen = std::mt19937_64(seed);
-			Hamil.reset(new IsingModel_disorder(this->L, this->J, this->J0, this->g, my_g0, this->h, my_w));
+			auto Hamil = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, my_g0, this->h, my_w);
+			const u64 N = Hamil->get_hilbert_size();
 			stout << "\n\n------------------------------ Doing : " << \
 				Hamil->get_info() << "------------------------------\n";
-
-			std::ofstream map;
-			openFile(map, this->saving_dir + "map.dat", ios::out);
-			printSeparated(map, "\t", { "umubare", "trans imvururu", "long imvururu", "si", "er", "erwar" }, 10, true);
 
 			//create main folder
 			const std::string saving_folder = this->saving_dir + Hamil->get_info() + kPSep;
@@ -1761,19 +1761,20 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 
 			// make folders for each operator separetely
 			std::vector<std::string> opDirDiag, opDirNonDiag;
-			const std::string saving_folder_wave = saving_folder + "wavefunctions" + kPSep;
+			std::string saving_folder_wave = saving_folder + "wavefunctions" + kPSep;
 			fs::create_directories(saving_folder_wave);
 
 			for (auto& opName : names) {
-				const std::string saving_folder_operator = saving_folder + opName;
+				std::string saving_folder_operator = saving_folder + opName;
 				fs::create_directories(saving_folder_operator);
-				const std::string saving_folder_nondiag = saving_folder_operator + "NonDiagonalMatrixElements" + kPSep;
-				const std::string saving_folder_diag = saving_folder_operator + "DiagonalMatrixElements" + kPSep;
+				std::string saving_folder_nondiag = saving_folder_operator + kPSep + "NonDiagonalMatrixElements" + kPSep;
+				std::string saving_folder_diag = saving_folder_operator + kPSep + "DiagonalMatrixElements" + kPSep;
 				fs::create_directories(saving_folder_diag);
 				fs::create_directories(saving_folder_nondiag);
 				opDirDiag.push_back(saving_folder_nondiag);
 				opDirNonDiag.push_back(saving_folder_nondiag);
 			}
+
 
 			for (int realis = 0; realis < realisations; realis++) {
 				Hamil->hamiltonian(); // restart Hamiltonian for new values of disorder
@@ -1782,38 +1783,45 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 					" - in time : " << tim_s(start) << "s. Realisation -> " << realis << "\n";
 
 				// set states from the middle of the spectrum
-				this->mu = (M > N) ? 0.5 * N : M / 2; // to include small system not not exceed Hilbert space
+				this->mu = 0.5 * N; // to include small system not not exceed Hilbert space
 				long int E_min = Hamil->E_av_idx - mu / 2.;
 				long int E_max = Hamil->E_av_idx + mu / 2.;
 
 				// calculate level statistics 
-				double r = 0, c = 0, r_var = 0;
+				double r = 0;
+				double r_var = 0;
 				for (int k = E_min; k < E_max; k++) {
 					double level_stat = Hamil->eigenlevel_statistics(k, k + 1);
 					r += level_stat;
 					r_var += level_stat * level_stat;
 				}
-				r /= double(E_min - E_max);		// 1st moment - mean
-				r_var /= double(E_min - E_max); // 2nd moment
+				r /= -double(E_min - E_max);		// 1st moment - mean
+				r_var /= -double(E_min - E_max); // 2nd moment
 				r_var = r_var - r * r;			// variance
+
+
+				// set new from the middle of the spectrum for operators
+				this->mu = (M > N) ? 0.5 * N : M / 2; // to include small system not not exceed Hilbert space
+				E_min = Hamil->E_av_idx - mu / 2.;
+				E_max = Hamil->E_av_idx + mu / 2.;
 
 				arma::mat H_diag = arma::diagmat(Hamil->get_hamiltonian());
 				arma::mat H_offdiag = Hamil->get_hamiltonian() - H_diag;
-				c += matrixVariance(H_diag) / matrixVariance(H_offdiag);
-
+				auto c = matrixVariance(H_diag) / matrixVariance(H_offdiag);
+				c = 1. / c;
 				// iterate over input lists
-				for (int q = 0; q < operators.size(); q++) {
+				for (int a = 0; a < operators.size(); a++) {
 					// assign by iterator
-					op_type op = *(operators.begin() + q);
-					std::string opName = *(names.begin() + q);
+					op_type op = *(operators.begin() + a);
+					std::string opName = *(names.begin() + a);
 
 					// make file for log
 					std::ofstream MatElemDiag;
 					std::ofstream MatElemLogNonDiag;
 					// save to wavefunctions log
-					openFile(MatElemDiag, opDirDiag[q] + "MatrixElements_" + std::to_string(realis) + ".dat"\
+					openFile(MatElemDiag, opDirDiag[a] + "MatrixElements_" + std::to_string(realis) + ".dat"\
 						, ios::out);
-					openFile(MatElemLogNonDiag, opDirNonDiag[q] + "MatrixElements_" + std::to_string(realis) + ".dat"\
+					openFile(MatElemLogNonDiag, opDirNonDiag[a] + "MatrixElements_" + std::to_string(realis) + ".dat"\
 						, ios::out);
 
 					printSeparated(MatElemDiag, "\t", { "stateNum" }, 10, false);
@@ -1829,11 +1837,14 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 						Hamil->get_info() << "------------------------------\n";
 					// go through the eigenstates
 					for (u64 k = E_min; k < E_max; k++) {
-						std::string wavename = std::to_string(k) + "," + std::to_string(realis) + "," + to_string_prec(my_w, 2) + "," + to_string_prec(c, 8);
+						std::string wavename = saving_folder_wave + \
+							std::to_string(k) + "," + std::to_string(realis) + \
+							"," + to_string_prec(my_w, 2) + \
+							+ "," + to_string_prec(my_g0, 2) + "," + to_string_prec(c, 4);
 						std::ofstream wavefunctionsLog;
 						openFile(wavefunctionsLog, wavename + ".dat"\
 							, ios::out);
-						const int idx = k - E_min;
+						const int idx = long(k) - long(E_min);
 						// check sigma_x
 						// print k state
 						printSeparated(MatElemDiag, "\t", { std::to_string(k) }, 6, false);
@@ -1845,10 +1856,10 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 						printSeparated(MatElemDiag, "\t", { to_string_prec(Hamil->get_eigenEnergy(k),8) }, 10, true);
 
 						// give nondiagonal elements
-						long int k2 = N - k;
+						long int k2 = long(N) - long(k);
 						printSeparated(MatElemLogNonDiag, "\t", { "<" + std::to_string(k) + "|" + std::to_string(k2) + ">" }, 10, false);
 						for (int i = 0; i < this->L; i++) {
-							const auto opElem = Hamil->av_operator(k, k2, op, { i });
+							const auto opElem = Hamil->av_operator(k, k2, op, { i }).real();
 							printSeparated(MatElemLogNonDiag, "\t", { to_string_prec(opElem, 8) }, 10, false);
 						}
 						printSeparated(MatElemLogNonDiag, "\t", { to_string_prec(Hamil->get_eigenEnergy(k) - Hamil->get_eigenEnergy(k2),8) }, 10, true);
@@ -1858,11 +1869,11 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 					MatElemDiag.close();
 					MatElemLogNonDiag.close();
 				}
-				printSeparated(map, "\t", { (double)realis, my_g0, my_w, c, r, r_var }, 10, true);
+				printSeparated(map, "\t", { (double)realis, my_w, my_g0, c, r, r_var }, 10, true);
 			}
-			map.close();
 		}
 	}
+	map.close();
 }
 
 //----------------------------------------------------------------------------------------------------------------UI main
@@ -1886,15 +1897,18 @@ void isingUI::ui::make_sim(){
 	for (int system_size = Lmin; system_size < Lmax; system_size += this->Ls) {
 		//stout << "\nL = " << system_size << "\n";
 		std::ofstream map;
-		openFile(map, this->saving_dir + "FullMap" + IsingModel_sym::set_info(system_size, J, g, h, \
-			this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, { "h", "g" }) + ".dat", ios::out);
+		//openFile(map, this->saving_dir + "FullMap" + IsingModel_sym::set_info(system_size, J, g, h, \
+		//	this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, { "h", "g" }) + ".dat", ios::out);
 		for (double gx = gmin; gx < gmax; gx += this->gs) {
 			//stout << "\ng = " << gx << "\n";
 		//std::ofstream norm(this->saving_dir + "levelStat" + \
 				IsingModel_sym::set_info(system_size, J, gx, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, { "h" }) + ".txt");
-			for (double hx = hmin; hx < hmin; hx += this->hs) {
+			for (double hx = hmin; hx < hmax; hx += this->hs) {
 				const auto start_loop = std::chrono::high_resolution_clock::now();
 				stout << "h = " << hx << "\t\t";
+				this->L = system_size;
+				this->g = gx;
+				this->h = hx;
 				saveDataForAutoEncoder_disorder({ IsingModel_sym::sigma_x , IsingModel_sym::sigma_z }, { "SigmaX","SigmaZ" });
 				//this->L = system_size;
 				//this->g = gx;
