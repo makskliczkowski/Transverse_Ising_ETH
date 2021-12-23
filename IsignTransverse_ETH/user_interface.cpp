@@ -298,6 +298,7 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv) {
 		break;
 	case 1:
 		str_model += "OBC" + std::string(kPathSeparator);
+		break;
 	default:
 		str_model += "PBC" + std::string(kPathSeparator);
 		break;
@@ -1735,8 +1736,7 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 	using namespace std::chrono;
 	clk::time_point start = std::chrono::high_resolution_clock::now();
 	// diorder :3
-
-
+	seed = static_cast<long unsigned int>(time(0));
 	const int realisations = 50;
 	const double delta = 0.025 * this->L; // width of offdiagonal in taking off-diagonal matrix elements -- to be updated maybe
 	const int M = 500;					  // number of states taken across the offdiagonal -- for now chosen randomly
@@ -1744,13 +1744,12 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 	const double g0_end = this->g0 + this->g0n * this->g0s;
 	std::ofstream map;
 	openFile(map, this->saving_dir + "map.dat", ios::out);
-	printSeparated(map, "\t", { "real", "w", "g0", "c", "r", "rvar" }, 10, true);
+	printSeparated(map, "\t", { "real", "w", "g0", "c", "r", "rvar", "g", "h"}, 10, true);
 	for (double my_g0 = this->g0; my_g0 < g0_end; my_g0 += this->g0s) {
 		for (double my_w = this->w; my_w < w_end; my_w += this->ws) {
-			// generator 
-			seed = 271828182L;
+			// reset generator 
 			gen = std::mt19937_64(seed);
-			auto Hamil = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, my_g0, this->h, my_w);
+			auto Hamil = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, my_g0, this->h, my_w, this->boundary_conditions);
 			const u64 N = Hamil->get_hilbert_size();
 			stout << "\n\n------------------------------ Doing : " << \
 				Hamil->get_info() << "------------------------------\n";
@@ -1869,7 +1868,7 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 					MatElemDiag.close();
 					MatElemLogNonDiag.close();
 				}
-				printSeparated(map, "\t", { (double)realis, my_w, my_g0, c, r, r_var }, 10, true);
+				printSeparated(map, "\t", { (double)realis, my_w, my_g0, c, r, r_var, this->g, this->h }, 10, true);
 			}
 		}
 	}
