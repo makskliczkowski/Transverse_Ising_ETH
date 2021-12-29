@@ -10,7 +10,7 @@
 #include <complex>
 #include <cmath>
 #include <algorithm>
-//#include <filesystem>
+#include <unordered_map>
 // armadillo flags:
 #define ARMA_64BIT_WORD // enabling 64 integers in armadillo obbjects
 #define ARMA_BLAS_LONG_LONG // using long long inside LAPACK call
@@ -88,7 +88,7 @@ using v_1d = std::vector<T>;																	// 1d double vector
 	//#define DEGENERACIES
 #endif
 #define im cpx(0.0,1.0)
-#define stout std::cout << std::setprecision(8) << std::fixed									// standard outstream
+#define stout std::cout << std::setprecision(8) << std::scientific								// standard outstream
 #define memory_over_performance false															// optimized by size --true-- (memory usage shortage) or performance --false--
 
 // ----------------------------------------------------------------------------- Macros to generate the lookup table (at compile-time) -----------------------------------------------------------------------------

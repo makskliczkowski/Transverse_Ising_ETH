@@ -36,7 +36,7 @@ protected:
 	std::string info;									// information about the model
 	randomGen ran;										// consistent quick random number generator
 
-	Mat<_type> H;										// the Hamiltonian
+	SpMat<_type> H;										// the Hamiltonian
 	Mat<_type> eigenvectors;							// matrix of the eigenvectors in increasing order
 	vec eigenvalues;									// eigenvalues vector
 
@@ -84,7 +84,7 @@ public:
 
 	auto get_hilbert_size()		  const -> u64					    { return this->N; };					 // get the Hilbert space size 2^N
 	auto get_mapping()			  const -> std::vector<u64>			{ return this->mapping; };				 // constant reference to the mapping
-	auto get_hamiltonian()		  const -> arma::Mat<_type>			{ return this->H; };					 // get the const reference to a Hamiltonian
+	auto get_hamiltonian()		  const -> arma::SpMat<_type>		{ return this->H; };					 // get the const reference to a Hamiltonian
 	auto get_eigenvectors()		  const -> arma::Mat<_type>			{ return this->eigenvectors; };			 // get the const reference to the eigenvectors
 	auto get_eigenvalues()		  const -> arma::vec				{ return this->eigenvalues; };			 // get the const reference to eigenvalues
 	auto get_eigenEnergy(u64 idx) const -> double				    { return this->eigenvalues(idx); };		 // get eigenenergy at a given idx
@@ -100,7 +100,8 @@ public:
 	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
 	virtual void setHamiltonianElem(u64 k, double value, u64 new_idx) = 0;						// sets the Hamiltonian elements in a virtual way
 	void reset_random() {
-		this->ran.reset();
+		gen = std::mt19937_64(seed);
+		//this->ran.reset();
 	}
 	double getRandomValue(const double _min, const double _max) {
 		return this->ran.randomReal_uni(_min, _max);
@@ -223,12 +224,13 @@ public:
 		return LIOM;
 	}
 
+	virtual sp_cx_mat createSq(int k) = 0;
 };
 
 inline void normaliseOp(arma::sp_cx_mat& op) {
 	const u64 N = op.n_cols;
 	const cpx norm = arma::trace(op * op) / double(N);
-	op /= (abs(norm) <= 1e-12) ? 1. : norm; // normalize if non-zero norm
+	op /= ((abs(norm) <= 1e-12) ? 1. : norm); // normalize if non-zero norm
 }
 // ----------------------------------------- SYMMETRIC -----------------------------------------
 /// <summary>
@@ -246,6 +248,11 @@ private:
 		double k_sym;															// translational symmetry generator
 		int p_sym;																// parity symmetry generator
 		int x_sym;																// spin-flip symmetry generator
+		bool operator==(sym other) {
+			return (this->k_sym == other.k_sym 
+				&& this->p_sym == other.p_sym 
+				&& this->x_sym == other.x_sym);
+		}
 	} symmetries;
 	bool k_sector;																// if the k-sector allows p symmetry
 	v_1d<cpx> k_exponents;														// precalculate the symmetry exponents for current k vector
@@ -264,7 +271,7 @@ private:
 public:
 	bool get_k_sector() const { return this->k_sector; }
 	v_1d<cpx> get_k_exponents() const { return this->k_exponents; }
-	sym get_symmetries() const {	return this->symmetries;}
+	sym get_symmetries() const { return this->symmetries;}
 	v_1d<cpx> get_norm() const { return this->normalisation; }
 	v_1d<std::function<u64(u64, int)>> get_sym_group() const { return this->symmetry_group; }
 	v_1d<cpx> get_sym_eigVal() const { return this->symmetry_eigVal; }
@@ -331,20 +338,23 @@ public:
 	}
 
 	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::vector<int> sites);					// calculates the matrix element of operator at given site
-	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op);														// calculates the matrix element of operator at given site in extensive form (a sum)
-	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, int corr_len);										// calculates the matrix element of operator at given site in extensive form (a sum) with corr_len
+	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op);											// calculates the matrix element of operator at given site in extensive form (a sum)
+	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, int corr_len);							// calculates the matrix element of operator at given site in extensive form (a sum) with corr_len
 
 	friend cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, u64 base_vec, u64 k, \
 		const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::vector<int> sites);
-				
+
+	sp_cx_mat symmetryRotation();
+	//friend sp_cx_mat create_operatorDistinctSectors()
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators) override;													
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) override;
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) override;
 	void set_OperatorElem(std::vector<op_type> operators, std::vector<int> sites, sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx);
 	
+	sp_cx_mat createSq(int k) override;
+
 	mat correlation_matrix(u64 state_id) override;
 };
-
 //-------------------------------------------------------------------------------------------------------------------------------
 /// <summary>
 /// Model with disorder thus with no symmetries
@@ -394,6 +404,8 @@ public:
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators) override;
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) override;
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) override;
+
+	sp_cx_mat createSq(int k) override;
 	mat correlation_matrix(u64 state_id) override;
 
 	cpx av_operator(u64 alfa, u64 beta, op_type op, std::vector<int> sites);	// calculates the matrix element of operator at given site

@@ -108,7 +108,6 @@ cpx IsingModel_sym::get_symmetry_normalization(u64 base_idx) {
 ///                             for a given thread, the whole mapping will be merged in the generate_mapping() procedure </param>
 /// <param name="_id"> identificator for a given thread </param>
 void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id){
-	std::vector<u64> minima(3);
 	for (u64 j = start; j < stop; j++) {
 		if (this->g == 0 && __builtin_popcount(j) != this->L / 2.) continue;
 		auto [SEC, some_value] = find_SEC_representative(j);
@@ -189,7 +188,7 @@ void IsingModel_sym::setHamiltonianElem(u64 k, double value, u64 new_idx) {
 /// </summary>
 void IsingModel_sym::hamiltonian() {
 	try {
-		this->H = cx_mat(this->N, this->N, fill::zeros); //hamiltonian
+		this->H = sp_cx_mat(this->N, this->N); //hamiltonian
 		//this->H = arma::conv_to<arma::Mat<double>>::from(this->H);
 	}
 	catch (const bad_alloc& e) {
@@ -569,4 +568,23 @@ void IsingModel_sym::set_OperatorElem(std::vector<op_type> operators, std::vecto
 			set_MatrixElem(sym_operation(base_vec, this->L), symRep, op);
 		}
 	}
+}
+
+sp_cx_mat IsingModel_sym::symmetryRotation() {
+	u64 dim = ULLPOW(this->L);
+	sp_cx_mat U(dim, N);
+#pragma omp parallel for
+	for (long int k = 0; k < N; k++)
+		for (int i = 0; i < this->symmetry_group.size(); i++) {
+			auto idx = this->symmetry_group[i](this->mapping[k], this->L);
+			U(idx, k) += this->symmetry_eigVal[i] / (this->normalisation[k] * sqrt(this->symmetry_group.size()));
+		}
+	return U;
+}
+
+sp_cx_mat IsingModel_sym::createSq(int k) {
+	auto beta = std::make_unique<IsingModel_disorder>(this->L, this->J, 0, this->g, 0, this->h, 0, this->_BC);
+	auto fullSq = beta->createSq(k);
+	auto U = this->symmetryRotation();
+	return U.t() * fullSq * U;
 }

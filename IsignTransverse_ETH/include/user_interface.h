@@ -32,7 +32,7 @@ public:
 
 	virtual void set_default() = 0;																					// set default parameters
 	virtual void exit_with_help() const = 0;
-
+	virtual void printAllOptions() const = 0;
 	// ----------------------------------- REAL PARSING
 
 	virtual void parseModel(int argc, std::vector<std::string> argv) = 0;											// the function to parse the command line
@@ -111,6 +111,7 @@ namespace isingUI
 		void exit_with_help() const override;
 		// ----------------------------------- HELPING FUNCIONS
 		void set_default() override;													// set default parameters
+		void printAllOptions() const override;
 		// ----------------------------------- REAL PARSER
 		void parseModel(int argc, std::vector<std::string> argv) override;				// the function to parse the command line
 
@@ -135,12 +136,39 @@ namespace isingUI
 			std::initializer_list<int> alfa_sym = {}, \
 			std::initializer_list<int> beta_sym = {}) const;
 
+
+		//-------------------------------------------------------------------------- SPECIAL FOR SYMMETRIES
+		template <typename... _types> void loopSymmetrySectors(
+			std::function<void(int,int,int,_types...args)> lambda, //!< callable function
+			double h,											   //!< longitudal field -- whether spin-flip symmetry is allowed
+			_types... args										   //!< arguments passed to callable interface lambda
+		) {
+			const int x_max = (this->h != 0) ? 0 : 1;
+			for (int k = 0; k < L; k++) {
+				if (k == 0 || k == this->L / 2.)
+					for (int p = 0; p <= 1; p++)
+						for (int x = 0; x <= x_max; x++)
+							lambda(k, p, x, std::forward<_types>(args)...);
+				else
+					for (int x = 0; x <= x_max; x++)
+						lambda(k, 0, x, std::forward<_types>(args)...);
+			}
+		}
+		
 		//-------------------------------------------------------------------------- SPECTRAL PROPERTIES
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="alfa"> input model: cpx when with symmetries </param>
+		/// <param name="opMatrix"> input operator as sparse matrix </param>
+		/// <param name="name"> name for file to store data </param>
 		template <typename _type> void spectralFunction(IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, std::string name);
+		//template <typename _type> _NODISCARD arma::vec spectralFunction(IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix);
 		template <typename _type> void timeEvolution(IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, std::string name);
+		template <typename _type> arma::vec timeEvolution(IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, const arma::vec& times);
 		template <typename _type> void IsingLIOMs(IsingModel<_type>& alfa);
 		void TFIsingLIOMs(IsingModel_sym& alfa);
-
+		
 		template <typename _type> void LevelSpacingDist(IsingModel<_type>& alfa);
 		template <typename _type> std::pair<double, double> operator_norm(arma::sp_cx_mat& opMatrix, IsingModel<_type>& alfa);
 		void adiabaticGaugePotential(bool SigmaZ = 0, bool avSymSectors = 0);
