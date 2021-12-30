@@ -99,14 +99,14 @@ public:
 	void diagonalization(bool withoutEigenVec = false);											// diagonalize the Hamiltonian
 	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
 	virtual void setHamiltonianElem(u64 k, double value, u64 new_idx) = 0;						// sets the Hamiltonian elements in a virtual way
-	void reset_random() {
+	void reset_random() const {
 		gen = std::mt19937_64(seed);
 		//this->ran.reset();
 	}
 	double getRandomValue(const double _min, const double _max) {
 		return this->ran.randomReal_uni(_min, _max);
 	}
-	int properSite(int site) {
+	int properSite(int site) const {
 		if (_BC == 0) {
 			if (site < 0)
 				return L - (abs(site) % L);
@@ -123,19 +123,19 @@ public:
 	}
 
 	// ---------------------------------- VIRTUALS ----------------------------------
-	virtual mat correlation_matrix(u64 state_id) = 0;											// create the spin correlation matrix at a given state
+	virtual mat correlation_matrix(u64 state_id) const = 0;											// create the spin correlation matrix at a given state
 	static double total_spin(const mat& corr_mat);												// the diagonal part of a spin correlation matrix
 
 	// ---------------------------------- PHYSICAL QUANTITIES ----------------------------------
-	double ipr(int state_idx);																	// calculate the ipr coeffincient (inverse participation ratio)
-	double information_entropy(u64 _id);														// calculate the information entropy in a given state (based on the ipr) Von Neuman type
-	double information_entropy(u64 _id, const IsingModel<_type>& beta, u64 _min, u64 _max);		// calculate the information entropy in basis of other model from input
-	double eigenlevel_statistics(u64 _min, u64 _max);											// calculate the statistics based on eigenlevels (r coefficient)
-	vec eigenlevel_statistics_with_return();													// calculate the eigenlevel statistics and return the vector with the results
-	virtual double entaglement_entropy(u64 state_id, int subsystem_size) = 0;					// entanglement entropy based on the density matrices
-	virtual double mean_level_spacing_analytical() = 0;											// mean level spacing from analytical formula calcula
-	double mean_level_spacing_av(u64 _min, u64 _max);											// mean level spacing averaged over an input window
-	double mean_level_spacing_trace();															// mean level spacing from by variance of hamiltonian in T->inf
+	double ipr(int state_idx) const;																// calculate the ipr coeffincient (inverse participation ratio)
+	double information_entropy(u64 _id) const;														// calculate the information entropy in a given state (based on the ipr) Von Neuman type
+	double information_entropy(u64 _id, const IsingModel<_type>& beta, u64 _min, u64 _max) const;	// calculate the information entropy in basis of other model from input
+	double eigenlevel_statistics(u64 _min, u64 _max) const;											// calculate the statistics based on eigenlevels (r coefficient)
+	vec eigenlevel_statistics_with_return() const;													// calculate the eigenlevel statistics and return the vector with the results
+	virtual double entaglement_entropy(u64 state_id, int subsystem_size) const = 0;					// entanglement entropy based on the density matrices
+	virtual double mean_level_spacing_analytical() const = 0;										// mean level spacing from analytical formula calcula
+	double mean_level_spacing_av(u64 _min, u64 _max) const;											// mean level spacing averaged over an input window
+	double mean_level_spacing_trace() const;														// mean level spacing from by variance of hamiltonian in T->inf
 	
 	// ---------------------------------- THERMODYNAMIC QUANTITIES ----------------------------------
 	std::tuple<arma::vec, arma::vec, arma::vec> thermal_quantities(const arma::vec& temperature);	// calculate thermal quantities with input temperature range
@@ -211,20 +211,20 @@ public:
 	static vec operator_av_in_eigenstates_return(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 	static double spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 
-	virtual sp_cx_mat create_operator(std::initializer_list<op_type> operators) = 0;
-	virtual sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) = 0;
-	virtual sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) = 0;
+	virtual sp_cx_mat create_operator(std::initializer_list<op_type> operators) const = 0;
+	virtual sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) const = 0;
+	virtual sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const = 0;
 	// transverse-field Ising LIOMs operator densities
-	sp_cx_mat create_StringOperator(coordinate alfa, coordinate beta, int j, int k);
-	sp_cx_mat create_LIOMoperator_densities(int n, int ell);
-	sp_cx_mat create_LIOMoperator(int n) {
+	sp_cx_mat create_StringOperator(coordinate alfa, coordinate beta, int j, int k) const;
+	sp_cx_mat create_LIOMoperator_densities(int n, int ell) const;
+	sp_cx_mat create_LIOMoperator(int n) const {
 		sp_cx_mat LIOM = create_LIOMoperator_densities(n, 0);
 		for (int i = 1; i < this->L; i++)
 			LIOM += create_LIOMoperator_densities(n, i);
 		return LIOM;
 	}
 
-	virtual sp_cx_mat createSq(int k) = 0;
+	virtual sp_cx_mat createSq(int k) const = 0;
 };
 
 inline void normaliseOp(arma::sp_cx_mat& op) {
@@ -263,7 +263,7 @@ private:
 	//std::tuple<u64, int> find_translation_representative(u64 base_idx) const;
 	std::pair<u64, cpx> find_SEC_representative(u64 base_idx) const;
 
-	cpx get_symmetry_normalization(u64 base_idx);
+	cpx get_symmetry_normalization(u64 base_idx) const;
 	void mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id);							// multithreaded mapping
 	void generate_mapping();																													// utilizes the mapping kernel
 
@@ -278,7 +278,7 @@ public:
 	// OVERRIDES OF THE MODEL METHODS
 	void hamiltonian() override;
 	void setHamiltonianElem(u64 k, double value, u64 new_idx) override;
-	double mean_level_spacing_analytical() override {
+	double mean_level_spacing_analytical() const override {
 		const double chi = 0.341345;
 		return sqrt(L) / (chi * N) * sqrt(J * J + h * h + g * g);
 	}
@@ -286,7 +286,7 @@ public:
 	friend std::pair<u64, cpx> find_rep_and_sym_eigval(u64 base_idx, \
 		const IsingModel_sym& sector_alfa, cpx normalisation_beta);																				// returns the index and the value of the minimum representative
 
-	double entaglement_entropy(u64 state_id, int subsystem_size) override {
+	double entaglement_entropy(u64 state_id, int subsystem_size) const override {
 		return 0;
 	};
 
@@ -305,14 +305,6 @@ public:
 	cpx av_spin_current(u64 alfa, u64 beta) override;										// check the extensive spin current
 	cpx av_spin_current(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the spin current at given sites
 
-	template <typename _type>
-	arma::cx_mat generateMatrixElements(_type (IsingModel_sym::* op)(u64, u64), const IsingModel_sym& A) {
-		arma::cx_mat mat_elem(A.get_hilbert_size(), A.get_hilbert_size(), arma::fill::zeros);
-		for (long int i = 0; i < A.get_hilbert_size(); i++)
-			for (long int j = i; j < A.get_hilbert_size(); j++)
-				mat_elem(i, j) = (A.*op)(i, j);
-		return mat_elem;
-	}
 	
 	static std::string set_info(int L, double J, double g, double h, int k_sym, bool p_sym, bool x_sym, std::vector<std::string> skip = {}) {
 		std::string name = ",L=" + std::to_string(L) + \
@@ -344,16 +336,16 @@ public:
 	friend cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, u64 base_vec, u64 k, \
 		const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::vector<int> sites);
 
-	sp_cx_mat symmetryRotation();
+	sp_cx_mat symmetryRotation() const;
 	//friend sp_cx_mat create_operatorDistinctSectors()
-	sp_cx_mat create_operator(std::initializer_list<op_type> operators) override;													
-	sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) override;
-	sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) override;
-	void set_OperatorElem(std::vector<op_type> operators, std::vector<int> sites, sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx);
+	sp_cx_mat create_operator(std::initializer_list<op_type> operators) const override;													
+	sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) const override;
+	sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const override;
+	void set_OperatorElem(std::vector<op_type> operators, std::vector<int> sites, sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx) const;
 	
-	sp_cx_mat createSq(int k) override;
+	sp_cx_mat createSq(int k) const override;
 
-	mat correlation_matrix(u64 state_id) override;
+	mat correlation_matrix(u64 state_id) const override;
 };
 //-------------------------------------------------------------------------------------------------------------------------------
 /// <summary>
@@ -381,7 +373,7 @@ public:
 	// METHODS
 	void hamiltonian() override;
 	void setHamiltonianElem(u64 k, double value, u64 new_idx) override;
-	double mean_level_spacing_analytical() override {
+	double mean_level_spacing_analytical() const override {
 		const double chi = 0.341345;
 		return sqrt(L) / (chi * N) * sqrt(J * J + h * h + g * g + (w * w + g0 * g0 + J0 * J0) / 3.);
 	}
@@ -401,18 +393,18 @@ public:
 	cpx av_spin_current(u64 alfa, u64 beta) override;										// check the extensive spin current
 	cpx av_spin_current(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the spin current at given sites
 
-	sp_cx_mat create_operator(std::initializer_list<op_type> operators) override;
-	sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) override;
-	sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) override;
+	sp_cx_mat create_operator(std::initializer_list<op_type> operators) const override;
+	sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) const override;
+	sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const override;
 
-	sp_cx_mat createSq(int k) override;
-	mat correlation_matrix(u64 state_id) override;
+	sp_cx_mat createSq(int k) const override;
+	mat correlation_matrix(u64 state_id) const override;
 
 	cpx av_operator(u64 alfa, u64 beta, op_type op, std::vector<int> sites);	// calculates the matrix element of operator at given site
 	cpx av_operator(u64 alfa, u64 beta, op_type op);							// calculates the matrix element of operator at given site in extensive form (a sum)
 	cpx av_operator(u64 alfa, u64 beta, op_type op, int corr_len);
 
-	double entaglement_entropy(u64 state_id, int subsystem_size) override;
+	double entaglement_entropy(u64 state_id, int subsystem_size) const override;
 
 	static std::string set_info(int L, double J, double J0, double g, double g0, double h, double w, std::vector<std::string> skip = {}) {
 		std::string name = "_L=" + std::to_string(L) + \

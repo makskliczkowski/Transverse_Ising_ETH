@@ -441,7 +441,7 @@ cpx IsingModel_disorder::av_operator(u64 alfa, u64 beta, op_type op, int corr_le
 }
 
 // ----------------------------------------------------------------------------- CREATE OPERATOR TO CALCULATE MATRIX ELEMENTS -----------------------------------------------------------------------------
-sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) {
+sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const {
 	arma::sp_cx_mat opMatrix(this->N, this->N);
 #pragma omp parallel for
 	for (long int k = 0; k < N; k++) {
@@ -453,7 +453,7 @@ sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> op
 	}
 	return opMatrix;
 }
-sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators) {
+sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators) const {
 	arma::sp_cx_mat opMatrix(this->N, this->N);
 #pragma omp parallel for
 	for (long int k = 0; k < N; k++) {
@@ -467,7 +467,7 @@ sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> op
 	}
 	return opMatrix / sqrt(this->L);
 }
-sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators, int corr_len) {
+sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators, int corr_len) const {
 	arma::sp_cx_mat opMatrix(this->N, this->N);
 	auto neis = get_neigh_vector(this->_BC, this->L, corr_len);
 #pragma omp parallel for
@@ -485,7 +485,7 @@ sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> op
 	return opMatrix / sqrt(this->L);
 }
 
-sp_cx_mat IsingModel_disorder::createSq(int k) {
+sp_cx_mat IsingModel_disorder::createSq(int k) const {
 	const double q = k * two_pi / double(this->L);
 	arma::sp_cx_mat opMatrix(this->N, this->N);
 	
@@ -511,7 +511,7 @@ sp_cx_mat IsingModel_disorder::createSq(int k) {
 /// </summary>
 /// <param name="state_id"> index of given state </param>
 /// <returns> correlation matrix </returns>
-mat IsingModel_disorder::correlation_matrix(u64 state_id) {
+mat IsingModel_disorder::correlation_matrix(u64 state_id) const {
 	mat corr_mat(L, L, fill::zeros);
 	const arma::subview_col state = this->eigenvectors.col(state_id);
 #pragma omp parallel shared(state, corr_mat)
@@ -566,7 +566,7 @@ mat IsingModel_disorder::correlation_matrix(u64 state_id) {
 /// <param name="state_id"> state index to produce the density matrix </param>
 /// <param name="A_size"> size of subsystem </param>
 /// <returns> entropy of considered systsem </returns>
-double IsingModel_disorder::entaglement_entropy(u64 state_id, int A_size) {
+double IsingModel_disorder::entaglement_entropy(u64 state_id, int A_size) const {
 	std::vector<bool> base_vector(L);
 	const arma::subview_col state = this->eigenvectors.col(state_id);
 	u64 dimA = std::pow(2, A_size);

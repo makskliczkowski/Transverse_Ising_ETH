@@ -78,14 +78,16 @@ template <typename T> void IsingModel<T>::set_neighbors() {
 template <typename T> void IsingModel<T>::diagonalization(bool withoutEigenVec) {
 	//out << real(H) << endl;
 	try {
-		if (withoutEigenVec) arma::eig_sym(this->eigenvalues, Mat<T>(this->H));
-		else				 arma::eig_sym(this->eigenvalues, this->eigenvectors, Mat<T>(this->H));
+		if (withoutEigenVec) arma::eig_sym(this->eigenvalues, arma::Mat<T>(this->H));
+		else				 arma::eig_sym(this->eigenvalues, this->eigenvectors, arma::Mat<T>(this->H));
 	}
 	catch (const bad_alloc& e) {
 		stout << "Memory exceeded" << e.what() << "\n";
 		stout << "dim(H) = " << H.size() * sizeof(H(0, 0)) << "\n";
 		assert(false);
 	}
+	for (long int i = 0; i < N; i++)
+		this->eigenvectors.col(i) = arma::normalise(this->eigenvectors.col(i));
 	double E_av = trace(eigenvalues) / double(N);
 	auto i = min_element(begin(eigenvalues), end(eigenvalues), [=](int x, int y) {
 		return abs(x - E_av) < abs(y - E_av);
@@ -144,7 +146,7 @@ template <typename Type> std::tuple<arma::vec, arma::vec, arma::vec> IsingModel<
 /// </summary>
 /// <param name="state_idx"> index of the eigenvector used to calculate this quantity </param>
 /// <returns> returns the IPR value </returns>
-template <typename T> double IsingModel<T>::ipr(int state_idx) {
+template <typename T> double IsingModel<T>::ipr(int state_idx) const {
 	double ipr = 0;
 	arma::subview_col state = eigenvectors.col(state_idx);
 #pragma omp parallel for reduction(+: ipr)
@@ -161,7 +163,7 @@ template <typename T> double IsingModel<T>::ipr(int state_idx) {
 /// </summary>
 /// <param name="_id">index of the eigenstate</param>
 /// <returns>The information entropy</returns>
-template <typename T> double IsingModel<T>::information_entropy(u64 _id) {
+template <typename T> double IsingModel<T>::information_entropy(u64 _id) const {
 	arma::subview_col state = this->eigenvectors.col(_id);
 	double ent = 0;
 #pragma omp parallel for reduction(+: ent)
@@ -181,7 +183,7 @@ template <typename T> double IsingModel<T>::information_entropy(u64 _id) {
 /// <param name="min">minimum state for beta basis</param>
 /// <param name="max">maximum state for beta basis</param>
 /// <returns>information entropy in beta model basis</returns>
-template <typename T> double IsingModel<T>::information_entropy(u64 _id, const IsingModel<T>& beta, u64 _min, u64 _max) {
+template <typename T> double IsingModel<T>::information_entropy(u64 _id, const IsingModel<T>& beta, u64 _min, u64 _max) const {
 	arma::subview_col state_alfa = this->eigenvectors.col(_id);
 	double ent = 0;
 #pragma omp parallel for reduction(+: ent)
@@ -200,7 +202,7 @@ template <typename T> double IsingModel<T>::information_entropy(u64 _id, const I
 /// <param name="_min"> index of eigenenergy, being the lower bound of energy window </param>
 /// <param name="_max"> index of eigenenergy, being the upper bound of energy window </param>
 /// <returns></returns>
-template <typename T> double IsingModel<T>::eigenlevel_statistics(u64 _min, u64 _max) {
+template <typename T> double IsingModel<T>::eigenlevel_statistics(u64 _min, u64 _max) const {
 	double r = 0;
 	if (_min <= 0) assert(false && "too low index");
 	if (_max >= N) assert(false && "index exceeding Hilbert space");
@@ -222,7 +224,7 @@ template <typename T> double IsingModel<T>::eigenlevel_statistics(u64 _min, u64 
 /// computed as in: PHYSICAL REVIEW B 91, 081103(R) (2015)
 /// </summary>
 /// <returns>Vector for whole spectrum eigenlevel statistics</returns>
-template <typename T> vec IsingModel<T>::eigenlevel_statistics_with_return() {
+template <typename T> vec IsingModel<T>::eigenlevel_statistics_with_return() const {
 	vec r(N - 2);
 #pragma omp parallel for shared(r)
 	for (int k = 1; k < N - 1; k++)
@@ -258,7 +260,7 @@ double IsingModel<T>::spectrum_repulsion(double (IsingModel::* op)(int, int), Is
 /// </summary>
 /// <typeparam name="T"> does not matter </typeparam>
 /// <returns> mean level spacing </returns>
-template <typename T> double IsingModel<T>::mean_level_spacing_av(u64 _min, u64 _max) {
+template <typename T> double IsingModel<T>::mean_level_spacing_av(u64 _min, u64 _max) const {
 	if (_min <= 0) throw "too low index";
 	if (_max > N) throw "index exceeding Hilbert space";
 	double omega_H = 0;
@@ -273,7 +275,7 @@ template <typename T> double IsingModel<T>::mean_level_spacing_av(u64 _min, u64 
 /// </summary>
 /// <typeparam name="T"></typeparam>
 /// <returns></returns>
-template <typename T> double IsingModel<T>::mean_level_spacing_trace() {
+template <typename T> double IsingModel<T>::mean_level_spacing_trace() const {
 	const double chi = 0.341345;
 	double trace_H2 = 0;
 	double trace_H = 0;
@@ -332,7 +334,7 @@ vec IsingModel<T>::operator_av_in_eigenstates_return(double (IsingModel<T>::* op
 //-------------------------------------------------------------------------------------------------LIOMs
 
 template <typename _type>
-sp_cx_mat IsingModel<_type>::create_StringOperator(coordinate alfa, coordinate beta, int j, int ell) {
+sp_cx_mat IsingModel<_type>::create_StringOperator(coordinate alfa, coordinate beta, int j, int ell) const {
 	if (ell < 0) assert(false && "last argument is positive, duh");
 	op_type op_alfa, op_beta;
 	switch (alfa) {
@@ -365,7 +367,7 @@ sp_cx_mat IsingModel<_type>::create_StringOperator(coordinate alfa, coordinate b
 }
 
 template <typename _type>
-sp_cx_mat IsingModel<_type>::create_LIOMoperator_densities(int n, int j) {
+sp_cx_mat IsingModel<_type>::create_LIOMoperator_densities(int n, int j) const {
 	if (n < 0) assert(false && "Only positive integers for LIOMs");
 	auto S = [this](coordinate alfa, coordinate beta, int j, int ell) {
 		return create_StringOperator(alfa, beta, j, ell);
@@ -509,27 +511,27 @@ template void IsingModel<double>::set_neighbors();
 template void IsingModel<cpx>::set_neighbors();
 template void IsingModel<cpx>::diagonalization(bool);
 template void IsingModel<double>::diagonalization(bool);
-template double IsingModel<cpx>::eigenlevel_statistics(u64, u64);
-template double IsingModel<double>::eigenlevel_statistics(u64, u64);
-template vec IsingModel<cpx>::eigenlevel_statistics_with_return();
-template vec IsingModel<double>::eigenlevel_statistics_with_return();
-template double IsingModel<double>::ipr(int);
-template double IsingModel<cpx>::ipr(int);
-template double IsingModel<double>::information_entropy(u64);
-template double IsingModel<cpx>::information_entropy(u64);
-template double IsingModel<double>::information_entropy(u64, const IsingModel<double>&, u64, u64);
-template double IsingModel<cpx>::information_entropy(u64, const IsingModel<cpx>&, u64, u64);
+template double IsingModel<cpx>::eigenlevel_statistics(u64, u64) const;
+template double IsingModel<double>::eigenlevel_statistics(u64, u64) const;
+template vec IsingModel<cpx>::eigenlevel_statistics_with_return() const;
+template vec IsingModel<double>::eigenlevel_statistics_with_return() const;
+template double IsingModel<double>::ipr(int) const;
+template double IsingModel<cpx>::ipr(int) const;
+template double IsingModel<double>::information_entropy(u64) const;
+template double IsingModel<cpx>::information_entropy(u64) const;
+template double IsingModel<double>::information_entropy(u64, const IsingModel<double>&, u64, u64) const;
+template double IsingModel<cpx>::information_entropy(u64, const IsingModel<cpx>&, u64, u64) const;
 template cpx overlap(const IsingModel<cpx>&, const IsingModel<cpx>&, int, int);
 template double overlap(const IsingModel<double>&, const IsingModel<double>&, int, int);
 template double IsingModel<cpx>::total_spin(const mat&);
 template double IsingModel<double>::total_spin(const mat&);
 template std::tuple<arma::vec, arma::vec, arma::vec> IsingModel<double>::thermal_quantities(const arma::vec&);
 template std::tuple<arma::vec, arma::vec, arma::vec> IsingModel<cpx>::thermal_quantities(const arma::vec&);
-template double IsingModel<double>::mean_level_spacing_av(u64, u64);
-template double IsingModel<cpx>::mean_level_spacing_av(u64, u64);
-template double IsingModel<double>::mean_level_spacing_trace();
-template double IsingModel<cpx>::mean_level_spacing_trace();
-template sp_cx_mat IsingModel<cpx>::create_StringOperator(coordinate, coordinate, int,int);
-template sp_cx_mat IsingModel<double>::create_StringOperator(coordinate, coordinate, int, int);
-template sp_cx_mat IsingModel<cpx>::create_LIOMoperator_densities(int, int);
-template sp_cx_mat IsingModel<double>::create_LIOMoperator_densities(int, int);
+template double IsingModel<double>::mean_level_spacing_av(u64, u64) const;
+template double IsingModel<cpx>::mean_level_spacing_av(u64, u64) const;
+template double IsingModel<double>::mean_level_spacing_trace() const;
+template double IsingModel<cpx>::mean_level_spacing_trace() const;
+template sp_cx_mat IsingModel<cpx>::create_StringOperator(coordinate, coordinate, int,int) const;
+template sp_cx_mat IsingModel<double>::create_StringOperator(coordinate, coordinate, int, int) const;
+template sp_cx_mat IsingModel<cpx>::create_LIOMoperator_densities(int, int) const;
+template sp_cx_mat IsingModel<double>::create_LIOMoperator_densities(int, int) const;

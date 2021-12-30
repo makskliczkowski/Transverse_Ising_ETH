@@ -56,21 +56,21 @@ namespace isingUI
 		{"f",""},						// file to read from directory
 		{"J","1.0"},					// spin coupling
 		{"J0","0.2"},					// spin coupling randomness maximum (-J0 to J0)
-		{"h","0.0"},					// perpendicular magnetic field constant
+		{"h","0.1"},					// perpendicular magnetic field constant
 		{"hn","1"},						// longitudal magnetic field sweep number
-		{"hs","0.0"},					// longitudal magnetic field sweep step
+		{"hs","0.1"},					// longitudal magnetic field sweep step
 		{"w","1.0"},					// disorder strength
 		{"wn","1"},						// longitudal disorder change number
-		{"ws","0.0"},					// longitudal disorder change step
+		{"ws","0.1"},					// longitudal disorder change step
 		{"g","1.0"},					// transverse magnetic field constant
 		{"gn","1"},						// parameter scaling g number
-		{"gs","0.0"},					// parameter scaling g step
+		{"gs","0.01"},					// parameter scaling g step
 		{"g0","0.0"},					// transverse field randomness maximum (-g0 to g0)
 		{"g0n","1"},						// transverse disorder change number
 		{"g0s","0.0"},					// transverse disorder change step
 		{"L","4"},						// chain length
 		{"Ln","1"},						// chain length step in size scaling
-		{"Ls","0"},						// number of chain lengths in size scaling
+		{"Ls","1"},						// number of chain lengths in size scaling
 		{"k","1"},						// translation symetry sector
 		{"p","1"},						// parity symmetry sector
 		{"x","1"},						// spin flip symmetry sector
@@ -164,8 +164,8 @@ namespace isingUI
 		/// <param name="name"> name for file to store data </param>
 		template <typename _type> void spectralFunction(IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, std::string name);
 		//template <typename _type> _NODISCARD arma::vec spectralFunction(IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix);
-		template <typename _type> void timeEvolution(IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, std::string name);
-		template <typename _type> arma::vec timeEvolution(IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, const arma::vec& times);
+		template <typename _type> void timeEvolution(const IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, std::string name = "STH");
+		template <typename _type> arma::vec timeEvolution(const IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, const arma::vec& times = arma::logspace(-4, 4, 1000));
 		template <typename _type> void IsingLIOMs(IsingModel<_type>& alfa);
 		void TFIsingLIOMs(IsingModel_sym& alfa);
 		

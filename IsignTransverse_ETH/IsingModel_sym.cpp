@@ -86,7 +86,7 @@ std::pair<u64, cpx> IsingModel_sym::find_SEC_representative(u64 base_idx) const 
 /// <summary>
 /// From applying symmetry operators the function finds the normalisation for a given state
 /// </summary>
-cpx IsingModel_sym::get_symmetry_normalization(u64 base_idx) {
+cpx IsingModel_sym::get_symmetry_normalization(u64 base_idx) const {
 	cpx normalisation = cpx(0.0, 0.0);
 	for (int l = 0; l < this->symmetry_group.size(); l++) {
 		if (this->symmetry_group[l](base_idx, this->L) == base_idx)
@@ -349,7 +349,7 @@ cpx IsingModel_sym::av_spin_current(u64 alfa, u64 beta, std::vector<int> sites) 
 /// </summary>
 /// <param name="state_idx"> index of eigenstate to calculate correlation matrix </param>
 /// <returns> correlation matrix </returns>
-mat IsingModel_sym::correlation_matrix(u64 state_idx) {
+mat IsingModel_sym::correlation_matrix(u64 state_idx) const {
 	mat corr_mat(this->L, this->L, arma::fill::zeros);
 	arma::sp_cx_mat SigmaZOp = 0.5 * this->create_operator({ IsingModel_sym::sigma_z });
 	for (int i = 0; i < L; i++) {
@@ -512,7 +512,7 @@ cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_co
 
 
 // ----------------------------------------------------------------------------- WRAPPERS FOR SIGMA OPERATORS - creating matrix -----------------------------------------------------------------------------
-sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) {
+sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const {
 	const double G = this->symmetry_group.size();
 	//// throwables
 	//for (auto& site : sites)
@@ -524,7 +524,7 @@ sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operato
 	}
 	return operator_matrix / G;
 }
-sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators) {// calculating normalisation for both sector symmetry groups
+sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators) const {// calculating normalisation for both sector symmetry groups
 	const double G = this->symmetry_group.size();
 	sp_cx_mat operator_matrix(this->N, this->N);
 	for (int i = 0; i < this->N; i++) {
@@ -534,7 +534,7 @@ sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operato
 	}
 	return operator_matrix / (G * sqrt(this->L));
 };
-sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators, int corr_len) {
+sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators, int corr_len) const {
 	const double G = this->symmetry_group.size();
 	auto neis = get_neigh_vector(this->_BC, this->L, corr_len);
 	sp_cx_mat operator_matrix(this->N, this->N);
@@ -550,7 +550,7 @@ sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operato
 	return operator_matrix / (G * sqrt(this->L));
 }
 
-void IsingModel_sym::set_OperatorElem(std::vector<op_type> operators, std::vector<int> sites, sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx){
+void IsingModel_sym::set_OperatorElem(std::vector<op_type> operators, std::vector<int> sites, sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx) const{
 	auto set_MatrixElem = [&](u64 vec_sym, cpx sym_eig, op_type op) {
 		auto [op_value, vec_sym_tmp] = op(vec_sym, L, sites);
 		if (abs(op_value) > 1e-14) {
@@ -570,7 +570,7 @@ void IsingModel_sym::set_OperatorElem(std::vector<op_type> operators, std::vecto
 	}
 }
 
-sp_cx_mat IsingModel_sym::symmetryRotation() {
+sp_cx_mat IsingModel_sym::symmetryRotation() const {
 	u64 dim = ULLPOW(this->L);
 	sp_cx_mat U(dim, N);
 #pragma omp parallel for
@@ -582,7 +582,7 @@ sp_cx_mat IsingModel_sym::symmetryRotation() {
 	return U;
 }
 
-sp_cx_mat IsingModel_sym::createSq(int k) {
+sp_cx_mat IsingModel_sym::createSq(int k) const {
 	auto beta = std::make_unique<IsingModel_disorder>(this->L, this->J, 0, this->g, 0, this->h, 0, this->_BC);
 	auto fullSq = beta->createSq(k);
 	auto U = this->symmetryRotation();

@@ -440,7 +440,7 @@ void isingUI::ui::compare_energies() {
 /// Handle disorder simulation
 /// </summary>
 void isingUI::ui::disorder() {
-	auto start = std::chrono::high_resolution_clock::now();
+	auto start = std::chrono::system_clock::now();
 	/*std::ofstream scaling_r_sigmaX(this->saving_dir + "SpectrumRapScalingSigmaX" + \
 		",J0=" + to_string_prec(this->J0, 2) + \
 		",g=" + to_string_prec(this->g, 2) + \
@@ -497,7 +497,7 @@ void isingUI::ui::disorder() {
 				r += Hamil->eigenlevel_statistics(f, f + 1);
 			}
 			if (k % 5 == 0) stout << " \t\t--> " << k << " - in time : " << \
-				double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
+				double(duration_cast<milliseconds>(duration(system_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 		}
 		stout << "--> finished averaging over realizations for : " << Hamil->get_info() << " <--\n\n\t\t\n\b";
 		scaling_r_sigmaX << N << stat_aver.t() / double(realisations);
@@ -706,7 +706,7 @@ void isingUI::ui::check_dist_other_sector() {
 ///
 /// </summary>
 void isingUI::ui::fidelity(std::initializer_list<int> symetries) {
-	const auto start = std::chrono::high_resolution_clock::now();
+	const auto start = std::chrono::system_clock::now();
 	std::vector<int> sym = { 0, 1, 1 };
 	for (int i = 0; i < 3; i++)
 		if (i < symetries.size())
@@ -724,7 +724,7 @@ void isingUI::ui::fidelity(std::initializer_list<int> symetries) {
 	//arma::vec X = arma::logspace(-3, 1, 100);
 	stout << alfa->get_hilbert_size() << endl;
 	for (auto& de : X) {
-		const auto start_loop = std::chrono::high_resolution_clock::now();
+		const auto start_loop = std::chrono::system_clock::now();
 		beta.reset(new IsingModel_sym(this->L, this->J, this->g, this->h + de, sym[0], sym[1], sym[2], this->boundary_conditions));
 		beta->diagonalization();
 		double fidel = 0, entropy = 0;
@@ -756,7 +756,7 @@ void isingUI::ui::fidelity(std::initializer_list<int> symetries) {
 /// <param name="x"></param>
 void isingUI::ui::size_scaling_sym(int k, int p, int x) {
 	using namespace std::chrono;
-	auto start = std::chrono::high_resolution_clock::now();
+	auto start = std::chrono::system_clock::now();
 
 	const int L_max = this->L + this->Ln * this->Ls;
 	auto beta = std::make_unique<IsingModel_sym>(2, J, g, h, k, p, x, boundary_conditions);
@@ -773,7 +773,7 @@ void isingUI::ui::size_scaling_sym(int k, int p, int x) {
 		const long int E_min = alfa->E_av_idx - mu / 2.;
 		const long int E_max = alfa->E_av_idx + mu / 2.;
 		stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << " - in time : " << \
-			double(duration_cast<milliseconds>(duration(high_resolution_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
+			double(duration_cast<milliseconds>(duration(system_clock::now() - start)).count()) / 1000.0 << "s" << std::endl;
 
 		// average sigma_x operator at first site
 		std::ofstream sigx(this->saving_dir + "SigmaX" + alfa->get_info() + ".dat");
@@ -829,7 +829,7 @@ void isingUI::ui::size_scaling_sym(int k, int p, int x) {
 /// <param name="x"></param>
 void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 {
-	const auto start = std::chrono::high_resolution_clock::now();
+	const auto start = std::chrono::system_clock::now();
 	std::string info = IsingModel_sym::set_info(L, J, g, h, k, p, x, { "h","g" });
 	//std::ofstream pertGaussMap(this->saving_dir + "PertGaussianityMap" + info + ".dat");
 	std::ofstream farante(this->saving_dir + "IprScalingMap" + info + ".dat");
@@ -855,7 +855,7 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 			//std::ofstream pertGauss(this->saving_dir + "PertGaussianity" + info + ".dat");
 			//pertGauss << "perturbation" << "\t\t" << "kurtosis sig_x" << "\t\t" << "kurtosis energy" << "\n";
 
-			const auto start_loop = std::chrono::high_resolution_clock::now();
+			const auto start_loop = std::chrono::system_clock::now();
 			stout << "\n\n------------------------------ Doing : g = " << gx << ", h = " << hx << "------------------------------\n";
 
 			// make model
@@ -961,7 +961,7 @@ void isingUI::ui::parameter_sweep_sym(int k, int p, int x)
 void isingUI::ui::matrix_elements_stat_sym(double min, double max, double step, double omega_dist, int omega_gauss_max, \
 	double energy_constraint, int energy_num, std::initializer_list<int> alfa_sym, std::initializer_list<int> beta_sym) const
 {
-	const auto start = std::chrono::high_resolution_clock::now();
+	const auto start = std::chrono::system_clock::now();
 	// in order k, x, p because we can skip p for most cases, x as well but in different order
 	std::vector<int> alfa_syms = { 0, 1, 1 };
 	std::vector<int> beta_syms = { 0, 1, 1 };
@@ -1071,7 +1071,7 @@ void isingUI::ui::matrix_elements_stat_sym(double min, double max, double step, 
 /// <param name="hx"></param>
 /// <returns></returns>
 v_1d <double> isingUI::ui::perturbative_stat_sym(IsingModel_sym& alfa, double gx, double hx) {
-	clk::time_point start = std::chrono::high_resolution_clock::now();
+	clk::time_point start = std::chrono::system_clock::now();
 	const u64 N = alfa.get_hilbert_size();
 	long int size = 1 + 3.322 * log(this->mu);
 	long int sizeE = 1 + 3.322 * log(N);
@@ -1196,7 +1196,7 @@ v_1d <double> isingUI::ui::perturbative_stat_sym(IsingModel_sym& alfa, double gx
 }
 v_1d<double> isingUI::ui::perturbative_stat_sym(double pert, double gx, double hx)
 {
-	clk::time_point start = std::chrono::high_resolution_clock::now();
+	clk::time_point start = std::chrono::system_clock::now();
 	auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, gx, hx, \
 		this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 	alfa->diagonalization();
@@ -1254,7 +1254,7 @@ v_1d<double> isingUI::ui::perturbative_stat_sym(double pert, double gx, double h
 	return kurtos;
 }
 std::vector<double> isingUI::ui::perturbative_stat_sym(double pert, IsingModel_sym& alfa, double gx, double hx) {
-	clk::time_point start = std::chrono::high_resolution_clock::now();
+	clk::time_point start = std::chrono::system_clock::now();
 	const u64 N = alfa.get_hilbert_size();
 	long int size = 1 + 3.322 * log(this->mu);
 	long int sizeE = 1 + 3.322 * log(N);
@@ -1447,7 +1447,7 @@ template <typename _type> void isingUI::ui::spectralFunction(IsingModel<_type>& 
 	reponse_fun.close();
 }
 
-template <typename _type> void isingUI::ui::timeEvolution(IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, std::string name) {
+template <typename _type> void isingUI::ui::timeEvolution(const IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, std::string name) {
 	const u64 N = alfa.get_hilbert_size();
 	const double tH = 1. / alfa.mean_level_spacing_analytical();
 	const Mat<_type> U = alfa.get_eigenvectors();
@@ -1488,10 +1488,11 @@ template <typename _type> void isingUI::ui::timeEvolution(IsingModel<_type>& alf
 	}
 	tEvolution.close();
 }
-template <typename _type> arma::vec isingUI::ui::timeEvolution(IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, const arma::vec& times) {
+template <typename _type> arma::vec isingUI::ui::timeEvolution(const IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, const arma::vec& times) {
 	const u64 N = alfa.get_hilbert_size();
 	const double tH = 1. / alfa.mean_level_spacing_analytical();
 	const Mat<_type> U = alfa.get_eigenvectors();
+	stout << U << std::endl;
 	normaliseOp(opMatrix);
 	arma::cx_mat mat_elem = U.t() * opMatrix * U;
 
@@ -1514,7 +1515,7 @@ template <typename _type> arma::vec isingUI::ui::timeEvolution(IsingModel<_type>
 }
 
 void isingUI::ui::adiabaticGaugePotential(bool SigmaZ, bool avSymSectors) {
-	clk::time_point start = std::chrono::high_resolution_clock::now();
+	clk::time_point start = std::chrono::system_clock::now();
 	std::string info = (avSymSectors ? IsingModel_sym::set_info(L, J, g, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym\
 		, { "L", "h", "k", "p", "x" }) : IsingModel_sym::set_info(L, J, g, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, { "L", "h" }));
 	std::ofstream farante(this->saving_dir + "AGPsym" + (SigmaZ ? "SigZ" : "SigX") + info + ".dat");
@@ -1534,7 +1535,7 @@ void isingUI::ui::adiabaticGaugePotential(bool SigmaZ, bool avSymSectors) {
 		stout << "\nh = " << hx << "\t\t";
 		for (int system_size = this->L; system_size < this->L + this->Ls * this->Ln; system_size += this->Ls) {
 			this->symmetries.k_sym = system_size / 2.;
-			const auto start_loop = std::chrono::high_resolution_clock::now();
+			const auto start_loop = std::chrono::system_clock::now();
 			//auto alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, 0, this->g, 0, hx, 0, 0);
 			std::function<void(int, int, int,
 				double&, double&, int&)>
@@ -1706,7 +1707,7 @@ template <typename _type> void isingUI::ui::LevelSpacingDist(IsingModel<_type>& 
 //-------------------------------------------------------------------- AUTO-ENCODER
 void isingUI::ui::saveDataForAutoEncoder_symmetries(std::initializer_list<op_type> operators, std::initializer_list<std::string> names) {
 	using namespace std::chrono;
-	clk::time_point start = std::chrono::high_resolution_clock::now();
+	clk::time_point start = std::chrono::system_clock::now();
 
 	stout << "making symmetric model\n";
 	auto params = arma::linspace(this->h, this->hs, this->hn);
@@ -1717,7 +1718,7 @@ void isingUI::ui::saveDataForAutoEncoder_symmetries(std::initializer_list<op_typ
 		for (auto& hx : params) {
 			stout << "\n\t\t\tSYM : h = " << hx << "\t\t\n";
 
-			const auto start_loop = std::chrono::high_resolution_clock::now();
+			const auto start_loop = std::chrono::system_clock::now();
 			auto alfa = std::make_unique<IsingModel_sym>(system_size, this->J, this->g, hx, \
 				this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 			const std::string saving_folder = this->saving_dir + alfa->get_info() + kPSep;
@@ -1781,9 +1782,8 @@ void isingUI::ui::saveDataForAutoEncoder_symmetries(std::initializer_list<op_typ
 void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type> operators, std::initializer_list<std::string> names) {
 	if (operators.size() != names.size()) assert(false && "Set same number of input names as input operators!\n");
 	using namespace std::chrono;
-	clk::time_point start = std::chrono::high_resolution_clock::now();
+	clk::time_point start = std::chrono::system_clock::now();
 	// diorder :3
-	seed = static_cast<long unsigned int>(time(0));
 	const int realisations = 50;
 	const double delta = 0.025 * this->L; // width of offdiagonal in taking off-diagonal matrix elements -- to be updated maybe
 	const int M = 500;					  // number of states taken across the offdiagonal -- for now chosen randomly
@@ -1924,7 +1924,8 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 //----------------------------------------------------------------------------------------------------------------UI main
 void isingUI::ui::make_sim() {
 	using namespace std::chrono;
-	clk::time_point start = std::chrono::high_resolution_clock::now();
+	clk::time_point start = std::chrono::system_clock::now();
+	seed = static_cast<long unsigned int>(time(0));
 	//compare_matrix_elements(IsingModel_sym::sigma_x, this->symmetries.k_sym, 0, this->symmetries.p_sym, \
 		0, this->symmetries.x_sym, this->symmetries.x_sym);
 	//compare_energies();
@@ -1944,7 +1945,7 @@ void isingUI::ui::make_sim() {
 		//std::ofstream norm(this->saving_dir + "levelStat" + \
 				IsingModel_sym::set_info(system_size, J, gx, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, { "h" }) + ".txt");
 			for (double hx = hmin; hx < hmax; hx += this->hs) {
-				const auto start_loop = std::chrono::high_resolution_clock::now();
+				const auto start_loop = std::chrono::system_clock::now();
 				stout << "h = " << hx << "\t\t";
 				this->L = system_size;
 				this->g = gx;
@@ -1957,8 +1958,9 @@ void isingUI::ui::make_sim() {
 				//auto alfa = std::make_unique<IsingModel_sym>(system_size, this->J, gx, hx,
 				//	this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 				stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
-				//alfa->diagonalization();
-				//stout << " \t\t	--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
+				alfa->diagonalization();
+				stout << " \t\t	--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
+				stout << alfa->get_eigenvectors();
 				const u64 N = alfa->get_hilbert_size();
 				const double tH = 1. / alfa->mean_level_spacing_analytical();
 				const int t_max = std::ceil(std::log10(tH));
