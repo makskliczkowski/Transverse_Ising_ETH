@@ -1492,7 +1492,6 @@ template <typename _type> arma::vec isingUI::ui::timeEvolution(const IsingModel<
 	const u64 N = alfa.get_hilbert_size();
 	const double tH = 1. / alfa.mean_level_spacing_analytical();
 	const Mat<_type> U = alfa.get_eigenvectors();
-	stout << U << std::endl;
 	normaliseOp(opMatrix);
 	arma::cx_mat mat_elem = U.t() * opMatrix * U;
 
@@ -1938,8 +1937,8 @@ void isingUI::ui::make_sim() {
 	for (int system_size = Lmin; system_size < Lmax; system_size += this->Ls) {
 		//stout << "\nL = " << system_size << "\n";
 		std::ofstream map;
-		openFile(map, this->saving_dir + "FullMap" + IsingModel_sym::set_info(system_size, J, g, h, \
-			this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, { "h" }) + ".dat", ios::out);
+		//openFile(map, this->saving_dir + "FullMap" + IsingModel_sym::set_info(system_size, J, g, h, \
+		//	this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, { "h" }) + ".dat", ios::out);
 		for (double gx = gmin; gx < gmax; gx += this->gs) {
 			//stout << "\ng = " << gx << "\n";
 		//std::ofstream norm(this->saving_dir + "levelStat" + \
@@ -1952,57 +1951,75 @@ void isingUI::ui::make_sim() {
 				this->h = hx;
 				//saveDataForAutoEncoder_disorder({ IsingModel_sym::sigma_x , IsingModel_sym::sigma_z }, { "SigmaX","SigmaZ" });
 				//fidelity({ this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym });
-				auto alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, 0, gx, 0, hx, 1e-2, this->boundary_conditions);
+				//auto alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, 0, gx, 0, hx, 1e-2, this->boundary_conditions);
 				//alfa->reset_random();
 				//alfa->hamiltonian();
-				//auto alfa = std::make_unique<IsingModel_sym>(system_size, this->J, gx, hx,
-				//	this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+				auto alfa = std::make_unique<IsingModel_sym>(system_size, this->J, gx, hx,
+					this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 				stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
 				alfa->diagonalization();
 				stout << " \t\t	--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
-				stout << alfa->get_eigenvectors();
+				//stout << alfa->get_eigenvectors();
 				const u64 N = alfa->get_hilbert_size();
 				const double tH = 1. / alfa->mean_level_spacing_analytical();
 				const int t_max = std::ceil(std::log10(tH));
 				auto times = arma::logspace(-2, t_max, 500);
-				for (int k = 0; k < system_size; k++) {
-					auto SqMat = alfa->createSq(k + 1);
-					auto Sz = alfa->create_operator({ IsingModel_sym::sigma_z }, std::vector<int>({ k }));
-					alfa->reset_random();
-					alfa->diagonalization();
-					stout << " \t\t	--> finished diagonalizing for " << alfa->get_info() << " - in time : "
-						<< tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
-					auto timeSq = timeEvolution(*alfa, SqMat, times);
-					auto timeSz = timeEvolution(*alfa, Sz, times);
-					double norm_diag = std::get<0>(operator_norm(SqMat, *alfa));
-					double norm_diag2 = std::get<0>(operator_norm(Sz, *alfa));
-					for (int r = 0; r < this->realisations - 1; r++) {
-						alfa->hamiltonian();
-						alfa->diagonalization();
-						stout << " \t\t\t\t	--> finished diagonalizing for " << alfa->get_info() << " - in time : "
-							<< tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\trealisation:  " << r << "\n";
-						timeSq += timeEvolution(*alfa, SqMat, times);
-						timeSz += timeEvolution(*alfa, Sz, times);
-						norm_diag += std::get<0>(operator_norm(SqMat, *alfa));
-						norm_diag2 += std::get<0>(operator_norm(Sz, *alfa));
-					}
-					timeSq /= double(this->realisations);
-					norm_diag /= double(this->realisations);
-					timeSz /= double(this->realisations);
-					norm_diag2 /= double(this->realisations);
-					std::ofstream fileSq, fileSz;
-					openFile(fileSq, this->saving_dir + "timeEvolutionSigmaZ_q=" + std::to_string(k + 1) + alfa->get_info({  }) + ".dat", ios::out);
-					openFile(fileSz, this->saving_dir + "timeEvolutionSigmaZ_j=" + std::to_string(k) + alfa->get_info({  }) + ".dat", ios::out);
-					double t = times(0), x = timeSq(0), y = timeSz(0);
-					printSeparated(fileSq, "\t", { t, x, tH, norm_diag}, 12, true);
-					printSeparated(fileSz, "\t", { t, y, tH, norm_diag2 }, 12, true);
-					for (int i = 1; i < times.size(); i++) {
-						t = times(i); x = timeSq(i); y = timeSz(i);
-						printSeparated(fileSq, "\t", { t,x }, 12, true);
-						printSeparated(fileSz, "\t", { t,y }, 12, true);
-					}
-					fileSq.close();	fileSz.close();
+				auto SqMat = alfa->createSq(1);
+				auto Sz = alfa->create_operator({ IsingModel_sym::sigma_z }, std::vector<int>({ 0 }));
+				auto timeSq = timeEvolution(*alfa, SqMat, times);
+				auto timeSz = timeEvolution(*alfa, Sz, times);
+				double norm_diag = std::get<0>(operator_norm(SqMat, *alfa));
+				double norm_diag2 = std::get<0>(operator_norm(Sz, *alfa));
+				std::ofstream fileSq, fileSz;
+				openFile(fileSq, this->saving_dir + "timeEvolutionSigmaZ_q=" + std::to_string(1) + alfa->get_info({  }) + ".dat", ios::out);
+				openFile(fileSz, this->saving_dir + "timeEvolutionSigmaZ_j=" + std::to_string(0) + alfa->get_info({  }) + ".dat", ios::out);
+				double t = times(0), x = timeSq(0), y = timeSz(0);
+				printSeparated(fileSq, "\t", { t, x, tH, norm_diag }, 12, true);
+				printSeparated(fileSz, "\t", { t, y, tH, norm_diag2 }, 12, true);
+				for (int i = 1; i < times.size(); i++) {
+					t = times(i); x = timeSq(i); y = timeSz(i);
+					printSeparated(fileSq, "\t", { t,x }, 12, true);
+					printSeparated(fileSz, "\t", { t,y }, 12, true);
 				}
+				fileSq.close();	fileSz.close();
+				//for (int k = 0; k < system_size; k++) {
+				//	auto SqMat = alfa->createSq(k + 1);
+				//	auto Sz = alfa->create_operator({ IsingModel_sym::sigma_z }, std::vector<int>({ k }));
+				//	alfa->reset_random();
+				//	alfa->diagonalization();
+				//	stout << " \t\t	--> finished diagonalizing for " << alfa->get_info() << " - in time : "
+				//		<< tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
+				//	auto timeSq = timeEvolution(*alfa, SqMat, times);
+				//	auto timeSz = timeEvolution(*alfa, Sz, times);
+				//	double norm_diag = std::get<0>(operator_norm(SqMat, *alfa));
+				//	double norm_diag2 = std::get<0>(operator_norm(Sz, *alfa));
+				//	for (int r = 0; r < this->realisations - 1; r++) {
+				//		alfa->hamiltonian();
+				//		alfa->diagonalization();
+				//		stout << " \t\t\t\t	--> finished diagonalizing for " << alfa->get_info() << " - in time : "
+				//			<< tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\trealisation:  " << r << "\n";
+				//		timeSq += timeEvolution(*alfa, SqMat, times);
+				//		timeSz += timeEvolution(*alfa, Sz, times);
+				//		norm_diag += std::get<0>(operator_norm(SqMat, *alfa));
+				//		norm_diag2 += std::get<0>(operator_norm(Sz, *alfa));
+				//	}
+				//	timeSq /= double(this->realisations);
+				//	norm_diag /= double(this->realisations);
+				//	timeSz /= double(this->realisations);
+				//	norm_diag2 /= double(this->realisations);
+				//	std::ofstream fileSq, fileSz;
+				//	openFile(fileSq, this->saving_dir + "timeEvolutionSigmaZ_q=" + std::to_string(k + 1) + alfa->get_info({  }) + ".dat", ios::out);
+				//	openFile(fileSz, this->saving_dir + "timeEvolutionSigmaZ_j=" + std::to_string(k) + alfa->get_info({  }) + ".dat", ios::out);
+				//	double t = times(0), x = timeSq(0), y = timeSz(0);
+				//	printSeparated(fileSq, "\t", { t, x, tH, norm_diag}, 12, true);
+				//	printSeparated(fileSz, "\t", { t, y, tH, norm_diag2 }, 12, true);
+				//	for (int i = 1; i < times.size(); i++) {
+				//		t = times(i); x = timeSq(i); y = timeSz(i);
+				//		printSeparated(fileSq, "\t", { t,x }, 12, true);
+				//		printSeparated(fileSz, "\t", { t,y }, 12, true);
+				//	}
+				//	fileSq.close();	fileSz.close();
+				//}
 				
 
 
