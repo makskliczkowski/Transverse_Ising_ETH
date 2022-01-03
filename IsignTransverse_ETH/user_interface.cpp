@@ -1951,11 +1951,11 @@ void isingUI::ui::make_sim() {
 				this->h = hx;
 				//saveDataForAutoEncoder_disorder({ IsingModel_sym::sigma_x , IsingModel_sym::sigma_z }, { "SigmaX","SigmaZ" });
 				//fidelity({ this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym });
-				//auto alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, 0, gx, 0, hx, 1e-2, this->boundary_conditions);
+				auto alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, 0, gx, 0, hx, 1e-2, this->boundary_conditions);
 				//alfa->reset_random();
 				//alfa->hamiltonian();
-				auto alfa = std::make_unique<IsingModel_sym>(system_size, this->J, gx, hx,
-					this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+				//auto alfa = std::make_unique<IsingModel_sym>(system_size, this->J, gx, hx,
+				//	this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 				stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
 				alfa->diagonalization();
 				stout << " \t\t	--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
