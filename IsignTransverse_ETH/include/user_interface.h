@@ -81,6 +81,8 @@ namespace isingUI
 		{"s","0"},						// site for operator averages
 		{"p","0"},						// use parity symmetry?
 		{"th","1"},						// number of threads
+		{"op","0"},						// choose operator
+		{"fun","0"}						// choose function 
 	};
 
 	// ----------------------------------- UI CLASS SPECIALISATION -----------------------------------
@@ -97,6 +99,8 @@ namespace isingUI
 		int realisations;																// number of realisations to average on for disordered case - symmetries got 1
 		int mu;																			// small bucket for the operator fluctuations to be averaged onto
 		int site;																		// site for operator averages
+		int op;																			// choose operator
+		int fun;																		// choose function to start calculations
 
 		struct {
 			int k_sym;																	// translational symmetry generator
@@ -137,24 +141,39 @@ namespace isingUI
 			std::initializer_list<int> beta_sym = {}) const;
 
 
-		//-------------------------------------------------------------------------- SPECIAL FOR SYMMETRIES
+		//-------------------------------------------------------------------------- SPECIFIC FOR MODELS
 		template <typename... _types> void loopSymmetrySectors(
 			std::function<void(int,int,int,_types...args)> lambda, //!< callable function
-			double h,											   //!< longitudal field -- whether spin-flip symmetry is allowed
+			double hx,											   //!< longitudal field -- whether spin-flip symmetry is allowed
+			int Lx,												   //!< system size
 			_types... args										   //!< arguments passed to callable interface lambda
 		) {
-			const int x_max = (this->h != 0) ? 0 : 1;
-			for (int k = 0; k < L; k++) {
-				if (k == 0 || k == this->L / 2.)
+			const int x_max = (hx != 0) ? 0 : 1;
+			for (int k = 0; k < Lx; k++) {
+				if (k == 0 || k == Lx / 2.) {
 					for (int p = 0; p <= 1; p++)
 						for (int x = 0; x <= x_max; x++)
 							lambda(k, p, x, std::forward<_types>(args)...);
-				else
+				}
+				else {
 					for (int x = 0; x <= x_max; x++)
 						lambda(k, 0, x, std::forward<_types>(args)...);
+				}
 			}
 		}
-		
+		template <typename... _types> void average_over_realisations(
+			IsingModel_disorder& model,
+			std::function<void(_types...args)> lambda, //!< callable function
+			_types... args							   //!< arguments passed to callable interface lambda
+		) {
+			for (int r = 0; r < this->realisations; r++) {
+				model.reset_random();
+				model.hamiltonian();
+				model.diagonalization();
+				lambda(std::forward<_types>(args)...);
+			}
+		};
+		//template <typename... _types>
 		//-------------------------------------------------------------------------- SPECTRAL PROPERTIES
 		/// <summary>
 		/// 
@@ -162,16 +181,22 @@ namespace isingUI
 		/// <param name="alfa"> input model: cpx when with symmetries </param>
 		/// <param name="opMatrix"> input operator as sparse matrix </param>
 		/// <param name="name"> name for file to store data </param>
-		template <typename _type> void spectralFunction(IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, std::string name);
+		template <typename _type> void spectralFunction(IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name);
+		template <typename _type> void integratedSpectralFunction(IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name);
 		//template <typename _type> _NODISCARD arma::vec spectralFunction(IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix);
-		template <typename _type> void timeEvolution(const IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, std::string name = "STH");
-		template <typename _type> arma::vec timeEvolution(const IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix, const arma::vec& times = arma::logspace(-4, 4, 1000));
+
+		template <typename _type> void timeEvolution(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name = "STH");
+		template <typename _type> std::pair<arma::vec, double> timeEvolution(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, const arma::vec& times = arma::logspace(-4, 4, 1000));
+		void relaxationTimesFromFiles();
+		void intSpecFun_from_timeEvol();
 		template <typename _type> void IsingLIOMs(IsingModel<_type>& alfa);
-		void TFIsingLIOMs(IsingModel_sym& alfa);
-		
+		void TFIsingLIOMs();
+		void LIOMsdisorder();
+
 		template <typename _type> void LevelSpacingDist(IsingModel<_type>& alfa);
 		template <typename _type> std::pair<double, double> operator_norm(arma::sp_cx_mat& opMatrix, IsingModel<_type>& alfa);
-		void adiabaticGaugePotential(bool SigmaZ = 0, bool avSymSectors = 0);
+		void adiabaticGaugePotential_sym(bool SigmaZ = 0, bool avSymSectors = 0);
+		void adiabaticGaugePotential_dis();
 		template <typename _type> void energyEvolution(IsingModel<_type>& model);
 
 		/// <summary>

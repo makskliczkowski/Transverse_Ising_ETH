@@ -59,21 +59,7 @@ std::vector<std::string> split_str(std::string s, std::string delimiter)
 	return res;
 }
 
-/// <summary>
-/// Saves input dataset Y to file along X values and gaussian distribution form X values and mean/stddev from Y
-/// </summary>
-/// <param name="dir"> saving directory </param>
-/// <param name="name"> name of file </param>
-/// <param name="X"> x values </param>
-/// <param name="Y"> Y values</param>
-void save_to_file(std::string dir, std::string name, const arma::vec& X, const arma::vec& Y) {
-	if (X.size() != Y.size()) throw "Incompatible datasets\n";
-	std::ofstream file;
-	openFile(file, dir + name + ".dat", ios::out);
-	for (int k = 0; k < X.size(); k++)
-		printSeparated(file, "\t", { X(k), Y(k) }, 12, true);
-	file.close();
-}
+
 
 // PROBABILITY BASED TOOLS
 double simpson_rule(double a, double b, int n, const arma::vec& f) {
@@ -95,6 +81,29 @@ double simpson_rule(double a, double b, int n, const arma::vec& f) {
 	}
 
 	return (f(0) + f(f.size() - 1) + 2 * sum_evens + 4 * sum_odds) * h / 3;
+}
+
+double simpson_rule(const arma::vec& x, const arma::vec& f) {
+	const int N = f.size() - 1;
+	arma::vec h(N);
+	for (int i = 0; i < N; i++)
+		h(i) = x(i + 1) - x(i);
+	
+	double sum = 0.0;
+#pragma omp parallel for reduction(+: sum)
+	for (int i = 0; i <= N / 2 - 1; i++) {
+		double a = 2 - h(2 * i + 1) / h(2 * i);
+		double b = (h(2 * i) + h(2 * i + 1)) * (h(2 * i) + h(2 * i + 1)) / (h(2 * i) * h(2 * i + 1));
+		double c = 2 - h(2 * i) / h(2 * i + 1);
+		sum += (h(2 * i) + h(2 * i + 1)) / 6.0 * (a * f(2 * i) + b * f(2 * i + 1) + c * f(2 * i + 2));
+	}
+
+	if (N % 2 == 0) {
+		double a = (2 * h(N - 1) * h(N - 1) + 3 * h(N - 1) * h(N - 2)) / (6 * (h(N - 2) + h(N - 1)));
+		double b = (	h(N - 1) * h(N - 1) + 3 * h(N - 1) * h(N - 2)) / (6 *  h(N - 2));
+		double c = (	h(N - 1) * h(N - 1) * h(N - 1)				 ) / (6 *  h(N - 2) * (h(N - 2) + h(N - 1)));
+	}
+	return sum;
 }
 
 /// <summary>

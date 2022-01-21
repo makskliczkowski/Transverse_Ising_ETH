@@ -31,6 +31,7 @@
 #include <mutex>
 //#include <condition_variable>
 #include <functional>
+#include <type_traits>
 //#include <execution>
 #ifdef __has_include
 #  if __has_include(<filesystem>)
@@ -98,7 +99,7 @@ using v_1d = std::vector<T>;																	// 1d double vector
 #define R6(n) R4(n), R4(n + 2*4 ), R4(n + 1*4 ), R4(n + 3*4 )
 #define REVERSE_BITS R6(0), R6(2), R6(1), R6(3)
 #define ULLPOW(k) 1ULL << k
-
+#define RETURNS(...) -> decltype((__VA_ARGS__)) { return (__VA_ARGS__); }
 // ----------------------------------------------------------------------------- lookup table to store the reverse of each index of the table -----------------------------------------------------------------------------
 // The macro `REVERSE_BITS` generates the table
 const u64 lookup[256] = { REVERSE_BITS };
@@ -139,13 +140,18 @@ template <typename T> int sgn(T val) {
 	return int(T(0) < val) - int(val < T(0));
 }
 // ----------------------------------------------------------------------------- STRING BASED TOOLS DECLARATIONS -----------------------------------------------------------------------------
+// weird: interfase to enforce same types in variadic templates
+template <typename _baseTy>
+struct types {
+	template<typename... _otherTy>
+	using convertible = typename std::enable_if<std::conjunction<std::is_convertible<_otherTy, _baseTy>...>::value>::type;
+};
 
 // ---------------------------------- definitions
 bool isNumber(const string& str);
 
 std::vector<std::string> split_str(std::string s, std::string delimiter);
 
-void save_to_file(std::string dir, std::string name, const arma::vec& X, const arma::vec& Y);
 // ---------------------------------- templates
 
 /// <summary>
@@ -402,26 +408,112 @@ std::ostream& operator<<(std::ostream& os, std::vector<T> vec) {
 /// <param name="mode"></param>
 /// <returns></returns>
 template <typename T>
-inline void openFile(T& file, std::string filename, std::ios_base::openmode mode = std::ios::out) {
+inline bool openFile(T& file, std::string filename, std::ios_base::openmode mode = std::ios::out) {
 	file.open(filename, mode);
-	if (!file.is_open()) throw "couldn't open a file: " + filename + "\n";
+	if (!file.is_open()) {
+		stout << "couldn't open a file: " + filename + "\n";
+		return false;
+	}
+	return true;
 }
 
+inline void crash(bool shouldIstayorshouldIgo, std::string message = "execution terminated") {
+	if (shouldIstayorshouldIgo) {
+		stout << message;
+		exit(1);
+	}
+}
 /// <summary>
 ///
 /// </summary>
 /// <typeparam name="T"></typeparam>
 /// <param name="output"></param>
 /// <param name="elements"></param>
-/// <param name="separtator"></param>
-template <typename T>
-inline void printSeparated(std::ostream& output, std::string separtator = "\t", std::initializer_list<T> elements = {}, arma::u16 width = 8, bool endline = true) {
-	for (auto elem : elements) {
-		output.width(width); output << elem << separtator;
-	}
+/// <param name="seperator"></param>
+template <typename _ty>
+inline void print(std::ostream& output, std::string separator, arma::u16 width, _ty arg) {
+	output.width(width); output << arg << separator;
+}
+template <typename _T, typename... _ty>
+inline void print(std::ostream& output, std::string separator, arma::u16 width, _T arg, _ty... rest) {
+	print(output, separator, width, arg);
+	print(output, separator, width, rest...);
+}
+template <typename... _ty>
+inline void printSeparated(std::ostream& output, std::string separator, arma::u16 width, bool endline, _ty... args) {
+	print(output, separator, width, args...);
 	if (endline) output << std::endl;
 }
 
+inline auto readFromFile(std::ifstream& input, std::string filename) {
+	std::string datarow;
+	std::vector<arma::vec> data;
+	// find dimensionality of data
+	int num_cols = 0;
+	int num_rows = 0;
+	bool isopen = openFile(input, filename, ios::in);
+	if (!isopen) return std::vector<arma::vec>();
+	while (std::getline(input, datarow)) {
+		std::istringstream ss(datarow);
+		if (num_rows == 0) {
+			double value;
+			while (ss >> value)	num_cols++;
+			data = std::vector<arma::vec>(num_cols);
+		}
+		num_rows++;
+	}
+	for (int i = 0; i < num_cols; i++)
+		data[i] = arma::vec(num_rows, fill::zeros);
+	
+	// load data
+	input.close();
+	openFile(input, filename, ios::in);
+	int j = 0;
+	while(std::getline(input, datarow)){
+		std::istringstream ss(datarow);
+		int i = -1;
+		double value;
+		while (ss >> value) {
+			data[++i](j) = value;
+		}
+		j++;
+	}
+	return data;
+}
+
+inline void createDirs(const std::string& dir) {
+	if (!fs::is_directory(dir) || !fs::exists(dir))
+		fs::create_directories(dir);
+}
+template <typename... _Ty>
+inline void createDirs(const std::string& dir, const _Ty&... dirs) {
+	createDirs(dir);
+	createDirs(dirs...);
+}
+
+
+template <typename ... _ty>
+inline void save_to_file(std::string name, const arma::vec& x, const arma::vec& y, _ty... args) {
+	assert(x.size() == y.size() && "Incompatible dimensions");
+	std::ofstream file;
+	openFile(file, name, ios::out);
+	for (int i = 0; i < x.size(); i++) {
+		if (i == 0) printSeparated(file, "\t", 12, true, x(i), y(i), args...);
+		else		printSeparated(file, "\t", 12, true, x(i), y(i));
+	}
+	file.close();
+}
+template <typename ... _ty>
+inline void save_to_file(std::string name, const arma::vec& x, const arma::vec& y, const arma::vec& z, _ty... args) {
+	assert(((x.size() == y.size()) && (x.size() == z.size())) && "Incompatible dimensions");
+	std::ofstream file;
+	openFile(file, name, ios::out);
+	for (int i = 0; i < x.size(); i++) {
+		if (i == 0) printSeparated(file, "\t", 12, true, x(i), y(i), z(i), args...);
+		else		printSeparated(file, "\t", 12, true, x(i), y(i), z(i));
+	}
+	file.close();
+}
 // ----------------------------------------------------------------------------- MAKS' IDEAS -----------------------------------------------------------------------------
 /// <summary>
 /// Sorts the vector and saves the permutation with a lambda like function compare
@@ -486,6 +578,7 @@ inline void checkRandom(unsigned int seed) {
 
 // ------------------------------------- definitions
 double simpson_rule(double a, double b, int n, const arma::vec& f);
+double simpson_rule(const arma::vec& x, const arma::vec& f);
 double binder_cumulant(const arma::vec& arr_in);														// calculate binder cumulant of dataset
 arma::vec get_NonDegenerated_Elements(const arma::vec& arr_in);											// compute non-unique values in dataset
 // ------------------------------------- inlines

@@ -16,6 +16,7 @@
 *.txt
 *.git
 *.gz
+*.plt
 
 
 # User-specific files (MonoDevelop/Xamarin Studio)

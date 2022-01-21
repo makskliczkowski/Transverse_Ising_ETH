@@ -493,8 +493,8 @@ template<> cpx overlap<cpx>(const IsingModel<cpx>& A, const IsingModel<cpx>& B, 
 	double overlap_real = 0, overlap_imag = 0;
 	auto state_A = A.get_eigenState(n_a);
 	auto state_B = B.get_eigenState(n_b);
-	arma::normalise(state_A);
-	arma::normalise(state_B);
+	state_A = arma::normalise(state_A);
+	state_B = arma::normalise(state_B);
 #pragma omp parallel for reduction(+: overlap_real, overlap_imag)
 	for (int k = 0; k < A.get_hilbert_size(); k++) {
 		cpx over = conj(state_A(k)) * state_B(k);

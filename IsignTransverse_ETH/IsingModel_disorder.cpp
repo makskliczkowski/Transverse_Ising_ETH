@@ -492,14 +492,46 @@ sp_cx_mat IsingModel_disorder::createSq(int k) const {
 	
 	std::vector<cpx> k_exp(this->L);
 	for (int j = 0; j < this->L; j++)
-		k_exp[j] = std::exp(1i * q * double(j));
+		k_exp[j] = std::cos(q * double(j + 1));
 
 #pragma omp parallel for
 	for (long int n = 0; n < N; n++) {
 		for (int j = 0; j < this->L; j++) {
 			auto [value, idx] = IsingModel::sigma_z(n, this->L, { j });
-#pragma omp critical
-			opMatrix(idx, n) += value * k_exp[j];
+			opMatrix(n, n) += value * k_exp[j];
+		}
+	}
+	return opMatrix / sqrt(this->L);
+}
+
+sp_cx_mat IsingModel_disorder::createHq(int k) const {
+	const double q = k * two_pi / double(this->L);
+	arma::sp_cx_mat opMatrix(this->N, this->N);
+
+	auto neis = get_neigh_vector(this->_BC, this->L, 1);
+	std::vector<cpx> k_exp(this->L);
+	for (int j = 0; j < this->L; j++)
+		k_exp[j] = std::cos(q * double(j + 1));
+
+#pragma omp parallel for
+	for (long int n = 0; n < N; n++) {
+		for (int j = 0; j < this->L; j++) {
+			auto nei = neis[j];
+
+			auto [value, idx1] = IsingModel::sigma_x(n, this->L, { j });
+		#pragma omp critical
+			opMatrix(idx1, n) += this->g / 2. * k_exp[j];
+
+			auto [sigZ1, discard] = IsingModel::sigma_z(n, this->L, { j });
+			// neis
+			if (nei >= 0) {
+				auto [value, idx2] = IsingModel::sigma_x(n, this->L, { nei });
+		#pragma omp critical
+				opMatrix(idx2, n) += this->g / 2. * k_exp[j];
+
+				auto [sigZ2, discard] = IsingModel::sigma_z(n, this->L, { nei });
+				opMatrix(n, n) += (this->h / 2. * (sigZ1 + sigZ2) + this->J * sigZ1 * sigZ2) * k_exp[j];
+			}
 		}
 	}
 	return opMatrix / sqrt(this->L);
@@ -515,7 +547,7 @@ sp_cx_mat IsingModel_disorder::createSq(int k) const {
 mat IsingModel_disorder::correlation_matrix(u64 state_id) const {
 	mat corr_mat(L, L, fill::zeros);
 	const arma::subview_col state = this->eigenvectors.col(state_id);
-#pragma omp parallel shared(state, corr_mat)
+#pragma omp parallel shared(corr_mat)
 	{
 		u64 idx;
 		vector<bool> vect(L), temp(L);
@@ -570,10 +602,10 @@ mat IsingModel_disorder::correlation_matrix(u64 state_id) const {
 double IsingModel_disorder::entaglement_entropy(u64 state_id, int A_size) const {
 	std::vector<bool> base_vector(L);
 	const arma::subview_col state = this->eigenvectors.col(state_id);
-	u64 dimA = std::pow(2, A_size);
-	u64 dimB = std::pow(2, L - A_size);
+	const u64 dimA = std::pow(2, A_size);
+	const u64 dimB = std::pow(2, L - A_size);
 	cx_mat rho(dimA, dimA, fill::zeros);
-#pragma omp parallel for shared(rho,state, dimA, dimB)
+#pragma omp parallel for shared(rho)
 	for (long int n = 0; n < N; n++) {
 		if (abs(state(n)) < 1e-10) continue;
 		u64 counter = 0;

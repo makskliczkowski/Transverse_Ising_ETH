@@ -82,14 +82,14 @@ public:
 		return tmp_str;
 	};
 
-	auto get_hilbert_size()		  const -> u64					    { return this->N; };					 // get the Hilbert space size 2^N
-	auto get_mapping()			  const -> std::vector<u64>			{ return this->mapping; };				 // constant reference to the mapping
-	auto get_hamiltonian()		  const -> arma::SpMat<_type>		{ return this->H; };					 // get the const reference to a Hamiltonian
-	auto get_eigenvectors()		  const -> arma::Mat<_type>			{ return this->eigenvectors; };			 // get the const reference to the eigenvectors
-	auto get_eigenvalues()		  const -> arma::vec				{ return this->eigenvalues; };			 // get the const reference to eigenvalues
-	auto get_eigenEnergy(u64 idx) const -> double				    { return this->eigenvalues(idx); };		 // get eigenenergy at a given idx
-	auto get_eigenState(u64 idx)  const -> arma::subview_col<_type> { return this->eigenvectors.col(idx); }; // get an eigenstate at a given idx
-	auto get_eigenStateValue(u64 idx, u64 elem) const -> _type { return this->eigenvectors(elem,idx); };	 // get an eigenstate at a given idx
+	auto get_hilbert_size()						const RETURNS(this->N);							 // get the Hilbert space size 2^N
+	auto get_mapping()							const RETURNS(this->mapping);					 // constant reference to the mapping
+	auto get_hamiltonian()						const RETURNS(this->H);							 // get the const reference to a Hamiltonian
+	auto get_eigenvectors()						const RETURNS(this->eigenvectors);				 // get the const reference to the eigenvectors
+	auto get_eigenvalues()						const RETURNS(this->eigenvalues);				 // get the const reference to eigenvalues
+	auto get_eigenEnergy(u64 idx)				const RETURNS(this->eigenvalues(idx));			 // get eigenenergy at a given idx
+	auto get_eigenState(u64 idx)				const RETURNS(this->eigenvectors.col(idx));		 // get an eigenstate at a given idx
+	auto get_eigenStateValue(u64 idx, u64 elem) const RETURNS(this->eigenvectors(elem, idx));	 // get an eigenstate at a given idx
 	// ---------------------------------- PRINTERS ----------------------------------
 	void print_base_spin_sector(int Sz = 0);													// print basis state with a given total spin (for clarity purposes)
 	void print_state(u64 _id);																	// prints the eigenstate at a given idx
@@ -223,14 +223,44 @@ public:
 			LIOM += create_LIOMoperator_densities(n, i);
 		return LIOM;
 	}
-
+	
+	virtual sp_cx_mat createHq(int k) const = 0;
 	virtual sp_cx_mat createSq(int k) const = 0;
+
+	sp_cx_mat chooseOperator(int choose, int site) {
+		sp_cx_mat op;
+		switch (choose) {
+			case 0: op = create_operator({ IsingModel::sigma_z }, std::vector<int>({ site })); break;
+			case 1: op = create_operator({ IsingModel::sigma_x }, std::vector<int>({ site })); break;
+			case 2: op = createSq(site); break;
+			case 3: stout << "not implemented Sx_q yet!!!\n\n"; exit(1); break;
+			case 4: op = createHq(site); break;
+			default:
+				stout << "No operator chosen!\nReturning empty matrix\n\n";
+		}
+		return op;
+	}
+	static std::string opName(int choose, int site) {
+		std::string name;
+		switch (choose) {
+		case 0: name = "SigmaZ_j=" + std::to_string(site);	break;
+		case 1: name = "SigmaX_j=" + std::to_string(site);	break;
+		case 2: name = "SigmaZ_q=" + std::to_string(site);	break;
+		case 3: name = "SigmaX_q=" + std::to_string(site);	break;
+		case 4: name = "H_q="	   + std::to_string(site);	break;
+		default:
+			stout << "none operator chosen";
+			exit(1);
+		}
+		return name;
+	}
 };
 
 inline void normaliseOp(arma::sp_cx_mat& op) {
 	const u64 N = op.n_cols;
 	const cpx norm = arma::trace(op * op) / double(N);
-	op /= ((abs(norm) <= 1e-12) ? 1. : norm); // normalize if non-zero norm
+	if (abs(norm) >= 1e-15)
+		op = op / norm; // normalize if non-zero norm
 }
 // ----------------------------------------- SYMMETRIC -----------------------------------------
 /// <summary>
@@ -287,6 +317,7 @@ public:
 		const IsingModel_sym& sector_alfa, cpx normalisation_beta);																				// returns the index and the value of the minimum representative
 
 	double entaglement_entropy(u64 state_id, int subsystem_size) const override {
+		stout << "Not implemented yet!!\n\n";
 		return 0;
 	};
 
@@ -343,6 +374,7 @@ public:
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const override;
 	void set_OperatorElem(std::vector<op_type> operators, std::vector<int> sites, sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx) const;
 	
+	sp_cx_mat createHq(int k) const override { stout << "Not implemented yet!!\n\n"; return sp_cx_mat(); };
 	sp_cx_mat createSq(int k) const override;
 
 	mat correlation_matrix(u64 state_id) const override;
@@ -397,6 +429,7 @@ public:
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) const override;
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const override;
 
+	sp_cx_mat createHq(int k) const override;
 	sp_cx_mat createSq(int k) const override;
 	mat correlation_matrix(u64 state_id) const override;
 
@@ -406,8 +439,8 @@ public:
 
 	double entaglement_entropy(u64 state_id, int subsystem_size) const override;
 
-	static std::string set_info(int L, double J, double J0, double g, double g0, double h, double w, std::vector<std::string> skip = {}) {
-		std::string name = "_L=" + std::to_string(L) + \
+	static std::string set_info(int L, double J, double J0, double g, double g0, double h, double w, std::vector<std::string> skip = {}, std::string sep = "_") {
+		std::string name = sep + "L=" + std::to_string(L) + \
 			",J0=" + to_string_prec(J0, 2) + \
 			",g=" + to_string_prec(g, 2) + \
 			",g0=" + to_string_prec(g0, 2) + \
