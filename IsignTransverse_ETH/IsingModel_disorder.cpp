@@ -447,7 +447,8 @@ sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> op
 #pragma omp parallel for
 	for (long int k = 0; k < N; k++) {
 		for (auto& op : operators) {
-			auto [value, idx] = op(k, this->L, sites);
+			cpx value; u64 idx;
+			std::tie(value, idx) = op(k, this->L, sites);
 #pragma omp critical
 			opMatrix(idx, k) += value;
 		}
@@ -460,7 +461,8 @@ sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> op
 	for (long int k = 0; k < N; k++) {
 		for (int j = 0; j < this->L; j++) {
 			for (auto& op : operators) {
-				auto [value, idx] = op(k, this->L, { j });
+				cpx value; u64 idx;
+				std::tie(value, idx) = op(k, this->L, { j });
 #pragma omp critical
 				opMatrix(idx, k) += value;
 			}
@@ -477,7 +479,8 @@ sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> op
 			const int nei = neis[j];
 			if (nei < 0) continue;
 			for (auto& op : operators) {
-				auto [value, idx] = op(k, this->L, { j, nei });
+				cpx value; u64 idx;
+				std::tie(value, idx) = op(k, this->L, { j, nei });
 #pragma omp critical
 				opMatrix(idx, k) += value;
 			}
@@ -517,19 +520,20 @@ sp_cx_mat IsingModel_disorder::createHq(int k) const {
 	for (long int n = 0; n < N; n++) {
 		for (int j = 0; j < this->L; j++) {
 			auto nei = neis[j];
-
-			auto [value, idx1] = IsingModel::sigma_x(n, this->L, { j });
+			u64 idx = INT_MAX;
+			cpx value, discard, sigZ1, sigZ2;
+			std::tie(value, idx) = IsingModel::sigma_x(n, this->L, { j });
 		#pragma omp critical
-			opMatrix(idx1, n) += this->g / 2. * k_exp[j];
+			opMatrix(idx, n) += this->g / 2. * k_exp[j];
 
-			auto [sigZ1, discard] = IsingModel::sigma_z(n, this->L, { j });
+			std::tie(sigZ1, discard) = IsingModel::sigma_z(n, this->L, { j });
 			// neis
 			if (nei >= 0) {
-				auto [value, idx2] = IsingModel::sigma_x(n, this->L, { nei });
+				std::tie(value, idx) = IsingModel::sigma_x(n, this->L, { nei });
 		#pragma omp critical
-				opMatrix(idx2, n) += this->g / 2. * k_exp[j];
+				opMatrix(idx, n) += this->g / 2. * k_exp[j];
 
-				auto [sigZ2, discard] = IsingModel::sigma_z(n, this->L, { nei });
+				std::tie(sigZ2, discard) = IsingModel::sigma_z(n, this->L, { nei });
 				opMatrix(n, n) += (this->h / 2. * (sigZ1 + sigZ2) + this->J * sigZ1 * sigZ2) * k_exp[j];
 			}
 		}

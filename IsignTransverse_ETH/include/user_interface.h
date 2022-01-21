@@ -55,18 +55,18 @@ namespace isingUI
 	std::unordered_map <std::string, std::string> const table{
 		{"f",""},						// file to read from directory
 		{"J","1.0"},					// spin coupling
-		{"J0","0.2"},					// spin coupling randomness maximum (-J0 to J0)
+		{"J0","0.0"},					// spin coupling randomness maximum (-J0 to J0)
 		{"h","0.1"},					// perpendicular magnetic field constant
 		{"hn","1"},						// longitudal magnetic field sweep number
 		{"hs","0.1"},					// longitudal magnetic field sweep step
-		{"w","1.0"},					// disorder strength
+		{"w","0.01"},					// disorder strength
 		{"wn","1"},						// longitudal disorder change number
 		{"ws","0.1"},					// longitudal disorder change step
 		{"g","1.0"},					// transverse magnetic field constant
 		{"gn","1"},						// parameter scaling g number
 		{"gs","0.01"},					// parameter scaling g step
 		{"g0","0.0"},					// transverse field randomness maximum (-g0 to g0)
-		{"g0n","1"},						// transverse disorder change number
+		{"g0n","1"},					// transverse disorder change number
 		{"g0s","0.0"},					// transverse disorder change step
 		{"L","4"},						// chain length
 		{"Ln","1"},						// chain length step in size scaling
@@ -82,7 +82,7 @@ namespace isingUI
 		{"p","0"},						// use parity symmetry?
 		{"th","1"},						// number of threads
 		{"op","0"},						// choose operator
-		{"fun","0"}						// choose function 
+		{"fun","-1"}					// choose function 
 	};
 
 	// ----------------------------------- UI CLASS SPECIALISATION -----------------------------------
@@ -101,7 +101,7 @@ namespace isingUI
 		int site;																		// site for operator averages
 		int op;																			// choose operator
 		int fun;																		// choose function to start calculations
-
+		
 		struct {
 			int k_sym;																	// translational symmetry generator
 			int p_sym;																	// parity symmetry generator
@@ -162,12 +162,12 @@ namespace isingUI
 			}
 		}
 		template <typename... _types> void average_over_realisations(
-			IsingModel_disorder& model,
+			IsingModel_disorder& model,				   //!< input model with disorder
 			std::function<void(_types...args)> lambda, //!< callable function
 			_types... args							   //!< arguments passed to callable interface lambda
 		) {
+			model.reset_random();
 			for (int r = 0; r < this->realisations; r++) {
-				model.reset_random();
 				model.hamiltonian();
 				model.diagonalization();
 				lambda(std::forward<_types>(args)...);
@@ -183,12 +183,13 @@ namespace isingUI
 		/// <param name="name"> name for file to store data </param>
 		template <typename _type> void spectralFunction(IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name);
 		template <typename _type> void integratedSpectralFunction(IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name);
-		//template <typename _type> _NODISCARD arma::vec spectralFunction(IsingModel<_type>& alfa, arma::sp_cx_mat opMatrix);
+		template <typename _type> auto integratedSpectralFunction(IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, const arma::vec& omegas) -> arma::vec;
 
 		template <typename _type> void timeEvolution(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name = "STH");
-		template <typename _type> std::pair<arma::vec, double> timeEvolution(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, const arma::vec& times = arma::logspace(-4, 4, 1000));
+		template <typename _type> auto timeEvolution(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, const arma::vec& times) -> std::pair<arma::vec, double>;
 		void relaxationTimesFromFiles();
 		void intSpecFun_from_timeEvol();
+		
 		template <typename _type> void IsingLIOMs(IsingModel<_type>& alfa);
 		void TFIsingLIOMs();
 		void LIOMsdisorder();
@@ -196,7 +197,7 @@ namespace isingUI
 		template <typename _type> void LevelSpacingDist(IsingModel<_type>& alfa);
 		template <typename _type> std::pair<double, double> operator_norm(arma::sp_cx_mat& opMatrix, IsingModel<_type>& alfa);
 		void adiabaticGaugePotential_sym(bool SigmaZ = 0, bool avSymSectors = 0);
-		void adiabaticGaugePotential_dis();
+		void adiabaticGaugePotential_dis(bool h_vs_g = true);
 		template <typename _type> void energyEvolution(IsingModel<_type>& model);
 
 		/// <summary>

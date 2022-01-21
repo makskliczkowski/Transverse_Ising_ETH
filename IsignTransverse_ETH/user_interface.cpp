@@ -130,13 +130,13 @@ void isingUI::ui::set_default() {
 	this->Ln = 1;
 
 	this->J = 1.0;
-	this->J0 = 0.2;
+	this->J0 = 0.0;
 
 	this->h = 0.0;
 	this->hs = 0.0;
 	this->hn = 1;
 
-	this->w = 1.0;
+	this->w = 0.01;
 	this->ws = 0.0;
 	this->wn = 1;
 
@@ -155,7 +155,7 @@ void isingUI::ui::set_default() {
 	this->realisations = 100;
 	this->site = 0;
 	this->op = 0;
-	this->fun = 0;
+	this->fun = INT_MAX;
 	this->mu = 5;
 
 	this->boundary_conditions = 0;
@@ -224,9 +224,11 @@ void isingUI::ui::exit_with_help() const {
 		""
 		"-fun choose function to start calculations"
 		"	0 -- time evolution (and spectral functions) with disorder --> LIOMsdisorder(...)"
-		"	1 -- AGPs of input operator from -op flag"
-		"	2 -- LIOMs of Tranverse-field-Ising-model --> TFIsingLIOMs()"
-		"	3 -- "
+		"	1 -- AGPs for small disorder (-m=0) as function of h for input operator from -op flag\n\t\t\t\tSET: -L, -Ln, -Ls, -h, -hn, -hs, -op, -w(default=0.01)"
+		"	2 -- AGPs for small disorder (-m=0) as function of g for input operator from -op flag\n\t\t\t\tSET: -L, -Ln, -Ls, -g, -gn, -gs, -op, -w(default=0.01)"
+		"	3 -- LIOMs of Tranverse-field-Ising-model --> TFIsingLIOMs()"
+		"	4 -- relaxation times from integrated spectral function for operator -op flag on site -s flag"
+		" def -- in make_sim space for user to write function; desifned for non-builtin behavior"
 		""
 		"-m model to be choosen : (default 0 - without symmetries)\n"
 		"	0 -- nonsymmetric model - only here the disorder is working\n"
@@ -1459,7 +1461,7 @@ template <typename _type> void isingUI::ui::spectralFunction(IsingModel<_type>& 
 template <typename _type> void isingUI::ui::integratedSpectralFunction(IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name) {
 	const u64 N = alfa.get_hilbert_size();
 	const double wH = alfa.mean_level_spacing_analytical();
-	auto omegas = arma::logspace(std::floor(log10(wH)) - 2, 2, 500);
+	auto omegas = arma::logspace(std::floor(log10(wH)) - 1, 2, 300);
 	std::ofstream reponse_fun;
 	openFile(reponse_fun, name + alfa.get_info({}) + ".dat", ios::out);
 	for (auto& w : omegas) {
@@ -1477,6 +1479,24 @@ template <typename _type> void isingUI::ui::integratedSpectralFunction(IsingMode
 		else				printSeparated(reponse_fun, "\t", 12, true, w, overlap);
 	}
 	reponse_fun.close();
+}
+template <typename _type> auto isingUI::ui::integratedSpectralFunction(IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, const arma::vec& omegas) -> arma::vec{
+	const u64 N = alfa.get_hilbert_size();
+	arma::vec intSpec(omegas.size());
+	for (int i = 0; i < omegas.size(); i++) {
+		const double w = omegas(i);
+		double overlap = 0.;
+#pragma omp parallel for reduction(+: overlap)
+		for (long int n = 0; n < N; n++) {
+			for (long int m = 0; m < N; m++) {
+				const double w_nm = abs(alfa.get_eigenEnergy(n) - alfa.get_eigenEnergy(m));
+				if (w >= w_nm)
+					overlap += abs(mat_elem(n, m) * conj(mat_elem(n, m)));
+			}
+		}
+		intSpec(i) = overlap / double(N);
+	}
+	return intSpec;
 }
 
 template <typename _type> void isingUI::ui::timeEvolution(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name) {
@@ -1512,7 +1532,7 @@ template <typename _type> void isingUI::ui::timeEvolution(const IsingModel<_type
 	}
 	tEvolution.close();
 }
-template <typename _type> std::pair<arma::vec, double> isingUI::ui::timeEvolution(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, const arma::vec& times) {
+template <typename _type> auto isingUI::ui::timeEvolution(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, const arma::vec& times) -> std::pair<arma::vec, double> {
 	const u64 N = alfa.get_hilbert_size();
 	const double tH = 1. / alfa.mean_level_spacing_analytical();
 	double LTA = 0;
@@ -1542,37 +1562,32 @@ template <typename _type> std::pair<arma::vec, double> isingUI::ui::timeEvolutio
 void isingUI::ui::relaxationTimesFromFiles() {
 	std::string dir = this->saving_dir + "RelaxationTimes" + kPSep;
 	createDirs(dir);
-	for (std::string s : { "j", "q" }) {
-	#pragma omp parallel for
-		for (int k = 0; k < this->L; k++) {
-			std::string op = "SigmaZ_" + s + "=" + std::to_string(k);
-			std::ofstream map;
-			openFile(map, dir + op + IsingModel_disorder::set_info(L, 1.0, 0.0, g, 0.0, h, 0.01, { "h","g" }) + ".dat", ios::out);
-			//std::vector<double> gx_list = { 0.025, 0.05, 0.1, 0.15, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 };
-			auto gx_list = arma::linspace(0.025, 0.8, 32);
-			auto hx_list = arma::linspace(0.2, 3.0, 15);
-			for (auto& gx : gx_list) {
-				for (auto& hx : hx_list) {
-					// read time-evolution data
-					std::ifstream file;
-					std::string name = op + IsingModel_disorder::set_info(L, 1.0, 0.0, gx, 0.0, hx, 0.01) + ".dat";
-					std::string filename = this->saving_dir + "IntegratedResponseFunction" + kPSep + name;
-					auto data = readFromFile(file, filename);
-					file.close();
-					if (data.empty()) continue;
-					// integrate and find relax rate
-					double wH = data[2](0);
-					for (int k = 0; k < data[0].size(); k++) {
-						if (data[1](k) >= 0.5) {
-							printSeparated(map, "\t", 12, true, hx, gx, 1. / data[0](k), 1. / wH);
-							break;
-						}
-					}
+	std::string op = IsingModel_disorder::opName(this->op, this->site);
+	std::ofstream map;
+	openFile(map, dir + op + IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, { "h", "g" }) + ".dat", ios::out);
+	//std::vector<double> gx_list = { 0.025, 0.05, 0.1, 0.15, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 };
+	auto gx_list = arma::linspace(this->g, this->g + this->gs * this->gn, this->gn + 1);
+	auto hx_list = arma::linspace(this->h, this->h + this->hs * this->hn, this->hn + 1);
+	for (auto& gx : gx_list) {
+		for (auto& hx : hx_list) {
+			// read time-evolution data
+			std::ifstream file;
+			std::string name = op + IsingModel_disorder::set_info(this->L, this->J, this->J0, gx, this->g0, hx, this->w) + ".dat";
+			std::string filename = this->saving_dir + "IntegratedResponseFunction" + kPSep + name;
+			auto data = readFromFile(file, filename);
+			file.close();
+			if (data.empty()) continue;
+			// integrate and find relax rate
+			double wH = data[2](0);
+			for (int k = 0; k < data[0].size(); k++) {
+				if (data[1](k) >= 0.5) {
+					printSeparated(map, "\t", 12, true, hx, gx, 1. / data[0](k), 1. / wH);
+					break;
 				}
 			}
-			map.close();
 		}
 	}
+	map.close();
 }
 void isingUI::ui::intSpecFun_from_timeEvol() {
 	std::ofstream map;
@@ -1614,22 +1629,25 @@ void isingUI::ui::intSpecFun_from_timeEvol() {
 	map.close();
 }
 
-void isingUI::ui::adiabaticGaugePotential_dis() {
+void isingUI::ui::adiabaticGaugePotential_dis(bool h_vs_g) {
 	clk::time_point start = std::chrono::system_clock::now();
-	std::string info = IsingModel_disorder::set_info(L, J, 0, g, 0, h, 0.01, { "L", "h" }, ",");
+	auto s = h_vs_g ? "h" : "g";
+	std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, { "L", s }, ",");
 	std::string dir = this->saving_dir + "AGP" + kPSep; createDirs(dir);
 	std::ofstream farante(dir + IsingModel_disorder::opName(this->op, this->site) + info + ".dat");
 	farante << std::setprecision(6) << std::scientific;
 	//std::ofstream scaling(this->saving_dir + "AGPsize_DELETE" + info + ".dat");
 	//scaling << std::setprecision(6) << std::scientific;
-	auto params = arma::linspace(this->h, this->h + this->hs * this->hn, this->hn + 1);
-	for (auto& hx : params) {
-		farante << hx << "\t\t";
+	auto params = h_vs_g ? arma::linspace(this->h, this->h + this->hs * this->hn, this->hn + 1)
+		: arma::linspace(this->g, this->g + this->gs * this->gn, this->gn + 1);
+	for (auto& x : params) {
+		farante << x << "\t\t";
 		//scaling << "\"h = " + to_string_prec(hx, 5) << "\"" << endl;
-		stout << "\nh = " << hx << "\t\t";
 		for (int system_size = this->L; system_size < this->L + this->Ls * this->Ln; system_size += this->Ls) {
 			const auto start_loop = std::chrono::system_clock::now();
-			auto alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, 0.0, this->g, 0.0, hx, 0.01);
+			std::unique_ptr<IsingModel_disorder> alfa;
+			if(h_vs_g) alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, this->J0, this->g, this->g0, x,		0.01);
+			else	   alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, this->J0, x	   , this->g0, this->h, 0.01);
 			stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
 			auto opMat = alfa->chooseOperator(this->op, this->site);
 			normaliseOp(opMat);
@@ -1853,7 +1871,7 @@ void isingUI::ui::TFIsingLIOMs() {
 			timeEvolution(alfa, mat_elem, timeDir + "LIOM" + std::to_string(this->site) + "," + std::to_string(j));
 		}
 	};
-	if (this->m = 1) {
+	if (this->m == 1) {
 		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 			this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 		body(*alfa);
@@ -2109,7 +2127,8 @@ void isingUI::ui::LIOMsdisorder() {
 	const double tH = 1. / alfa->mean_level_spacing_analytical();
 	int t_max = std::ceil(std::log10(tH));
 	t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
-	auto times = arma::logspace(-2, t_max, 500);
+	auto times = arma::logspace(-2, t_max, 300);
+	auto omegas = arma::logspace(std::floor(log10(1. / tH)) - 1, 2, 300);
 	std::string opName = IsingModel_disorder::opName(this->op, this->site);
 	std::string str = (this->op < 2) ? "j" : "q";
 	std::string timeDir = this->saving_dir + "timeEvolution" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
@@ -2121,32 +2140,45 @@ void isingUI::ui::LIOMsdisorder() {
 	normaliseOp(op);
 	arma::cx_mat mat_elem;
 	arma::vec opEvol(times.size(), arma::fill::zeros);
+	arma::vec opIntSpec(times.size(), arma::fill::zeros);
+
 	double LTA = 0;
 	alfa->reset_random();
 	if (this->realisations > 1) {
 		for (int r = 0; r < this->realisations; r++) {
 			const auto start_loop = std::chrono::system_clock::now();
 			std::string tdir_realisation = timeDir + "realisation=" + std::to_string(r) + kPSep;
-			createDirs(tdir_realisation);
+			std::string intdir_realisation = intDir + "realisation=" + std::to_string(r) + kPSep;
+			std::string specdir_realisation = specDir + "realisation=" + std::to_string(r) + kPSep;
+			createDirs(tdir_realisation, intdir_realisation, specdir_realisation);
 			alfa->diagonalization();
 			const arma::mat U = alfa->get_eigenvectors();
 			mat_elem = U.t() * op * U;
 			stout << " \t\t\t	--> finished diagonalizing for " << alfa->get_info() 
 				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n";
+			
 			auto [op_tmp, LTA_tmp] = timeEvolution(*alfa, mat_elem, times);
 			save_to_file(tdir_realisation + opName + alfa->get_info({}) + ".dat", times, op_tmp, tH, LTA_tmp);
 			stout << " \t\t	--> finished time evolution for " << alfa->get_info() 
 				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n\tNEXT: integrated spectral function";
-			integratedSpectralFunction(*alfa, mat_elem, intDir + opName);
+			
+			auto res = integratedSpectralFunction(*alfa, mat_elem, omegas);
+			save_to_file(intdir_realisation + opName + alfa->get_info({}) + ".dat", omegas, res, 1. / tH, LTA_tmp);
 			stout << " \t\t	--> finished integrated spectral function for " << alfa->get_info()
 				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n\tNEXT: spectral function";
-			spectralFunction(*alfa, mat_elem, specDir + opName);
+			
+			spectralFunction(*alfa, mat_elem, specdir_realisation + opName);
+			
 			LTA += LTA_tmp;
 			opEvol += op_tmp;
+			opIntSpec += res;
 			alfa->hamiltonian();
 		}
 		opEvol /= double(this->realisations);
 		LTA /= double(this->realisations);
+		opIntSpec /= double(this->realisations);
+		save_to_file(timeDir + opName + alfa->get_info({}) + ".dat", times, opEvol, tH, LTA);
+		save_to_file(intDir + opName + alfa->get_info({}) + ".dat", omegas, opIntSpec, 1. / tH, LTA);
 	}
 	else {
 		alfa->diagonalization();
@@ -2174,9 +2206,11 @@ void isingUI::ui::make_sim() {
 	//adiabaticGaugePotential(0, 0);
 	//relaxationTimesFromFiles();
 	switch (this->fun) {
-	case 0: LIOMsdisorder(); break;
-	case 1: adiabaticGaugePotential_dis(); break;
-	case 2: TFIsingLIOMs();
+	case 0: LIOMsdisorder();				break;
+	case 1: adiabaticGaugePotential_dis(1);	break;
+	case 2: adiabaticGaugePotential_dis(0);	break;
+	case 3: TFIsingLIOMs();					break;
+	case 4: relaxationTimesFromFiles();		break;
 	default:
 		const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
 		const double gmin = this->g, gmax = this->g + this->gn * this->gs;

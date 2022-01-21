@@ -129,8 +129,7 @@ inline double tim_s(clk::time_point start) {
 enum class coordinate {
 	x, 
 	y,
-	z,
-	t // 4th coordinate as time
+	z
 };
 
 /// <summary>
