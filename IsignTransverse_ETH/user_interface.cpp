@@ -2160,18 +2160,18 @@ void isingUI::ui::LIOMsdisorder() {
 			const arma::mat U = alfa->get_eigenvectors();
 			mat_elem = U.t() * op * U;
 			normaliseMat(mat_elem);
-			stout << " \t\t\t	--> finished diagonalizing for " << alfa->get_info() 
+			stout << "\t\t	--> finished diagonalizing for " << alfa->get_info() 
 				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n";
 			
 			auto [op_tmp, LTA_tmp] = timeEvolution(*alfa, mat_elem, times);
 			save_to_file(tdir_realisation + opName + alfa->get_info({}) + ".dat", times, op_tmp, tH, LTA_tmp);
-			stout << " \t\t	--> finished time evolution for " << alfa->get_info() 
-				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n\tNEXT: integrated spectral function";
+			stout << "\t\t	--> finished time evolution for " << alfa->get_info() 
+				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n\tNEXT: integrated spectral function\n";
 			
 			auto res = integratedSpectralFunction(*alfa, mat_elem, omegas);
 			save_to_file(intdir_realisation + opName + alfa->get_info({}) + ".dat", omegas, res, 1. / tH, LTA_tmp);
-			stout << " \t\t	--> finished integrated spectral function for " << alfa->get_info()
-				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n\tNEXT: spectral function";
+			stout << "\t\t	--> finished integrated spectral function for " << alfa->get_info()
+				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n\tNEXT: spectral function\n";
 			
 			spectralFunction(*alfa, mat_elem, specdir_realisation + opName);
 			
