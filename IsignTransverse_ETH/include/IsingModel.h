@@ -51,13 +51,13 @@ protected:
 	virtual u64 map(u64 index) = 0;						// function returning either the mapping(symmetries) or the input index (no-symmetry: 1to1 correspondance)
 
 public:
-	u64 E_av_idx;										// average energy
+	u64 E_av_idx = -1;										// average energy
 	/* MODEL BASED PARAMETERS */
-	int L;												// chain length
-	double J;											// spin exchange
-	double g;											// transverse magnetic field
-	double h;											// perpendicular magnetic field
-	int _BC;											// boundary condition
+	int L = 8;												// chain length
+	double J = 1;											// spin exchange
+	double g = 1;											// transverse magnetic field
+	double h = 1;											// perpendicular magnetic field
+	int _BC = 1;											// boundary condition
 
 	// ---------------------------------- CONSTRUCTOR ----------------------------------
 	virtual ~IsingModel() = 0;
@@ -144,7 +144,7 @@ public:
 	static std::pair<cpx, u64> sigma_x(u64 base_vec, int L, std::vector<int> sites) {
 		for (auto& site : sites) {
 			//site = properSite(site);
-			base_vec = flip(base_vec, BinaryPowers[L - 1 - site], L - 1 - site);
+			NO_OVERFLOW(base_vec = flip(base_vec, BinaryPowers[L - 1 - site], L - 1 - site));
 		}
 		return std::make_pair(1.0, base_vec);
 	};
@@ -154,7 +154,7 @@ public:
 		for (auto& site : sites) {
 			//site = properSite(site);
 			val *= checkBit(tmp, L - 1 - site) ? im : -im;
-			tmp = flip(tmp, BinaryPowers[L - 1 - site], L - 1 - site);
+			NO_OVERFLOW(tmp = flip(tmp, BinaryPowers[L - 1 - site], L - 1 - site));
 		}
 		return std::make_pair(val, tmp);
 	};
@@ -174,11 +174,11 @@ public:
 		auto it = sites.begin() + 1;
 		auto it2 = sites.begin();
 		if (!(checkBit(base_vec, L - 1 - *it))) {
-			tmp = flip(tmp, BinaryPowers[L - 1 - *it], L - 1 - *it);
+			NO_OVERFLOW(tmp = flip(tmp, BinaryPowers[L - 1 - *it], L - 1 - *it);)
 			val = 2.0;
 			if (sites.size() > 1) {
 				if (checkBit(base_vec, L - 1 - *it2)) {
-					tmp = flip(tmp, BinaryPowers[L - 1 - *it2], L - 1 - *it2);
+					NO_OVERFLOW(tmp = flip(tmp, BinaryPowers[L - 1 - *it2], L - 1 - *it2);)
 					val *= 2.0;
 				}
 				else val = 0.0;
@@ -258,9 +258,17 @@ public:
 
 inline void normaliseOp(arma::sp_cx_mat& op) {
 	const u64 N = op.n_cols;
-	const cpx norm = arma::trace(op * op) / double(N);
-	if (abs(norm) >= 1e-15)
-		op = op / norm; // normalize if non-zero norm
+	const cpx operator_normalisation = std::sqrt(arma::trace(op * op) / double(N));
+	if (abs(operator_normalisation) >= 1e-15)
+		op = op / operator_normalisation; // normalize if non-zero norm
+	else
+		std::cout << "normalisation <A^2>=0 - somethings wrong, boi.. " << std::scientific << operator_normalisation << std::endl;
+}
+inline void normaliseMat(arma::cx_mat& _matrix) {
+	const u64 N = _matrix.n_cols;
+	cpx operator_normalisation = arma::norm(_matrix, "fro");
+	operator_normalisation = operator_normalisation / std::sqrt(N);
+	_matrix = _matrix / operator_normalisation;
 }
 // ----------------------------------------- SYMMETRIC -----------------------------------------
 /// <summary>

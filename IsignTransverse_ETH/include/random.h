@@ -14,7 +14,7 @@ class randomGen {
 private:
 	//XoshiroCpp::Xoshiro256PlusPlus engine; 
 	std::mt19937_64 engine;
-	std::mt19937::result_type seed = 87178291199L;
+	std::mt19937::result_type seed = std::mt19937::result_type(87178291199L);
 public:
 	randomGen(std::uint64_t seed = std::random_device{}()) {
 		//this->engine = XoshiroCpp::Xoshiro256PlusPlus(this->SeedInit(seed));

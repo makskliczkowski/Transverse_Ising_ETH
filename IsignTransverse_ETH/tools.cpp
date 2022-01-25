@@ -3,15 +3,15 @@ int num_of_threads = 16;
 
 std::random_device rd;
 std::mt19937::result_type seed = static_cast<long unsigned int>(time(0)); // 87178291199L; // set constant to maintain same disorder for different sizes etc
-// rd() ^ (\
-	(std::mt19937::result_type)\
-	std::chrono::duration_cast<std::chrono::seconds>(\
-		std::chrono::system_clock::now().time_since_epoch()\
-		).count() +\
-	(std::mt19937::result_type)\
-	std::chrono::duration_cast<std::chrono::microseconds>(\
-		std::chrono::high_resolution_clock::now().time_since_epoch()\
-		).count());
+// rd() ^ (
+//	(std::mt19937::result_type)
+//	std::chrono::duration_cast<std::chrono::seconds>(
+//		std::chrono::system_clock::now().time_since_epoch()
+//		).count() +
+//	(std::mt19937::result_type)
+//	std::chrono::duration_cast<std::chrono::microseconds>(
+//		std::chrono::high_resolution_clock::now().time_since_epoch()
+//		).count());
 std::mt19937_64 gen(seed);
 
 /* STRING BASED TOOLS */
@@ -69,22 +69,24 @@ double simpson_rule(double a, double b, int n, const arma::vec& f) {
 	double sum_odds = 0.0;
 #pragma omp parallel for reduction(+: sum_odds)
 	for (int i = 1; i < n; i += 2) {
-		int idx = ((a + i * h) + abs(a)) / h;
+		int idx = int(((a + i * h) + abs(a)) / h);
 		sum_odds += (idx < f.size()) ? f(idx) : 0.0;
 	}
 
 	double sum_evens = 0.0;
 #pragma omp parallel for reduction(+: sum_evens)
 	for (int i = 2; i < n; i += 2) {
-		int idx = ((a + i * h) + abs(a)) / h;
+		int idx = int(((a + i * h) + abs(a)) / h);
 		sum_evens += (idx < f.size()) ? f(idx) : 0.0;
 	}
 
 	return (f(0) + f(f.size() - 1) + 2 * sum_evens + 4 * sum_odds) * h / 3;
 }
 
+DISABLE_WARNING_PUSH
+DISABLE_OVERFLOW // VS19 error with simple implicit cast, instead produces warning: might overflow
 double simpson_rule(const arma::vec& x, const arma::vec& f) {
-	const int N = f.size() - 1;
+	const int N = (int)f.size() - 1;
 	arma::vec h(N);
 	for (int i = 0; i < N; i++)
 		h(i) = x(i + 1) - x(i);
@@ -105,6 +107,7 @@ double simpson_rule(const arma::vec& x, const arma::vec& f) {
 	}
 	return sum;
 }
+DISABLE_WARNING_POP
 
 /// <summary>
 /// find non-unique elements in input array and store only elemetns, which did not have duplicates
@@ -114,9 +117,11 @@ double simpson_rule(const arma::vec& x, const arma::vec& f) {
 arma::vec get_NonDegenerated_Elements(const arma::vec& arr_in) {
 	std::vector<double> arr_degen;
 	u64 N = arr_in.size();
-	for (int k = 0; k < N - 1; k++)
-		if (abs(arr_in(k + 1) - arr_in(k)) < 1e-12)
-			arr_degen.push_back(arr_in(k));
+	NO_OVERFLOW(
+		for (int k = 0; k < N - 1; k++)
+			if (abs(arr_in(k + 1) - arr_in(k)) < 1e-12)
+				arr_degen.push_back(arr_in(k));
+	);
 	if (abs(arr_in(N - 1) - arr_in(N - 2)) < 1e-12)
 		arr_degen.push_back(arr_in(N - 1));
 

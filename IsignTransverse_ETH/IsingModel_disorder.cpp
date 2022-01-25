@@ -4,7 +4,7 @@
 IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, double g0, double h, double w, int _BC) {
 	this->L = L; this->J = J; this->g = g; this->h = h;
 	this->J0 = J0; this->g0 = g0;  this->w = w;
-	this->N = static_cast<u64>(std::pow(2, L));
+	this->N = ULLPOW(this->L);
 	this->_BC = _BC;
 
 	//this->ran.reset();
@@ -72,13 +72,14 @@ void IsingModel_disorder::hamiltonian() {
 	this->dh = create_random_vec(L, this->w);                               // creates random disorder vector
 	this->dJ = create_random_vec(L, this->J0);                              // creates random exchange vector
 	this->dg = create_random_vec(L, this->g0);                              // creates random transverse field vector
-
+	//this->dh.zeros();
+	//dh(1) = 0.165; dh(4) = -0.24;
 	for (long int k = 0; k < N; k++) {
 		double s_i, s_j;
 		for (int j = 0; j <= L - 1; j++) {
 			s_i = checkBit(k, L - 1 - j) ? 1.0 : -1.0;;							 // true - spin up, false - spin down
 
-			u64 new_idx = flip(k, BinaryPowers[this->L - 1 - j], this->L - 1 - j);
+			NO_OVERFLOW(u64 new_idx = flip(k, BinaryPowers[this->L - 1 - j], this->L - 1 - j);)
 			setHamiltonianElem(k, this->g + this->dg(j), new_idx);
 
 			/* disorder */
@@ -185,7 +186,7 @@ double IsingModel_disorder::av_sigma_x(u64 alfa, u64 beta, std::vector<int> site
 #pragma omp parallel for reduction (+: value)
 	for (int k = 0; k < N; k++) {
 		for (auto& site : sites) {
-			u64 idx = flip(k, BinaryPowers[this->L - 1 - site], this->L - 1 - site);
+			NO_OVERFLOW(u64 idx = flip(k, BinaryPowers[this->L - 1 - site], this->L - 1 - site);)
 			value += state_alfa(idx) * state_beta(k);
 		}
 	}
@@ -205,7 +206,7 @@ double IsingModel_disorder::av_sigma_x(u64 alfa, u64 beta) {
 #pragma omp parallel for reduction(+: overlap)
 	for (long int k = 0; k < N; k++) {
 		for (int j = 0; j < this->L; j++) {
-			u64 new_idx = flip(k, BinaryPowers[this->L - 1 - j], this->L - 1 - j);
+			NO_OVERFLOW(u64 new_idx = flip(k, BinaryPowers[this->L - 1 - j], this->L - 1 - j);)
 			overlap += state_alfa(new_idx) * state_beta(k);
 		}
 	}
@@ -232,8 +233,10 @@ double IsingModel_disorder::av_sigma_x(u64 alfa, u64 beta, int corr_length)
 		for (int l = 0; l < this->L; l++) {
 			int nei = neis[l];
 			if (nei < 0) continue;
-			u64 idx = flip(k, BinaryPowers[this->L - 1 - nei], this->L - 1 - nei);
-			u64 new_idx = flip(idx, BinaryPowers[this->L - 1 - l], this->L - 1 - l);
+			NO_OVERFLOW(
+				u64 idx = flip(k, BinaryPowers[this->L - 1 - nei], this->L - 1 - nei);
+				u64 new_idx = flip(idx, BinaryPowers[this->L - 1 - l], this->L - 1 - l);
+			);
 			value += state_alfa(new_idx) * state_beta(k);
 		}
 	}
@@ -494,9 +497,9 @@ sp_cx_mat IsingModel_disorder::createSq(int k) const {
 	arma::sp_cx_mat opMatrix(this->N, this->N);
 	
 	std::vector<cpx> k_exp(this->L);
-	for (int j = 0; j < this->L; j++)
-		k_exp[j] = std::cos(q * double(j + 1));
-
+	for (int j = 0; j < this->L; j++) {
+		NO_OVERFLOW(k_exp[j] = std::exp(im * q * double(j + 1));)
+	}
 #pragma omp parallel for
 	for (long int n = 0; n < N; n++) {
 		for (int j = 0; j < this->L; j++) {
@@ -510,35 +513,29 @@ sp_cx_mat IsingModel_disorder::createSq(int k) const {
 sp_cx_mat IsingModel_disorder::createHq(int k) const {
 	const double q = k * two_pi / double(this->L);
 	arma::sp_cx_mat opMatrix(this->N, this->N);
-
-	auto neis = get_neigh_vector(this->_BC, this->L, 1);
 	std::vector<cpx> k_exp(this->L);
 	for (int j = 0; j < this->L; j++)
 		k_exp[j] = std::cos(q * double(j + 1));
-
 #pragma omp parallel for
-	for (long int n = 0; n < N; n++) {
+	for (long int n = 0; n < this->N; n++) {
 		for (int j = 0; j < this->L; j++) {
-			auto nei = neis[j];
-			u64 idx = INT_MAX;
-			cpx value, discard, sigZ1, sigZ2;
-			std::tie(value, idx) = IsingModel::sigma_x(n, this->L, { j });
-		#pragma omp critical
-			opMatrix(idx, n) += this->g / 2. * k_exp[j];
+			auto nei = this->nearest_neighbors[j];			
+			auto [s_i, __1] = IsingModel_disorder::sigma_z(n, this->L, { j });
+			opMatrix(n, n) += this->h / 2. * s_i * k_exp[j];
 
-			std::tie(sigZ1, discard) = IsingModel::sigma_z(n, this->L, { j });
-			// neis
+			auto [__2, idx1] = IsingModel_disorder::sigma_x(n, this->L, { j });
+			opMatrix(idx1, n) += this->g / 2. * k_exp[j];
+
 			if (nei >= 0) {
-				std::tie(value, idx) = IsingModel::sigma_x(n, this->L, { nei });
-		#pragma omp critical
-				opMatrix(idx, n) += this->g / 2. * k_exp[j];
+				auto [__3, idx2] = IsingModel_disorder::sigma_x(n, this->L, { nei });
+				opMatrix(idx2, n) += this->g / 2. * k_exp[j];
+				auto [s_j, __4] = IsingModel_disorder::sigma_z(n, this->L, { nei });
 
-				std::tie(sigZ2, discard) = IsingModel::sigma_z(n, this->L, { nei });
-				opMatrix(n, n) += (this->h / 2. * (sigZ1 + sigZ2) + this->J * sigZ1 * sigZ2) * k_exp[j];
+				opMatrix(n, n) += (this->J * s_i + this->h / 2.) * s_j * k_exp[j];
 			}
 		}
 	}
-	return opMatrix / sqrt(this->L);
+	return opMatrix / std::sqrt(this->L);
 }
 
 // ----------------------------------------------------------------------------- TO REFACTOR AND CREATE DESCRIPTION -----------------------------------------------------------------------------
@@ -606,15 +603,15 @@ mat IsingModel_disorder::correlation_matrix(u64 state_id) const {
 double IsingModel_disorder::entaglement_entropy(u64 state_id, int A_size) const {
 	std::vector<bool> base_vector(L);
 	const arma::subview_col state = this->eigenvectors.col(state_id);
-	const u64 dimA = std::pow(2, A_size);
-	const u64 dimB = std::pow(2, L - A_size);
+	const u64 dimA = (u64)std::pow(2, A_size);
+	const u64 dimB = (u64)std::pow(2, L - A_size);
 	cx_mat rho(dimA, dimA, fill::zeros);
 #pragma omp parallel for shared(rho)
 	for (long int n = 0; n < N; n++) {
 		if (abs(state(n)) < 1e-10) continue;
 		u64 counter = 0;
 		for (u64 m = n % dimB; m < N; m += dimB) {
-			u64 idx = std::floor(1.0 * n / dimB);
+			u64 idx = (u64)std::floor(1.0 * n / dimB);
 			rho(idx, counter) += conj(state(n)) * state(m);
 			counter++;
 		}

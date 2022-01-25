@@ -9,9 +9,9 @@ std::vector<std::string> change_input_to_vec_of_str(int argc, char** argv);
 // ----------------------------------------------------------------------------- GENERAL CLASS -----------------------------------------------------------------------------
 class user_interface {
 protected:
-	int thread_number;																								// number of threads
-	int boundary_conditions;																						// boundary conditions - 0 - PBC, 1 - OBC, 2 - ABC,...
-	string saving_dir;																								// directory for files to be saved onto
+	unsigned int thread_number = 1;																								// number of threads
+	int boundary_conditions = 1;																						// boundary conditions - 0 - PBC, 1 - OBC, 2 - ABC,...
+	string saving_dir = "";																								// directory for files to be saved onto
 
 	// ----------------------------------- FUNCTIONS FOR READING THE INPUT
 
@@ -182,8 +182,8 @@ namespace isingUI
 		/// <param name="opMatrix"> input operator as sparse matrix </param>
 		/// <param name="name"> name for file to store data </param>
 		template <typename _type> void spectralFunction(IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name);
-		template <typename _type> void integratedSpectralFunction(IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name);
-		template <typename _type> auto integratedSpectralFunction(IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, const arma::vec& omegas) -> arma::vec;
+		template <typename _type> void integratedSpectralFunction(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name);
+		template <typename _type> auto integratedSpectralFunction(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, const arma::vec& omegas) -> arma::vec;
 
 		template <typename _type> void timeEvolution(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name = "STH");
 		template <typename _type> auto timeEvolution(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, const arma::vec& times) -> std::pair<arma::vec, double>;

@@ -4,8 +4,8 @@
 IsingModel_sym::IsingModel_sym(int L, double J, double g, double h, int k_sym, bool p_sym, bool x_sym, int _BC) {
 	this->L = L; this->J = J; this->g = g; this->h = h; this->_BC = _BC;
 	symmetries.k_sym = k_sym * two_pi / double(this->L);
-	symmetries.p_sym = (p_sym) ? 1.0 : -1.0;
-	symmetries.x_sym = (x_sym) ? 1.0 : -1.0;
+	symmetries.p_sym = (p_sym) ? 1 : -1;
+	symmetries.x_sym = (x_sym) ? 1 : -1;
 	k_sector = abs(this->symmetries.k_sym) < 1e-4 || abs(this->symmetries.k_sym - pi) < 1e-4;
 	// precalculate the exponents
 	this->k_exponents = v_1d<cpx>(this->L, 0.0);
@@ -49,7 +49,7 @@ void IsingModel_sym::createSymmetryGroup() {
 				this->symmetry_eigVal.push_back(this->k_exponents[k] * double(this->symmetries.p_sym));
 			if (this->h == 0) {
 				this->symmetry_group.push_back(multiply_operators(multiply_operators(P, Z), T));
-				this->symmetry_eigVal.push_back(this->k_exponents[k] * double(this->symmetries.p_sym * this->symmetries.x_sym));
+				NO_OVERFLOW(this->symmetry_eigVal.push_back(this->k_exponents[k] * double(this->symmetries.p_sym * (long)this->symmetries.x_sym));)
 			}
 		}
 		T = multiply_operators(rotate_left, T);
@@ -109,7 +109,7 @@ cpx IsingModel_sym::get_symmetry_normalization(u64 base_idx) const {
 /// <param name="_id"> identificator for a given thread </param>
 void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id){
 	for (u64 j = start; j < stop; j++) {
-		if (this->g == 0 && __builtin_popcount(j) != this->L / 2.) continue;
+		if (this->g == 0 && __builtin_popcountll(j) != this->L / 2.) continue;
 		auto [SEC, some_value] = find_SEC_representative(j);
 		if (SEC == j) {
 			cpx N = get_symmetry_normalization(j);					// normalisation condition -- check wether state in basis
@@ -138,7 +138,7 @@ void IsingModel_sym::generate_mapping() {
 		threads.reserve(num_of_threads);
 		for (int t = 0; t < num_of_threads; t++) {
 			start = (u64)(two_powL / (double)num_of_threads * t);
-			stop = ((t + 1) == num_of_threads ? two_powL : u64(two_powL / (double)num_of_threads * (double)(t + 1)));
+			NO_OVERFLOW(stop = ((t + 1) == num_of_threads ? two_powL : u64(two_powL / (double)num_of_threads * (double)(t + 1)));)
 			map_threaded[t] = v_1d<u64>();
 			norm_threaded[t] = v_1d<cpx>();
 			threads.emplace_back(&IsingModel_sym::mapping_kernel, this, start, stop, ref(map_threaded[t]), ref(norm_threaded[t]), t);
@@ -202,7 +202,7 @@ void IsingModel_sym::hamiltonian() {
 			s_i = checkBit(this->mapping[k], L - 1 - j) ? 1.0 : -1.0;              // true - spin up, false - spin down
 			/* transverse field */
 			if (this->g != 0) {
-				u64 new_idx = flip(this->mapping[k], BinaryPowers[L - 1 - j], (L - 1 - j));
+				NO_OVERFLOW(u64 new_idx = flip(this->mapping[k], BinaryPowers[L - 1 - j], (L - 1 - j));)
 				this->setHamiltonianElem(k, this->g, new_idx);
 			}
 			/* disorder */
@@ -384,8 +384,8 @@ cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingM
 
 	// calculating normalisation for both sector symmetry groups
 	double G = 0;
-	double G_alfa = sec_alfa.get_sym_group().size();
-	double G_beta = sec_beta.get_sym_group().size();
+	double G_alfa = (double)sec_alfa.get_sym_group().size();
+	double G_beta = (double)sec_beta.get_sym_group().size();
 	G = std::sqrt(G_alfa * G_beta);
 
 	// going through all sector beta states
@@ -415,8 +415,8 @@ cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingM
 
 	// calculating normalisation for both sector symmetry groups
 	double G = 0;
-	double G_alfa = sec_alfa.get_sym_group().size();
-	double G_beta = sec_beta.get_sym_group().size();
+	double G_alfa = (double)sec_alfa.get_sym_group().size();
+	double G_beta = (double)sec_beta.get_sym_group().size();
 	G = std::sqrt(G_alfa * G_beta);
 
 	// going through all sector beta states
@@ -449,8 +449,8 @@ cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingM
 
 	// calculating normalisation for both sector symmetry groups
 	double G = 0;
-	double G_alfa = sec_alfa.get_sym_group().size();
-	double G_beta = sec_beta.get_sym_group().size();
+	double G_alfa = (double)sec_alfa.get_sym_group().size();
+	double G_beta = (double)sec_beta.get_sym_group().size();
 	G = std::sqrt(G_alfa * G_beta);
 
 	auto neis = get_neigh_vector(sec_alfa._BC, sec_alfa.L, corr_len);
@@ -513,7 +513,7 @@ cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_co
 
 // ----------------------------------------------------------------------------- WRAPPERS FOR SIGMA OPERATORS - creating matrix -----------------------------------------------------------------------------
 sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const {
-	const double G = this->symmetry_group.size();
+	const double G = double(this->symmetry_group.size());
 	//// throwables
 	//for (auto& site : sites)
 	//	if ((site < 0 || site >= this->L)) throw "Site index exceeds chain\n";
@@ -525,7 +525,7 @@ sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operato
 	return operator_matrix / G;
 }
 sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators) const {// calculating normalisation for both sector symmetry groups
-	const double G = this->symmetry_group.size();
+	const double G = double(this->symmetry_group.size());
 	sp_cx_mat operator_matrix(this->N, this->N);
 	for (int i = 0; i < this->N; i++) {
 		const u64 base_vec = this->mapping[i];
@@ -535,7 +535,7 @@ sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operato
 	return operator_matrix / (G * sqrt(this->L));
 };
 sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators, int corr_len) const {
-	const double G = this->symmetry_group.size();
+	const double G = double(this->symmetry_group.size());
 	auto neis = get_neigh_vector(this->_BC, this->L, corr_len);
 	sp_cx_mat operator_matrix(this->N, this->N);
 	for (int i = 0; i < this->N; i++) {

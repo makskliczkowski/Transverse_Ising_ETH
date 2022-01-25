@@ -1,5 +1,41 @@
 #pragma once
+//-- SUPPRESS WARNINGS
+#if defined(_MSC_VER)
+	#define DISABLE_WARNING_PUSH           __pragma(warning( push ))
+	#define DISABLE_WARNING_POP            __pragma(warning( pop )) 
+	#define DISABLE_WARNING(warningNumber) __pragma(warning( disable : warningNumber ))
+	
+	#define DISABLE_OVERFLOW								 DISABLE_WARNING(26451)
+	#define DISABLE_WARNING_UNREFERENCED_FORMAL_PARAMETER    DISABLE_WARNING(4100)
+	#define DISABLE_WARNING_UNREFERENCED_FUNCTION            DISABLE_WARNING(4505)
+	// other warnings you want to deactivate...
 
+#elif defined(__GNUC__) || defined(__clang__)
+	#define DO_PRAGMA(X) _Pragma(#X)
+	#define DISABLE_WARNING_PUSH           DO_PRAGMA(GCC diagnostic push)
+	#define DISABLE_WARNING_POP            DO_PRAGMA(GCC diagnostic pop) 
+	#define DISABLE_WARNING(warningName)   DO_PRAGMA(GCC diagnostic ignored #warningName)
+	
+	#define DISABLE_WARNING_UNREFERENCED_FORMAL_PARAMETER    DISABLE_WARNING(-Wunused-parameter)
+	#define DISABLE_WARNING_UNREFERENCED_FUNCTION            DISABLE_WARNING(-Wunused-function)
+	// other warnings you want to deactivate... 
+
+#else
+	// another compiler: intel,...
+	#define DISABLE_WARNING_PUSH
+	#define DISABLE_WARNING_POP
+	#define DISABLE_WARNING_UNREFERENCED_FORMAL_PARAMETER
+	#define DISABLE_WARNING_UNREFERENCED_FUNCTION
+	// other warnings you want to deactivate... 
+
+#endif
+#define NO_OVERFLOW(X)\
+	DISABLE_WARNING_PUSH;\
+	DISABLE_OVERFLOW;\
+	X;\
+	DISABLE_WARNING_POP;
+
+//-----------------------
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
@@ -11,14 +47,27 @@
 #include <cmath>
 #include <algorithm>
 #include <unordered_map>
-// armadillo flags:
+
+DISABLE_WARNING_PUSH // include <armadillo> and suppress its warnings, cause developers suck
+	// armadillo flags:
 #define ARMA_64BIT_WORD // enabling 64 integers in armadillo obbjects
 #define ARMA_BLAS_LONG_LONG // using long long inside LAPACK call
 #define ARMA_USE_OPENMP
 #define ARMA_ALLOW_FAKE_GCC
-#define ARMA_NO_DEBUG
+//#define ARMA_EXTRA_DEBUG
 //-------
-#include <armadillo>
+DISABLE_OVERFLOW;
+DISABLE_WARNING(26812); // unscoped enum
+DISABLE_WARNING(26819); // unannotated fallthrough
+DISABLE_WARNING(26439); // may not throw
+DISABLE_WARNING(6011);  // dereferencing NULL ptr 
+DISABLE_WARNING(26495); // unitialized variable
+DISABLE_WARNING(6993);  // ignore OpenMP: use single-thread
+DISABLE_WARNING(4849);  // ignor OpenMP:collapse
+	#include <armadillo>
+	
+DISABLE_WARNING_POP
+
 #include <iterator>
 //#include <mkl.h>
 #include <cassert> // assert terminates program
@@ -49,10 +98,10 @@ namespace fs = std::experimental::filesystem;
 #endif
 #include "random.h"
 #ifdef _MSC_VER
-	#include <intrin.h>
-	#include <nmmintrin.h>
-	#define __builtin_popcount __popcnt
-	#define __builtin_popcountll _mm_popcnt_u64
+#include <intrin.h>
+#include <nmmintrin.h>
+#define __builtin_popcount __popcnt
+#define __builtin_popcountll _mm_popcnt_u64
 #endif
 
 extern std::random_device rd;
@@ -218,7 +267,7 @@ inline u64 binary_search(const std::vector<double>& arr, u64 l_point, u64 r_poin
 /// <param name="maxPower"> maximal power of 2 </param>
 /// <returns> rotated number </returns>
 inline u64 rotate_left(u64 n, int L) {
-	u64 maxPower = BinaryPowers[L - 1];
+	NO_OVERFLOW(u64 maxPower = BinaryPowers[L - int32_t(1)];);
 	return (n >= maxPower) ? (((int64_t)n - (int64_t)maxPower) * 2 + 1) : n * 2;
 }
 
@@ -286,7 +335,7 @@ inline void int_to_binary(u64 idx, std::vector<bool>& vec) {
 	const u64 size = vec.size();
 	for (int k = 0; k < size; k++) {
 		vec[size - 1 - k] = temp % 2;
-		temp = temp / 2.;
+		temp = temp / u64(2);
 	}
 }
 
@@ -329,7 +378,7 @@ inline vec create_random_vec(u64 N, double h = 1.0) {
 	std::uniform_real_distribution<double> distribute(-h, h);
 	// create random vector from middle to always append new disorder at lattice endpoint
 	for (u64 j = 0; j <= N / 2.; j++) {
-		u64 idx = N / 2. - j;
+		u64 idx = N / (long)2 - j;
 		random_vec(idx) = distribute(gen);
 		idx += 2 * j;
 		if (idx < N) random_vec(idx) = distribute(gen);
@@ -364,9 +413,9 @@ inline std::vector<int> get_neigh_vector(int _BC, int L, int corr_len) {
 		iota(neis.begin(), neis.end(), 0);
 		std::rotate(neis.begin(), neis.begin() + corr_len, neis.end());
 	}
-	else if (_BC == 1)
-		iota(neis.begin(), neis.begin() + (L - corr_len), corr_len);
-	else
+	else if (_BC == 1) {
+		NO_OVERFLOW(iota(neis.begin(), neis.begin() + (L - int32_t(corr_len)), corr_len);)
+	} else
 		throw "Not enough cases for me\n";
 	return neis;
 }
@@ -601,7 +650,7 @@ inline void setDistElem(vec& dist, double min, double step, double elem) {
 /// Normalises the distribution to 1 integral
 /// </summary>
 inline arma::vec normalise_dist(const arma::vec& distribution, double _min, double _max) {
-	return distribution / simpson_rule(_min, _max, distribution.size() - 1, distribution);
+	return distribution / simpson_rule(_min, _max, (int)distribution.size() - 1, distribution);
 }
 
 /// <summary>
@@ -633,7 +682,7 @@ inline double kurtosis_diff(const arma::vec& arr_in) {
 #pragma omp parallel for reduction (+: fourth, second, counter)
 	for (int i = 0; i < arr_in.size(); i++) {
 		double tmp = arr_in(i) - mean;
-		tmp *= tmp;
+		tmp = tmp * tmp;
 		fourth += tmp * tmp;
 		second += tmp;
 		counter += 1;

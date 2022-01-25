@@ -57,9 +57,11 @@ template <typename T> void IsingModel<T>::set_neighbors() {
 			this->nearest_neighbors[i] = (i + 1) % this->L;
 			this->next_nearest_neighbors[i] = (i + 2) % this->L;
 		}
-		this->nearest_neighbors[L - 1] = -1;
-		this->next_nearest_neighbors[L - 2] = -1;
-		this->next_nearest_neighbors[L - 1] = -1;
+		NO_OVERFLOW(
+			this->nearest_neighbors[L - 1] = -1;
+			this->next_nearest_neighbors[L - 2] = -1;
+			this->next_nearest_neighbors[L - 1] = -1;
+		);
 		break;
 	default:
 		for (int i = 0; i < this->L; i++) {
@@ -86,8 +88,9 @@ template <typename T> void IsingModel<T>::diagonalization(bool withoutEigenVec) 
 		stout << "dim(H) = " << H.size() * sizeof(H(0, 0)) << "\n";
 		assert(false);
 	}
-	for (long int i = 0; i < N; i++)
-		this->eigenvectors.col(i) = arma::normalise(this->eigenvectors.col(i));
+	//for (long int i = 0; i < N; i++)
+	//	this->eigenvectors.col(i) = arma::normalise(this->eigenvectors.col(i));
+
 	double E_av = trace(eigenvalues) / double(N);
 	auto i = min_element(begin(eigenvalues), end(eigenvalues), [=](int x, int y) {
 		return abs(x - E_av) < abs(y - E_av);
@@ -187,7 +190,7 @@ template <typename T> double IsingModel<T>::information_entropy(u64 _id, const I
 	arma::subview_col state_alfa = this->eigenvectors.col(_id);
 	double ent = 0;
 #pragma omp parallel for reduction(+: ent)
-	for (int k = _min; k < _max; k++) {
+	for (long k = (long)_min; k < (long)_max; k++) {
 		cpx c_k = cdot(beta.get_eigenState(k), state_alfa);
 		double val = abs(conj(c_k) * c_k);
 		ent += val * log(val);
@@ -207,9 +210,11 @@ template <typename T> double IsingModel<T>::eigenlevel_statistics(u64 _min, u64 
 	if (_min <= 0) assert(false && "too low index");
 	if (_max >= N) assert(false && "index exceeding Hilbert space");
 #pragma omp parallel for reduction(+: r)
-	for (int k = _min; k < _max; k++) {
-		const double delta_n	  = eigenvalues(k) - eigenvalues(k - 1);
-		const double delta_n_next = eigenvalues(k + 1) - eigenvalues(k);
+	for (long k = (long)_min; k < (long)_max; k++) {
+		NO_OVERFLOW(
+			const double delta_n = eigenvalues(k) - eigenvalues(k - 1);
+			const double delta_n_next = eigenvalues(k + 1) - eigenvalues(k);
+		);
 		const double min = std::min(delta_n, delta_n_next);
 		const double max = std::max(delta_n, delta_n_next);
 		if (abs(delta_n) <= 1e-15) assert(false && "Degeneracy!!!\n");
@@ -227,8 +232,9 @@ template <typename T> double IsingModel<T>::eigenlevel_statistics(u64 _min, u64 
 template <typename T> vec IsingModel<T>::eigenlevel_statistics_with_return() const {
 	vec r(N - 2);
 #pragma omp parallel for shared(r)
-	for (int k = 1; k < N - 1; k++)
-		r(k - 1) = eigenlevel_statistics(k, k + 1);
+	for (int k = 1; k < N - 1; k++) {
+		NO_OVERFLOW(r(k - 1) = eigenlevel_statistics(k, k + 1);)
+	}
 	return r;
 }
 
@@ -265,8 +271,9 @@ template <typename T> double IsingModel<T>::mean_level_spacing_av(u64 _min, u64 
 	if (_max > N) throw "index exceeding Hilbert space";
 	double omega_H = 0;
 #pragma omp parallel for reduction(+: omega_H)
-	for (long int k = _min; k < _max; k++)
-		omega_H += this->eigenvalues(k) - this->eigenvalues(k - 1);
+	for (long int k = (long)_min; k < (long)_max; k++) {
+		NO_OVERFLOW(omega_H += this->eigenvalues(k) - this->eigenvalues(k - 1););
+	}
 	return omega_H / double(_max - _min);
 }
 
@@ -392,10 +399,10 @@ sp_cx_mat IsingModel<_type>::create_LIOMoperator_densities(int n, int j) const {
 void probability_distribution(std::string dir, std::string name, const arma::vec& data, int n_bins) {
 	std::ofstream file(dir + name + ".dat");
 	if (n_bins <= 0)
-		n_bins = 1 + 3.322 * log(data.size());
+		n_bins = 1 + long(3.322 * log(data.size()));
 	double _min = arma::min(data);
 	double _max = arma::max(data);
-	arma::vec prob_dist(n_bins + 1, arma::fill::zeros);
+	NO_OVERFLOW(arma::vec prob_dist(n_bins + 1, arma::fill::zeros);)
 	prob_dist = normalise_dist(arma::conv_to<arma::vec>::from(arma::hist(data, n_bins)), _min, _max);
 	const double std_dev = arma::stddev(data);
 	const double mean = 0.0;// arma::mean(data);
@@ -412,7 +419,7 @@ void probability_distribution(std::string dir, std::string name, const arma::vec
 /// </summary>
 arma::vec probability_distribution_with_return(const arma::vec& data, int n_bins) {
 	if (n_bins <= 0)
-		n_bins = 1 + 3.322 * log(data.size());
+		n_bins = 1 + long(3.322 * log(data.size()));
 	return normalise_dist(arma::conv_to<arma::vec>::from(arma::hist(data, n_bins)),
 		arma::min(data), arma::max(data));
 }
@@ -426,13 +433,13 @@ arma::vec probability_distribution_with_return(const arma::vec& data, int n_bins
 arma::vec data_fluctuations(const arma::vec& data, int mu) {
 	arma::vec fluct(data.size() - mu, arma::fill::zeros);
 	assert(mu < data.size() && "Bucket exceeds data container\nTry again\n");
-	int end = data.size() - mu / 2.;
+	int end = (int)data.size() - mu / 2;
 #pragma omp parallel for shared(fluct, end, mu, data)
-	for (int k = mu / 2.; k < end; k++) {
+	for (int k = mu / 2; k < end; k++) {
 		double average = 0;
 		for (int n = k - mu / 2; n < k + mu / 2; n++)
 			average += data(n);
-		fluct(k - mu / 2.) = data(k) - average / double(mu);
+		NO_OVERFLOW(fluct(k - mu / 2) = data(k) - average / double(mu);)
 	}
 	return fluct;
 }
@@ -443,8 +450,9 @@ arma::vec data_fluctuations(const arma::vec& data, int mu) {
 /// <param name="data">vector of data for the repulsion to be performed on</param>
 /// <returns></returns>
 arma::vec statistics_average(const arma::vec& data, int num_of_outliers) {
-	std::vector<double> spec_rep(num_of_outliers + 1, INT_MIN);
-	double average = 0;
+	NO_OVERFLOW(
+		std::vector<double> spec_rep(num_of_outliers + 1, INT_MIN);
+		double average = 0;
 	for (int k = 1; k < data.size() - 1; k++) {
 		double repulsion = abs(data(k) - data(k - 1));
 		average += repulsion;
@@ -458,6 +466,7 @@ arma::vec statistics_average(const arma::vec& data, int num_of_outliers) {
 			spec_rep.pop_back();
 		}
 	}
+	);
 	spec_rep[0] = average / double(data.size() - 2);
 	return (vec)spec_rep;
 }
