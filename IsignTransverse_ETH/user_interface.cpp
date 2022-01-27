@@ -77,8 +77,8 @@ void isingUI::ui::printAllOptions() const {
 	std::string opName;
 	switch (this->op) {
 		case 0: opName = "SigmaZ_j=" + std::to_string(this->site);	break;
-		case 1: opName = "SigmaZ_q=" + std::to_string(this->site);	break;
-		case 2: opName = "SigmaX_j=" + std::to_string(this->site);	break;
+		case 1: opName = "SigmaX_j=" + std::to_string(this->site);	break;
+		case 2: opName = "SigmaZ_q=" + std::to_string(this->site);	break;
 		case 3: opName = "SigmaX_q=" + std::to_string(this->site);	break;
 		case 4: opName = "H_q=" + std::to_string(this->site);	break;
 		default:
@@ -133,7 +133,7 @@ void isingUI::ui::set_default() {
 	this->J0 = 0.0;
 
 	this->h = 0.0;
-	this->hs = 0.0;
+	this->hs = 0.1;
 	this->hn = 1;
 
 	this->w = 0.01;
@@ -141,7 +141,7 @@ void isingUI::ui::set_default() {
 	this->wn = 1;
 
 	this->g = 1.0;
-	this->gs = 0.0;
+	this->gs = 0.1;
 	this->gn = 1;
 
 	this->g0 = 0;
@@ -1152,7 +1152,7 @@ v_1d <double> isingUI::ui::perturbative_stat_sym(IsingModel_sym& alfa, double gx
 	for (long int k = E_min; k < E_max; k++)
 		sigma_x(k - E_min) = arma::cdot(alfa.get_eigenState(k), opMatrix * alfa.get_eigenState(k));
 	stout << "\t\t\t\t\t - - - - - - FINISHED building operator IN : " << tim_s(start) << " seconds - -----" << endl;
-	NO_OVERFLOW(double _min_sig_x = INT_MAX, _max_sig_x = INT_MIN;)
+	NO_OVERFLOW(double _min_sig_x = INT_MAX; double _max_sig_x = INT_MIN;)
 	arma::vec dis_sig_x(size, arma::fill::zeros);
 #endif
 	std::ofstream mom_sig(this->saving_dir + "perturbationOperatorsMoments" + alfa.get_info() + ".dat");
@@ -1634,10 +1634,11 @@ void isingUI::ui::intSpecFun_from_timeEvol() {
 
 void isingUI::ui::adiabaticGaugePotential_dis(bool h_vs_g) {
 	clk::time_point start = std::chrono::system_clock::now();
-	auto s = h_vs_g ? "h" : "g";
-	std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, { "L", s }, ",");
+	auto s = h_vs_g ? "h" : "g"; // (now not inversed because separated h sweep) //inversed, cause exclude the other one
+	std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, { "L" }, ",");
 	std::string dir = this->saving_dir + "AGP" + kPSep; createDirs(dir);
-	std::ofstream farante(dir + IsingModel_disorder::opName(this->op, this->site) + info + ".dat");
+	std::ofstream farante;
+	openFile(farante, dir + IsingModel_disorder::opName(this->op, this->site) + info + "_" + s + ".dat");
 	farante << std::setprecision(6) << std::scientific;
 	//std::ofstream scaling(this->saving_dir + "AGPsize_DELETE" + info + ".dat");
 	//scaling << std::setprecision(6) << std::scientific;
@@ -1649,8 +1650,8 @@ void isingUI::ui::adiabaticGaugePotential_dis(bool h_vs_g) {
 		for (int system_size = this->L; system_size < this->L + this->Ls * this->Ln; system_size += this->Ls) {
 			const auto start_loop = std::chrono::system_clock::now();
 			std::unique_ptr<IsingModel_disorder> alfa;
-			if(h_vs_g) alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, this->J0, this->g, this->g0, x,		0.01);
-			else	   alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, this->J0, x	   , this->g0, this->h, 0.01);
+			if(h_vs_g) alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, this->J0, this->g, this->g0, x,		this->w);
+			else	   alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, this->J0, x	   , this->g0, this->h, this->w);
 			stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
 			auto opMat = alfa->chooseOperator(this->op, this->site);
 			normaliseOp(opMat);
@@ -2234,9 +2235,44 @@ void isingUI::ui::make_sim() {
 					this->L = system_size;
 					this->g = gx;
 					this->h = hx;
-					for (this->site = 0; this->site <= this->L / 2; this->site++)
-						LIOMsdisorder();
+					
 
+					auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+					stout << "\n\t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n";
+					alfa->diagonalization();
+					stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
+						<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n";
+
+					const double tH = 1. / alfa->mean_level_spacing_analytical();
+					int t_max = (int)std::ceil(std::log10(tH));
+					t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
+					auto times = arma::logspace(-2, t_max, 100);
+					stout << 1. / (alfa->get_eigenEnergy(alfa->get_hilbert_size() - 1) - alfa->get_eigenEnergy(0)) << std::endl;
+					// domain wall
+					//u64 idx = ULLPOW(this->L / 2);
+
+					const long N = ULLPOW(this->L);
+					const u64 neel = (N - 4) / 6.; // inner part of chain besides two edge spins
+					const u64 idx = neel + 1;
+					const u64 idx2 = neel + N / 2;
+					std::ofstream file;
+					openFile(file, this->saving_dir + "EntropyTimeEvolution" + alfa->get_info({}) + ".dat");
+					for (auto& t : times) {
+						printSeparated(file, "\t", 12, false, t);
+
+						arma::cx_vec state(alfa->get_hilbert_size(), arma::fill::zeros);
+						state(idx) = cpx(1.0, 0.0);
+						//state(idx2) = cpx(1.0, 0.0);
+						state = arma::normalise(state);
+
+						alfa->time_evolve_state(state, t);
+						double entropy_vN = alfa->entaglement_entropy(state, this->L / 2.);
+						double entropy_R  = alfa->reyni_entropy(state, this->L / 2., 3);
+						double entropy_Sh = alfa->shannon_entropy(state, this->L / 2);
+						printSeparated(file, "\t", 12, false, entropy_vN, entropy_R, entropy_Sh);
+						file << std::endl;
+					}
+					file.close();
 
 
 					//this->mu = 0.5 * N;

@@ -594,36 +594,70 @@ mat IsingModel_disorder::correlation_matrix(u64 state_id) const {
 	return corr_mat;
 }
 
+
+
+
+
+// ----------------------------------------------------------------------------------------- entaglement
+auto IsingModel_disorder::reduced_density_matrix(const arma::cx_vec& state, int A_size) const -> arma::cx_mat {
+	// set subsytsems size
+	const u64 dimA = ULLPOW(A_size);
+	const u64 dimB = ULLPOW(L - A_size);
+	cx_mat rho(dimA, dimA, fill::zeros);
+#pragma omp parallel for shared(rho)
+	for (long int n = 0; n < N; n++) {						// loop over configurational basis
+		if (abs(state(n)) < 1e-10) continue;				// discard non-essential terms
+		long counter = 0;
+		for (long m = n % dimB; m < N; m += dimB) {			// pick out state with same B side (last L-A_size bits)
+			long idx = (long)std::floor(1.0 * n / dimB);	// find index of state with same B-side (by dividing the last bits are discarded)
+			rho(idx, counter) += conj(state(n)) * state(m);
+			counter++;										// increase counter to move along reduced basis
+		}
+	}
+	return rho;
+}
 /// <summary>
 /// Calculates the entropy of the system via the mixed density matrix
 /// </summary>
 /// <param name="state_id"> state index to produce the density matrix </param>
 /// <param name="A_size"> size of subsystem </param>
 /// <returns> entropy of considered systsem </returns>
-double IsingModel_disorder::entaglement_entropy(u64 state_id, int A_size) const {
-	std::vector<bool> base_vector(L);
-	const arma::subview_col state = this->eigenvectors.col(state_id);
-	const u64 dimA = (u64)std::pow(2, A_size);
-	const u64 dimB = (u64)std::pow(2, L - A_size);
-	cx_mat rho(dimA, dimA, fill::zeros);
-#pragma omp parallel for shared(rho)
-	for (long int n = 0; n < N; n++) {
-		if (abs(state(n)) < 1e-10) continue;
-		u64 counter = 0;
-		for (u64 m = n % dimB; m < N; m += dimB) {
-			u64 idx = (u64)std::floor(1.0 * n / dimB);
-			rho(idx, counter) += conj(state(n)) * state(m);
-			counter++;
-		}
-	}
+double IsingModel_disorder::entaglement_entropy(const arma::cx_vec& state, int A_size) const {
+	auto rho = reduced_density_matrix(state, A_size);
 	vec probabilities;
-	eig_sym(probabilities, rho);
+	eig_sym(probabilities, rho); //diagonalize to find probabilities and calculate trace in rho's eigenbasis
 	double entropy = 0;
 #pragma omp parallel for reduction(+: entropy)
-	for (int some_index = 0; some_index < dimA; some_index++) {
-		auto value = probabilities(some_index);
-		entropy += (abs(value) < 1e-12) ? 0 : -value * log(abs(value));
+	for (int i = 0; i < probabilities.size(); i++) {
+		auto value = probabilities(i);
+		entropy += (abs(value) < 1e-10) ? 0 : -value * log2(abs(value));
 	}
-	//entropy = -trace(rho * real(logmat(rho)));
+	//double entropy = -real(trace(rho * real(logmat(rho))));
+	return entropy;
+}
+
+template <typename _ty>
+inline arma::Mat<_ty> matrix_pow(const arma::Mat<_ty>& matrix, int exponent) {
+	if (exponent == 1) 
+		return matrix;
+	else 
+		return matrix * matrix_pow(matrix, exponent - 1);
+}
+double IsingModel_disorder::reyni_entropy(const arma::cx_vec& state, int A_size, unsigned alfa) const {
+	assert(alfa > 1 && "Only alfa>=2 powers are possible");
+	auto rho = reduced_density_matrix(state, A_size);
+	return real(log(trace(matrix_pow(rho, alfa))) / (1.0 - alfa));
+}
+
+double IsingModel_disorder::shannon_entropy(const arma::cx_vec& state, int A_size) const {
+	auto rho = reduced_density_matrix(state, A_size);
+	vec probabilities;
+	eig_sym(probabilities, rho); //diagonalize to find probabilities and calculate trace in rho's eigenbasis
+	double entropy = 0;
+#pragma omp parallel for reduction(+: entropy)
+	for (int i = 0; i < probabilities.size(); i++) {
+		auto value = probabilities(i) * probabilities(i);
+		entropy += (abs(value) < 1e-10) ? 0 : -value * log2(abs(value));
+	}
 	return entropy;
 }

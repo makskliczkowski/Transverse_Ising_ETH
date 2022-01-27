@@ -513,6 +513,19 @@ template<> cpx overlap<cpx>(const IsingModel<cpx>& A, const IsingModel<cpx>& B, 
 	return cpx(overlap_real, overlap_imag);
 }
 
+
+template <typename _type>
+void IsingModel<_type>::time_evolve_state(arma::cx_vec& state, double time) {
+	//assert(state.size() == this->N, ("state is of wrong dimensions! set dimension to:" + std::to_string(this->N)));
+	if (this->eigenvectors.is_empty()) {
+		stout << "Model not diagonalized! Did it for you, but dude...";
+		this->diagonalization();
+	}
+	for (long k = 0; k < this->N; k++)
+		state += std::exp(-im * eigenvalues(k) * time) * arma::dot(eigenvectors.col(k), state) * eigenvectors.col(k);
+	state = arma::normalise(state);
+}
+
 // UNRESOLVED TEMPLATE EXTERNALS <- COMPILER DOESN"T KNOW ABOUT THEM SADLY
 template IsingModel<double>::~IsingModel();
 template IsingModel<cpx>::~IsingModel();
@@ -544,3 +557,5 @@ template sp_cx_mat IsingModel<cpx>::create_StringOperator(coordinate, coordinate
 template sp_cx_mat IsingModel<double>::create_StringOperator(coordinate, coordinate, int, int) const;
 template sp_cx_mat IsingModel<cpx>::create_LIOMoperator_densities(int, int) const;
 template sp_cx_mat IsingModel<double>::create_LIOMoperator_densities(int, int) const;
+template void IsingModel<double>::time_evolve_state(arma::cx_vec&, double);
+template void IsingModel<cpx>::time_evolve_state(arma::cx_vec&, double);

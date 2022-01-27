@@ -64,7 +64,7 @@ namespace isingUI
 		{"ws","0.1"},					// longitudal disorder change step
 		{"g","1.0"},					// transverse magnetic field constant
 		{"gn","1"},						// parameter scaling g number
-		{"gs","0.01"},					// parameter scaling g step
+		{"gs","0.1"},					// parameter scaling g step
 		{"g0","0.0"},					// transverse field randomness maximum (-g0 to g0)
 		{"g0n","1"},					// transverse disorder change number
 		{"g0s","0.0"},					// transverse disorder change step

@@ -15,7 +15,8 @@
 	#define DISABLE_WARNING_PUSH           DO_PRAGMA(GCC diagnostic push)
 	#define DISABLE_WARNING_POP            DO_PRAGMA(GCC diagnostic pop) 
 	#define DISABLE_WARNING(warningName)   DO_PRAGMA(GCC diagnostic ignored #warningName)
-	
+
+	#define DISABLE_OVERFLOW								 DISABLE_WARNING(-Wstrict-overflow)
 	#define DISABLE_WARNING_UNREFERENCED_FORMAL_PARAMETER    DISABLE_WARNING(-Wunused-parameter)
 	#define DISABLE_WARNING_UNREFERENCED_FUNCTION            DISABLE_WARNING(-Wunused-function)
 	// other warnings you want to deactivate... 
@@ -57,13 +58,22 @@ DISABLE_WARNING_PUSH // include <armadillo> and suppress its warnings, cause dev
 //#define ARMA_EXTRA_DEBUG
 //-------
 DISABLE_OVERFLOW;
-DISABLE_WARNING(26812); // unscoped enum
-DISABLE_WARNING(26819); // unannotated fallthrough
-DISABLE_WARNING(26439); // may not throw
-DISABLE_WARNING(6011);  // dereferencing NULL ptr 
-DISABLE_WARNING(26495); // unitialized variable
-DISABLE_WARNING(6993);  // ignore OpenMP: use single-thread
-DISABLE_WARNING(4849);  // ignor OpenMP:collapse
+#if defined(_MSC_VER)
+	DISABLE_WARNING(26812); // unscoped enum
+	DISABLE_WARNING(26819); // unannotated fallthrough
+	DISABLE_WARNING(26439); // may not throw
+	DISABLE_WARNING(6011);  // dereferencing NULL ptr 
+	DISABLE_WARNING(26495); // unitialized variable
+	DISABLE_WARNING(6993);  // ignore OpenMP: use single-thread
+	DISABLE_WARNING(4849);  // ignor OpenMP:collapse
+#elif defined(__GNUC__) || defined(__clang__)
+	DISABLE_WARNING(-Wenum-compare); // unscoped enum
+	DISABLE_WARNING(-Wimplicit-fallthrough); // unannotated fallthrough
+	DISABLE_WARNING(-Wuninitialized); // unitialized
+	DISABLE_WARNING(-Wopenmp-simd);  // ignore OpenMP warning
+#else 
+	#pragma message ("not recognized compiler to disable armadillo library warnings");
+#endif
 	#include <armadillo>
 	
 DISABLE_WARNING_POP

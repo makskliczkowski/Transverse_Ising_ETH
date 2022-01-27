@@ -132,7 +132,7 @@ public:
 	double information_entropy(u64 _id, const IsingModel<_type>& beta, u64 _min, u64 _max) const;	// calculate the information entropy in basis of other model from input
 	double eigenlevel_statistics(u64 _min, u64 _max) const;											// calculate the statistics based on eigenlevels (r coefficient)
 	vec eigenlevel_statistics_with_return() const;													// calculate the eigenlevel statistics and return the vector with the results
-	virtual double entaglement_entropy(u64 state_id, int subsystem_size) const = 0;					// entanglement entropy based on the density matrices
+	virtual double entaglement_entropy(const arma::cx_vec& state, int subsystem_size) const = 0;	// entanglement entropy based on the density matrices
 	virtual double mean_level_spacing_analytical() const = 0;										// mean level spacing from analytical formula calcula
 	double mean_level_spacing_av(u64 _min, u64 _max) const;											// mean level spacing averaged over an input window
 	double mean_level_spacing_trace() const;														// mean level spacing from by variance of hamiltonian in T->inf
@@ -249,11 +249,15 @@ public:
 		case 3: name = "SigmaX_q=" + std::to_string(site);	break;
 		case 4: name = "H_q="	   + std::to_string(site);	break;
 		default:
-			stout << "none operator chosen";
+			stout << "Bad input! Operator -op 0-4 only";
 			exit(1);
 		}
 		return name;
 	}
+
+
+	void time_evolve_state(arma::cx_vec& state, double time);
+
 };
 
 inline void normaliseOp(arma::sp_cx_mat& op) {
@@ -324,7 +328,7 @@ public:
 	friend std::pair<u64, cpx> find_rep_and_sym_eigval(u64 base_idx, \
 		const IsingModel_sym& sector_alfa, cpx normalisation_beta);																				// returns the index and the value of the minimum representative
 
-	double entaglement_entropy(u64 state_id, int subsystem_size) const override {
+	double entaglement_entropy(const arma::cx_vec& state, int subsystem_size) const override {
 		stout << "Not implemented yet!!\n\n";
 		return 0;
 	};
@@ -445,7 +449,10 @@ public:
 	cpx av_operator(u64 alfa, u64 beta, op_type op);							// calculates the matrix element of operator at given site in extensive form (a sum)
 	cpx av_operator(u64 alfa, u64 beta, op_type op, int corr_len);
 
-	double entaglement_entropy(u64 state_id, int subsystem_size) const override;
+	auto reduced_density_matrix(const arma::cx_vec& state, int A_size) const -> arma::cx_mat;
+	double entaglement_entropy(const arma::cx_vec& state, int A_size) const;
+	double reyni_entropy(const arma::cx_vec& state, int A_size, unsigned alfa = 2) const;
+	double shannon_entropy(const arma::cx_vec& state, int A_size) const;
 
 	static std::string set_info(int L, double J, double J0, double g, double g0, double h, double w, std::vector<std::string> skip = {}, std::string sep = "_") {
 		std::string name = sep + "L=" + std::to_string(L) + \
