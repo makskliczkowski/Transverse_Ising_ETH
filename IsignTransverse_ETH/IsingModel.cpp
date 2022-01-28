@@ -521,8 +521,9 @@ void IsingModel<_type>::time_evolve_state(arma::cx_vec& state, double time) {
 		stout << "Model not diagonalized! Did it for you, but dude...";
 		this->diagonalization();
 	}
+	const arma::cx_vec initial_state = arma::normalise(state);
 	for (long k = 0; k < this->N; k++)
-		state += std::exp(-im * eigenvalues(k) * time) * arma::dot(eigenvectors.col(k), state) * eigenvectors.col(k);
+		state += std::exp(-im * eigenvalues(k) * time) * arma::dot(eigenvectors.col(k), initial_state) * eigenvectors.col(k);
 	state = arma::normalise(state);
 }
 

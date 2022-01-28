@@ -2239,39 +2239,47 @@ void isingUI::ui::make_sim() {
 
 					auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 					stout << "\n\t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n";
-					alfa->diagonalization();
-					stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
-						<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n";
-
+					const long N = alfa->get_hilbert_size();
 					const double tH = 1. / alfa->mean_level_spacing_analytical();
 					int t_max = (int)std::ceil(std::log10(tH));
 					t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
-					auto times = arma::logspace(-2, t_max, 100);
-					stout << 1. / (alfa->get_eigenEnergy(alfa->get_hilbert_size() - 1) - alfa->get_eigenEnergy(0)) << std::endl;
-					// domain wall
-					//u64 idx = ULLPOW(this->L / 2);
+					auto times = arma::logspace(-2, t_max, 500);
 
-					const long N = ULLPOW(this->L);
-					const u64 neel = (N - 4) / 6.; // inner part of chain besides two edge spins
-					const u64 idx = neel + 1;
-					const u64 idx2 = neel + N / 2;
+					arma::vec entropy(times.size(), arma::fill::zeros);
+					
+					arma::vec down = { 0,1 };
+					arma::vec up = { 1,0 };
+					
+					
+					std::function to_ave = [&]() {
+						//alfa->diagonalization();
+						stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
+							<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n";
+						std::uniform_real_distribution<double> theta(0, pi);
+						std::uniform_real_distribution<double> fi(0, pi);
+						auto the = theta(gen);
+						arma::cx_vec init_state = std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down;
+						for (int j = 1; j < this->L; j++) {
+							the = theta(gen);
+							init_state = arma::kron(init_state, std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down);
+						}
+
+						for (int i = 0; i < times.size(); i++) {
+							auto t = times(i);
+							arma::cx_vec state = arma::normalise(init_state);
+							alfa->time_evolve_state(state, t);
+							entropy(i) += alfa->entaglement_entropy(state, this->L / 2);
+						}
+
+					};
+
+					average_over_realisations<>(*alfa, to_ave);
+					entropy /= double(this->realisations);
+
 					std::ofstream file;
 					openFile(file, this->saving_dir + "EntropyTimeEvolution" + alfa->get_info({}) + ".dat");
-					for (auto& t : times) {
-						printSeparated(file, "\t", 12, false, t);
-
-						arma::cx_vec state(alfa->get_hilbert_size(), arma::fill::zeros);
-						state(idx) = cpx(1.0, 0.0);
-						//state(idx2) = cpx(1.0, 0.0);
-						state = arma::normalise(state);
-
-						alfa->time_evolve_state(state, t);
-						double entropy_vN = alfa->entaglement_entropy(state, this->L / 2.);
-						double entropy_R  = alfa->reyni_entropy(state, this->L / 2., 3);
-						double entropy_Sh = alfa->shannon_entropy(state, this->L / 2);
-						printSeparated(file, "\t", 12, false, entropy_vN, entropy_R, entropy_Sh);
-						file << std::endl;
-					}
+					for (int j = 0; j < times.size(); j++) 
+						printSeparated(file, "\t", 12, true, times(j), entropy(j));
 					file.close();
 
 

@@ -604,12 +604,10 @@ auto IsingModel_disorder::reduced_density_matrix(const arma::cx_vec& state, int 
 	const u64 dimA = ULLPOW(A_size);
 	const u64 dimB = ULLPOW(L - A_size);
 	cx_mat rho(dimA, dimA, fill::zeros);
-#pragma omp parallel for shared(rho)
 	for (long int n = 0; n < N; n++) {						// loop over configurational basis
-		if (abs(state(n)) < 1e-10) continue;				// discard non-essential terms
 		long counter = 0;
 		for (long m = n % dimB; m < N; m += dimB) {			// pick out state with same B side (last L-A_size bits)
-			long idx = (long)std::floor(1.0 * n / dimB);	// find index of state with same B-side (by dividing the last bits are discarded)
+			long idx = n / dimB;							// find index of state with same B-side (by dividing the last bits are discarded)
 			rho(idx, counter) += conj(state(n)) * state(m);
 			counter++;										// increase counter to move along reduced basis
 		}
@@ -635,10 +633,21 @@ double IsingModel_disorder::entaglement_entropy(const arma::cx_vec& state, int A
 	//double entropy = -real(trace(rho * real(logmat(rho))));
 	return entropy;
 }
+arma::vec IsingModel_disorder::entaglement_entropy(const arma::cx_vec& state) const {
+	arma::vec entropy(this->L + 1, arma::fill::zeros);
+	for (int i = 0; i <= this->L; i++)
+		entropy(i) = entaglement_entropy(state, i);
+	return entropy;
+}
 
 template <typename _ty>
 inline arma::Mat<_ty> matrix_pow(const arma::Mat<_ty>& matrix, int exponent) {
-	if (exponent == 1) 
+	if (exponent < 0)
+		assert(false && "Support only posotive exponents");
+	else if (exponent == 0) {
+		auto X = arma::eye(matrix.n_rows, matrix.n_cols);
+		return cx_mat(X, X);
+	} else if (exponent == 1)
 		return matrix;
 	else 
 		return matrix * matrix_pow(matrix, exponent - 1);
@@ -646,7 +655,7 @@ inline arma::Mat<_ty> matrix_pow(const arma::Mat<_ty>& matrix, int exponent) {
 double IsingModel_disorder::reyni_entropy(const arma::cx_vec& state, int A_size, unsigned alfa) const {
 	assert(alfa > 1 && "Only alfa>=2 powers are possible");
 	auto rho = reduced_density_matrix(state, A_size);
-	return real(log(trace(matrix_pow(rho, alfa))) / (1.0 - alfa));
+	return log2(real(trace(matrix_pow(rho, alfa)))) / (1.0 - alfa);
 }
 
 double IsingModel_disorder::shannon_entropy(const arma::cx_vec& state, int A_size) const {
