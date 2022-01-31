@@ -107,6 +107,7 @@ namespace fs = std::experimental::filesystem;
 #  endif
 #endif
 #include "random.h"
+#include "digamma.h"
 #ifdef _MSC_VER
 #include <intrin.h>
 #include <nmmintrin.h>

@@ -1563,11 +1563,12 @@ template <typename _type> auto isingUI::ui::timeEvolution(const IsingModel<_type
 	return std::make_pair(timeEv, LTA);
 }
 void isingUI::ui::relaxationTimesFromFiles() {
+	std::string s = this->op >= 2 ? "q" : "j";
 	std::string dir = this->saving_dir + "RelaxationTimes" + kPSep;
 	createDirs(dir);
 	std::string op = IsingModel_disorder::opName(this->op, this->site);
-	std::ofstream map;
-	openFile(map, dir + op + IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, { "h", "g" }) + ".dat", ios::out);
+	std::ofstream map_g, map_h;
+	openFile(map_h, dir + "_h" + op + IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, { "h", "g" }) + ".dat", ios::out);
 	//std::vector<double> gx_list = { 0.025, 0.05, 0.1, 0.15, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 };
 	NO_OVERFLOW(auto gx_list = arma::linspace(this->g, this->g + this->gs * this->gn, this->gn + 1));
 	NO_OVERFLOW(auto hx_list = arma::linspace(this->h, this->h + this->hs * this->hn, this->hn + 1));
@@ -1576,25 +1577,51 @@ void isingUI::ui::relaxationTimesFromFiles() {
 			// read time-evolution data
 			std::ifstream file;
 			std::string name = op + IsingModel_disorder::set_info(this->L, this->J, this->J0, gx, this->g0, hx, this->w) + ".dat";
-			std::string filename = this->saving_dir + "IntegratedResponseFunction" + kPSep + name;
+			std::string filename = this->saving_dir + "IntegratedResponseFunction" + kPSep + s + "=" + std::to_string(this->site) + kPSep + name;
 			auto data = readFromFile(file, filename);
 			file.close();
 			if (data.empty()) continue;
 			// integrate and find relax rate
 			double wH = data[2](0);
-			for (int k = 0; k < data[0].size(); k++) {
-				if (data[1](k) >= 0.5) {
-					printSeparated(map, "\t", 12, true, hx, gx, 1. / data[0](k), 1. / wH);
-					break;
+			if (data[1](0) <= 1) {
+				for (int k = 0; k < data[0].size(); k++) {
+					if (data[1](k) >= 0.5) {
+						printSeparated(map_h, "\t", 12, true, hx, gx, 1. / data[0](k), 1. / wH);
+						break;
+					}
 				}
 			}
 		}
 	}
-	map.close();
+	map_h.close();
+	openFile(map_g, dir + "_g" + op + IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, { "h", "g" }) + ".dat", ios::out);
+	for (auto& hx : hx_list) {
+		for (auto& gx : gx_list) {
+			// read time-evolution data
+			std::ifstream file;
+			std::string name = op + IsingModel_disorder::set_info(this->L, this->J, this->J0, gx, this->g0, hx, this->w) + ".dat";
+			std::string filename = this->saving_dir + "IntegratedResponseFunction" + kPSep + s + "=" + std::to_string(this->site) + kPSep + name;
+			auto data = readFromFile(file, filename);
+			file.close();
+			if (data.empty()) continue;
+			// integrate and find relax rate
+			double wH = data[2](0);
+			if (data[1](0) <= 1) {
+				for (int k = 0; k < data[0].size(); k++) {
+					if (data[1](k) >= 0.5) {
+						printSeparated(map_g, "\t", 12, true, hx, gx, 1. / data[0](k), 1. / wH);
+						break;
+					}
+				}
+			}
+		}
+	}
+	map_g.close();
 }
 void isingUI::ui::intSpecFun_from_timeEvol() {
-	std::ofstream map;
-	openFile(map, this->saving_dir + "RelaxationTimes" + IsingModel_disorder::set_info(L, 1.0, 0.0, g, 0.0, h, 0.01, { "h","g" }) + ".dat", ios::out);
+	std::ofstream map_g, map_h;
+	openFile(map_g, this->saving_dir + "RelaxationTimes_g" + IsingModel_disorder::set_info(L, 1.0, 0.0, g, 0.0, h, 0.01, { "h","g" }) + ".dat", ios::out);
+	openFile(map_h, this->saving_dir + "RelaxationTimes_h" + IsingModel_disorder::set_info(L, 1.0, 0.0, g, 0.0, h, 0.01, { "h","g" }) + ".dat", ios::out);
 	std::vector<double> gx_list = { 0.05, 0.1, 0.15, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 };
 	auto hx_list = arma::linspace(0.1, 1.3, 7);
 	const double eta = 1e-3;
@@ -1623,13 +1650,15 @@ void isingUI::ui::intSpecFun_from_timeEvol() {
 				else			    printSeparated(fileInt, "\t", 12, true, w, intSpecFun);
 				if (counter == 0 && intSpecFun >= 0.5) {
 					counter++;
-					printSeparated(map, "\t", 12, true, hx, gx, 1. / w, wH);
+					printSeparated(map_h, "\t", 12, true, hx, gx, 1. / w, wH);
+					printSeparated(map_g, "\t", 12, true, gx, hx, 1. / w, wH);
 				}
 			}
 			fileInt.close();
 		}
 	}
-	map.close();
+	map_g.close();
+	map_h.close();
 }
 
 void isingUI::ui::adiabaticGaugePotential_dis(bool h_vs_g) {
@@ -2219,7 +2248,11 @@ void isingUI::ui::make_sim() {
 		case 1: adiabaticGaugePotential_dis(1);	break;
 		case 2: adiabaticGaugePotential_dis(0);	break;
 		case 3: TFIsingLIOMs();					break;
-		case 4: relaxationTimesFromFiles();		break;
+		case 4: 
+			for (this->L = 10; this->L <= 15; this->L++)
+				for (this->site = 0; this->site <= this->L / 2; this->site++)
+					relaxationTimesFromFiles();
+			break;
 	default:
 		const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
 		const double gmin = this->g, gmax = this->g + this->gn * this->gs;
@@ -2243,44 +2276,76 @@ void isingUI::ui::make_sim() {
 					const double tH = 1. / alfa->mean_level_spacing_analytical();
 					int t_max = (int)std::ceil(std::log10(tH));
 					t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
-					auto times = arma::logspace(-2, t_max, 500);
-
-					arma::vec entropy(times.size(), arma::fill::zeros);
+					auto times = arma::logspace(-2, t_max, 100);
 					
-					arma::vec down = { 0,1 };
-					arma::vec up = { 1,0 };
-					
-					
-					std::function to_ave = [&]() {
+					std::string dir = this->saving_dir + "Entropy" + kPSep;
+					createDirs(dir);
+					arma::vec entropy_subsystem(this->L - 1, arma::fill::zeros);
+					this->mu = N < 1000 ? 0.2 * N : 200;
+					std::function to_ave_subsystem = [&]() {
 						//alfa->diagonalization();
 						stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
 							<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n";
-						std::uniform_real_distribution<double> theta(0, pi);
-						std::uniform_real_distribution<double> fi(0, pi);
-						auto the = theta(gen);
-						arma::cx_vec init_state = std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down;
-						for (int j = 1; j < this->L; j++) {
-							the = theta(gen);
-							init_state = arma::kron(init_state, std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down);
+						const u64 E_min = alfa->E_av_idx - this->mu / 2.;
+						const u64 E_max = alfa->E_av_idx + this->mu / 2.;
+						arma::vec dummy_entropy(this->L - 1, arma::fill::zeros);
+						for (long k = E_min; k < E_max; k++) {
+							arma::cx_vec state = cx_vec(alfa->get_eigenState(k), arma::vec(N, arma::fill::zeros));
+							dummy_entropy += alfa->entaglement_entropy(state);
 						}
-
-						for (int i = 0; i < times.size(); i++) {
-							auto t = times(i);
-							arma::cx_vec state = arma::normalise(init_state);
-							alfa->time_evolve_state(state, t);
-							entropy(i) += alfa->entaglement_entropy(state, this->L / 2);
-						}
-
+						entropy_subsystem += dummy_entropy / double(this->mu);
 					};
-
-					average_over_realisations<>(*alfa, to_ave);
-					entropy /= double(this->realisations);
-
+					average_over_realisations(*alfa, to_ave_subsystem);
+					entropy_subsystem /= double(this->realisations);
+					stout << entropy_subsystem.t();
 					std::ofstream file;
-					openFile(file, this->saving_dir + "EntropyTimeEvolution" + alfa->get_info({}) + ".dat");
-					for (int j = 0; j < times.size(); j++) 
-						printSeparated(file, "\t", 12, true, times(j), entropy(j));
+					openFile(file, dir + "SubsystemSize" + alfa->get_info({}) + ".dat");
+					const double psi_N = digamma(N + 1.0);
+					for (int j = 1; j < this->L; j++) {
+						const long d_A = j == 0 ? 1 : (ULLPOW(j));
+						const long d_B = j == this->L ? 1 : (ULLPOW((this->L - j)));
+						const double psi_A = digamma(d_A + 1.0);
+						const double psi_B = digamma(d_B + 1.0);
+						const double S_A = j > this->L / 2 ?
+							psi_N - psi_A - (d_B - 1.0) / (2.0 * d_A) :
+							psi_N - psi_B - (d_A - 1.0) / (2.0 * d_B);
+						printSeparated(file, "\t", 12, true, j / double(this->L), entropy_subsystem(j - 1), S_A);
+					}
 					file.close();
+
+					//arma::vec entropy(times.size(), arma::fill::zeros);					
+					//arma::vec down = { 0,1 };
+					//arma::vec up = { 1,0 };
+					//std::uniform_real_distribution<double> theta(0, pi);
+					//std::uniform_real_distribution<double> fi(0, pi);
+					//alfa->reset_random();
+					//std::function to_ave_time = [&]() {
+					//	//alfa->diagonalization();
+					//	stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
+					//		<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n";
+					//	auto the = theta(gen);
+					//	arma::cx_vec init_state = std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down;
+					//	for (int j = 1; j < this->L; j++) {
+					//		the = theta(gen);
+					//		init_state = arma::kron(init_state, std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down);
+					//	}
+					//	init_state = arma::normalise(init_state);
+					//	for (int i = 0; i < times.size(); i++) {
+					//		auto t = times(i);
+					//		arma::cx_vec state = arma::normalise(init_state);
+					//		alfa->time_evolve_state(state, t);
+					//		entropy(i) += alfa->entaglement_entropy(state, this->L / 2);
+					//	}
+					//
+					//};
+					//
+					//average_over_realisations<>(*alfa, to_ave_time);
+					//entropy /= double(this->realisations);
+					//std::ofstream file;
+					//openFile(file, dir + "TimeEvolution" + alfa->get_info({}) + ".dat");
+					//for (int j = 0; j < times.size(); j++) 
+					//	printSeparated(file, "\t", 12, true, times(j), entropy(j));
+					//file.close();
 
 
 					//this->mu = 0.5 * N;

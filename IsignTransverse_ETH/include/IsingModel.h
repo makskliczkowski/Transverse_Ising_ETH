@@ -270,7 +270,7 @@ inline void normaliseOp(arma::sp_cx_mat& op) {
 }
 inline void normaliseMat(arma::cx_mat& _matrix) {
 	const u64 N = _matrix.n_cols;
-	cpx operator_normalisation = arma::norm(_matrix, "fro");
+	cpx operator_normalisation = arma::norm(_matrix, "fro"); // has already square root
 	operator_normalisation = operator_normalisation / std::sqrt(N);
 	_matrix = _matrix / operator_normalisation;
 }

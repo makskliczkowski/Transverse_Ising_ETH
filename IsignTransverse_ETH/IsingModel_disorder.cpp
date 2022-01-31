@@ -625,18 +625,19 @@ double IsingModel_disorder::entaglement_entropy(const arma::cx_vec& state, int A
 	vec probabilities;
 	eig_sym(probabilities, rho); //diagonalize to find probabilities and calculate trace in rho's eigenbasis
 	double entropy = 0;
-#pragma omp parallel for reduction(+: entropy)
+//#pragma omp parallel for reduction(+: entropy)
 	for (int i = 0; i < probabilities.size(); i++) {
 		auto value = probabilities(i);
-		entropy += (abs(value) < 1e-10) ? 0 : -value * log2(abs(value));
+		entropy += (abs(value) < 1e-10) ? 0 : -value * log(abs(value));
 	}
 	//double entropy = -real(trace(rho * real(logmat(rho))));
 	return entropy;
 }
 arma::vec IsingModel_disorder::entaglement_entropy(const arma::cx_vec& state) const {
-	arma::vec entropy(this->L + 1, arma::fill::zeros);
-	for (int i = 0; i <= this->L; i++)
-		entropy(i) = entaglement_entropy(state, i);
+	arma::vec entropy(this->L - 1, arma::fill::zeros);
+#pragma omp parallel for
+	for (int i = 0; i < this->L - 1; i++)
+		entropy(i) = entaglement_entropy(state, i + 1);
 	return entropy;
 }
 
