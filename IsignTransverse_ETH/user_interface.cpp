@@ -1417,7 +1417,7 @@ template <typename _type> void isingUI::ui::spectralFunction(IsingModel<_type>& 
 	openFile(reponse_fun, name + alfa.get_info({}) + ".dat", ios::out);
 	v_1d<long int> idx_beta, idx_alfa;		// indices satysfying first condition in sum
 	v_1d<double> energy_diff;				// energy differnece(omega) of the above indices
-	const double tol = INT_MAX;// 0.1 * L;
+	const double tol = 0.1 * L;
 	for (long int i = 0; i < N; i++) {
 		for (long int j = 0; j < N && j != i; j++) {
 			if (abs((alfa.get_eigenEnergy(j) + alfa.get_eigenEnergy(i)) / 2. - alfa.get_eigenEnergy(alfa.E_av_idx)) < tol / 2.) {
@@ -1570,8 +1570,8 @@ void isingUI::ui::relaxationTimesFromFiles() {
 	std::ofstream map_g, map_h;
 	openFile(map_h, dir + "_h" + op + IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, { "h", "g" }) + ".dat", ios::out);
 	//std::vector<double> gx_list = { 0.025, 0.05, 0.1, 0.15, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 };
-	NO_OVERFLOW(auto gx_list = arma::linspace(this->g, this->g + this->gs * this->gn, this->gn + 1));
-	NO_OVERFLOW(auto hx_list = arma::linspace(this->h, this->h + this->hs * this->hn, this->hn + 1));
+	NO_OVERFLOW(auto gx_list = arma::linspace(this->g, this->g + this->gs * (this->gn - 1), this->gn));
+	NO_OVERFLOW(auto hx_list = arma::linspace(this->h, this->h + this->hs * (this->hn - 1), this->hn));
 	for (auto& gx : gx_list) {
 		for (auto& hx : hx_list) {
 			// read time-evolution data
@@ -1583,7 +1583,7 @@ void isingUI::ui::relaxationTimesFromFiles() {
 			if (data.empty()) continue;
 			// integrate and find relax rate
 			double wH = data[2](0);
-			if (data[1](0) <= 1) {
+			if (data[1](0) <= 0.5) {
 				for (int k = 0; k < data[0].size(); k++) {
 					if (data[1](k) >= 0.5) {
 						printSeparated(map_h, "\t", 12, true, hx, gx, 1. / data[0](k), 1. / wH);
@@ -1676,7 +1676,8 @@ void isingUI::ui::adiabaticGaugePotential_dis(bool h_vs_g) {
 	for (auto& x : params) {
 		farante << x << "\t\t";
 		//scaling << "\"h = " + to_string_prec(hx, 5) << "\"" << endl;
-		for (int system_size = this->L; system_size < this->L + this->Ls * this->Ln; system_size += this->Ls) {
+		for (int system_size = this->L; system_size < this->L + this->Ls * this->Ln; system_size += this->Ls) 
+		{
 			const auto start_loop = std::chrono::system_clock::now();
 			std::unique_ptr<IsingModel_disorder> alfa;
 			if(h_vs_g) alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, this->J0, this->g, this->g0, x,		this->w);
@@ -1815,6 +1816,26 @@ void isingUI::ui::adiabaticGaugePotential_sym(bool SigmaZ, bool avSymSectors) {
 	farante.close();
 	//scaling.close();
 }
+void isingUI::ui::combineAGPfiles() {
+	std::ifstream input;
+	std::ofstream output;
+	std::string line;
+	std::string dir = "SPINONsynchro" + kPSep;
+	for (double gx = 0.05; gx <= 0.20; gx += 0.05) {
+		std::string gstr = "g=" + to_string_prec(gx, 2);
+		openFile(output, dir + "SigmaZ_j=" + std::to_string(this->site) + ",J0=0.00," + gstr + ",g0=0.00,w=0.01.dat", std::ios::out);
+		for (double h = 0.01; h < 3.01; h += 0.5)
+		{
+			std::string filename = dir + "SigmaZ_j=" + std::to_string(this->site) + ",J0=0.00," + gstr + ",g0=0.00,h=" + to_string_prec(h, 2) + ",w=0.01_h.dat";
+			openFile(input, filename, std::ios::in);
+			while (std::getline(input, line))
+				output << line << "\n";
+			input.close();
+		}
+		output.close();
+	}
+}
+
 template <typename _type> std::pair<double, double> isingUI::ui::operator_norm(arma::sp_cx_mat& opMatrix, IsingModel<_type>& alfa) {
 	const u64 N = alfa.get_hilbert_size();
 	normaliseOp(opMatrix);
@@ -2233,10 +2254,14 @@ void isingUI::ui::LIOMsdisorder() {
 	stout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - \n" << endl;						// simulation end
 }
 
+
+
 //----------------------------------------------------------------------------------------------------------------UI main
 void isingUI::ui::make_sim() {
 	printAllOptions();
 	seed = static_cast<long unsigned int>(time(0));
+	for (this->site = 0; this->site < 14; this->site++)
+		combineAGPfiles();
 
 	clk::time_point start = std::chrono::system_clock::now();
 	//compare_energies();
@@ -2249,9 +2274,10 @@ void isingUI::ui::make_sim() {
 		case 2: adiabaticGaugePotential_dis(0);	break;
 		case 3: TFIsingLIOMs();					break;
 		case 4: 
-			for (this->L = 10; this->L <= 15; this->L++)
-				for (this->site = 0; this->site <= this->L / 2; this->site++)
-					relaxationTimesFromFiles();
+			for (this->op = 2; this->op < 5; this->op += 2)
+				for (this->L = 10; this->L <= 15; this->L++)
+					for (this->site = 0; this->site <= this->L / 2; this->site++)
+						relaxationTimesFromFiles();
 			break;
 	default:
 		const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;

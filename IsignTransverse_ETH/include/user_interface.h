@@ -198,6 +198,7 @@ namespace isingUI
 		template <typename _type> std::pair<double, double> operator_norm(arma::sp_cx_mat& opMatrix, IsingModel<_type>& alfa);
 		void adiabaticGaugePotential_sym(bool SigmaZ = 0, bool avSymSectors = 0);
 		void adiabaticGaugePotential_dis(bool h_vs_g = true);
+		void combineAGPfiles();
 		template <typename _type> void energyEvolution(IsingModel<_type>& model);
 
 		/// <summary>
