@@ -1413,11 +1413,9 @@ std::vector<double> isingUI::ui::perturbative_stat_sym(double dist_step, double 
 //--------------------------------------------------------------------- SPECTRAL PROPERTIES
 template <typename _type> void isingUI::ui::spectralFunction(IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name) {
 	const u64 N = alfa.get_hilbert_size();
-	std::ofstream reponse_fun;
-	openFile(reponse_fun, name + alfa.get_info({}) + ".dat", ios::out);
 	v_1d<long int> idx_beta, idx_alfa;		// indices satysfying first condition in sum
 	v_1d<double> energy_diff;				// energy differnece(omega) of the above indices
-	const double tol = 0.1 * L;
+	const double tol = 0.05 * L;
 	for (long int i = 0; i < N; i++) {
 		for (long int j = 0; j < N && j != i; j++) {
 			if (abs((alfa.get_eigenEnergy(j) + alfa.get_eigenEnergy(i)) / 2. - alfa.get_eigenEnergy(alfa.E_av_idx)) < tol / 2.) {
@@ -1434,32 +1432,38 @@ template <typename _type> void isingUI::ui::spectralFunction(IsingModel<_type>& 
 	long int size = (int)energy_diff.size();
 	//from L=12
 	v_1d<int> Mx = v_1d<int>({ 50, 100, 200, 400, 700, 1000, 2000, 3000, 4000, 6000, 8000, 10000, 12000, 14000, 16000 });
-	NO_OVERFLOW(int M = Mx[alfa.L - 8];)
-	//long int M = std::pow(N, 0.75);
-	long int bucket_num = int(size / (double)M);
-	for (int k = 0; k < bucket_num; k++) {
+	NO_OVERFLOW(int Mxxx = Mx[alfa.L - 8];);
+	const int dM = 0.2 * Mxxx;
+#pragma omp parallel for
+	for (int M = dM; M <= 10 * Mxxx; M += dM) {
+		std::ofstream reponse_fun;
+		openFile(reponse_fun, name + alfa.get_info({}) + "_M=" + std::to_string(M) + ".dat", ios::out);
+		//long int M = std::pow(N, 0.75);
+		long int bucket_num = int(size / (double)M);
+		for (int k = 0; k < bucket_num; k++) {
+			double element = 0;
+			double omega = 0;
+			for (long int p = k * M; p < (k + 1) * M; p++) {
+				cpx overlap = mat_elem(idx_alfa[p], idx_beta[p]);
+				element += abs(overlap * overlap);
+				omega += energy_diff[p];
+			}
+			reponse_fun << omega / (double)M << "\t\t" << element / double(M) << endl;
+			reponse_fun.flush();
+		}
 		double element = 0;
 		double omega = 0;
-		for (long int p = k * M; p < (k + 1) * M; p++) {
+		int counter = 0;
+		for (long int p = bucket_num * M; p < size; p++) {
 			cpx overlap = mat_elem(idx_alfa[p], idx_beta[p]);
 			element += abs(overlap * overlap);
 			omega += energy_diff[p];
+			counter++;
 		}
-		reponse_fun << omega / (double)M << "\t\t" << element / double(M) << endl;
+		reponse_fun << omega / (double)counter << "\t\t" << element / double(counter) << endl;
 		reponse_fun.flush();
+		reponse_fun.close();
 	}
-	double element = 0;
-	double omega = 0;
-	int counter = 0;
-	for (long int p = bucket_num * M; p < size; p++) {
-		cpx overlap = mat_elem(idx_alfa[p], idx_beta[p]);
-		element += abs(overlap * overlap);
-		omega += energy_diff[p];
-		counter++;
-	}
-	reponse_fun << omega / (double)counter << "\t\t" << element / double(counter) << endl;
-	reponse_fun.flush();
-	reponse_fun.close();
 }
 template <typename _type> void isingUI::ui::integratedSpectralFunction(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name) {
 	const u64 N = alfa.get_hilbert_size();
@@ -1721,7 +1725,7 @@ void isingUI::ui::adiabaticGaugePotential_dis(bool h_vs_g) {
 			double typ_susc = 0, AGP = 0;
 			int counter = 0;
 			if (this->realisations > 1)
-				average_over_realisations<double&, double&, int&>(*alfa, getValues, AGP, typ_susc, counter);
+				average_over_realisations<double&, double&, int&>(*alfa, true, getValues, AGP, typ_susc, counter);
 			else {
 				alfa->diagonalization();
 				getValues(AGP, typ_susc, counter);
@@ -2260,9 +2264,6 @@ void isingUI::ui::LIOMsdisorder() {
 void isingUI::ui::make_sim() {
 	printAllOptions();
 	seed = static_cast<long unsigned int>(time(0));
-	for (this->site = 0; this->site < 14; this->site++)
-		combineAGPfiles();
-
 	clk::time_point start = std::chrono::system_clock::now();
 	//compare_energies();
 	//disorder();
@@ -2303,39 +2304,47 @@ void isingUI::ui::make_sim() {
 					int t_max = (int)std::ceil(std::log10(tH));
 					t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
 					auto times = arma::logspace(-2, t_max, 100);
-					
 					std::string dir = this->saving_dir + "Entropy" + kPSep;
 					createDirs(dir);
-					arma::vec entropy_subsystem(this->L - 1, arma::fill::zeros);
-					this->mu = N < 1000 ? 0.2 * N : 200;
+					
+					double entropy_1 = 0, entropy_2 = 0, entropy_3 = 0;
+					this->mu = N < 1000 ? 0.2 * N : 500;
 					std::function to_ave_subsystem = [&]() {
 						//alfa->diagonalization();
 						stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
 							<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n";
 						const u64 E_min = alfa->E_av_idx - this->mu / 2.;
 						const u64 E_max = alfa->E_av_idx + this->mu / 2.;
-						arma::vec dummy_entropy(this->L - 1, arma::fill::zeros);
+						double entropy_1_tmp = 0, entropy_2_tmp = 0, entropy_3_tmp = 0;
+#pragma omp parallel for reduction(+: entropy_1_tmp, entropy_2_tmp, entropy_3_tmp)
 						for (long k = E_min; k < E_max; k++) {
 							arma::cx_vec state = cx_vec(alfa->get_eigenState(k), arma::vec(N, arma::fill::zeros));
-							dummy_entropy += alfa->entaglement_entropy(state);
+							entropy_1_tmp += alfa->entaglement_entropy(state, this->L / 2 - 1);
+							entropy_2_tmp += alfa->entaglement_entropy(state, this->L / 2);
+							entropy_3_tmp += alfa->entaglement_entropy(state, this->L / 2 + 1);
 						}
-						entropy_subsystem += dummy_entropy / double(this->mu);
+						entropy_1 += entropy_1_tmp / double(this->mu);
+						entropy_2 += entropy_2_tmp / double(this->mu);
+						entropy_3 += entropy_3_tmp / double(this->mu);
 					};
-					average_over_realisations(*alfa, to_ave_subsystem);
-					entropy_subsystem /= double(this->realisations);
-					stout << entropy_subsystem.t();
+					average_over_realisations(*alfa, true, to_ave_subsystem);
+					entropy_1 /= double(this->realisations);
+					entropy_2 /= double(this->realisations);
+					entropy_3 /= double(this->realisations);
+					std::vector S = { entropy_1, entropy_2, entropy_3 };
 					std::ofstream file;
 					openFile(file, dir + "SubsystemSize" + alfa->get_info({}) + ".dat");
 					const double psi_N = digamma(N + 1.0);
-					for (int j = 1; j < this->L; j++) {
-						const long d_A = j == 0 ? 1 : (ULLPOW(j));
-						const long d_B = j == this->L ? 1 : (ULLPOW((this->L - j)));
+					int j0 = this->L / 2 - 1;
+					for (int j = j0; j <= j0 + 2; j++) {
+						const long d_A = (u64)std::pow(2, j);
+						const long d_B = (u64)std::pow(2, this->L - j);
 						const double psi_A = digamma(d_A + 1.0);
 						const double psi_B = digamma(d_B + 1.0);
 						const double S_A = j > this->L / 2 ?
 							psi_N - psi_A - (d_B - 1.0) / (2.0 * d_A) :
 							psi_N - psi_B - (d_A - 1.0) / (2.0 * d_B);
-						printSeparated(file, "\t", 12, true, j / double(this->L), entropy_subsystem(j - 1), S_A);
+						printSeparated(file, "\t", 12, true, j / double(this->L), S[j - j0], S_A);
 					}
 					file.close();
 
@@ -2365,7 +2374,7 @@ void isingUI::ui::make_sim() {
 					//
 					//};
 					//
-					//average_over_realisations<>(*alfa, to_ave_time);
+					//average_over_realisations<>(*alfa, false, to_ave_time);
 					//entropy /= double(this->realisations);
 					//std::ofstream file;
 					//openFile(file, dir + "TimeEvolution" + alfa->get_info({}) + ".dat");

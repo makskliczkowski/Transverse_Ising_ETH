@@ -49,10 +49,14 @@
 #include <algorithm>
 #include <unordered_map>
 
+//#include <mkl.h>
 DISABLE_WARNING_PUSH // include <armadillo> and suppress its warnings, cause developers suck
 	// armadillo flags:
 #define ARMA_64BIT_WORD // enabling 64 integers in armadillo obbjects
 #define ARMA_BLAS_LONG_LONG // using long long inside LAPACK call
+#define ARMA_DONT_USE_FORTRAN_HIDDEN_ARGS
+#define ARMA_USE_MKL_ALLOC
+#define ARMA_USE_MKL_TYPES
 #define ARMA_USE_OPENMP
 #define ARMA_ALLOW_FAKE_GCC
 //#define ARMA_EXTRA_DEBUG
@@ -79,7 +83,6 @@ DISABLE_OVERFLOW;
 DISABLE_WARNING_POP
 
 #include <iterator>
-//#include <mkl.h>
 #include <cassert> // assert terminates program
 #include <omp.h>
 #include <ctime>

@@ -163,13 +163,16 @@ namespace isingUI
 		}
 		template <typename... _types> void average_over_realisations(
 			IsingModel_disorder& model,				   //!< input model with disorder
+			bool with_diagonalization,				   //!< checked if each realisation should diagonalize a new matrix
 			std::function<void(_types...args)> lambda, //!< callable function
 			_types... args							   //!< arguments passed to callable interface lambda
 		) {
 			model.reset_random();
 			for (int r = 0; r < this->realisations; r++) {
-				model.hamiltonian();
-				model.diagonalization();
+				if (with_diagonalization) {
+					model.hamiltonian();
+					model.diagonalization();
+				}
 				lambda(std::forward<_types>(args)...);
 			}
 		};
