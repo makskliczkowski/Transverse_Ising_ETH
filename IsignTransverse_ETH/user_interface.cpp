@@ -220,6 +220,7 @@ void isingUI::ui::exit_with_help() const {
 		"	2 -- Sz_q"
 		"	3 -- Sx_q"
 		"	4 -- Hq"
+		"	5 -- Hi"
 		"	-- i or q are set to site (flag -s); (default 0 -> local Sz)"
 		""
 		"-fun choose function to start calculations"
@@ -1431,39 +1432,35 @@ template <typename _type> void isingUI::ui::spectralFunction(IsingModel<_type>& 
 	apply_permutation(idx_alfa, permut);
 	long int size = (int)energy_diff.size();
 	//from L=12
-	v_1d<int> Mx = v_1d<int>({ 50, 100, 200, 400, 700, 1000, 2000, 3000, 4000, 6000, 8000, 10000, 12000, 14000, 16000 });
-	NO_OVERFLOW(int Mxxx = Mx[alfa.L - 8];);
-	const int dM = 0.2 * Mxxx;
-#pragma omp parallel for
-	for (int M = dM; M <= 10 * Mxxx; M += dM) {
-		std::ofstream reponse_fun;
-		openFile(reponse_fun, name + alfa.get_info({}) + "_M=" + std::to_string(M) + ".dat", ios::out);
-		//long int M = std::pow(N, 0.75);
-		long int bucket_num = int(size / (double)M);
-		for (int k = 0; k < bucket_num; k++) {
-			double element = 0;
-			double omega = 0;
-			for (long int p = k * M; p < (k + 1) * M; p++) {
-				cpx overlap = mat_elem(idx_alfa[p], idx_beta[p]);
-				element += abs(overlap * overlap);
-				omega += energy_diff[p];
-			}
-			reponse_fun << omega / (double)M << "\t\t" << element / double(M) << endl;
-			reponse_fun.flush();
-		}
+	v_1d<int> Mx = v_1d<int>({ 100, 400, 700, 1200, 2000, 5000, 8000, 12000, 15000, 6000, 8000, 10000, 12000, 14000, 16000 });
+	NO_OVERFLOW(int M = Mx[alfa.L - 8];);
+	std::ofstream reponse_fun;
+	openFile(reponse_fun, name + alfa.get_info({}) + "_M=" + std::to_string(M) + ".dat", ios::out);
+	//long int M = std::pow(N, 0.75);
+	long int bucket_num = int(size / (double)M);
+	for (int k = 0; k < bucket_num; k++) {
 		double element = 0;
 		double omega = 0;
-		int counter = 0;
-		for (long int p = bucket_num * M; p < size; p++) {
+		for (long int p = k * M; p < (k + 1) * M; p++) {
 			cpx overlap = mat_elem(idx_alfa[p], idx_beta[p]);
 			element += abs(overlap * overlap);
 			omega += energy_diff[p];
-			counter++;
 		}
-		reponse_fun << omega / (double)counter << "\t\t" << element / double(counter) << endl;
+		reponse_fun << omega / (double)M << "\t\t" << element / double(M) << endl;
 		reponse_fun.flush();
-		reponse_fun.close();
 	}
+	double element = 0;
+	double omega = 0;
+	int counter = 0;
+	for (long int p = bucket_num * M; p < size; p++) {
+		cpx overlap = mat_elem(idx_alfa[p], idx_beta[p]);
+		element += abs(overlap * overlap);
+		omega += energy_diff[p];
+		counter++;
+	}
+	reponse_fun << omega / (double)counter << "\t\t" << element / double(counter) << endl;
+	reponse_fun.flush();
+	reponse_fun.close();
 }
 template <typename _type> void isingUI::ui::integratedSpectralFunction(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name) {
 	const u64 N = alfa.get_hilbert_size();

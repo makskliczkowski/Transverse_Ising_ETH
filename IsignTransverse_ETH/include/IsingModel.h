@@ -225,6 +225,7 @@ public:
 	}
 	
 	virtual sp_cx_mat createHq(int k) const = 0;
+	virtual sp_cx_mat createHlocal(int k) const = 0;
 	virtual sp_cx_mat createSq(int k) const = 0;
 
 	sp_cx_mat chooseOperator(int choose, int site) {
@@ -235,6 +236,7 @@ public:
 			case 2: op = createSq(site); break;
 			case 3: stout << "not implemented Sx_q yet!!!\n\n"; exit(1); break;
 			case 4: op = createHq(site); break;
+			case 5: op = createHlocal(site); break;
 			default:
 				stout << "No operator chosen!\nReturning empty matrix\n\n";
 		}
@@ -248,8 +250,9 @@ public:
 		case 2: name = "SigmaZ_q=" + std::to_string(site);	break;
 		case 3: name = "SigmaX_q=" + std::to_string(site);	break;
 		case 4: name = "H_q="	   + std::to_string(site);	break;
+		case 5: name = "H_j="	   + std::to_string(site);	break;
 		default:
-			stout << "Bad input! Operator -op 0-4 only";
+			stout << "Bad input! Operator -op 0-5 only";
 			exit(1);
 		}
 		return name;
@@ -387,6 +390,7 @@ public:
 	void set_OperatorElem(std::vector<op_type> operators, std::vector<int> sites, sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx) const;
 	
 	sp_cx_mat createHq(int k) const override { stout << "Not implemented yet!!\n\n"; return sp_cx_mat(); };
+	sp_cx_mat createHlocal(int k) const override { stout << "Not implemented yet!!\n\n"; return sp_cx_mat(); };
 	sp_cx_mat createSq(int k) const override;
 
 	mat correlation_matrix(u64 state_id) const override;
@@ -442,6 +446,7 @@ public:
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const override;
 
 	sp_cx_mat createHq(int k) const override;
+	sp_cx_mat createHlocal(int k) const override;
 	sp_cx_mat createSq(int k) const override;
 	mat correlation_matrix(u64 state_id) const override;
 

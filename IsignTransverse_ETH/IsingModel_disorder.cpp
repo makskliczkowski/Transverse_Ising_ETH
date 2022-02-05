@@ -537,6 +537,27 @@ sp_cx_mat IsingModel_disorder::createHq(int k) const {
 	}
 	return opMatrix / std::sqrt(this->L);
 }
+sp_cx_mat IsingModel_disorder::createHlocal(int k) const {
+	arma::sp_cx_mat opMatrix(this->N, this->N);
+#pragma omp parallel for
+	for (long int n = 0; n < this->N; n++) {
+		auto nei = this->nearest_neighbors[k];
+		auto [s_i, __1] = IsingModel_disorder::sigma_z(n, this->L, { k });
+		opMatrix(n, n) += this->h / 2. * s_i;
+
+		auto [__2, idx1] = IsingModel_disorder::sigma_x(n, this->L, { k });
+		opMatrix(idx1, n) += this->g / 2.;
+
+		if (nei >= 0) {
+			auto [__3, idx2] = IsingModel_disorder::sigma_x(n, this->L, { nei });
+			opMatrix(idx2, n) += this->g / 2.;
+			auto [s_j, __4] = IsingModel_disorder::sigma_z(n, this->L, { nei });
+
+			opMatrix(n, n) += (this->J * s_i + this->h / 2.) * s_j;
+		}
+	}
+	return opMatrix / std::sqrt(this->L);
+}
 
 // ----------------------------------------------------------------------------- TO REFACTOR AND CREATE DESCRIPTION -----------------------------------------------------------------------------
 
