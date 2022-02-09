@@ -582,9 +582,9 @@ sp_cx_mat IsingModel_sym::symmetryRotation() const {
 	return U;
 }
 
-sp_cx_mat IsingModel_sym::createSq(int k) const {
+sp_cx_mat IsingModel_sym::fourierTransform(op_type op, int q) const {
 	auto beta = std::make_unique<IsingModel_disorder>(this->L, this->J, 0, this->g, 0, this->h, 0, this->_BC);
-	auto fullSq = beta->createSq(k);
+	auto fullMatrix = beta->fourierTransform(op, q);
 	auto U = this->symmetryRotation();
-	return U.t() * fullSq * U;
+	return U.t() * fullMatrix * U;
 }

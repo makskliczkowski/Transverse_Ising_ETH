@@ -74,16 +74,7 @@ void user_interface::set_default_msg(T& value, string option, string message, co
 /// </summary>
 void isingUI::ui::printAllOptions() const {
 	stout << "------------------------------CHOSEN OPTIONS:" << std::endl;
-	std::string opName;
-	switch (this->op) {
-		case 0: opName = "SigmaZ_j=" + std::to_string(this->site);	break;
-		case 1: opName = "SigmaX_j=" + std::to_string(this->site);	break;
-		case 2: opName = "SigmaZ_q=" + std::to_string(this->site);	break;
-		case 3: opName = "SigmaX_q=" + std::to_string(this->site);	break;
-		case 4: opName = "H_q=" + std::to_string(this->site);	break;
-		default:
-			opName = "none chosen";
-	}
+	std::string opName = IsingModel_disorder::opName(this->op, this->site);
 	stout << "DIR = " << this->saving_dir << std::endl
 		<< "model = " << (this->m ? "symmetric" : "disordered") << std::endl
 		<< "BC = " << (this->boundary_conditions ? "OBC" : "PBC") << std::endl
@@ -217,10 +208,10 @@ void isingUI::ui::exit_with_help() const {
 		"-op flag to choose operator: "
 		"	0 -- Sz_i-local"
 		"	1 -- Sx_i-local"
-		"	2 -- Sz_q"
-		"	3 -- Sx_q"
-		"	4 -- Hq"
-		"	5 -- Hi"
+		"	2 -- Hi"
+		"	3 -- Sz_q"
+		"	4 -- Sx_q"
+		"	5 -- Hq"
 		"	-- i or q are set to site (flag -s); (default 0 -> local Sz)"
 		""
 		"-fun choose function to start calculations"
@@ -681,7 +672,8 @@ void isingUI::ui::compare_matrix_elements(op_type op, int k_alfa, int k_beta, in
 	for (auto& element : map_alfa) {
 		for (auto& t : map_beta) {
 			//cpx A = arma::cdot(alfa->get_eigenState(element.first), opMatrix_beta * beta->get_eigenState(t.first));
-			cpx A = av_operator(element.first, t.first, *alfa, *beta, op);
+			cpx A = 0.;//TODO: here add operator between sectors
+			//cpx A = av_operator(element.first, t.first, *alfa, *beta, op);
 			cpx B = arma::dot(model->get_eigenState(element.second), opMatrix * model->get_eigenState(t.second));
 			if (abs(abs(A) - abs(B)) >= 1e-14)
 				file << alfa->get_eigenEnergy(element.first) << "\t\t\t\t\t" << \
@@ -2186,7 +2178,7 @@ void isingUI::ui::LIOMsdisorder() {
 	auto times = arma::logspace(-2, t_max, 300);
 	auto omegas = arma::logspace(std::floor(log10(1. / tH)) - 1, 2, 300);
 	std::string opName = IsingModel_disorder::opName(this->op, this->site);
-	std::string str = (this->op < 2) ? "j" : "q";
+	std::string str = (this->op < 3) ? "j" : "q";
 	std::string timeDir = this->saving_dir + "timeEvolution" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
 	std::string specDir = this->saving_dir + "ResponseFunction" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
 	std::string intDir = this->saving_dir + "IntegratedResponseFunction" + kPSep + str + "=" + std::to_string(this->site) + kPSep;

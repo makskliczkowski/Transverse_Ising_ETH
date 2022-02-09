@@ -80,8 +80,11 @@ template <typename T> void IsingModel<T>::set_neighbors() {
 template <typename T> void IsingModel<T>::diagonalization(bool withoutEigenVec) {
 	//out << real(H) << endl;
 	try {
-		if (withoutEigenVec) arma::eig_sym(this->eigenvalues, arma::Mat<T>(this->H));
-		else				 arma::eig_sym(this->eigenvalues, this->eigenvectors, arma::Mat<T>(this->H));
+		auto H_temp = arma::Mat<T>(this->H);
+		stout << "sparse - dim(H) = " << H.n_nonzero * sizeof(T) << " bytes\n";
+		stout << "dense - dim(H) = " << H_temp.size() * sizeof(T) << " bytes\n";
+		if (withoutEigenVec) arma::eig_sym(this->eigenvalues, H_temp);
+		else				 arma::eig_sym(this->eigenvalues, this->eigenvectors, H_temp);
 	}
 	catch (const bad_alloc& e) {
 		stout << "Memory exceeded" << e.what() << "\n";

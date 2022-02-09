@@ -226,17 +226,19 @@ public:
 	
 	virtual sp_cx_mat createHq(int k) const = 0;
 	virtual sp_cx_mat createHlocal(int k) const = 0;
-	virtual sp_cx_mat createSq(int k) const = 0;
+	virtual sp_cx_mat fourierTransform(op_type op, int q) const = 0; // with operator input
+	//template <typename op>
+	//virtual sp_cx_mat fourierTransform(int q, op&& opGen) const = 0; // with lambda input to create local operator and perform sum 
 
 	sp_cx_mat chooseOperator(int choose, int site) {
 		sp_cx_mat op;
 		switch (choose) {
 			case 0: op = create_operator({ IsingModel::sigma_z }, std::vector<int>({ site })); break;
 			case 1: op = create_operator({ IsingModel::sigma_x }, std::vector<int>({ site })); break;
-			case 2: op = createSq(site); break;
-			case 3: stout << "not implemented Sx_q yet!!!\n\n"; exit(1); break;
-			case 4: op = createHq(site); break;
-			case 5: op = createHlocal(site); break;
+			case 2: op = createHlocal(site); break;
+			case 3: op = fourierTransform(IsingModel::sigma_z, site); break;
+			case 4: op = fourierTransform(IsingModel::sigma_x, site); break;
+			case 5: op = createHq(site); break;
 			default:
 				stout << "No operator chosen!\nReturning empty matrix\n\n";
 		}
@@ -247,10 +249,10 @@ public:
 		switch (choose) {
 		case 0: name = "SigmaZ_j=" + std::to_string(site);	break;
 		case 1: name = "SigmaX_j=" + std::to_string(site);	break;
-		case 2: name = "SigmaZ_q=" + std::to_string(site);	break;
-		case 3: name = "SigmaX_q=" + std::to_string(site);	break;
-		case 4: name = "H_q="	   + std::to_string(site);	break;
-		case 5: name = "H_j="	   + std::to_string(site);	break;
+		case 2: name = "H_j="	   + std::to_string(site);	break;
+		case 3: name = "SigmaZ_q=" + std::to_string(site);	break;
+		case 4: name = "SigmaX_q=" + std::to_string(site);	break;
+		case 5: name = "H_q="	   + std::to_string(site);	break;
 		default:
 			stout << "Bad input! Operator -op 0-5 only";
 			exit(1);
@@ -391,7 +393,7 @@ public:
 	
 	sp_cx_mat createHq(int k) const override { stout << "Not implemented yet!!\n\n"; return sp_cx_mat(); };
 	sp_cx_mat createHlocal(int k) const override { stout << "Not implemented yet!!\n\n"; return sp_cx_mat(); };
-	sp_cx_mat createSq(int k) const override;
+	sp_cx_mat fourierTransform(op_type op, int q) const override;
 
 	mat correlation_matrix(u64 state_id) const override;
 };
@@ -447,7 +449,7 @@ public:
 
 	sp_cx_mat createHq(int k) const override;
 	sp_cx_mat createHlocal(int k) const override;
-	sp_cx_mat createSq(int k) const override;
+	sp_cx_mat fourierTransform(op_type op, int q) const override;
 	mat correlation_matrix(u64 state_id) const override;
 
 	cpx av_operator(u64 alfa, u64 beta, op_type op, std::vector<int> sites);	// calculates the matrix element of operator at given site

@@ -492,10 +492,10 @@ sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> op
 	return opMatrix / sqrt(this->L);
 }
 
-sp_cx_mat IsingModel_disorder::createSq(int k) const {
+sp_cx_mat IsingModel_disorder::fourierTransform(op_type op, int k) const {
 	const double q = k * two_pi / double(this->L);
 	arma::sp_cx_mat opMatrix(this->N, this->N);
-	
+
 	std::vector<cpx> k_exp(this->L);
 	for (int j = 0; j < this->L; j++) {
 		NO_OVERFLOW(k_exp[j] = std::exp(im * q * double(j + 1));)
@@ -503,13 +503,15 @@ sp_cx_mat IsingModel_disorder::createSq(int k) const {
 #pragma omp parallel for
 	for (long int n = 0; n < N; n++) {
 		for (int j = 0; j < this->L; j++) {
-			auto [value, idx] = IsingModel::sigma_z(n, this->L, { j });
-			opMatrix(n, n) += value * k_exp[j];
+			auto [value, idx] = op(n, this->L, { j });
+#pragma omp critical
+			{
+				opMatrix(idx, n) += value * k_exp[j];
+			}
 		}
 	}
 	return opMatrix / sqrt(this->L);
 }
-
 sp_cx_mat IsingModel_disorder::createHq(int k) const {
 	const double q = k * two_pi / double(this->L);
 	arma::sp_cx_mat opMatrix(this->N, this->N);
