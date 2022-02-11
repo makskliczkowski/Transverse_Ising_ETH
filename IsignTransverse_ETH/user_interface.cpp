@@ -2296,46 +2296,56 @@ void isingUI::ui::make_sim() {
 					std::string dir = this->saving_dir + "Entropy" + kPSep;
 					createDirs(dir);
 					
-					double entropy_1 = 0, entropy_2 = 0, entropy_3 = 0;
+					arma::vec entropy_1(N, arma::fill::zeros);
+					arma::vec entropy_2 = entropy_1, entropy_3 = entropy_1;
 					this->mu = N < 1000 ? 0.2 * N : 500;
 					std::function to_ave_subsystem = [&]() {
 						//alfa->diagonalization();
 						stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
 							<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n";
-						const u64 E_min = alfa->E_av_idx - this->mu / 2.;
-						const u64 E_max = alfa->E_av_idx + this->mu / 2.;
+						const u64 E_min = 0;// alfa->E_av_idx - this->mu / 2.;
+						const u64 E_max = N;// alfa->E_av_idx + this->mu / 2.;
 						double entropy_1_tmp = 0, entropy_2_tmp = 0, entropy_3_tmp = 0;
 #pragma omp parallel for reduction(+: entropy_1_tmp, entropy_2_tmp, entropy_3_tmp)
 						for (long k = E_min; k < E_max; k++) {
 							arma::cx_vec state = cx_vec(alfa->get_eigenState(k), arma::vec(N, arma::fill::zeros));
-							entropy_1_tmp += alfa->entaglement_entropy(state, this->L / 2 - 1);
-							entropy_2_tmp += alfa->entaglement_entropy(state, this->L / 2);
-							entropy_3_tmp += alfa->entaglement_entropy(state, this->L / 2 + 1);
+							entropy_1(k) = alfa->entaglement_entropy(state, this->L / 2 - 1);
+							entropy_2(k) = alfa->entaglement_entropy(state, this->L / 2);
+							entropy_3(k) = alfa->entaglement_entropy(state, this->L / 2 + 1);
 						}
-						entropy_1 += entropy_1_tmp / double(this->mu);
-						entropy_2 += entropy_2_tmp / double(this->mu);
-						entropy_3 += entropy_3_tmp / double(this->mu);
+						//entropy_1 += entropy_1_tmp / double(this->mu);
+						//entropy_2 += entropy_2_tmp / double(this->mu);
+						//entropy_3 += entropy_3_tmp / double(this->mu);
 					};
+
+
 					average_over_realisations(*alfa, true, to_ave_subsystem);
 					entropy_1 /= double(this->realisations);
 					entropy_2 /= double(this->realisations);
 					entropy_3 /= double(this->realisations);
-					std::vector S = { entropy_1, entropy_2, entropy_3 };
+
 					std::ofstream file;
-					openFile(file, dir + "SubsystemSize" + alfa->get_info({}) + ".dat");
-					const double psi_N = digamma(N + 1.0);
-					int j0 = this->L / 2 - 1;
-					for (int j = j0; j <= j0 + 2; j++) {
-						const long d_A = (u64)std::pow(2, j);
-						const long d_B = (u64)std::pow(2, this->L - j);
-						const double psi_A = digamma(d_A + 1.0);
-						const double psi_B = digamma(d_B + 1.0);
-						const double S_A = j > this->L / 2 ?
-							psi_N - psi_A - (d_B - 1.0) / (2.0 * d_A) :
-							psi_N - psi_B - (d_A - 1.0) / (2.0 * d_B);
-						printSeparated(file, "\t", 12, true, j / double(this->L), S[j - j0], S_A);
+					openFile(file, dir + "Eigenstates" + alfa->get_info({}) + ".dat");
+					for (long i = 0; i < N; i++) {
+						printSeparated(file, "\t", 12, true, alfa->get_eigenEnergy(i) / double(this->L), entropy_1(i), entropy_2(i), entropy_3(i));
 					}
-					file.close();
+
+					//std::vector S = { entropy_1, entropy_2, entropy_3 };
+					//std::ofstream file;
+					//openFile(file, dir + "SubsystemSize" + alfa->get_info({}) + ".dat");
+					//const double psi_N = digamma(N + 1.0);
+					//int j0 = this->L / 2 - 1;
+					//for (int j = j0; j <= j0 + 2; j++) {
+					//	const long d_A = (u64)std::pow(2, j);
+					//	const long d_B = (u64)std::pow(2, this->L - j);
+					//	const double psi_A = digamma(d_A + 1.0);
+					//	const double psi_B = digamma(d_B + 1.0);
+					//	const double S_A = j > this->L / 2 ?
+					//		psi_N - psi_A - (d_B - 1.0) / (2.0 * d_A) :
+					//		psi_N - psi_B - (d_A - 1.0) / (2.0 * d_B);
+					//	printSeparated(file, "\t", 12, true, j / double(this->L), S[j - j0], S_A);
+					//}
+					//file.close();
 
 					//arma::vec entropy(times.size(), arma::fill::zeros);					
 					//arma::vec down = { 0,1 };
