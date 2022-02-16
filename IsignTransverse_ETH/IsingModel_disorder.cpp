@@ -502,8 +502,10 @@ sp_cx_mat IsingModel_disorder::fourierTransform(op_type op, int k) const {
 	}
 #pragma omp parallel for
 	for (long int n = 0; n < N; n++) {
+		cpx value = 0.0;
+		u64 idx = 0;
 		for (int j = 0; j < this->L; j++) {
-			auto [value, idx] = op(n, this->L, { j });
+			std::tie(value, idx) = op(n, this->L, { j });
 #pragma omp critical
 			{
 				opMatrix(idx, n) += value * k_exp[j];
@@ -520,17 +522,24 @@ sp_cx_mat IsingModel_disorder::createHq(int k) const {
 		k_exp[j] = std::cos(q * double(j + 1));
 #pragma omp parallel for
 	for (long int n = 0; n < this->N; n++) {
+		cpx __2 = 0.0, __3 = 0.0;
+		u64 idx1 = 0, idx2 = 0;
 		for (int j = 0; j < this->L; j++) {
 			auto nei = this->nearest_neighbors[j];			
 			auto [s_i, __1] = IsingModel_disorder::sigma_z(n, this->L, { j });
 			opMatrix(n, n) += this->h / 2. * s_i * k_exp[j];
 
-			auto [__2, idx1] = IsingModel_disorder::sigma_x(n, this->L, { j });
-			opMatrix(idx1, n) += this->g / 2. * k_exp[j];
-
+			std::tie(__2, idx1) = IsingModel_disorder::sigma_x(n, this->L, { j });
+#pragma omp critical
+			{
+				opMatrix(idx1, n) += this->g / 2. * k_exp[j];
+			}
 			if (nei >= 0) {
-				auto [__3, idx2] = IsingModel_disorder::sigma_x(n, this->L, { nei });
-				opMatrix(idx2, n) += this->g / 2. * k_exp[j];
+				std::tie(__3, idx2) = IsingModel_disorder::sigma_x(n, this->L, { nei });
+#pragma omp critical
+				{
+					opMatrix(idx2, n) += this->g / 2. * k_exp[j];
+				}
 				auto [s_j, __4] = IsingModel_disorder::sigma_z(n, this->L, { nei });
 
 				opMatrix(n, n) += (this->J * s_i + this->h / 2.) * s_j * k_exp[j];
@@ -543,16 +552,23 @@ sp_cx_mat IsingModel_disorder::createHlocal(int k) const {
 	arma::sp_cx_mat opMatrix(this->N, this->N);
 #pragma omp parallel for
 	for (long int n = 0; n < this->N; n++) {
+		cpx __2 = 0.0, __3 = 0.0;
+		u64 idx1 = 0, idx2 = 0;
 		auto nei = this->nearest_neighbors[k];
 		auto [s_i, __1] = IsingModel_disorder::sigma_z(n, this->L, { k });
 		opMatrix(n, n) += this->h / 2. * s_i;
 
-		auto [__2, idx1] = IsingModel_disorder::sigma_x(n, this->L, { k });
-		opMatrix(idx1, n) += this->g / 2.;
-
+		std::tie(__2, idx1) = IsingModel_disorder::sigma_x(n, this->L, { k });
+#pragma omp critical
+		{
+			opMatrix(idx1, n) += this->g / 2.;
+		}
 		if (nei >= 0) {
-			auto [__3, idx2] = IsingModel_disorder::sigma_x(n, this->L, { nei });
-			opMatrix(idx2, n) += this->g / 2.;
+			std::tie(__3, idx2) = IsingModel_disorder::sigma_x(n, this->L, { nei });
+#pragma omp critical
+			{
+				opMatrix(idx2, n) += this->g / 2.;
+			}
 			auto [s_j, __4] = IsingModel_disorder::sigma_z(n, this->L, { nei });
 
 			opMatrix(n, n) += (this->J * s_i + this->h / 2.) * s_j;

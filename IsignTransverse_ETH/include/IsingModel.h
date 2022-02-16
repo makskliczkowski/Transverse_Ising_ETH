@@ -457,7 +457,7 @@ public:
 	cpx av_operator(u64 alfa, u64 beta, op_type op, int corr_len);
 
 	auto reduced_density_matrix(const arma::cx_vec& state, int A_size) const -> arma::cx_mat;
-	double entaglement_entropy(const arma::cx_vec& state, int A_size) const;
+	double entaglement_entropy(const arma::cx_vec& state, int A_size) const override;
 	arma::vec entaglement_entropy(const arma::cx_vec& state) const;
 	double reyni_entropy(const arma::cx_vec& state, int A_size, unsigned alfa = 2) const;
 	double shannon_entropy(const arma::cx_vec& state, int A_size) const;

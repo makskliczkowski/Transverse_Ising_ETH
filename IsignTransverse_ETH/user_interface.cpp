@@ -1571,10 +1571,16 @@ void isingUI::ui::relaxationTimesFromFiles() {
 			std::ifstream file;
 			std::string name = op + IsingModel_disorder::set_info(this->L, this->J, this->J0, gx, this->g0, hx, this->w) + ".dat";
 			std::string filename = this->saving_dir + "IntegratedResponseFunction" + kPSep + s + "=" + std::to_string(this->site) + kPSep + name;
+			std::string dir_out = this->saving_dir + "IntegratedResponseFunction" + kPSep + "DERIVATIVE" + kPSep + s + "=" + std::to_string(this->site) + kPSep;
+			createDirs(dir_out);
 			auto data = readFromFile(file, filename);
 			file.close();
 			if (data.empty()) continue;
-			// integrate and find relax rate
+			// take derivative
+			std::ofstream file2;
+			openFile(file2, dir_out + name, std::ios::out);
+
+			// find relax rate
 			double wH = data[2](0);
 			if (data[1](0) <= 0.5) {
 				for (int k = 0; k < data[0].size(); k++) {
@@ -2292,43 +2298,52 @@ void isingUI::ui::make_sim() {
 					const double tH = 1. / alfa->mean_level_spacing_analytical();
 					int t_max = (int)std::ceil(std::log10(tH));
 					t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
-					auto times = arma::logspace(-2, t_max, 100);
+					auto times = arma::logspace(-2, t_max, 200);
 					std::string dir = this->saving_dir + "Entropy" + kPSep;
 					createDirs(dir);
 					
-					arma::vec entropy_1(N, arma::fill::zeros);
-					arma::vec entropy_2 = entropy_1, entropy_3 = entropy_1;
-					this->mu = N < 1000 ? 0.2 * N : 500;
-					std::function to_ave_subsystem = [&]() {
-						//alfa->diagonalization();
-						stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
-							<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n";
-						const u64 E_min = 0;// alfa->E_av_idx - this->mu / 2.;
-						const u64 E_max = N;// alfa->E_av_idx + this->mu / 2.;
-						double entropy_1_tmp = 0, entropy_2_tmp = 0, entropy_3_tmp = 0;
-#pragma omp parallel for reduction(+: entropy_1_tmp, entropy_2_tmp, entropy_3_tmp)
-						for (long k = E_min; k < E_max; k++) {
-							arma::cx_vec state = cx_vec(alfa->get_eigenState(k), arma::vec(N, arma::fill::zeros));
-							entropy_1(k) = alfa->entaglement_entropy(state, this->L / 2 - 1);
-							entropy_2(k) = alfa->entaglement_entropy(state, this->L / 2);
-							entropy_3(k) = alfa->entaglement_entropy(state, this->L / 2 + 1);
-						}
-						//entropy_1 += entropy_1_tmp / double(this->mu);
-						//entropy_2 += entropy_2_tmp / double(this->mu);
-						//entropy_3 += entropy_3_tmp / double(this->mu);
+					// check
+					for (int i = 0; i < this->L; i++) {
+						auto Sq = alfa->chooseOperator(4, i);
+						for (int j = 0; j < this->L; j++) {
+							auto Sz = alfa->chooseOperator(0, j);
+							stout << i << "\t\t" << j << "\t\t" << arma::trace(Sq * Sz) / double(N) << std::endl;
+						};
 					};
 
-
-					average_over_realisations(*alfa, true, to_ave_subsystem);
-					entropy_1 /= double(this->realisations);
-					entropy_2 /= double(this->realisations);
-					entropy_3 /= double(this->realisations);
-
-					std::ofstream file;
-					openFile(file, dir + "Eigenstates" + alfa->get_info({}) + ".dat");
-					for (long i = 0; i < N; i++) {
-						printSeparated(file, "\t", 12, true, alfa->get_eigenEnergy(i) / double(this->L), entropy_1(i), entropy_2(i), entropy_3(i));
-					}
+					//arma::vec entropy_1(N, arma::fill::zeros);
+					//arma::vec entropy_2 = entropy_1, entropy_3 = entropy_1;
+					//this->mu = N < 1000 ? 0.2 * N : 500;
+					//std::function to_ave_subsystem = [&]() {
+					//	//alfa->diagonalization();
+					//	stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
+					//		<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n";
+					//	const u64 E_min = 0;// alfa->E_av_idx - this->mu / 2.;
+					//	const u64 E_max = N;// alfa->E_av_idx + this->mu / 2.;
+					//	double entropy_1_tmp = 0, entropy_2_tmp = 0, entropy_3_tmp = 0;
+					//#pragma omp parallel for reduction(+: entropy_1_tmp, entropy_2_tmp, entropy_3_tmp)
+					//	for (long k = E_min; k < E_max; k++) {
+					//		arma::cx_vec state = cx_vec(alfa->get_eigenState(k), arma::vec(N, arma::fill::zeros));
+					//		entropy_1(k) = alfa->entaglement_entropy(state, this->L / 2 - 1);
+					//		entropy_2(k) = alfa->entaglement_entropy(state, this->L / 2);
+					//		entropy_3(k) = alfa->entaglement_entropy(state, this->L / 2 + 1);
+					//	}
+					//	//entropy_1 += entropy_1_tmp / double(this->mu);
+					//	//entropy_2 += entropy_2_tmp / double(this->mu);
+					//	//entropy_3 += entropy_3_tmp / double(this->mu);
+					//};
+					//
+					//
+					//average_over_realisations(*alfa, true, to_ave_subsystem);
+					//entropy_1 /= double(this->realisations);
+					//entropy_2 /= double(this->realisations);
+					//entropy_3 /= double(this->realisations);
+					//
+					//std::ofstream file;
+					//openFile(file, dir + "Eigenstates" + alfa->get_info({}) + ".dat");
+					//for (long i = 0; i < N; i++) {
+					//	printSeparated(file, "\t", 12, true, alfa->get_eigenEnergy(i) / double(this->L), entropy_1(i), entropy_2(i), entropy_3(i));
+					//}
 
 					//std::vector S = { entropy_1, entropy_2, entropy_3 };
 					//std::ofstream file;
@@ -2347,39 +2362,39 @@ void isingUI::ui::make_sim() {
 					//}
 					//file.close();
 
-					//arma::vec entropy(times.size(), arma::fill::zeros);					
-					//arma::vec down = { 0,1 };
-					//arma::vec up = { 1,0 };
-					//std::uniform_real_distribution<double> theta(0, pi);
-					//std::uniform_real_distribution<double> fi(0, pi);
-					//alfa->reset_random();
-					//std::function to_ave_time = [&]() {
-					//	//alfa->diagonalization();
-					//	stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
-					//		<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n";
-					//	auto the = theta(gen);
-					//	arma::cx_vec init_state = std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down;
-					//	for (int j = 1; j < this->L; j++) {
-					//		the = theta(gen);
-					//		init_state = arma::kron(init_state, std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down);
-					//	}
-					//	init_state = arma::normalise(init_state);
-					//	for (int i = 0; i < times.size(); i++) {
-					//		auto t = times(i);
-					//		arma::cx_vec state = arma::normalise(init_state);
-					//		alfa->time_evolve_state(state, t);
-					//		entropy(i) += alfa->entaglement_entropy(state, this->L / 2);
-					//	}
-					//
-					//};
-					//
-					//average_over_realisations<>(*alfa, false, to_ave_time);
-					//entropy /= double(this->realisations);
-					//std::ofstream file;
-					//openFile(file, dir + "TimeEvolution" + alfa->get_info({}) + ".dat");
-					//for (int j = 0; j < times.size(); j++) 
-					//	printSeparated(file, "\t", 12, true, times(j), entropy(j));
-					//file.close();
+					arma::vec entropy(times.size(), arma::fill::zeros);					
+					arma::vec down = { 0,1 };
+					arma::vec up = { 1,0 };
+					std::uniform_real_distribution<double> theta(0, pi);
+					std::uniform_real_distribution<double> fi(0, pi);
+					alfa->reset_random();
+					alfa->diagonalization();
+					stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
+						<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n";
+					std::function to_ave_time = [&]() {
+						auto the = theta(gen);
+						arma::cx_vec init_state = std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down;
+						for (int j = 1; j < this->L; j++) {
+							the = theta(gen);
+							init_state = arma::kron(init_state, std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down);
+						}
+				#pragma omp parallel for shared(init_state)
+						for (int i = 0; i < times.size(); i++) {
+							auto t = times(i);
+							arma::cx_vec state = arma::normalise(init_state);
+							alfa->time_evolve_state(state, t);
+							entropy(i) += alfa->entaglement_entropy(state, this->L / 2);
+						}
+					
+					};
+					
+					average_over_realisations<>(*alfa, false, to_ave_time);
+					entropy /= double(this->realisations);
+					std::ofstream file;
+					openFile(file, dir + "TimeEvolution" + alfa->get_info({}) + ".dat");
+					for (int j = 0; j < times.size(); j++) 
+						printSeparated(file, "\t", 12, true, times(j), entropy(j));
+					file.close();
 
 
 					//this->mu = 0.5 * N;

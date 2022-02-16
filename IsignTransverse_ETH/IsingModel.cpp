@@ -81,13 +81,28 @@ template <typename T> void IsingModel<T>::diagonalization(bool withoutEigenVec) 
 	//out << real(H) << endl;
 	try {
 		auto H_temp = arma::Mat<T>(this->H);
-		stout << "sparse - dim(H) = " << H.n_nonzero * sizeof(T) << " bytes\n";
-		stout << "dense - dim(H) = " << H_temp.size() * sizeof(T) << " bytes\n";
+		stout << "sparse - dim(H) = " << H.size() * sizeof(H(0, 0)) << " bytes\n";
+		stout << "dense - dim(H) = " << H_temp.size() * sizeof(H_temp(0, 0)) << " bytes\n";
 		if (withoutEigenVec) arma::eig_sym(this->eigenvalues, H_temp);
 		else				 arma::eig_sym(this->eigenvalues, this->eigenvectors, H_temp);
 	}
-	catch (const bad_alloc& e) {
-		stout << "Memory exceeded" << e.what() << "\n";
+	catch (const std::runtime_error& re) {
+		stout << "Runtime error:" << re.what() << "\n";
+		stout << "dim(H) = " << H.size() * sizeof(H(0, 0)) << "\n";
+		assert(false);
+	}
+	catch (const bad_alloc& be) {
+		stout << "Bad alloc:" << be.what() << "\n";
+		stout << "dim(H) = " << H.size() * sizeof(H(0, 0)) << "\n";
+		assert(false);
+	}
+	catch (const exception& ex) {
+		stout << "exception:" << ex.what() << "\n";
+		stout << "dim(H) = " << H.size() * sizeof(H(0, 0)) << "\n";
+		assert(false);
+	}
+	catch (...) {
+		stout << "Unknown error...!" << "\n";
 		stout << "dim(H) = " << H.size() * sizeof(H(0, 0)) << "\n";
 		assert(false);
 	}
