@@ -636,6 +636,7 @@ inline void checkRandom(unsigned int seed) {
 // ----------------------------------------------------------------------------- DISTRIBUTION AND DATASET RELATED FUNCTIONS -----------------------------------------------------------------------------
 
 // ------------------------------------- definitions
+arma::vec non_uniform_derivative(const arma::vec& x, const arma::vec& y);
 double simpson_rule(double a, double b, int n, const arma::vec& f);
 double simpson_rule(const arma::vec& x, const arma::vec& f);
 double binder_cumulant(const arma::vec& arr_in);														// calculate binder cumulant of dataset

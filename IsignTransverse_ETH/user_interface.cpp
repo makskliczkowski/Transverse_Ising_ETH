@@ -1556,7 +1556,7 @@ template <typename _type> auto isingUI::ui::timeEvolution(const IsingModel<_type
 	return std::make_pair(timeEv, LTA);
 }
 void isingUI::ui::relaxationTimesFromFiles() {
-	std::string s = this->op >= 2 ? "q" : "j";
+	std::string s = (this->op < 3) ? "j" : "q";
 	std::string dir = this->saving_dir + "RelaxationTimes" + kPSep;
 	createDirs(dir);
 	std::string op = IsingModel_disorder::opName(this->op, this->site);
@@ -1579,7 +1579,10 @@ void isingUI::ui::relaxationTimesFromFiles() {
 			// take derivative
 			std::ofstream file2;
 			openFile(file2, dir_out + name, std::ios::out);
-
+			arma::vec specFun = non_uniform_derivative(data[0], data[1]);
+			for (int j = 0; j < specFun.size(); j++)
+				printSeparated(file2, "\t", 12, true, data[0](j + 1), specFun(j));
+			file2.close();
 			// find relax rate
 			double wH = data[2](0);
 			if (data[1](0) <= 0.5) {
@@ -2270,10 +2273,9 @@ void isingUI::ui::make_sim() {
 		case 2: adiabaticGaugePotential_dis(0);	break;
 		case 3: TFIsingLIOMs();					break;
 		case 4: 
-			for (this->op = 2; this->op < 5; this->op += 2)
-				for (this->L = 10; this->L <= 15; this->L++)
-					for (this->site = 0; this->site <= this->L / 2; this->site++)
-						relaxationTimesFromFiles();
+			for (this->L = 10; this->L <= 15; this->L++)
+				for (this->site = 0; this->site <= this->L / 2; this->site++)
+					relaxationTimesFromFiles();
 			break;
 	default:
 		const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
@@ -2302,15 +2304,19 @@ void isingUI::ui::make_sim() {
 					std::string dir = this->saving_dir + "Entropy" + kPSep;
 					createDirs(dir);
 					
-					// check
-					for (int i = 0; i < this->L; i++) {
-						auto Sq = alfa->chooseOperator(4, i);
-						for (int j = 0; j < this->L; j++) {
-							auto Sz = alfa->chooseOperator(0, j);
-							stout << i << "\t\t" << j << "\t\t" << arma::trace(Sq * Sz) / double(N) << std::endl;
-						};
-					};
-
+					// operator product
+					//std::ofstream file_what;
+					//this->op = 2;
+					//openFile(file_what, this->saving_dir + "OperatorProductHi" + alfa->get_info({}) + ".dat");
+					//for (int i = 0; i < this->L; i++) {
+					//	auto op = alfa->chooseOperator(this->op, i);
+					//	int j = this->L / 2.;
+					//	auto Sz = alfa->chooseOperator(0, j);
+					//	cpx x = arma::trace(op * Sz) / double(N);
+					//	printSeparated(file_what, "\t", 12, true, i, real(x), imag(x));
+					//};
+					//file_what.close();
+					// 
 					//arma::vec entropy_1(N, arma::fill::zeros);
 					//arma::vec entropy_2 = entropy_1, entropy_3 = entropy_1;
 					//this->mu = N < 1000 ? 0.2 * N : 500;
