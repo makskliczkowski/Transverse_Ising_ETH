@@ -80,9 +80,9 @@ template <typename T> void IsingModel<T>::set_neighbors() {
 template <typename T> void IsingModel<T>::diagonalization(bool withoutEigenVec) {
 	//out << real(H) << endl;
 	try {
-		auto H_temp = arma::Mat<T>(this->H);
-		stout << "sparse - dim(H) = " << H.size() * sizeof(H(0, 0)) << " bytes\n";
-		stout << "dense - dim(H) = " << H_temp.size() * sizeof(H_temp(0, 0)) << " bytes\n";
+		arma::Mat<T> H_temp = arma::Mat<T>(this->H);
+		stout << "sparse - dim(H) = " << H.n_nonzero * sizeof(H(0, 0)) << " bytes\n";
+		stout << "dense - dim(H) = " << H_temp.n_alloc * sizeof(H_temp(0, 0)) << " bytes\n";
 		if (withoutEigenVec) arma::eig_sym(this->eigenvalues, H_temp);
 		else				 arma::eig_sym(this->eigenvalues, this->eigenvectors, H_temp);
 	}

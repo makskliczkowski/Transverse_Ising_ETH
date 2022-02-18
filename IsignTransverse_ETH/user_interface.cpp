@@ -1608,7 +1608,7 @@ void isingUI::ui::relaxationTimesFromFiles() {
 			if (data.empty()) continue;
 			// integrate and find relax rate
 			double wH = data[2](0);
-			if (data[1](0) <= 1) {
+			if (data[1](0) <= 0.5) {
 				for (int k = 0; k < data[0].size(); k++) {
 					if (data[1](k) >= 0.5) {
 						printSeparated(map_g, "\t", 12, true, hx, gx, 1. / data[0](k), 1. / wH);
