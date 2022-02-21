@@ -2213,18 +2213,18 @@ void isingUI::ui::LIOMsdisorder() {
 			const arma::mat U = alfa->get_eigenvectors();
 			mat_elem = U.t() * op * U;
 			normaliseMat(mat_elem);
-			stout << "\t\t	--> finished diagonalizing for " << alfa->get_info() 
-				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n";
+			stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
+				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 			
 			auto [op_tmp, LTA_tmp] = timeEvolution(*alfa, mat_elem, times);
 			save_to_file(tdir_realisation + opName + alfa->get_info({}) + ".dat", times, op_tmp, tH, LTA_tmp);
-			stout << "\t\t	--> finished time evolution for " << alfa->get_info() 
-				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n\tNEXT: integrated spectral function\n";
+			stout << "\t\t	--> finished time evolution for " << alfa->get_info()
+				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n\tNEXT: integrated spectral function" << std::endl;
 			
 			auto res = integratedSpectralFunction(*alfa, mat_elem, omegas);
 			save_to_file(intdir_realisation + opName + alfa->get_info({}) + ".dat", omegas, res, 1. / tH, LTA_tmp);
 			stout << "\t\t	--> finished integrated spectral function for " << alfa->get_info()
-				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n\tNEXT: spectral function\n";
+				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n\tNEXT: spectral function" << std::endl;
 			
 			spectralFunction(*alfa, mat_elem, specdir_realisation + opName);
 			
@@ -2244,16 +2244,16 @@ void isingUI::ui::LIOMsdisorder() {
 		const arma::mat U = alfa->get_eigenvectors();
 		mat_elem = U.t() * op * U;
 		normaliseMat(mat_elem);
-		stout << "\t\t	--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n";
+		stout << "\t\t	--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
 		auto [opEvol, LTA] = timeEvolution(*alfa, mat_elem, times);
 		save_to_file(timeDir + opName + alfa->get_info({}) + ".dat", times, opEvol, tH, LTA);
-		stout << "\t\t	--> finished time evolution for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n\tNEXT: integrated spectral function\n";
+		stout << "\t\t	--> finished time evolution for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n\tNEXT: integrated spectral function" << std::endl;
 		auto res = integratedSpectralFunction(*alfa, mat_elem, omegas);
 		save_to_file(intDir + opName + alfa->get_info({}) + ".dat", omegas, res, 1. / tH, LTA);
-		stout << "\t\t	--> finished integrated spectral function for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n\tNEXT: spectral function\n";
+		stout << "\t\t	--> finished integrated spectral function for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n\tNEXT: spectral function" << std::endl;
 		spectralFunction(*alfa, mat_elem, specDir + opName);
 	}
-	stout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - \n" << endl;						// simulation end
+	stout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - \n" << std::endl;						// simulation end
 }
 
 
@@ -2295,38 +2295,42 @@ void isingUI::ui::make_sim() {
 					
 
 					auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-					stout << "\n\t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n";
+					stout << "\n\t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
 					const long N = alfa->get_hilbert_size();
 					const double tH = 1. / alfa->mean_level_spacing_analytical();
 					int t_max = (int)std::ceil(std::log10(tH));
 					t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
 					auto times = arma::logspace(-2, t_max, 200);
-					std::string dir = this->saving_dir + "Fidelity" + kPSep;
+					std::string dir = this->saving_dir + "Entropy" + kPSep;
 					createDirs(dir);
+					stout << "\t\t	--> start diagonalizing for " << alfa->get_info()
+						<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 					alfa->diagonalization();
-					this->mu = 200;
-					const u64 E_min = 0;// alfa->E_av_idx - this->mu / 2.;
-					const u64 E_max = 1;// alfa->E_av_idx + this->mu / 2.;
-					auto unperturbed = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, 0, this->g0, this->h, this->w, this->boundary_conditions);
-					unperturbed->diagonalization();
-					std::ofstream file_fidel;
-					openFile(file_fidel, dir + "FidelityDecay" + alfa->get_info({}) + ".dat");
-					for (auto& t : times) {
-						double fidel_re = 0.0, fidel_im = 0.0;
-			#pragma omp parallel for reduction(+: fidel_re, fidel_im)
-						for (long j = E_min; j < E_max; j++) {
-							auto state = unperturbed->get_eigenState(j);
-							for (long k = 0; k < N; k++) {
-								const double dE = alfa->get_eigenEnergy(k) - unperturbed->get_eigenEnergy(0);
-								const double overlap = arma::dot(state, alfa->get_eigenState(k));
-								cpx x = std::exp(-im * dE * t) * overlap * overlap;
-								fidel_re += real(x);
-								fidel_im += imag(x);
-							}
-						}
-						printSeparated(file_fidel, "\t", 12, true, t, fidel_re, fidel_im);
-					}
-					file_fidel.close();
+					stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
+						<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
+			//		this->mu = 200;
+			//		const u64 E_min = 0;// alfa->E_av_idx - this->mu / 2.;
+			//		const u64 E_max = 1;// alfa->E_av_idx + this->mu / 2.;
+			//		auto unperturbed = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, 0, this->g0, this->h, this->w, this->boundary_conditions);
+			//		unperturbed->diagonalization();
+			//		std::ofstream file_fidel;
+			//		openFile(file_fidel, dir + "FidelityDecay" + alfa->get_info({}) + ".dat");
+			//		for (auto& t : times) {
+			//			double fidel_re = 0.0, fidel_im = 0.0;
+			//#pragma omp parallel for reduction(+: fidel_re, fidel_im)
+			//			for (long j = E_min; j < E_max; j++) {
+			//				auto state = unperturbed->get_eigenState(j);
+			//				for (long k = 0; k < N; k++) {
+			//					const double dE = alfa->get_eigenEnergy(k) - unperturbed->get_eigenEnergy(0);
+			//					const double overlap = arma::dot(state, alfa->get_eigenState(k));
+			//					cpx x = std::exp(-im * dE * t) * overlap * overlap;
+			//					fidel_re += real(x);
+			//					fidel_im += imag(x);
+			//				}
+			//			}
+			//			printSeparated(file_fidel, "\t", 12, true, t, fidel_re, fidel_im);
+			//		}
+			//		file_fidel.close();
 
 					// operator product
 					//std::ofstream file_what;
@@ -2392,39 +2396,39 @@ void isingUI::ui::make_sim() {
 					//}
 					//file.close();
 
-					//arma::vec entropy(times.size(), arma::fill::zeros);					
-					//arma::vec down = { 0,1 };
-					//arma::vec up = { 1,0 };
-					//std::uniform_real_distribution<double> theta(0, pi);
-					//std::uniform_real_distribution<double> fi(0, pi);
-					//alfa->reset_random();
+					arma::vec entropy(times.size(), arma::fill::zeros);					
+					arma::vec down = { 0,1 };
+					arma::vec up = { 1,0 };
+					std::uniform_real_distribution<double> theta(0, pi);
+					std::uniform_real_distribution<double> fi(0, pi);
+					alfa->reset_random();
+					stout << "\t\t	-->set random generators for " << alfa->get_info()
+						<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 					//alfa->diagonalization();
-					//stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
-					//	<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n";
-					//std::function to_ave_time = [&]() {
-					//	auto the = theta(gen);
-					//	arma::cx_vec init_state = std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down;
-					//	for (int j = 1; j < this->L; j++) {
-					//		the = theta(gen);
-					//		init_state = arma::kron(init_state, std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down);
-					//	}
-					//#pragma omp parallel for shared(init_state)
-					//	for (int i = 0; i < times.size(); i++) {
-					//		auto t = times(i);
-					//		arma::cx_vec state = arma::normalise(init_state);
-					//		alfa->time_evolve_state(state, t);
-					//		entropy(i) += alfa->entaglement_entropy(state, this->L / 2);
-					//	}
-					//
-					//};
-					//
-					//average_over_realisations<>(*alfa, false, to_ave_time);
-					//entropy /= double(this->realisations);
-					//std::ofstream file;
-					//openFile(file, dir + "TimeEvolution" + alfa->get_info({}) + ".dat");
-					//for (int j = 0; j < times.size(); j++) 
-					//	printSeparated(file, "\t", 12, true, times(j), entropy(j));
-					//file.close();
+					std::function to_ave_time = [&]() {
+						auto the = theta(gen);
+						arma::cx_vec init_state = std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down;
+						for (int j = 1; j < this->L; j++) {
+							the = theta(gen);
+							init_state = arma::kron(init_state, std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down);
+						}
+					#pragma omp parallel for shared(init_state)
+						for (int i = 0; i < times.size(); i++) {
+							auto t = times(i);
+							arma::cx_vec state = arma::normalise(init_state);
+							alfa->time_evolve_state(state, t);
+							entropy(i) += alfa->entaglement_entropy(state, this->L / 2);
+						}
+					
+					};
+					
+					average_over_realisations<>(*alfa, false, to_ave_time);
+					entropy /= double(this->realisations);
+					std::ofstream file;
+					openFile(file, dir + "TimeEvolution" + alfa->get_info({}) + ".dat");
+					for (int j = 0; j < times.size(); j++) 
+						printSeparated(file, "\t", 12, true, times(j), entropy(j));
+					file.close();
 
 
 					//this->mu = 0.5 * N;
@@ -2470,5 +2474,5 @@ void isingUI::ui::make_sim() {
 
 	
 
-	stout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - " << endl;						// simulation end
+	stout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - " << std::endl;						// simulation end
 }
