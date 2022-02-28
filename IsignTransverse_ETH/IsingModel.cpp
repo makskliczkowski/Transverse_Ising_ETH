@@ -77,34 +77,19 @@ template <typename T> void IsingModel<T>::set_neighbors() {
 /// <summary>
 /// General procedure to diagonalize the Hamiltonian using eig_sym from the Armadillo library
 /// </summary>
-template <typename T> void IsingModel<T>::diagonalization(bool withoutEigenVec) {
+template <typename T> void IsingModel<T>::diagonalization(bool withoutEigenVec, const char* method) {
 	//out << real(H) << endl;
+	arma::Mat<T> H_temp;
 	try {
-		arma::Mat<T> H_temp = arma::Mat<T>(this->H);
-		stout << "sparse - dim(H) = " << H.n_nonzero * sizeof(H(0, 0)) << " bytes\n";
-		stout << "dense - dim(H) = " << H_temp.n_alloc * sizeof(H_temp(0, 0)) << " bytes\n";
+		H_temp = arma::Mat<T>(this->H);
 		if (withoutEigenVec) arma::eig_sym(this->eigenvalues, H_temp);
-		else				 arma::eig_sym(this->eigenvalues, this->eigenvectors, H_temp);
-	}
-	catch (const std::runtime_error& re) {
-		stout << "Runtime error:" << re.what() << "\n";
-		stout << "dim(H) = " << H.size() * sizeof(H(0, 0)) << "\n";
-		assert(false);
-	}
-	catch (const bad_alloc& be) {
-		stout << "Bad alloc:" << be.what() << "\n";
-		stout << "dim(H) = " << H.size() * sizeof(H(0, 0)) << "\n";
-		assert(false);
-	}
-	catch (const exception& ex) {
-		stout << "exception:" << ex.what() << "\n";
-		stout << "dim(H) = " << H.size() * sizeof(H(0, 0)) << "\n";
-		assert(false);
+		else arma::eig_sym(this->eigenvalues, this->eigenvectors, H_temp, method);
 	}
 	catch (...) {
-		stout << "Unknown error...!" << "\n";
-		stout << "dim(H) = " << H.size() * sizeof(H(0, 0)) << "\n";
-		assert(false);
+		handle_exception(std::current_exception(), 
+			"sparse - dim(H) = " + std::to_string(H.n_nonzero * sizeof(H(0, 0)))
+			+ " bytes\ndense - dim(H) = " + std::to_string(H_temp.n_alloc * sizeof(H_temp(0, 0))) + " bytes"
+		);
 	}
 	//for (long int i = 0; i < N; i++)
 	//	this->eigenvectors.col(i) = arma::normalise(this->eigenvectors.col(i));
@@ -312,6 +297,25 @@ template <typename T> double IsingModel<T>::mean_level_spacing_trace() const {
 	return sqrt(trace_H2 / double(N) - trace_H * trace_H / double(N * N)) / (chi * N);
 }
 
+
+template <typename T> double IsingModel<T>::spectral_structure_factor_folded(double t) const {
+	double ssf_re = 0, ssf_im = 0;
+#pragma omp parallel for reduction(+: ssf_re, ssf_im)
+	for (long n = 0; n < this->N; n++) {
+		cpx ssf = std::exp(-im * this->eigenvalues(n) * t);
+		ssf_re += real(ssf);
+		ssf_im += imag(ssf);
+	}
+	double ssf = abs(cpx(ssf_re, ssf_im));
+	ssf *= ssf;
+	return ssf / double(N);
+}
+template <typename T> arma::vec IsingModel<T>::spectral_structure_factor_folded(const arma::vec& times) const {
+	arma::vec ssf(times.size(), arma::fill::zeros);
+	for (long i = 0; i < ssf.size(); i++)
+		ssf(i) = spectral_structure_factor_folded(times(i));
+	return ssf;
+}
 // ----------------------------------------------------------- OPERATORS AND AVERAGES -------------------------------------------------------
 
 /// <summary>
@@ -551,8 +555,8 @@ template IsingModel<double>::~IsingModel();
 template IsingModel<cpx>::~IsingModel();
 template void IsingModel<double>::set_neighbors();
 template void IsingModel<cpx>::set_neighbors();
-template void IsingModel<cpx>::diagonalization(bool);
-template void IsingModel<double>::diagonalization(bool);
+template void IsingModel<cpx>::diagonalization(bool, const char*);
+template void IsingModel<double>::diagonalization(bool, const char*);
 template double IsingModel<cpx>::eigenlevel_statistics(u64, u64) const;
 template double IsingModel<double>::eigenlevel_statistics(u64, u64) const;
 template vec IsingModel<cpx>::eigenlevel_statistics_with_return() const;
@@ -579,3 +583,7 @@ template sp_cx_mat IsingModel<cpx>::create_LIOMoperator_densities(int, int) cons
 template sp_cx_mat IsingModel<double>::create_LIOMoperator_densities(int, int) const;
 template void IsingModel<double>::time_evolve_state(arma::cx_vec&, double);
 template void IsingModel<cpx>::time_evolve_state(arma::cx_vec&, double);
+template arma::vec IsingModel<double>::spectral_structure_factor_folded(const arma::vec&) const;
+template arma::vec IsingModel<cpx>::spectral_structure_factor_folded(const arma::vec&) const;
+template double IsingModel<double>::spectral_structure_factor_folded(double) const;
+template double IsingModel<cpx>::spectral_structure_factor_folded(double) const;

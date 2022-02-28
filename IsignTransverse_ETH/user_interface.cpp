@@ -220,6 +220,7 @@ void isingUI::ui::exit_with_help() const {
 		"	2 -- AGPs for small disorder (-m=0) as function of g for input operator from -op flag\n\t\t\t\tSET: -L, -Ln, -Ls, -g, -gn, -gs, -op, -w(default=0.01)"
 		"	3 -- LIOMs of Tranverse-field-Ising-model --> TFIsingLIOMs()"
 		"	4 -- relaxation times from integrated spectral function for operator -op flag on site -s flag"
+		"   5 -- benchmark diagonalization routines vs CPU count"
 		" def -- in make_sim space for user to write function; desifned for non-builtin behavior"
 		""
 		"-m model to be choosen : (default 0 - without symmetries)\n"
@@ -319,7 +320,7 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv) {
 
 	//choose function
 	choosen_option = "-fun";
-	this->set_option(this->fun, argv, choosen_option);
+	this->set_option(this->fun, argv, choosen_option, false);
 	if (this->fun < 2) this->m = 0;
 
 	// buckets
@@ -1518,7 +1519,8 @@ template <typename _type> void isingUI::ui::timeEvolution(const IsingModel<_type
 			overlap += abs(mat_elem(n, n) * conj(mat_elem(n, n)));
 			for (long int m = n + 1; m < N; m++) {
 				const double w_nm = alfa.get_eigenEnergy(n) - alfa.get_eigenEnergy(m);
-				overlap += 2. * abs(mat_elem(n, m) * conj(mat_elem(n, m))) * std::cos(w_nm * t);
+				double value = std::cos(w_nm * t);
+				overlap += 2. * abs(mat_elem(n, m) * conj(mat_elem(n, m))) * value;
 			}
 		}
 		overlap *= 1. / double(N);
@@ -1570,12 +1572,18 @@ void isingUI::ui::relaxationTimesFromFiles() {
 			// read time-evolution data
 			std::ifstream file;
 			std::string name = op + IsingModel_disorder::set_info(this->L, this->J, this->J0, gx, this->g0, hx, this->w) + ".dat";
-			std::string filename = this->saving_dir + "IntegratedResponseFunction" + kPSep + s + "=" + std::to_string(this->site) + kPSep + name;
-			std::string dir_out = this->saving_dir + "IntegratedResponseFunction" + kPSep + "DERIVATIVE" + kPSep + s + "=" + std::to_string(this->site) + kPSep;
+			std::string filename		= this->saving_dir + "IntegratedResponseFunction" + kPSep + s + "=" + std::to_string(this->site) + kPSep + name;
+			std::string filename_time	= this->saving_dir + "TimeEvolution" + kPSep + s + "=" + std::to_string(this->site) + kPSep + name;
+			std::string dir_out			= this->saving_dir + "IntegratedResponseFunction" + kPSep + "DERIVATIVE" + kPSep + s + "=" + std::to_string(this->site) + kPSep;
 			createDirs(dir_out);
 			auto data = readFromFile(file, filename);
 			file.close();
 			if (data.empty()) continue;
+			// thouless time
+			auto timeEvol = readFromFile(file, filename_time);
+			auto i = timeEvol[1].index_min();
+			double t_Th = timeEvol[0](i);
+			file.close();
 			// take derivative
 			std::ofstream file2;
 			openFile(file2, dir_out + name, std::ios::out);
@@ -1588,7 +1596,7 @@ void isingUI::ui::relaxationTimesFromFiles() {
 			if (data[1](0) <= 0.5) {
 				for (int k = 0; k < data[0].size(); k++) {
 					if (data[1](k) >= 0.5) {
-						printSeparated(map_h, "\t", 12, true, hx, gx, 1. / data[0](k), 1. / wH);
+						printSeparated(map_h, "\t", 12, true, hx, gx, 1. / data[0](k), 1. / wH, t_Th);
 						break;
 					}
 				}
@@ -1603,15 +1611,30 @@ void isingUI::ui::relaxationTimesFromFiles() {
 			std::ifstream file;
 			std::string name = op + IsingModel_disorder::set_info(this->L, this->J, this->J0, gx, this->g0, hx, this->w) + ".dat";
 			std::string filename = this->saving_dir + "IntegratedResponseFunction" + kPSep + s + "=" + std::to_string(this->site) + kPSep + name;
+			std::string filename_time = this->saving_dir + "TimeEvolution" + kPSep + s + "=" + std::to_string(this->site) + kPSep + name;
+			std::string dir_out = this->saving_dir + "IntegratedResponseFunction" + kPSep + "DERIVATIVE" + kPSep + s + "=" + std::to_string(this->site) + kPSep;
+			createDirs(dir_out);
 			auto data = readFromFile(file, filename);
 			file.close();
 			if (data.empty()) continue;
-			// integrate and find relax rate
+			// thouless time
+			auto timeEvol = readFromFile(file, filename_time);
+			auto i = timeEvol[1].index_min();
+			double t_Th = timeEvol[0](i);
+			file.close();
+			// take derivative
+			std::ofstream file2;
+			openFile(file2, dir_out + name, std::ios::out);
+			arma::vec specFun = non_uniform_derivative(data[0], data[1]);
+			for (int j = 0; j < specFun.size(); j++)
+				printSeparated(file2, "\t", 12, true, data[0](j + 1), specFun(j));
+			file2.close();
+			// find relax rate
 			double wH = data[2](0);
 			if (data[1](0) <= 0.5) {
 				for (int k = 0; k < data[0].size(); k++) {
 					if (data[1](k) >= 0.5) {
-						printSeparated(map_g, "\t", 12, true, hx, gx, 1. / data[0](k), 1. / wH);
+						printSeparated(map_g, "\t", 12, true, hx, gx, 1. / data[0](k), 1. / wH, t_Th);
 						break;
 					}
 				}
@@ -2175,47 +2198,51 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 }
 
 void isingUI::ui::LIOMsdisorder() {
-	clk::time_point start = std::chrono::system_clock::now();
-	auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-	stout << "\n\t\t--> finished creating model for " << alfa->get_info() << " - in time : "  << tim_s(start) << "s\n";
+	std::string str = (this->op < 3) ? "j" : "q";
+	std::string timeDir = this->saving_dir + "timeEvolution" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
+	std::string specDir = this->saving_dir + "ResponseFunction" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
+	std::string intDir = this->saving_dir + "IntegratedResponseFunction" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
+	std::string ssfDir = this->saving_dir + "SpectralFormFactor" + kPSep;
+	createDirs(timeDir, specDir, intDir, ssfDir);
 
-	//alfa->diagonalization();
-	//stout << " \t\t	--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
+	
+	auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 	const double tH = 1. / alfa->mean_level_spacing_analytical();
 	int t_max = (int)std::ceil(std::log10(tH));
 	t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
 	auto times = arma::logspace(-2, t_max, 300);
 	auto omegas = arma::logspace(std::floor(log10(1. / tH)) - 1, 2, 300);
-	std::string opName = IsingModel_disorder::opName(this->op, this->site);
-	std::string str = (this->op < 3) ? "j" : "q";
-	std::string timeDir = this->saving_dir + "timeEvolution" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
-	std::string specDir = this->saving_dir + "ResponseFunction" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
-	std::string intDir = this->saving_dir + "IntegratedResponseFunction" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
-	createDirs(timeDir, specDir, intDir);
 
+	clk::time_point start = std::chrono::system_clock::now();
 	auto op = alfa->chooseOperator(this->op, this->site);
+	std::string opName = IsingModel_disorder::opName(this->op, this->site);
+	stout << "\n\t\t--> finished generating operator for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n";
 	//normaliseOp(op);
 	// use normaliseMat as below, some operators have zero norm
-	arma::cx_mat mat_elem;
-	arma::vec opEvol(times.size(), arma::fill::zeros);
-	arma::vec opIntSpec(times.size(), arma::fill::zeros);
 
-	double LTA = 0;
 	if (this->realisations > 1) {
+		arma::vec opEvol(times.size(), arma::fill::zeros);
+		arma::vec opIntSpec(times.size(), arma::fill::zeros);
+		arma::vec ssf(times.size(), arma::fill::zeros);
+		double LTA = 0;
 		alfa->reset_random();
 		for (int r = 0; r < this->realisations; r++) {
 			const auto start_loop = std::chrono::system_clock::now();
 			std::string tdir_realisation = timeDir + "realisation=" + std::to_string(r) + kPSep;
 			std::string intdir_realisation = intDir + "realisation=" + std::to_string(r) + kPSep;
 			std::string specdir_realisation = specDir + "realisation=" + std::to_string(r) + kPSep;
-			createDirs(tdir_realisation, intdir_realisation, specdir_realisation);
+			std::string ssfdir_realisation = ssfDir + "realisation=" + std::to_string(r) + kPSep;
+			createDirs(tdir_realisation, intdir_realisation, specdir_realisation, ssfdir_realisation);
+
+			stout << "\t\t	--> start diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << " s" << std::endl;
 			alfa->diagonalization();
-			const arma::mat U = alfa->get_eigenvectors();
-			mat_elem = U.t() * op * U;
+			stout << "\t\t	--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+			auto U = alfa->get_eigenvectors();
+			stout << "\t\t	--> got eigenvectors for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+			arma::cx_mat mat_elem = U.t() * op * U;
+			stout << "\t\t	--> set matrix elements for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 			normaliseMat(mat_elem);
-			stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
-				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
-			
+
 			auto [op_tmp, LTA_tmp] = timeEvolution(*alfa, mat_elem, times);
 			save_to_file(tdir_realisation + opName + alfa->get_info({}) + ".dat", times, op_tmp, tH, LTA_tmp);
 			stout << "\t\t	--> finished time evolution for " << alfa->get_info()
@@ -2226,8 +2253,11 @@ void isingUI::ui::LIOMsdisorder() {
 			stout << "\t\t	--> finished integrated spectral function for " << alfa->get_info()
 				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n\tNEXT: spectral function" << std::endl;
 			
+			auto ssf_temp = alfa->spectral_structure_factor_folded(times);
+			save_to_file(ssfdir_realisation + alfa->get_info({}) + ".dat", times, ssf_temp, tH, LTA_tmp);
 			spectralFunction(*alfa, mat_elem, specdir_realisation + opName);
 			
+			ssf += ssf_temp;
 			LTA += LTA_tmp;
 			opEvol += op_tmp;
 			opIntSpec += res;
@@ -2236,15 +2266,19 @@ void isingUI::ui::LIOMsdisorder() {
 		opEvol /= double(this->realisations);
 		LTA /= double(this->realisations);
 		opIntSpec /= double(this->realisations);
+		ssf /= double(this->realisations);
 		save_to_file(timeDir + opName + alfa->get_info({}) + ".dat", times, opEvol, tH, LTA);
 		save_to_file(intDir + opName + alfa->get_info({}) + ".dat", omegas, opIntSpec, 1. / tH, LTA);
+		save_to_file(ssfDir + alfa->get_info({}) + ".dat", times, ssf, tH, LTA);
 	}
 	else {
 		alfa->diagonalization();
-		const arma::mat U = alfa->get_eigenvectors();
-		mat_elem = U.t() * op * U;
-		normaliseMat(mat_elem);
 		stout << "\t\t	--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
+		auto U = alfa->get_eigenvectors();
+		stout << "\t\t	--> got eigenvectors for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
+		arma::cx_mat mat_elem = U.t() * op * U;
+		stout << "\t\t	--> set matrix elements for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
+		normaliseMat(mat_elem);
 		auto [opEvol, LTA] = timeEvolution(*alfa, mat_elem, times);
 		save_to_file(timeDir + opName + alfa->get_info({}) + ".dat", times, opEvol, tH, LTA);
 		stout << "\t\t	--> finished time evolution for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n\tNEXT: integrated spectral function" << std::endl;
@@ -2252,11 +2286,82 @@ void isingUI::ui::LIOMsdisorder() {
 		save_to_file(intDir + opName + alfa->get_info({}) + ".dat", omegas, res, 1. / tH, LTA);
 		stout << "\t\t	--> finished integrated spectral function for " << alfa->get_info() << " - in time : " << tim_s(start) << "s\n\tNEXT: spectral function" << std::endl;
 		spectralFunction(*alfa, mat_elem, specDir + opName);
+		auto ssf = alfa->spectral_structure_factor_folded(times);
+		save_to_file(ssfDir + alfa->get_info({}) + ".dat", times, ssf, tH, LTA);
 	}
 	stout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - \n" << std::endl;						// simulation end
 }
 
-
+void isingUI::ui::benchmark(bool full) {
+	if (full) {
+		int th_max = this->thread_number;
+		std::ofstream file;
+		std::vector th_list = { 1, 2, 4, 8, 16, 24, 32, 40, 48, 64 };
+		std::string info = this->m ? IsingModel_sym::set_info(L, J, g, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, { "L" }, ",")
+			: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, { "L" }, ",");
+		openFile(file, this->saving_dir + "benchmark" + info + ".dat", std::ios::out);
+		file << "Maximum number of threads to parallelize diagonalization by OpenMP:\t " << ARMA_OPENMP_THREADS << std::endl;
+		printSeparated(file, "\t", 16, true, "#cores", "chain length", "dim", "with vec 'dc' [s]", "with vec 'std' [s]", "without vec [s]");
+		if (this->m) {
+			for (int system_size = 8; system_size <= 22; system_size += 2) {
+				for (auto& th : th_list) {
+					auto alfa = std::make_unique<IsingModel_sym>(system_size, this->J, this->g, this->h,
+						this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+					omp_set_num_threads(th);
+					auto start = std::chrono::system_clock::now();
+					alfa->diagonalization(false, "dc");  double tim1 = tim_s(start);
+					start = std::chrono::system_clock::now();
+					alfa->diagonalization(false, "std"); double tim2 = tim_s(start);
+					start = std::chrono::system_clock::now();
+					alfa->diagonalization(true);		 double tim3 = tim_s(start);
+					printSeparated(file, "\t", 16, true, th, system_size, alfa->get_hilbert_size(), tim1, tim2, tim3);
+				}
+				file << std::endl;
+			}
+		}
+		else {
+			for (int system_size = 8; system_size <= 16; system_size += 1) {
+				for (auto& th : th_list) {
+					auto alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+					omp_set_num_threads(th);
+					auto start = std::chrono::system_clock::now();
+					alfa->diagonalization(false, "dc");  double tim1 = tim_s(start);
+					start = std::chrono::system_clock::now();
+					alfa->diagonalization(false, "std"); double tim2 = tim_s(start);
+					start = std::chrono::system_clock::now();
+					alfa->diagonalization(true);		 double tim3 = tim_s(start);
+					printSeparated(file, "\t", 16, true, th, system_size, alfa->get_hilbert_size(), tim1, tim2, tim3);
+				}
+				file << std::endl;
+			}
+		}
+		file.close();
+	}
+	else {
+		if (this->m) {
+			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+			auto start = std::chrono::system_clock::now();
+			alfa->diagonalization(false, "dc");  double tim1 = tim_s(start);
+			start = std::chrono::system_clock::now();
+			alfa->diagonalization(false, "std"); double tim2 = tim_s(start);
+			start = std::chrono::system_clock::now();
+			alfa->diagonalization(true);		 double tim3 = tim_s(start);
+			printSeparated(std::cout, "\t", 16, true, this->thread_number, this->L, alfa->get_hilbert_size(), tim1, tim2, tim3);
+			if (this->thread_number == 32) std::cout << std::endl;
+		}
+		else {
+			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+			auto start = std::chrono::system_clock::now();
+			alfa->diagonalization(false, "dc");  double tim1 = tim_s(start);
+			start = std::chrono::system_clock::now();
+			alfa->diagonalization(false, "std"); double tim2 = tim_s(start);
+			start = std::chrono::system_clock::now();
+			alfa->diagonalization(true);		 double tim3 = tim_s(start);
+			printSeparated(std::cout, "\t", 16, true, this->thread_number, this->L, alfa->get_hilbert_size(), tim1, tim2, tim3);
+			if (this->thread_number == 32) std::cout << std::endl;
+		}
+	}
+}
 
 //----------------------------------------------------------------------------------------------------------------UI main
 void isingUI::ui::make_sim() {
@@ -2276,15 +2381,13 @@ void isingUI::ui::make_sim() {
 			for (this->L = 10; this->L <= 15; this->L++)
 				for (this->site = 0; this->site <= this->L / 2; this->site++)
 					relaxationTimesFromFiles();
-			break;
+												break;
+		case 5: benchmark();					break;
 	default:
 		const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
 		const double gmin = this->g, gmax = this->g + this->gn * this->gs;
 		const double hmin = this->h, hmax = this->h + this->hn * this->hs;
 		for (int system_size = Lmin; system_size < Lmax; system_size += this->Ls) {
-			std::ofstream map;
-			//openFile(map, this->saving_dir + "FullMap" + IsingModel_sym::set_info(system_size, J, g, h, \
-			//	this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, { "h" }) + ".dat", ios::out);
 			for (double gx = gmin; gx < gmax; gx += this->gs) {
 				for (double hx = hmin; hx < hmax; hx += this->hs) {
 					const auto start_loop = std::chrono::system_clock::now();
@@ -2292,23 +2395,26 @@ void isingUI::ui::make_sim() {
 					this->L = system_size;
 					this->g = gx;
 					this->h = hx;
-					
+
+					LIOMsdisorder();
+					continue;
 
 					auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 					stout << "\n\t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
-					const long N = alfa->get_hilbert_size();
+					//const long long N = alfa->get_hilbert_size();
 					const double tH = 1. / alfa->mean_level_spacing_analytical();
 					int t_max = (int)std::ceil(std::log10(tH));
 					t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
-					auto times = arma::logspace(-2, t_max, 200);
+					auto times = arma::logspace(-2, t_max, 300);
 					std::string dir = this->saving_dir + "Entropy" + kPSep;
 					createDirs(dir);
 					stout << "\t\t	--> start diagonalizing for " << alfa->get_info()
 						<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 					alfa->diagonalization();
+			
 					stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
 						<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
-			//		this->mu = 200;
+					//		this->mu = 200;
 			//		const u64 E_min = 0;// alfa->E_av_idx - this->mu / 2.;
 			//		const u64 E_max = 1;// alfa->E_av_idx + this->mu / 2.;
 			//		auto unperturbed = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, 0, this->g0, this->h, this->w, this->boundary_conditions);
@@ -2467,7 +2573,6 @@ void isingUI::ui::make_sim() {
 
 				}
 			}
-			map.close();
 		}
 	}
 	

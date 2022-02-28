@@ -52,9 +52,9 @@
 //#include <mkl.h>
 DISABLE_WARNING_PUSH // include <armadillo> and suppress its warnings, cause developers suck
 	// armadillo flags:
-#define ARMA_64BIT_WORD // enabling 64 integers in armadillo obbjects
-#define ARMA_BLAS_LONG_LONG // using long long inside LAPACK call
-#define ARMA_USE_OPENMP
+//#define ARMA_64BIT_WORD // enabling 64 integers in armadillo obbjects
+//#define ARMA_BLAS_LONG_LONG // using long long inside LAPACK call
+//#define ARMA_USE_OPENMP
 #define ARMA_ALLOW_FAKE_GCC
 //#define ARMA_EXTRA_DEBUG
 //-------
@@ -179,6 +179,39 @@ constexpr long double pi = 3.141592653589793238462643383279502884L;			// it is m
 constexpr long double two_pi = 2 * 3.141592653589793238462643383279502884L;	// it is me, 2pi
 const auto global_seed = std::random_device{}();							// global seed for classes
 const std::string kPSep = std::string(kPathSeparator);
+
+
+// ----------------------------------------------------------------------------- TRY-Catch -----------------------------------------------------------------------------
+inline void handle_exception(std::exception_ptr eptr, std::string message) {
+	try {
+		if (eptr) {
+			std::rethrow_exception(eptr);
+		}
+	}
+	catch (const std::runtime_error& err) {
+		stout << "Runtime error:\t" << err.what() << "\n";
+		stout << message << std::endl;
+		assert(false);
+	}
+	catch (const std::bad_alloc& err) {
+		stout << "Bad alloc error:\t" << err.what() << "\n";
+		stout << message << std::endl;
+		assert(false);
+	}
+	catch (const std::exception& err) {
+		stout << "Exception:\t" << err.what() << "\n";
+		stout << message << std::endl;
+		assert(false);
+	}
+	catch (...) {
+		stout << "Unknown error...!" << "\n";
+		stout << message << std::endl;
+		assert(false);
+	}
+}
+#define BEGIN_CATCH_HANDLER try{
+#define END_CATCH_HANDLER(message) } catch(...){ handle_exception(std::current_exception(), message); };
+
 // ----------------------------------------------------------------------------- TIME FUNCTIONS -----------------------------------------------------------------------------
 
 inline double tim_s(clk::time_point start) {

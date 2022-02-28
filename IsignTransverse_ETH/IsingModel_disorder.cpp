@@ -640,12 +640,12 @@ mat IsingModel_disorder::correlation_matrix(u64 state_id) const {
 // ----------------------------------------------------------------------------------------- entaglement
 auto IsingModel_disorder::reduced_density_matrix(const arma::cx_vec& state, int A_size) const -> arma::cx_mat {
 	// set subsytsems size
-	const u64 dimA = ULLPOW(A_size);
-	const u64 dimB = ULLPOW(L - A_size);
+	const long long dimA = ULLPOW(A_size);
+	const long long dimB = ULLPOW(L - A_size);
 	cx_mat rho(dimA, dimA, fill::zeros);
-	for (long int n = 0; n < N; n++) {						// loop over configurational basis
-		long counter = 0;
-		for (long m = n % dimB; m < N; m += dimB) {			// pick out state with same B side (last L-A_size bits)
+	for (long long n = 0; n < this->N; n++) {						// loop over configurational basis
+		long long counter = 0;
+		for (long long m = n % dimB; m < this->N; m += dimB) {			// pick out state with same B side (last L-A_size bits)
 			long idx = n / dimB;							// find index of state with same B-side (by dividing the last bits are discarded)
 			rho(idx, counter) += conj(state(n)) * state(m);
 			counter++;										// increase counter to move along reduced basis

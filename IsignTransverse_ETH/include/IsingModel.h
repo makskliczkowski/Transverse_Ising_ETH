@@ -82,21 +82,21 @@ public:
 		return tmp_str;
 	};
 
-	auto get_hilbert_size()						const RETURNS(this->N);							 // get the Hilbert space size 2^N
-	auto get_mapping()							const RETURNS(this->mapping);					 // constant reference to the mapping
-	auto get_hamiltonian()						const RETURNS(this->H);							 // get the const reference to a Hamiltonian
-	auto get_eigenvectors()						const RETURNS(this->eigenvectors);				 // get the const reference to the eigenvectors
-	auto get_eigenvalues()						const RETURNS(this->eigenvalues);				 // get the const reference to eigenvalues
-	auto get_eigenEnergy(u64 idx)				const RETURNS(this->eigenvalues(idx));			 // get eigenenergy at a given idx
-	auto get_eigenState(u64 idx)				const RETURNS(this->eigenvectors.col(idx));		 // get an eigenstate at a given idx
-	auto get_eigenStateValue(u64 idx, u64 elem) const RETURNS(this->eigenvectors(elem, idx));	 // get an eigenstate at a given idx
+	auto get_hilbert_size()						const { return this->N; }						 // get the Hilbert space size 2^N
+	auto get_mapping()							const { return this->mapping; }					 // constant reference to the mapping
+	auto& get_hamiltonian()						const { return this->H; }						 // get the const reference to a Hamiltonian
+	auto& get_eigenvectors()					const { return this->eigenvectors; }			 // get the const reference to the eigenvectors
+	auto get_eigenvalues()						const { return this->eigenvalues; }				 // get the const reference to eigenvalues
+	auto get_eigenEnergy(u64 idx)				const { return this->eigenvalues(idx); }		 // get eigenenergy at a given idx
+	auto get_eigenState(u64 idx)				const { return this->eigenvectors.col(idx); }	 // get an eigenstate at a given idx
+	auto get_eigenStateValue(u64 idx, u64 elem) const { return this->eigenvectors(elem, idx);}	 // get an eigenstate at a given idx
 	// ---------------------------------- PRINTERS ----------------------------------
 	void print_base_spin_sector(int Sz = 0);													// print basis state with a given total spin (for clarity purposes)
 	void print_state(u64 _id);																	// prints the eigenstate at a given idx
 
 	// ---------------------------------- GENERAL METHODS ----------------------------------
 	void set_neighbors();																		// create neighbors list according to the boundary conditions
-	void diagonalization(bool withoutEigenVec = false);											// diagonalize the Hamiltonian
+	void diagonalization(bool withoutEigenVec = false, const char* method = "dc");											// diagonalize the Hamiltonian
 	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
 	virtual void setHamiltonianElem(u64 k, double value, u64 new_idx) = 0;						// sets the Hamiltonian elements in a virtual way
 	void reset_random() const {
@@ -136,7 +136,8 @@ public:
 	virtual double mean_level_spacing_analytical() const = 0;										// mean level spacing from analytical formula calcula
 	double mean_level_spacing_av(u64 _min, u64 _max) const;											// mean level spacing averaged over an input window
 	double mean_level_spacing_trace() const;														// mean level spacing from by variance of hamiltonian in T->inf
-	
+	double spectral_structure_factor_folded(double time) const;										// spectral structure factor from folded eigenvalues for given time point
+	arma::vec spectral_structure_factor_folded(const arma::vec& time) const;						// spectral structure factor from folded eigenvalues for input time range
 	// ---------------------------------- THERMODYNAMIC QUANTITIES ----------------------------------
 	std::tuple<arma::vec, arma::vec, arma::vec> thermal_quantities(const arma::vec& temperature);	// calculate thermal quantities with input temperature range
 																									// heat capacity, entropy, average energy
@@ -354,8 +355,8 @@ public:
 	cpx av_spin_current(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the spin current at given sites
 
 	
-	static std::string set_info(int L, double J, double g, double h, int k_sym, bool p_sym, bool x_sym, std::vector<std::string> skip = {}) {
-		std::string name = ",L=" + std::to_string(L) + \
+	static std::string set_info(int L, double J, double g, double h, int k_sym, bool p_sym, bool x_sym, std::vector<std::string> skip = {}, std::string sep = "_") {
+		std::string name = sep + "L=" + std::to_string(L) + \
 			",g=" + to_string_prec(g, 2) + \
 			",h=" + to_string_prec(h, 2) + \
 			",k=" + std::to_string(k_sym) + \
