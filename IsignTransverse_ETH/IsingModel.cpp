@@ -316,6 +316,73 @@ template <typename T> arma::vec IsingModel<T>::spectral_structure_factor_folded(
 		ssf(i) = spectral_structure_factor_folded(times(i));
 	return ssf;
 }
+
+
+// ----------------------------------------------------------- ENTAGLEMENT -------------------------------------------------------
+/// <summary>
+/// Calculates the entropy of the system via the mixed density matrix
+/// </summary>
+/// <param name="state_id"> state index to produce the density matrix </param>
+/// <param name="A_size"> size of subsystem </param>
+/// <returns> entropy of considered systsem </returns>
+template <typename T> 
+double IsingModel<T>::entaglement_entropy(const arma::cx_vec& state, int A_size) const {
+	auto rho = reduced_density_matrix(state, A_size);
+	vec probabilities;
+	eig_sym(probabilities, rho); //diagonalize to find probabilities and calculate trace in rho's eigenbasis
+	double entropy = 0;
+	//#pragma omp parallel for reduction(+: entropy)
+	for (int i = 0; i < probabilities.size(); i++) {
+		auto value = probabilities(i);
+		entropy += (abs(value) < 1e-10) ? 0 : -value * log(abs(value));
+	}
+	//double entropy = -real(trace(rho * real(logmat(rho))));
+	return entropy;
+}
+template <typename T> 
+arma::vec IsingModel<T>::entaglement_entropy(const arma::cx_vec& state) const {
+	arma::vec entropy(this->L - 1, arma::fill::zeros);
+#pragma omp parallel for
+	for (int i = 0; i < this->L - 1; i++)
+		entropy(i) = entaglement_entropy(state, i + 1);
+	return entropy;
+}
+
+template <typename _ty>
+arma::Mat<_ty> matrix_pow(const arma::Mat<_ty>& matrix, int exponent) {
+	if (exponent < 0)
+		assert(false && "Support only posotive exponents");
+	else if (exponent == 0) {
+		auto X = arma::eye(matrix.n_rows, matrix.n_cols);
+		return cx_mat(X, X);
+	}
+	else if (exponent == 1)
+		return matrix;
+	else
+		return matrix * matrix_pow(matrix, exponent - 1);
+}
+template <typename T> 
+double IsingModel<T>::reyni_entropy(const arma::cx_vec& state, int A_size, unsigned alfa) const {
+	assert(alfa > 1 && "Only alfa>=2 powers are possible");
+	auto rho = reduced_density_matrix(state, A_size);
+	return log2(real(trace(matrix_pow(rho, alfa)))) / (1.0 - alfa);
+}
+
+template <typename T> 
+double IsingModel<T>::shannon_entropy(const arma::cx_vec& state, int A_size) const {
+	auto rho = reduced_density_matrix(state, A_size);
+	vec probabilities;
+	eig_sym(probabilities, rho); //diagonalize to find probabilities and calculate trace in rho's eigenbasis
+	double entropy = 0;
+#pragma omp parallel for reduction(+: entropy)
+	for (int i = 0; i < probabilities.size(); i++) {
+		auto value = probabilities(i) * probabilities(i);
+		entropy += (abs(value) < 1e-10) ? 0 : -value * log2(abs(value));
+	}
+	return entropy;
+}
+
+
 // ----------------------------------------------------------- OPERATORS AND AVERAGES -------------------------------------------------------
 
 /// <summary>
@@ -577,6 +644,7 @@ template double IsingModel<double>::mean_level_spacing_av(u64, u64) const;
 template double IsingModel<cpx>::mean_level_spacing_av(u64, u64) const;
 template double IsingModel<double>::mean_level_spacing_trace() const;
 template double IsingModel<cpx>::mean_level_spacing_trace() const;
+
 template sp_cx_mat IsingModel<cpx>::create_StringOperator(coordinate, coordinate, int,int) const;
 template sp_cx_mat IsingModel<double>::create_StringOperator(coordinate, coordinate, int, int) const;
 template sp_cx_mat IsingModel<cpx>::create_LIOMoperator_densities(int, int) const;
@@ -587,3 +655,12 @@ template arma::vec IsingModel<double>::spectral_structure_factor_folded(const ar
 template arma::vec IsingModel<cpx>::spectral_structure_factor_folded(const arma::vec&) const;
 template double IsingModel<double>::spectral_structure_factor_folded(double) const;
 template double IsingModel<cpx>::spectral_structure_factor_folded(double) const;
+
+template double IsingModel<double>::shannon_entropy(const arma::cx_vec&, int) const;
+template double IsingModel<cpx>::shannon_entropy(const arma::cx_vec&, int) const;
+template double IsingModel<double>::reyni_entropy(const arma::cx_vec&, int, unsigned) const;
+template double IsingModel<cpx>::reyni_entropy(const arma::cx_vec&, int, unsigned) const;
+template double IsingModel<double>::entaglement_entropy(const arma::cx_vec&, int) const;
+template double IsingModel<cpx>::entaglement_entropy(const arma::cx_vec&, int) const;
+template arma::vec IsingModel<double>::entaglement_entropy(const arma::cx_vec&) const;
+template arma::vec IsingModel<cpx>::entaglement_entropy(const arma::cx_vec&) const;

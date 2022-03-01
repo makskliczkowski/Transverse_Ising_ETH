@@ -2310,11 +2310,11 @@ void isingUI::ui::benchmark(bool full) {
 					omp_set_num_threads(th);
 					auto start = std::chrono::system_clock::now();
 					alfa->diagonalization(false, "dc");  double tim1 = tim_s(start);
-					start = std::chrono::system_clock::now();
-					alfa->diagonalization(false, "std"); double tim2 = tim_s(start);
+					//start = std::chrono::system_clock::now();
+					//alfa->diagonalization(false, "std"); double tim2 = tim_s(start);
 					start = std::chrono::system_clock::now();
 					alfa->diagonalization(true);		 double tim3 = tim_s(start);
-					printSeparated(file, "\t", 16, true, th, system_size, alfa->get_hilbert_size(), tim1, tim2, tim3);
+					printSeparated(file, "\t", 16, true, th, system_size, alfa->get_hilbert_size(), tim1, "-----------", tim3);
 				}
 				file << std::endl;
 			}
@@ -2326,11 +2326,11 @@ void isingUI::ui::benchmark(bool full) {
 					omp_set_num_threads(th);
 					auto start = std::chrono::system_clock::now();
 					alfa->diagonalization(false, "dc");  double tim1 = tim_s(start);
-					start = std::chrono::system_clock::now();
-					alfa->diagonalization(false, "std"); double tim2 = tim_s(start);
+					//start = std::chrono::system_clock::now();
+					//alfa->diagonalization(false, "std"); double tim2 = tim_s(start);
 					start = std::chrono::system_clock::now();
 					alfa->diagonalization(true);		 double tim3 = tim_s(start);
-					printSeparated(file, "\t", 16, true, th, system_size, alfa->get_hilbert_size(), tim1, tim2, tim3);
+					printSeparated(file, "\t", 16, true, th, system_size, alfa->get_hilbert_size(), tim1, "-----------", tim3);
 				}
 				file << std::endl;
 			}

@@ -132,7 +132,7 @@ namespace isingUI
 
 		void fidelity(std::initializer_list<int> symetries);
 
-		void benchmark(bool full = false);
+		void benchmark(bool full = true);
 		//-------------------------------------------------------------------------- RARELY USED SWEEPS OF PARAMETERS
 		void parameter_sweep_sym(int k, int p, int x);
 		void check_dist_other_sector();
