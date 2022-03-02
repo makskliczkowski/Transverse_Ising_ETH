@@ -140,8 +140,8 @@ void isingUI::ui::set_default() {
 	this->g0n = 1;
 
 	this->symmetries.k_sym = 0;
-	this->symmetries.p_sym = 0;
-	this->symmetries.x_sym = 0;
+	this->symmetries.p_sym = 1;
+	this->symmetries.x_sym = 1;
 
 	this->realisations = 100;
 	this->site = 0;
@@ -2363,6 +2363,35 @@ void isingUI::ui::benchmark(bool full) {
 	}
 }
 
+void isingUI::ui::compare_entaglement() {
+	clk::time_point start = std::chrono::system_clock::now();
+	auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+	stout << "\n\t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
+	alfa->diagonalization();
+	stout << "\t\t	--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
+
+	auto beta = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, \
+		this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+	stout << "\n\t\t--> finished creating model for " << beta->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
+	beta->diagonalization();
+	stout << "\t\t	--> finished diagonalizing for " << beta->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
+	std::cout << alfa->get_hilbert_size() << "\t" << alfa->E_av_idx << std::endl << beta->get_hilbert_size() << "\t" << beta->E_av_idx << std::endl;
+	this->mu = 10;
+	for (int i = 1; i < this->L - 1; i++) {
+		const u64 E_min = alfa->E_av_idx - this->mu / 2.;
+		const u64 E_max = alfa->E_av_idx + this->mu / 2.;
+		double entropy_dis = 0.0, entropy_sym = 0.0;
+#pragma omp parallel reduction(+: entropy_dis, entropy_sym)
+		for (long k = 0; k < this->mu; k++) {
+			auto state_alfa = cx_vec(alfa->get_eigenState(alfa->E_av_idx - this->mu / 2. + k), arma::vec(alfa->get_hilbert_size(), arma::fill::zeros));
+			entropy_dis += alfa->entaglement_entropy(state_alfa, i);
+			auto state_beta = beta->get_eigenState(beta->E_av_idx - this->mu / 2. + k);
+			entropy_sym += beta->entaglement_entropy(state_beta, i);
+		}
+		printSeparated(std::cout, "\t", 12, true, i, entropy_dis / double(this->mu), entropy_sym / double(this->mu));
+	}
+}
+
 //----------------------------------------------------------------------------------------------------------------UI main
 void isingUI::ui::make_sim() {
 	printAllOptions();
@@ -2372,6 +2401,8 @@ void isingUI::ui::make_sim() {
 	//disorder();
 	//adiabaticGaugePotential(0, 0);
 	//relaxationTimesFromFiles();
+	compare_entaglement();
+	exit(1);
 	switch (this->fun) {
 		case 0: LIOMsdisorder();				break;
 		case 1: adiabaticGaugePotential_dis(1);	break;
@@ -2395,9 +2426,6 @@ void isingUI::ui::make_sim() {
 					this->L = system_size;
 					this->g = gx;
 					this->h = hx;
-
-					LIOMsdisorder();
-					continue;
 
 					auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 					stout << "\n\t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;

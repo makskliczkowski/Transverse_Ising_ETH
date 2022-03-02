@@ -511,6 +511,33 @@ cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_co
 }
 
 
+// ----------------------------------------------------------------------------------------- entaglement
+auto IsingModel_sym::reduced_density_matrix(const arma::cx_vec& state, int A_size) const -> arma::cx_mat {
+	// set subsytsems size
+	const long long dimA    = ULLPOW(A_size);
+	const long long dimB    = ULLPOW((this->L - A_size));
+	const long long dim_tot = ULLPOW(this->L);
+	cx_mat rho(dimA, dimA, fill::zeros);
+	auto G = this->symmetry_group;
+	for (long long n = 0; n < this->N; n++) {						// loop over configurational symmetric basis
+		for (int i = 0; i < G.size(); i++) {
+			u64 new_idx = G[i](this->mapping[n], this->L);
+			cpx sym_eig_n = this->symmetry_eigVal[i];
+			long long counter = 0;
+			for (long long m = new_idx % dimB; m < dim_tot; m += dimB) {	// pick out state with same B side (last L-A_size bits) in full basis
+				long long idx = new_idx / dimB;									// find index of state with same B-side (by dividing the last bits are discarded)
+				auto [rep_m, sym_eig_m] = this->find_SEC_representative(m);
+				auto m_in_sector = binary_search(this->mapping, 0, this->N - 1, rep_m);
+				rho(idx, counter) += state(n) * conj(state(m_in_sector));
+				counter++;										// increase counter to move along reduced basis
+			}
+		}
+	}
+	return rho / double(G.size());
+}
+
+
+
 // ----------------------------------------------------------------------------- WRAPPERS FOR SIGMA OPERATORS - creating matrix -----------------------------------------------------------------------------
 sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const {
 	const double G = double(this->symmetry_group.size());

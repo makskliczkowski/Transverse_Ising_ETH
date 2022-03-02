@@ -126,6 +126,7 @@ namespace isingUI
 		// --------------- COMPARISONS
 		void compare_energies();
 		void compare_matrix_elements(op_type op, int k_alfa, int k_beta, int p_alfa = 1, int p_beta = 1, int x_alfa = 1, int x_beta = 1);
+		void compare_entaglement();
 
 		// --------------- SYMMETRIES
 		void size_scaling_sym(int k, int p, int x);

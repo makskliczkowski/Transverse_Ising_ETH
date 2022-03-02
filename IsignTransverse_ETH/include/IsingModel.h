@@ -398,7 +398,7 @@ public:
 	sp_cx_mat createHlocal(int k) const override { stout << "Not implemented yet!!\n\n"; return sp_cx_mat(); };
 	sp_cx_mat fourierTransform(op_type op, int q) const override;
 
-	arma::cx_mat reduced_density_matrix(const arma::cx_vec& state, int A_size) const override { return arma::cx_mat(); };
+	arma::cx_mat reduced_density_matrix(const arma::cx_vec& state, int A_size) const override;
 	mat correlation_matrix(u64 state_id) const override;
 };
 //-------------------------------------------------------------------------------------------------------------------------------
