@@ -2301,7 +2301,7 @@ void isingUI::ui::benchmark(bool full) {
 			: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, { "L" }, ",");
 		openFile(file, this->saving_dir + "benchmark" + info + ".dat", std::ios::out);
 		file << "Maximum number of threads to parallelize diagonalization by OpenMP:\t " << ARMA_OPENMP_THREADS << std::endl;
-		printSeparated(file, "\t", 16, true, "#cores", "chain length", "dim", "with vec 'dc' [s]", "with vec 'std' [s]", "without vec [s]");
+		printSeparated(file, "\t", 16, true, "#cores", "chain length", "dim", "with eigenvec 'dc'", "with eigenvec 'std'", "only eigenvalues", "in seconds");
 		if (this->m) {
 			for (int system_size = 8; system_size <= 22; system_size += 2) {
 				for (auto& th : th_list) {
@@ -2315,6 +2315,7 @@ void isingUI::ui::benchmark(bool full) {
 					start = std::chrono::system_clock::now();
 					alfa->diagonalization(true);		 double tim3 = tim_s(start);
 					printSeparated(file, "\t", 16, true, th, system_size, alfa->get_hilbert_size(), tim1, "-----------", tim3);
+					printSeparated(std::cout, "\t", 16, true, th, system_size, alfa->get_hilbert_size(), tim1, "-----------", tim3);
 				}
 				file << std::endl;
 			}
@@ -2331,6 +2332,7 @@ void isingUI::ui::benchmark(bool full) {
 					start = std::chrono::system_clock::now();
 					alfa->diagonalization(true);		 double tim3 = tim_s(start);
 					printSeparated(file, "\t", 16, true, th, system_size, alfa->get_hilbert_size(), tim1, "-----------", tim3);
+					printSeparated(std::cout, "\t", 16, true, th, system_size, alfa->get_hilbert_size(), tim1, "-----------", tim3);
 				}
 				file << std::endl;
 			}
@@ -2365,31 +2367,69 @@ void isingUI::ui::benchmark(bool full) {
 
 void isingUI::ui::compare_entaglement() {
 	clk::time_point start = std::chrono::system_clock::now();
-	auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-	stout << "\n\t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
-	alfa->diagonalization();
-	stout << "\t\t	--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
+	auto alfa1 = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, 1e-4, this->boundary_conditions);
+	auto alfa2 = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, 1e-3, this->boundary_conditions);
+	auto alfa3 = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, 1e-2, this->boundary_conditions);
+	stout << "\n\t\t--> finished creating models for w=1e-4,1e-3,1e-2 and  " << alfa1->get_info({ "w" }) << " - in time : " << tim_s(start) << "s" << std::endl;
+	alfa1->diagonalization();
+	alfa2->diagonalization();
+	alfa3->diagonalization();
+	stout << "\t\t	--> finished diagonalizing for w=1e-4,1e-3,1e-2 and  " << alfa1->get_info({ "w" }) << " - in time : " << tim_s(start) << "s" << std::endl;
 
-	auto beta = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, \
-		this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-	stout << "\n\t\t--> finished creating model for " << beta->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
-	beta->diagonalization();
-	stout << "\t\t	--> finished diagonalizing for " << beta->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
-	std::cout << alfa->get_hilbert_size() << "\t" << alfa->E_av_idx << std::endl << beta->get_hilbert_size() << "\t" << beta->E_av_idx << std::endl;
-	this->mu = 10;
-	for (int i = 1; i < this->L - 1; i++) {
-		const u64 E_min = alfa->E_av_idx - this->mu / 2.;
-		const u64 E_max = alfa->E_av_idx + this->mu / 2.;
-		double entropy_dis = 0.0, entropy_sym = 0.0;
-#pragma omp parallel reduction(+: entropy_dis, entropy_sym)
-		for (long k = 0; k < this->mu; k++) {
-			auto state_alfa = cx_vec(alfa->get_eigenState(alfa->E_av_idx - this->mu / 2. + k), arma::vec(alfa->get_hilbert_size(), arma::fill::zeros));
-			entropy_dis += alfa->entaglement_entropy(state_alfa, i);
-			auto state_beta = beta->get_eigenState(beta->E_av_idx - this->mu / 2. + k);
-			entropy_sym += beta->entaglement_entropy(state_beta, i);
+
+	auto beta1 = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, 0, 1, 1, this->boundary_conditions);
+	auto beta2 = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, 1, 1, 1, this->boundary_conditions);
+	stout << "\n\t\t--> finished creating model for k=0,1; p=1,x=1 and " << beta1->get_info({ "k","p","x" }) << " - in time : " << tim_s(start) << "s" << std::endl;
+	beta1->diagonalization();
+	beta2->diagonalization();
+	stout << "\t\t	--> finished diagonalizing for k=0,1; p=1,x=1 and " << beta1->get_info({ "k","p","x" }) << " - in time : " << tim_s(start) << "s" << std::endl;
+
+	std::ofstream file;
+	std::string dir = this->saving_dir + "Entropy" + kPSep;
+	createDirs(dir);
+	openFile(file, dir + "compare_to_disorder" + beta1->get_info({}) + ".dat");
+	const u64 dim = alfa1->get_hilbert_size();
+	std::cout << std::endl;
+	printSeparated(std::cout, "\t", 12, true, "L_A", "w = 1e-4", "w = 1e-3", "w = 1e-2", "k = 0", "k = 1");
+	for (int i = 3; i < this->L - 2; i++) {
+		this->mu = dim > 3000? 500 : 0.25 * dim;
+		u64 E_min = alfa1->E_av_idx - this->mu / 2.;
+		u64 E_max = alfa1->E_av_idx + this->mu / 2.;
+		double entropy_dis1 = 0.0, entropy_dis2 = 0.0, entropy_dis3 = 0.0;
+		for (long k = E_min; k < E_max; k++) {
+			auto state = cx_vec(alfa1->get_eigenState(k), arma::vec(dim, arma::fill::zeros)); entropy_dis1 += alfa1->entaglement_entropy(state, i);
+				 state = cx_vec(alfa2->get_eigenState(k), arma::vec(dim, arma::fill::zeros)); entropy_dis2 += alfa2->entaglement_entropy(state, i);
+				 state = cx_vec(alfa3->get_eigenState(k), arma::vec(dim, arma::fill::zeros)); entropy_dis3 += alfa3->entaglement_entropy(state, i);
 		}
-		printSeparated(std::cout, "\t", 12, true, i, entropy_dis / double(this->mu), entropy_sym / double(this->mu));
+		entropy_dis1 /= double(this->mu);
+		entropy_dis2 /= double(this->mu);
+		entropy_dis3 /= double(this->mu);
+
+		this->mu = beta1->get_hilbert_size() > 3000? 500 : 0.25 * beta1->get_hilbert_size();
+		E_min = beta1->E_av_idx - this->mu / 2.;
+		E_max = beta1->E_av_idx + this->mu / 2.;
+		double entropy_sym1 = 0.0;
+		for (long k = E_min; k < E_max; k++) {
+			auto state = beta1->get_eigenState(k); 
+			entropy_sym1 += beta1->entaglement_entropy(state, i);
+		}
+		entropy_sym1 /= double(this->mu);
+
+		this->mu = beta2->get_hilbert_size() > 3000 ? 500 : 0.25 * beta2->get_hilbert_size();
+		E_min = beta2->E_av_idx - this->mu / 2.;
+		E_max = beta2->E_av_idx + this->mu / 2.;
+		double entropy_sym2 = 0.0;
+		for (long k = E_min; k < E_max; k++) {
+			auto state = beta2->get_eigenState(k);
+			entropy_sym2 += beta2->entaglement_entropy(state, i);
+		}
+		entropy_sym2 /= double(this->mu);
+
+		printSeparated(file, "\t", 12, true, i, entropy_dis1, entropy_dis2, entropy_dis3, entropy_sym1, entropy_sym2);
+		printSeparated(std::cout, "\t", 12, true, i, entropy_dis1, entropy_dis2, entropy_dis3, entropy_sym1, entropy_sym2);
 	}
+	
+	std::cout << std::endl;
 }
 
 //----------------------------------------------------------------------------------------------------------------UI main
@@ -2401,8 +2441,10 @@ void isingUI::ui::make_sim() {
 	//disorder();
 	//adiabaticGaugePotential(0, 0);
 	//relaxationTimesFromFiles();
-	compare_entaglement();
-	exit(1);
+	const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
+	const double gmin = this->g, gmax = this->g + this->gn * this->gs;
+	const double hmin = this->h, hmax = this->h + this->hn * this->hs;
+
 	switch (this->fun) {
 		case 0: LIOMsdisorder();				break;
 		case 1: adiabaticGaugePotential_dis(1);	break;
@@ -2412,12 +2454,9 @@ void isingUI::ui::make_sim() {
 			for (this->L = 10; this->L <= 15; this->L++)
 				for (this->site = 0; this->site <= this->L / 2; this->site++)
 					relaxationTimesFromFiles();
-												break;
+												break; 
 		case 5: benchmark();					break;
 	default:
-		const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
-		const double gmin = this->g, gmax = this->g + this->gn * this->gs;
-		const double hmin = this->h, hmax = this->h + this->hn * this->hs;
 		for (int system_size = Lmin; system_size < Lmax; system_size += this->Ls) {
 			for (double gx = gmin; gx < gmax; gx += this->gs) {
 				for (double hx = hmin; hx < hmax; hx += this->hs) {
@@ -2427,6 +2466,15 @@ void isingUI::ui::make_sim() {
 					this->g = gx;
 					this->h = hx;
 
+					//compare_entaglement();
+					auto alfa11 = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+					alfa11->diagonalization();
+					auto H = alfa11->get_hamiltonian();
+					lanczos::Lanczos<double> obj(H);
+					obj.diagonalization();
+					for (int k = 0; k < 20; k++)
+						std::cout << alfa11->get_eigenEnergy(k) << "\t\t" << obj.get_eigenvalues()(k) << std::endl;
+					exit(1);
 					auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 					stout << "\n\t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
 					//const long long N = alfa->get_hilbert_size();

@@ -518,22 +518,16 @@ auto IsingModel_sym::reduced_density_matrix(const arma::cx_vec& state, int A_siz
 	const long long dimB    = ULLPOW((this->L - A_size));
 	const long long dim_tot = ULLPOW(this->L);
 	cx_mat rho(dimA, dimA, fill::zeros);
-	auto G = this->symmetry_group;
-	for (long long n = 0; n < this->N; n++) {						// loop over configurational symmetric basis
-		for (int i = 0; i < G.size(); i++) {
-			u64 new_idx = G[i](this->mapping[n], this->L);
-			cpx sym_eig_n = this->symmetry_eigVal[i];
-			long long counter = 0;
-			for (long long m = new_idx % dimB; m < dim_tot; m += dimB) {	// pick out state with same B side (last L-A_size bits) in full basis
-				long long idx = new_idx / dimB;									// find index of state with same B-side (by dividing the last bits are discarded)
-				auto [rep_m, sym_eig_m] = this->find_SEC_representative(m);
-				auto m_in_sector = binary_search(this->mapping, 0, this->N - 1, rep_m);
-				rho(idx, counter) += state(n) * conj(state(m_in_sector));
-				counter++;										// increase counter to move along reduced basis
-			}
+	const arma::cx_vec state_full_hilbert = this->symmetryRotation(state);
+	for (long long n = 0; n < dim_tot; n++) {							// loop over whole configurational basis
+		long long counter = 0;
+		for (long long m = n % dimB; m < dim_tot; m += dimB) {			// pick out state with same B side (last L-A_size bits)
+			long idx = n / dimB;										// find index of state with same B-side (by dividing the last bits are discarded)
+			rho(idx, counter) += conj(state_full_hilbert(n)) * state_full_hilbert(m);
+			counter++;													// increase counter to move along reduced basis
 		}
 	}
-	return rho / double(G.size());
+	return rho;
 }
 
 
@@ -598,17 +592,28 @@ void IsingModel_sym::set_OperatorElem(std::vector<op_type> operators, std::vecto
 }
 
 sp_cx_mat IsingModel_sym::symmetryRotation() const {
-	u64 dim = ULLPOW(this->L);
-	sp_cx_mat U(dim, N);
+	u64 dim_tot = ULLPOW(this->L);
+	sp_cx_mat U(dim_tot, this->N);
 #pragma omp parallel for
-	for (long int k = 0; k < N; k++)
+	for (long int k = 0; k < this->N; k++) {
 		for (int i = 0; i < this->symmetry_group.size(); i++) {
 			auto idx = this->symmetry_group[i](this->mapping[k], this->L);
 			U(idx, k) += this->symmetry_eigVal[i] / (this->normalisation[k] * sqrt(this->symmetry_group.size()));
 		}
+	}
 	return U;
 }
-
+arma::cx_vec IsingModel_sym::symmetryRotation(const arma::cx_vec& state) const {
+	arma::cx_vec output(ULLPOW(this->L), arma::fill::zeros);
+#pragma omp parallel for
+	for (long int k = 0; k < this->N; k++) {
+		for (int i = 0; i < this->symmetry_group.size(); i++) {
+			auto idx = this->symmetry_group[i](this->mapping[k], this->L);
+			output(idx) += this->symmetry_eigVal[i] / (this->normalisation[k] * sqrt(this->symmetry_group.size())) * state(k);
+		}
+	}
+	return output;
+}
 sp_cx_mat IsingModel_sym::fourierTransform(op_type op, int q) const {
 	auto beta = std::make_unique<IsingModel_disorder>(this->L, this->J, 0, this->g, 0, this->h, 0, this->_BC);
 	auto fullMatrix = beta->fourierTransform(op, q);

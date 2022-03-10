@@ -388,6 +388,8 @@ public:
 		const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::vector<int> sites);
 
 	sp_cx_mat symmetryRotation() const;
+	arma::cx_vec symmetryRotation(const arma::cx_vec& state) const;
+
 	//friend sp_cx_mat create_operatorDistinctSectors()
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators) const override;													
 	sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) const override;

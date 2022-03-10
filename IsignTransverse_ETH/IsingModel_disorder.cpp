@@ -651,5 +651,5 @@ auto IsingModel_disorder::reduced_density_matrix(const arma::cx_vec& state, int 
 			counter++;										// increase counter to move along reduced basis
 		}
 	}
-	return rho;
+	return rho;	
 }

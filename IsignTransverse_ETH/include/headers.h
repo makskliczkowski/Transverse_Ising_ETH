@@ -56,6 +56,7 @@ DISABLE_WARNING_PUSH // include <armadillo> and suppress its warnings, cause dev
 //#define ARMA_BLAS_LONG_LONG // using long long inside LAPACK call
 //#define ARMA_USE_OPENMP
 #define ARMA_ALLOW_FAKE_GCC
+#define ARMA_DONT_USE_FORTRAN_HIDDEN_ARGS
 //#define ARMA_EXTRA_DEBUG
 //-------
 DISABLE_OVERFLOW;
@@ -115,9 +116,11 @@ namespace fs = std::experimental::filesystem;
 #define __builtin_popcountll _mm_popcnt_u64
 #endif
 
+
 extern std::random_device rd;
 extern std::mt19937::result_type seed;
 extern std::mt19937_64 gen;
+
 // ----------------------------------------------------------------------------- namespaces -----------------------------------------------------------------------------
 using namespace std;
 using namespace arma;
@@ -142,6 +145,7 @@ using v_2d = std::vector<std::vector<T>>;														// 2d double vector
 template<class T>
 using v_1d = std::vector<T>;																	// 1d double vector
 
+
 // ----------------------------------------------------------------------------- User compiler macro -----------------------------------------------------------------------------
 #if !defined(OPERATOR)
 	#define OPERATOR
@@ -151,7 +155,6 @@ using v_1d = std::vector<T>;																	// 1d double vector
 #endif
 #define im cpx(0.0,1.0)
 #define stout std::cout << std::setprecision(8) << std::fixed								// standard outstream
-#define memory_over_performance false															// optimized by size --true-- (memory usage shortage) or performance --false--
 
 // ----------------------------------------------------------------------------- Macros to generate the lookup table (at compile-time) -----------------------------------------------------------------------------
 #define R2(n) n, n + 2*64, n + 1*64, n + 3*64
@@ -800,3 +803,6 @@ private:
 	double currentProgress = 0;													// current progress
 	double neededProgress = 100;												// final progress
 };
+
+
+#include "Lanczos/Lanczos.hpp"
