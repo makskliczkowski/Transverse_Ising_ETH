@@ -241,7 +241,21 @@ struct types {
 	template<typename... _otherTy>
 	using convertible = typename std::enable_if<std::conjunction<std::is_convertible<_otherTy, _baseTy>...>::value>::type;
 };
+namespace _traits {
+	//<! check if variadic templates have common types (or are inmplicitly convertible) with _baseTy
+	template <class _baseTy, class... _otherTy>
+	struct is_same : std::conjunction<std::is_same<_otherTy, _baseTy>...> {};
 
+	template <class _baseTy, class... _otherTy>
+	inline constexpr bool is_same_v = is_same<_baseTy, _otherTy...>::value;
+
+	//<! check if typename is among other fixed ones struct (STL only has constexpr)
+	template <class _ty, class... fixed>
+	struct is_any_of : std::disjunction<std::is_same<_ty, fixed>...> {};
+
+	template <class _ty, class... fixed>
+	inline constexpr bool is_any_of_v = is_any_of<_ty, fixed...>::value;
+};
 // ---------------------------------- definitions
 bool isNumber(const string& str);
 
@@ -804,5 +818,71 @@ private:
 	double neededProgress = 100;												// final progress
 };
 
+
+//! ----------------------------------------------------------------------------- ARMADILLO HELPERS -----------------------------------------------------------------------------
+//! -------------------------------------------------------- cast non-cpx to cpx types
+template <typename _ty>
+arma::Col<std::complex<_ty>> cpx_real_vec(const arma::Col<_ty>& input){ 
+	size_t size = input.size();
+	return arma::Col<std::complex<_ty>>(input, arma::Col<_ty>(size, arma::fill::zeros));
+}
+template <typename _ty>
+arma::Col<std::complex<_ty>> cpx_imag_vec(const arma::Col<_ty>& input) {
+	size_t size = input.size();
+	return arma::Col<std::complex<_ty>>(arma::Col<_ty>(size, arma::fill::zeros), input);
+}
+template <typename _ty>
+arma::Col<std::complex<_ty>> cpx_real_vec(const arma::subview_col<_ty>& input) {
+	size_t size = input.n_elem;
+	return arma::Col<std::complex<_ty>>(input, arma::Col<_ty>(size, arma::fill::zeros));
+}
+template <typename _ty>
+arma::Col<std::complex<_ty>> cpx_imag_vec(const arma::subview_col<_ty>& input) {
+	size_t size = input.n_elem;
+	return arma::Col<std::complex<_ty>>(arma::Col<_ty>(size, arma::fill::zeros), input);
+}
+//! -------------------------------------------------------- dot product for different input types (cpx and non-cpx)
+
+ template <typename _ty, 
+	 template <typename> class _COLVEC1,
+	 template <typename> class _COLVEC2 
+ >
+_ty dot_prod(const _COLVEC1<_ty>& left, const _COLVEC2<_ty>& right)
+{ 
+	 static_assert(_traits::is_any_of_v<_COLVEC1<_ty>, arma::Col<_ty>, arma::subview_col<_ty>>
+		 && _traits::is_any_of_v<_COLVEC2<_ty>, arma::Col<_ty>, arma::subview_col<_ty>>,
+		 "Dot product only valid for arma::Col and arma::subview classes");
+	return arma::cdot(left, right); 
+}																			
+																											
+template <typename _ty,
+	template <typename> class _COLVEC1,
+	template <typename> class _COLVEC2
+>
+std::complex<_ty> dot_prod(const _COLVEC1<_ty>& left, const _COLVEC2<std::complex<_ty>>& right)
+{
+	static_assert(_traits::is_any_of_v<_COLVEC1<_ty>, arma::Col<_ty>, arma::subview_col<_ty>>
+		&& _traits::is_any_of_v<_COLVEC2<std::complex<_ty>>, arma::Col<std::complex<_ty>>, arma::subview_col<std::complex<_ty>>>,
+		"Dot product only valid for arma::Col and arma::subview classes");
+	return arma::cdot(cpx_real_vec(left), right);
+}
+																											
+template <typename _ty,
+	template <typename> class _COLVEC1,
+	template <typename> class _COLVEC2
+>
+std::complex<_ty> dot_prod(const _COLVEC1<std::complex<_ty>> & left, const _COLVEC2<_ty> & right)
+{
+	static_assert(_traits::is_any_of_v<_COLVEC1<std::complex<_ty>>, arma::Col<std::complex<_ty>>, arma::subview_col<std::complex<_ty>>>
+		&& _traits::is_any_of_v<_COLVEC2<_ty>, arma::Col<_ty>, arma::subview_col<_ty>>,
+		"Dot product only valid for arma::Col and arma::subview classes"); 
+	return arma::cdot(left, cpx_real_vec(right));
+}															
+											
+
+//general_dot_prod(arma::Col,			arma::Col		 );
+//general_dot_prod(arma::subview_col, arma::Col		 );
+//general_dot_prod(arma::Col,			arma::subview_col);
+//general_dot_prod(arma::subview_col, arma::subview_col);
 
 #include "Lanczos/Lanczos.hpp"

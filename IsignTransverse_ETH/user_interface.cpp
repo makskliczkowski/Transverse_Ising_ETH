@@ -2467,14 +2467,7 @@ void isingUI::ui::make_sim() {
 					this->h = hx;
 
 					//compare_entaglement();
-					auto alfa11 = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-					alfa11->diagonalization();
-					auto H = alfa11->get_hamiltonian();
-					lanczos::Lanczos<double> obj(H);
-					obj.diagonalization();
-					for (int k = 0; k < 20; k++)
-						std::cout << alfa11->get_eigenEnergy(k) << "\t\t" << obj.get_eigenvalues()(k) << std::endl;
-					exit(1);
+					//continue;
 					auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 					stout << "\n\t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
 					//const long long N = alfa->get_hilbert_size();
@@ -2578,7 +2571,9 @@ void isingUI::ui::make_sim() {
 					//}
 					//file.close();
 
-					arma::vec entropy(times.size(), arma::fill::zeros);					
+					arma::vec entropy(times.size(), arma::fill::zeros);
+					arma::vec entropy_lanczos(times.size(), arma::fill::zeros);
+
 					arma::vec down = { 0,1 };
 					arma::vec up = { 1,0 };
 					std::uniform_real_distribution<double> theta(0, pi);
@@ -2586,7 +2581,10 @@ void isingUI::ui::make_sim() {
 					alfa->reset_random();
 					stout << "\t\t	-->set random generators for " << alfa->get_info()
 						<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
-					//alfa->diagonalization();
+					alfa->diagonalization();
+
+					lanczos::Lanczos lancz(alfa->get_hamiltonian());
+					lancz.diagonalization();
 					std::function to_ave_time = [&]() {
 						auto the = theta(gen);
 						arma::cx_vec init_state = std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down;
@@ -2594,22 +2592,28 @@ void isingUI::ui::make_sim() {
 							the = theta(gen);
 							init_state = arma::kron(init_state, std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down);
 						}
-					#pragma omp parallel for shared(init_state)
+						arma::cx_vec changing_state = init_state;
+					//#pragma omp parallel for shared(init_state)
 						for (int i = 0; i < times.size(); i++) {
 							auto t = times(i);
 							arma::cx_vec state = arma::normalise(init_state);
 							alfa->time_evolve_state(state, t);
-							entropy(i) += alfa->entaglement_entropy(state, this->L / 2);
+							//auto state2 = lancz.time_evolution_stationary(init_state, t);
+							auto state2 = lancz.time_evolution_non_stationary(changing_state, t - (i == 0 ? 0.0 : times(0)), 200);
+							entropy(i)			+= alfa->entaglement_entropy(state, this->L / 2);
+							entropy_lanczos(i)	+= alfa->entaglement_entropy(state2, this->L / 2);
 						}
 					
 					};
-					
 					average_over_realisations<>(*alfa, false, to_ave_time);
 					entropy /= double(this->realisations);
+					entropy_lanczos /= double(this->realisations);
 					std::ofstream file;
 					openFile(file, dir + "TimeEvolution" + alfa->get_info({}) + ".dat");
-					for (int j = 0; j < times.size(); j++) 
-						printSeparated(file, "\t", 12, true, times(j), entropy(j));
+					for (int j = 0; j < times.size(); j++) {
+						printSeparated(file, "\t", 12, true, times(j), entropy(j), entropy_lanczos(j));
+						printSeparated(std::cout, "\t", 12, true, times(j), entropy(j), entropy_lanczos(j));
+					}
 					file.close();
 
 

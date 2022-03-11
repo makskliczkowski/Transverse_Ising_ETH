@@ -22,10 +22,4 @@ namespace lanczos {
 		);
 	}
 
-	template <typename _type>
-	void Lanczos<_type>::diagonalization() {
-		arma::Col<_type> rand = this->ran.template create_random_vec<_type>(this->N);
-		this->diagonalization(rand);
-	}
-
 }

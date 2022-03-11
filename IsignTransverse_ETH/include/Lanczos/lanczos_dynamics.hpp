@@ -10,9 +10,9 @@ namespace lanczos{
 	) -> arma::cx_vec 
 	{
 		auto state_lanczos = this->conv_to_krylov_space(input_state);
-		arma::cx_vec output(this->N, arma::fill::zeros);
+		arma::cx_vec output(this->params.lanczos_steps, arma::fill::zeros);
 		for (int j = 0; j < this->params.lanczos_steps; j++) {
-			_type overlap = arma::cdot(this->eigenvectors.col(j), input_state);
+			cpx overlap = dot_prod(this->eigenvectors.col(j), state_lanczos);
 			output += std::exp(-im * this->eigenvalues(j) * time) * overlap * this->eigenvectors.col(j);
 		}
 		return this->conv_to_hilbert_space(output);
@@ -29,7 +29,8 @@ namespace lanczos{
 		const int M = this->params.lanczos_steps;
 		this->params.lanczos_steps = lanczos_steps;
 		this->diagonalization();
-		this->time_evolution_stationary(prev_state, dt); //<! locally approximated as stationary within (t, t+dt)
+		auto ret = this->time_evolution_stationary(prev_state, dt); //<! locally approximated as stationary within (t, t+dt)
 		this->params.lanczos_steps = M;
+		return ret;
 	}
 }

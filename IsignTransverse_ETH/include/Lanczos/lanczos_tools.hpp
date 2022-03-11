@@ -5,7 +5,6 @@ namespace lanczos {
 	//<! testing convergence of lanczos procedure 
 	template <typename _type>
 	void Lanczos<_type>::convergence(
-		const arma::Col<_type>& rand,	//<! input random state
 		int num_state_out				//<! number of states to test convergence
 	) 
 	{
@@ -19,15 +18,7 @@ namespace lanczos {
 		for (int j = 1; j < M; j++) {
 			this->params.lanczos_steps = j;
 
-			if (this->params.use_reorthogonalization)
-				buildKrylov<_type>::build(rand);
-			else
-				buildLanczos<_type>::build(rand);
-			arma::eig_sym(
-				this->eigenvalues,
-				this->eigenvectors,
-				this->H_lanczos
-			);
+			this->diagonalization();
 
 			for (int k = 0; k < j; k++) {
 				energy << j << "\t" << this->eigenvalues(k) << std::endl;
@@ -40,7 +31,7 @@ namespace lanczos {
 				gs_error << j << "\t";
 				for (int k = 0; k < num_state_out; k++) {
 					convergence << fabs((e_prev(k) - e(k)) / e(k)) << "\t";
-					arma::Col<_type> eigenState = conv_to_hilbert_space(rand, k);
+					arma::Col<_type> eigenState = conv_to_hilbert_space(k);
 					double error = abs(arma::norm(this->eigenvalues(k) * eigenState - this->H * eigenState));
 					gs_error << error << "\t";
 				}

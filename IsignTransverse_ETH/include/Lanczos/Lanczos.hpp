@@ -22,6 +22,7 @@ namespace lanczos {
 		arma::SpMat<_type> H;				//<! hamiltonian matrix -- change to operator instance
 		arma::vec eigenvalues;				//<! lanczos eignevalues
 		
+		arma::Col<_type> initial_random_vec;		//<! initial random vector
 		arma::Col<_type> randVec_inKrylovSpace;		//<! random vector written in lanczos basis (used in FTLM)
 
 		randomGen ran;						//<! random variable generator -- uniform distribution
@@ -30,8 +31,8 @@ namespace lanczos {
 		bool use_krylov;					//<! boolean value whether useing krylov matrix or not
 		//! ----------------------------------------------------- PRIVATE BUILDERS / INITIALISERS
 		void initialize();
-		void build_lanczos(const arma::Col<_type>& random_vec);
-		void build_krylov(const arma::Col<_type>& random_vec);
+		void build_lanczos();
+		void build_krylov();
 
 		void orthogonalize(
 			arma::Col<_type>& vec_to_ortho,  //<! vector to orthogonalize
@@ -47,15 +48,15 @@ namespace lanczos {
 		Lanczos() = delete;
 		explicit Lanczos(
 			const arma::SpMat<_type>& hamiltonian, 
-			lanczosParams&& input_params = lanczosParams()
-		) : H(hamiltonian), params(std::move(input_params))
+			lanczosParams&& input_params = lanczosParams(),
+			const arma::Col<_type>& random_vec = arma::Col<_type>()
+		) : H(hamiltonian), params(std::move(input_params)), initial_random_vec(random_vec)
 		{ initialize(); }
 
 		//------------------------------------------------------------------------------------------------ DIAGONALIZING MATRIX
-		void build(const arma::Col<_type>& random_vec);
+		void build(const arma::Col<_type>& random_vec = arma::Col<_type>());
 
-		void diagonalization(const arma::Col<_type>& random_vec);
-		void diagonalization();
+		void diagonalization(const arma::Col<_type>& random_vec = arma::Col<_type>());
 		//TODO: some methods with return values
 
 		//------------------------------------------------------------------------------------------------ CAST STATES TO ORIGINAL HILBERT SPACE:
@@ -63,12 +64,20 @@ namespace lanczos {
 		//	hilbert,	//<! Hilbert basis, i.e. computational basis
 		//	krylov		//<! Krylov basis build from random vector
 		//};
-		[[nodiscard]] auto conv_to_hilbert_space(const arma::Col<_type>& rand, int state_id)					-> arma::Col<_type>;
-		[[nodiscard]] auto conv_to_hilbert_space(const arma::Col<_type>& rand, const arma::Col<_type>& input)	-> arma::Col<_type>;
-		[[nodiscard]] auto conv_to_krylov_space(const arma::Col<_type>& rand, const arma::Col<_type>& input)	-> arma::Col<_type>;
+		[[nodiscard]] auto conv_to_hilbert_space(int state_id)->arma::Col<_type>;
+
+		#ifndef _auto_t
+		#define _auto_t template <typename _ty2> [[nodiscard]] auto
+
+		_auto_t conv_to_hilbert_space(const arma::Col<std::complex<_ty2>>& input) -> arma::Col<std::complex<_ty2>>;
+		_auto_t conv_to_krylov_space( const arma::Col<std::complex<_ty2>>& input) -> arma::Col<std::complex<_ty2>>;
+		_auto_t conv_to_hilbert_space(const arma::Col<_ty2>& input) -> arma::Col<_type>;
+		_auto_t conv_to_krylov_space( const arma::Col<_ty2>& input) -> arma::Col<_type>;
 		
+		#undef _auto_t
+		#endif
 		//------------------------------------------------------------------------------------------------ TOOLS
-		void convergence(const arma::Col<_type>& rand, int num_state_out = 10);
+		void convergence(int num_state_out = 10);
 		
 		//------------------------------------------------------------------------------------------------ DYNAMICS
 		auto time_evolution_stationary(
