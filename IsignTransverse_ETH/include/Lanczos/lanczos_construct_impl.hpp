@@ -2,15 +2,14 @@
 
 namespace lanczos {
 
-	template <typename _type>
-	inline void Lanczos<_type>::initialize() {
+	inline void Lanczos::initialize() {
 		this->N = this->H.n_rows;
 		this->use_krylov = 
 				this->params.use_reorthogonalization 
 			&& !this->params.memory_over_performance;
 		this->ran = randomGen();
 		if (this->initial_random_vec.is_empty())
-			this->initial_random_vec = this->ran.template create_random_vec<_type>(N);
+			this->initial_random_vec = this->ran.create_random_vec<cpx>(N);
 		//this->model->saving_dir += "Lanczos/";
 		std::cout
 			<< "Model transfered to Lanczos wrapper with:\n"

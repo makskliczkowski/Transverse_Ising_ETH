@@ -3,15 +3,15 @@
 namespace lanczos {
 
 	//<! testing convergence of lanczos procedure 
-	template <typename _type>
-	void Lanczos<_type>::convergence(
+	inline
+	void Lanczos::convergence(
 		int num_state_out				//<! number of states to test convergence
 	) 
 	{
 		arma::vec e_prev(num_state_out, arma::fill::zeros);
-		std::ofstream convergence(this->model->saving_dir + "energy_convergence.txt");
-		std::ofstream energy(this->model->saving_dir + "energy_plot.txt");
-		std::ofstream gs_error(this->model->saving_dir + "state_convergence.txt");
+		std::ofstream convergence("energy_convergence.txt");
+		std::ofstream energy("energy_plot.txt");
+		std::ofstream gs_error("state_convergence.txt");
 		convergence << std::setprecision(16) << std::fixed;
 		gs_error << std::setprecision(16) << std::fixed;
 		const int M = this->params.lanczos_steps;
@@ -31,7 +31,7 @@ namespace lanczos {
 				gs_error << j << "\t";
 				for (int k = 0; k < num_state_out; k++) {
 					convergence << fabs((e_prev(k) - e(k)) / e(k)) << "\t";
-					arma::Col<_type> eigenState = conv_to_hilbert_space(k);
+					arma::cx_vec eigenState = conv_to_hilbert_space(k);
 					double error = abs(arma::norm(this->eigenvalues(k) * eigenState - this->H * eigenState));
 					gs_error << error << "\t";
 				}

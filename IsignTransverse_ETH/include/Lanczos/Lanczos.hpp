@@ -3,27 +3,26 @@
 #define _LANCZOS
 
 namespace lanczos {
-	template <typename _type> class Lanczos;	//<! forward declaration for FTLM
+	class Lanczos;	//<! forward declaration for FTLM
 };
 #include "params.hpp"
-#include "FTLM.hpp"						//<! Finite-Temperature Lanczos Method
+//#include "FTLM.hpp"						//<! Finite-Temperature Lanczos Method
 
 /// <summary>
 /// LANCZOS CLASS
 /// </summary>
 namespace lanczos {
 
-	template <typename _type>
 	class Lanczos {
 
-		arma::Mat<_type> krylov_space;		//<! krylov matrix - basis transformation
-		arma::Mat<_type> H_lanczos;			//<! Lanczos matrix for tridiagonalization
-		arma::Mat<_type> eigenvectors;		//<! eigenvectors from diagonalizing lanczos matrix
-		arma::SpMat<_type> H;				//<! hamiltonian matrix -- change to operator instance
+		arma::cx_mat krylov_space;		//<! krylov matrix - basis transformation
+		arma::cx_mat H_lanczos;			//<! Lanczos matrix for tridiagonalization
+		arma::cx_mat eigenvectors;		//<! eigenvectors from diagonalizing lanczos matrix
+		arma::sp_cx_mat H;				//<! hamiltonian matrix -- change to operator instance
 		arma::vec eigenvalues;				//<! lanczos eignevalues
 		
-		arma::Col<_type> initial_random_vec;		//<! initial random vector
-		arma::Col<_type> randVec_inKrylovSpace;		//<! random vector written in lanczos basis (used in FTLM)
+		arma::cx_vec initial_random_vec;		//<! initial random vector
+		arma::cx_vec randVec_inKrylovSpace;		//<! random vector written in lanczos basis (used in FTLM)
 
 		randomGen ran;						//<! random variable generator -- uniform distribution
 		lanczosParams params;				//<! parameters for lanczos procedure: steps, random steps, efficiency etc
@@ -35,28 +34,37 @@ namespace lanczos {
 		void build_krylov();
 
 		void orthogonalize(
-			arma::Col<_type>& vec_to_ortho,  //<! vector to orthogonalize
+			arma::cx_vec& vec_to_ortho,  //<! vector to orthogonalize
 			int j							 //<! current dimension of Krylov space
 		);
 
 	public:
 		auto get_eigenvalues() const { return this->eigenvalues; }
 
-		friend _returnTy FTLM(Lanczos<_type>&);
+		//friend _returnTy FTLM(Lanczos&);
 		//------------------------------------------------------------------------------------------------ CONSTRUCTOS
 		~Lanczos() = default;
 		Lanczos() = delete;
 		explicit Lanczos(
-			const arma::SpMat<_type>& hamiltonian, 
+			const arma::sp_cx_mat& hamiltonian, 
 			lanczosParams&& input_params = lanczosParams(),
-			const arma::Col<_type>& random_vec = arma::Col<_type>()
+			const arma::cx_vec& random_vec = arma::cx_vec()
 		) : H(hamiltonian), params(std::move(input_params)), initial_random_vec(random_vec)
 		{ initialize(); }
+		explicit Lanczos(
+			const arma::sp_mat& hamiltonian,
+			lanczosParams&& input_params = lanczosParams(),
+			const arma::cx_vec& random_vec = arma::cx_vec()
+		) : H(sp_cx_mat(hamiltonian, sp_mat(hamiltonian.n_cols, hamiltonian.n_cols))),
+			params(std::move(input_params)), initial_random_vec(random_vec)
+		{
+			initialize();
+		}
 
 		//------------------------------------------------------------------------------------------------ DIAGONALIZING MATRIX
-		void build(const arma::Col<_type>& random_vec = arma::Col<_type>());
+		void build(const arma::cx_vec& random_vec = arma::cx_vec());
 
-		void diagonalization(const arma::Col<_type>& random_vec = arma::Col<_type>());
+		void diagonalization(const arma::cx_vec& random_vec = arma::cx_vec());
 		//TODO: some methods with return values
 
 		//------------------------------------------------------------------------------------------------ CAST STATES TO ORIGINAL HILBERT SPACE:
@@ -64,18 +72,13 @@ namespace lanczos {
 		//	hilbert,	//<! Hilbert basis, i.e. computational basis
 		//	krylov		//<! Krylov basis build from random vector
 		//};
-		[[nodiscard]] auto conv_to_hilbert_space(int state_id)->arma::Col<_type>;
+		[[nodiscard]] auto conv_to_hilbert_space(int state_id) -> arma::cx_vec;
 
-		#ifndef _auto_t
-		#define _auto_t template <typename _ty2> [[nodiscard]] auto
-
-		_auto_t conv_to_hilbert_space(const arma::Col<std::complex<_ty2>>& input) -> arma::Col<std::complex<_ty2>>;
-		_auto_t conv_to_krylov_space( const arma::Col<std::complex<_ty2>>& input) -> arma::Col<std::complex<_ty2>>;
-		_auto_t conv_to_hilbert_space(const arma::Col<_ty2>& input) -> arma::Col<_type>;
-		_auto_t conv_to_krylov_space( const arma::Col<_ty2>& input) -> arma::Col<_type>;
+		[[nodiscard]] auto conv_to_hilbert_space(const arma::cx_vec& input) -> arma::cx_vec;
+		[[nodiscard]] auto conv_to_krylov_space( const arma::cx_vec& input) -> arma::cx_vec;
+		[[nodiscard]] auto conv_to_hilbert_space(const arma::vec&	 input) -> arma::cx_vec;
+		[[nodiscard]] auto conv_to_krylov_space( const arma::vec&	 input) -> arma::cx_vec;
 		
-		#undef _auto_t
-		#endif
 		//------------------------------------------------------------------------------------------------ TOOLS
 		void convergence(int num_state_out = 10);
 		

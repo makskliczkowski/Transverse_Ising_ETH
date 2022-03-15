@@ -3,8 +3,7 @@
 namespace lanczos {
     typedef std::tuple<arma::vec, arma::vec, arma::vec, arma::vec> _returnTy;
 
-    template <typename _type>
-    inline _returnTy FTLM(Lanczos<_type>& lanczos_obj) {
+    inline _returnTy FTLM(Lanczos& lanczos_obj) {
         const arma::vec E = lanczos_obj.eigenvalues;
         const size_t N = E.size();
         const int M = lanczos_obj.params.lanczos_steps;
@@ -19,12 +18,12 @@ namespace lanczos {
         arma::vec Z(temperature.size(), arma::fill::zeros);
 
         for (int r = 0; r < R; r++) {
-            lanczos.diagonalization();
+            lanczos_obj.diagonalization();
             arma::vec overlap(M);
 #pragma omp parallel for num_threads(num_of_threads)
             for (int m = 0; m < M; m++)
             {
-                _type temp = dot_prod(lanczos_obj.randVec_inKrylovSpace, lanczos_obj.eigenvectors.col(m));
+                cpx temp = arma::cdot(lanczos_obj.randVec_inKrylovSpace, lanczos_obj.eigenvectors.col(m));
                 overlap(m) = abs(temp * conj(temp));
             }
 

@@ -2471,18 +2471,21 @@ void isingUI::ui::make_sim() {
 					auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 					stout << "\n\t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
 					//const long long N = alfa->get_hilbert_size();
-					const double tH = 1. / alfa->mean_level_spacing_analytical();
-					int t_max = (int)std::ceil(std::log10(tH));
-					t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
-					auto times = arma::logspace(-2, t_max, 300);
-					std::string dir = this->saving_dir + "Entropy" + kPSep;
-					createDirs(dir);
 					stout << "\t\t	--> start diagonalizing for " << alfa->get_info()
 						<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 					alfa->diagonalization();
 			
 					stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
 						<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
+					const double tH = 1. / alfa->mean_level_spacing_analytical();
+					int t_max = (int)std::ceil(std::log10(tH));
+					t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
+					//auto times = arma::logspace(-2, t_max, 300);
+					std::string dir = this->saving_dir + "Entropy" + kPSep;
+					createDirs(dir);
+					double omega_max = alfa->get_eigenEnergy(alfa->get_hilbert_size() - 1) - alfa->get_eigenEnergy(0);
+					double dt = 0.1 / omega_max;
+					auto times = arma::regspace(dt, dt, t_max);
 					//		this->mu = 200;
 			//		const u64 E_min = 0;// alfa->E_av_idx - this->mu / 2.;
 			//		const u64 E_max = 1;// alfa->E_av_idx + this->mu / 2.;
@@ -2581,10 +2584,11 @@ void isingUI::ui::make_sim() {
 					alfa->reset_random();
 					stout << "\t\t	-->set random generators for " << alfa->get_info()
 						<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
-					alfa->diagonalization();
 
-					lanczos::Lanczos lancz(alfa->get_hamiltonian());
+					lanczosParams params(5, 10, true, false);
+					lanczos::Lanczos lancz(alfa->get_hamiltonian(), std::move(params));
 					lancz.diagonalization();
+
 					std::function to_ave_time = [&]() {
 						auto the = theta(gen);
 						arma::cx_vec init_state = std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down;
@@ -2594,14 +2598,16 @@ void isingUI::ui::make_sim() {
 						}
 						arma::cx_vec changing_state = init_state;
 					//#pragma omp parallel for shared(init_state)
+
 						for (int i = 0; i < times.size(); i++) {
 							auto t = times(i);
 							arma::cx_vec state = arma::normalise(init_state);
+							//auto state2 = lancz.time_evolution_stationary(state, t);
 							alfa->time_evolve_state(state, t);
-							//auto state2 = lancz.time_evolution_stationary(init_state, t);
-							auto state2 = lancz.time_evolution_non_stationary(changing_state, t - (i == 0 ? 0.0 : times(0)), 200);
-							entropy(i)			+= alfa->entaglement_entropy(state, this->L / 2);
+							auto state2 = lancz.time_evolution_non_stationary(changing_state, t - (i == 0 ? 0.0 : times(i - 1)), 5);
+							entropy(i)			+= alfa->entaglement_entropy(state , this->L / 2);
 							entropy_lanczos(i)	+= alfa->entaglement_entropy(state2, this->L / 2);
+							changing_state = state2;
 						}
 					
 					};
@@ -2611,8 +2617,9 @@ void isingUI::ui::make_sim() {
 					std::ofstream file;
 					openFile(file, dir + "TimeEvolution" + alfa->get_info({}) + ".dat");
 					for (int j = 0; j < times.size(); j++) {
-						printSeparated(file, "\t", 12, true, times(j), entropy(j), entropy_lanczos(j));
-						printSeparated(std::cout, "\t", 12, true, times(j), entropy(j), entropy_lanczos(j));
+						double diff = entropy(j) - entropy_lanczos(j);
+						printSeparated(file, "\t", 16, true, times(j), entropy(j), entropy_lanczos(j), diff);
+						printSeparated(std::cout, "\t", 16, true, times(j), entropy(j), entropy_lanczos(j), diff);
 					}
 					file.close();
 
