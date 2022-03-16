@@ -2486,43 +2486,6 @@ void isingUI::ui::make_sim() {
 					double omega_max = alfa->get_eigenEnergy(alfa->get_hilbert_size() - 1) - alfa->get_eigenEnergy(0);
 					double dt = 0.1 / omega_max;
 					auto times = arma::regspace(dt, dt, t_max);
-					//		this->mu = 200;
-			//		const u64 E_min = 0;// alfa->E_av_idx - this->mu / 2.;
-			//		const u64 E_max = 1;// alfa->E_av_idx + this->mu / 2.;
-			//		auto unperturbed = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, 0, this->g0, this->h, this->w, this->boundary_conditions);
-			//		unperturbed->diagonalization();
-			//		std::ofstream file_fidel;
-			//		openFile(file_fidel, dir + "FidelityDecay" + alfa->get_info({}) + ".dat");
-			//		for (auto& t : times) {
-			//			double fidel_re = 0.0, fidel_im = 0.0;
-			//#pragma omp parallel for reduction(+: fidel_re, fidel_im)
-			//			for (long j = E_min; j < E_max; j++) {
-			//				auto state = unperturbed->get_eigenState(j);
-			//				for (long k = 0; k < N; k++) {
-			//					const double dE = alfa->get_eigenEnergy(k) - unperturbed->get_eigenEnergy(0);
-			//					const double overlap = arma::dot(state, alfa->get_eigenState(k));
-			//					cpx x = std::exp(-im * dE * t) * overlap * overlap;
-			//					fidel_re += real(x);
-			//					fidel_im += imag(x);
-			//				}
-			//			}
-			//			printSeparated(file_fidel, "\t", 12, true, t, fidel_re, fidel_im);
-			//		}
-			//		file_fidel.close();
-
-					// operator product
-					//std::ofstream file_what;
-					//this->op = 2;
-					//openFile(file_what, this->saving_dir + "OperatorProductHi" + alfa->get_info({}) + ".dat");
-					//for (int i = 0; i < this->L; i++) {
-					//	auto op = alfa->chooseOperator(this->op, i);
-					//	int j = this->L / 2.;
-					//	auto Sz = alfa->chooseOperator(0, j);
-					//	cpx x = arma::trace(op * Sz) / double(N);
-					//	printSeparated(file_what, "\t", 12, true, i, real(x), imag(x));
-					//};
-					//file_what.close();
-					// 
 					//arma::vec entropy_1(N, arma::fill::zeros);
 					//arma::vec entropy_2 = entropy_1, entropy_3 = entropy_1;
 					//this->mu = N < 1000 ? 0.2 * N : 500;
@@ -2597,8 +2560,6 @@ void isingUI::ui::make_sim() {
 							init_state = arma::kron(init_state, std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down);
 						}
 						arma::cx_vec changing_state = init_state;
-					//#pragma omp parallel for shared(init_state)
-
 						for (int i = 0; i < times.size(); i++) {
 							auto t = times(i);
 							arma::cx_vec state = arma::normalise(init_state);
@@ -2622,42 +2583,6 @@ void isingUI::ui::make_sim() {
 						printSeparated(std::cout, "\t", 16, true, times(j), entropy(j), entropy_lanczos(j), diff);
 					}
 					file.close();
-
-
-					//this->mu = 0.5 * N;
-					//long int E_min = alfa->E_av_idx - mu / 2.;
-					//long int E_max = alfa->E_av_idx + mu / 2.;
-					//
-					//double r = 0, ipr = 0, S = 0;
-					//for (long int k = E_min; k < E_max; k++) {
-					//	r += alfa->eigenlevel_statistics(k, k + 1);
-					//	ipr += alfa->ipr(k);
-					//	S += alfa->information_entropy(k);
-					//}
-					//r /= double(E_max - E_min);
-					//ipr /= double(E_max - E_min) * N;
-					//S /= double(E_max - E_min);
-					//int nums = 10;
-					//for (int i = 0; i < nums; i++) {
-					//	double dg = alfa->getRandomValue(-gx / 100., gx / 100.);
-					//	auto beta = std::make_unique<IsingModel_sym>(system_size, this->J, gx + dg, hx, \
-					//		this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-					//	beta->diagonalization();
-					//	r += beta->eigenlevel_statistics(E_min, E_max);
-					//}
-					//r /= double(nums + 1);
-					//
-					//printSeparated(map, "\t", { gx, hx, r,ipr,S }, 12, true);
-
-					//probability_distribution(this->saving_dir + "LevelSpacing" + kPSep, "LevelSpacing" + alfa->get_info({}), level_spacing);
-
-					//IsingLIOMs(*alfa);
-					//TFIsingLIOMs(*alfa);
-					//auto opMatrix = alfa->create_operator({ IsingModel_sym::sigma_x });
-					//spectralFunction(*alfa, opMatrix, "SigmaX");
-					//opMatrix = alfa->create_operator({ IsingModel_sym::sigma_z });
-					//spectralFunction(*alfa, opMatrix, "SigmaZ");
-
 				}
 			}
 		}
