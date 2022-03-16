@@ -9,7 +9,7 @@ namespace lanczos{
 	) -> arma::cx_vec 
 	{
 		auto evolve = [this](
-			const cx_vec& state,
+			const arma::cx_vec& state,
 			arma::cx_vec& output,
 			double time
 			) {

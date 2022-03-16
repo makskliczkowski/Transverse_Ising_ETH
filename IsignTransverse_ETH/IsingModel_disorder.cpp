@@ -33,7 +33,7 @@ u64 IsingModel_disorder::map(u64 index) {
 }
 
 /// <summary>
-/// W razie gdybyœmy robili Sz symetriê, dla picu
+/// W razie gdybyï¿½my robili Sz symetriï¿½, dla picu
 /// </summary>
 void IsingModel_disorder::generate_mapping() {
 	this->mapping = std::vector<u64>();
@@ -62,7 +62,7 @@ void IsingModel_disorder::setHamiltonianElem(u64 k, double value, u64 new_idx) {
 /// </summary>
 void IsingModel_disorder::hamiltonian() {
 	try {
-		this->H = sp_mat(N, N);                                //  hamiltonian memory reservation
+		this->H = arma::sp_mat(N, N);                                //  hamiltonian memory reservation
 	}
 	catch (const bad_alloc& e) {
 		std::cout << "Memory exceeded" << e.what() << "\n";
@@ -352,7 +352,7 @@ cpx IsingModel_disorder::av_spin_current(u64 alfa, u64 beta, std::vector<int> si
 			value_imag += value.imag();
 		}
 	}
-	return 2i * cpx(value_real, value_imag);
+	return 2.0 * im * cpx(value_real, value_imag);
 }
 /// <summary>
 ///
@@ -392,7 +392,7 @@ cpx IsingModel_disorder::av_spin_current(u64 alfa, u64 beta) {
 			}
 		}
 	}
-	return 2i * cpx(value_real, value_imag) / sqrt(this->L);
+	return 2.0 * im * cpx(value_real, value_imag) / sqrt(this->L);
 }
 // ----------------------------------------------------------------------------- CALCULATE MATRIX ELEMENTS VIA INPUT OPERATOR -----------------------------------------------------------------------------
 cpx IsingModel_disorder::av_operator(u64 alfa, u64 beta, op_type op, std::vector<int> sites) {
@@ -445,7 +445,7 @@ cpx IsingModel_disorder::av_operator(u64 alfa, u64 beta, op_type op, int corr_le
 }
 
 // ----------------------------------------------------------------------------- CREATE OPERATOR TO CALCULATE MATRIX ELEMENTS -----------------------------------------------------------------------------
-sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const {
+arma::sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const {
 	arma::sp_cx_mat opMatrix(this->N, this->N);
 #pragma omp parallel for
 	for (long int k = 0; k < N; k++) {
@@ -458,7 +458,7 @@ sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> op
 	}
 	return opMatrix;
 }
-sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators) const {
+arma::sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators) const {
 	arma::sp_cx_mat opMatrix(this->N, this->N);
 #pragma omp parallel for
 	for (long int k = 0; k < N; k++) {
@@ -473,7 +473,7 @@ sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> op
 	}
 	return opMatrix / sqrt(this->L);
 }
-sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators, int corr_len) const {
+arma::sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators, int corr_len) const {
 	arma::sp_cx_mat opMatrix(this->N, this->N);
 	auto neis = get_neigh_vector(this->_BC, this->L, corr_len);
 #pragma omp parallel for
@@ -492,7 +492,7 @@ sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> op
 	return opMatrix / sqrt(this->L);
 }
 
-sp_cx_mat IsingModel_disorder::fourierTransform(op_type op, int k) const {
+arma::sp_cx_mat IsingModel_disorder::fourierTransform(op_type op, int k) const {
 	const double q = k * two_pi / double(this->L);
 	arma::sp_cx_mat opMatrix(this->N, this->N);
 
@@ -514,7 +514,7 @@ sp_cx_mat IsingModel_disorder::fourierTransform(op_type op, int k) const {
 	}
 	return opMatrix / sqrt(this->L);
 }
-sp_cx_mat IsingModel_disorder::createHq(int k) const {
+arma::sp_cx_mat IsingModel_disorder::createHq(int k) const {
 	const double q = k * two_pi / double(this->L);
 	arma::sp_cx_mat opMatrix(this->N, this->N);
 	std::vector<cpx> k_exp(this->L);
@@ -548,7 +548,7 @@ sp_cx_mat IsingModel_disorder::createHq(int k) const {
 	}
 	return opMatrix / std::sqrt(this->L);
 }
-sp_cx_mat IsingModel_disorder::createHlocal(int k) const {
+arma::sp_cx_mat IsingModel_disorder::createHlocal(int k) const {
 	arma::sp_cx_mat opMatrix(this->N, this->N);
 #pragma omp parallel for
 	for (long int n = 0; n < this->N; n++) {
@@ -584,8 +584,8 @@ sp_cx_mat IsingModel_disorder::createHlocal(int k) const {
 /// </summary>
 /// <param name="state_id"> index of given state </param>
 /// <returns> correlation matrix </returns>
-mat IsingModel_disorder::correlation_matrix(u64 state_id) const {
-	mat corr_mat(L, L, fill::zeros);
+arma::mat IsingModel_disorder::correlation_matrix(u64 state_id) const {
+	arma::mat corr_mat(L, L, arma::fill::zeros);
 	const arma::subview_col state = this->eigenvectors.col(state_id);
 #pragma omp parallel shared(corr_mat)
 	{
@@ -641,8 +641,8 @@ mat IsingModel_disorder::correlation_matrix(u64 state_id) const {
 auto IsingModel_disorder::reduced_density_matrix(const arma::cx_vec& state, int A_size) const -> arma::cx_mat {
 	// set subsytsems size
 	const long long dimA = ULLPOW(A_size);
-	const long long dimB = ULLPOW(L - A_size);
-	cx_mat rho(dimA, dimA, fill::zeros);
+	const long long dimB = ULLPOW((L - A_size));
+	arma::cx_mat rho(dimA, dimA, arma::fill::zeros);
 	for (long long n = 0; n < this->N; n++) {						// loop over configurational basis
 		long long counter = 0;
 		for (long long m = n % dimB; m < this->N; m += dimB) {			// pick out state with same B side (last L-A_size bits)

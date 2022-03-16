@@ -12,7 +12,7 @@ template <typename T> void IsingModel<T>::print_base_spin_sector(int Sz) {
 	int summm = 0;
 	int p = +1;
 	int z = +1;
-	Col<int> check_sectors(std::pow(2, L), arma::fill::zeros);
+	arma::Col<int> check_sectors(std::pow(2, L), arma::fill::zeros);
 	for (int k = 0; k < N; k++) {
 		int_to_binary(map(k), temp);
 		if (std::accumulate(temp.begin(), temp.end(), 0) == Sz)
@@ -25,7 +25,7 @@ template <typename T> void IsingModel<T>::print_base_spin_sector(int Sz) {
 /// </summary>
 /// <param name="_id"> index of the printed state </param>
 template <typename T> void IsingModel<T>::print_state(u64 _id) {
-	vec state = abs(eigenvectors.col(_id));
+	arma::vec state = abs(eigenvectors.col(_id));
 	double max = arma::max(state);
 	std::vector<bool> base_vector(L);
 	for (int k = 0; k < N; k++) {
@@ -94,7 +94,7 @@ template <typename T> void IsingModel<T>::diagonalization(bool withoutEigenVec, 
 	//for (long int i = 0; i < N; i++)
 	//	this->eigenvectors.col(i) = arma::normalise(this->eigenvectors.col(i));
 
-	double E_av = trace(eigenvalues) / double(N);
+	double E_av = arma::trace(eigenvalues) / double(N);
 	auto i = min_element(begin(eigenvalues), end(eigenvalues), [=](int x, int y) {
 		return abs(x - E_av) < abs(y - E_av);
 		});
@@ -106,7 +106,7 @@ template <typename T> void IsingModel<T>::diagonalization(bool withoutEigenVec, 
 /// </summary>
 /// <param name="corr_mat"> spin correlation matrix </param>
 /// <returns></returns>
-template <typename T> double IsingModel<T>::total_spin(const mat& corr_mat) {
+template <typename T> double IsingModel<T>::total_spin(const arma::mat& corr_mat) {
 	double S2 = arma::accu(corr_mat);
 	if (S2 < -0.25) return 0;
 	return (sqrt(1 + 4 * S2) - 1.0) / 2.0;
@@ -232,8 +232,8 @@ template <typename T> double IsingModel<T>::eigenlevel_statistics(u64 _min, u64 
 /// computed as in: PHYSICAL REVIEW B 91, 081103(R) (2015)
 /// </summary>
 /// <returns>Vector for whole spectrum eigenlevel statistics</returns>
-template <typename T> vec IsingModel<T>::eigenlevel_statistics_with_return() const {
-	vec r(N - 2);
+template <typename T> arma::vec IsingModel<T>::eigenlevel_statistics_with_return() const {
+	arma::vec r(N - 2);
 #pragma omp parallel for shared(r)
 	for (int k = 1; k < N - 1; k++) {
 		NO_OVERFLOW(r(k - 1) = eigenlevel_statistics(k, k + 1);)
@@ -328,8 +328,8 @@ template <typename T> arma::vec IsingModel<T>::spectral_structure_factor_folded(
 template <typename T> 
 double IsingModel<T>::entaglement_entropy(const arma::cx_vec& state, int A_size) const {
 	auto rho = reduced_density_matrix(state, A_size);
-	vec probabilities;
-	eig_sym(probabilities, rho); //diagonalize to find probabilities and calculate trace in rho's eigenbasis
+	arma::vec probabilities;
+	arma::eig_sym(probabilities, rho); //diagonalize to find probabilities and calculate trace in rho's eigenbasis
 	double entropy = 0;
 	//#pragma omp parallel for reduction(+: entropy)
 	for (int i = 0; i < probabilities.size(); i++) {
@@ -354,7 +354,7 @@ arma::Mat<_ty> matrix_pow(const arma::Mat<_ty>& matrix, int exponent) {
 		assert(false && "Support only posotive exponents");
 	else if (exponent == 0) {
 		auto X = arma::eye(matrix.n_rows, matrix.n_cols);
-		return cx_mat(X, X);
+		return arma::cx_mat(X, X);
 	}
 	else if (exponent == 1)
 		return matrix;
@@ -371,8 +371,8 @@ double IsingModel<T>::reyni_entropy(const arma::cx_vec& state, int A_size, unsig
 template <typename T> 
 double IsingModel<T>::shannon_entropy(const arma::cx_vec& state, int A_size) const {
 	auto rho = reduced_density_matrix(state, A_size);
-	vec probabilities;
-	eig_sym(probabilities, rho); //diagonalize to find probabilities and calculate trace in rho's eigenbasis
+	arma::vec probabilities;
+	arma::eig_sym(probabilities, rho); //diagonalize to find probabilities and calculate trace in rho's eigenbasis
 	double entropy = 0;
 #pragma omp parallel for reduction(+: entropy)
 	for (int i = 0; i < probabilities.size(); i++) {
@@ -419,8 +419,8 @@ void IsingModel<T>::operator_av_in_eigenstates(double (IsingModel<T>::* op)(int,
 /// <param name="site"></param>
 /// <returns></returns>
 template <typename T>
-vec IsingModel<T>::operator_av_in_eigenstates_return(double (IsingModel<T>::* op)(int, int), IsingModel<T>& A, int site) {
-	vec temp(A.get_hilbert_size(), fill::zeros);
+arma::vec IsingModel<T>::operator_av_in_eigenstates_return(double (IsingModel<T>::* op)(int, int), IsingModel<T>& A, int site) {
+	arma::vec temp(A.get_hilbert_size(), arma::fill::zeros);
 #pragma omp parallel for shared(temp)
 	for (int k = 0; k < A.get_hilbert_size(); k++)
 		temp(k) = (A.*op)(k, site);
@@ -430,7 +430,7 @@ vec IsingModel<T>::operator_av_in_eigenstates_return(double (IsingModel<T>::* op
 //-------------------------------------------------------------------------------------------------LIOMs
 
 template <typename _type>
-sp_cx_mat IsingModel<_type>::create_StringOperator(coordinate alfa, coordinate beta, int j, int ell) const {
+arma::sp_cx_mat IsingModel<_type>::create_StringOperator(coordinate alfa, coordinate beta, int j, int ell) const {
 	if (ell < 0) assert(false && "last argument is positive, duh");
 	op_type op_alfa, op_beta;
 	switch (alfa) {
@@ -443,15 +443,15 @@ sp_cx_mat IsingModel<_type>::create_StringOperator(coordinate alfa, coordinate b
 	case coordinate::y: op_beta = IsingModel::sigma_y; break;
 	case coordinate::z: op_beta = IsingModel::sigma_z; break;
 	}
-	sp_cx_mat SigmaAlfa = create_operator({ op_alfa }, { properSite(j) });
-	sp_cx_mat SigmaBeta = create_operator({ op_beta }, { properSite(j + ell) });
-	sp_cx_mat SigmaZstring;
+	arma::sp_cx_mat SigmaAlfa = create_operator({ op_alfa }, { properSite(j) });
+	arma::sp_cx_mat SigmaBeta = create_operator({ op_beta }, { properSite(j + ell) });
+	arma::sp_cx_mat SigmaZstring;
 	if (ell == 0) {
 		if (alfa == beta && alfa == coordinate::y) return -create_operator({ IsingModel_sym::sigma_z });
 		else assert(false && "Don't know what this could possibly be, check again if you need this");
 	}
 	else if (ell == 1) {
-		SigmaZstring = arma::eye<sp_cx_mat>(this->N, this->N);
+		SigmaZstring = arma::eye<arma::sp_cx_mat>(this->N, this->N);
 	}
 	else {
 		std::vector<int> sites;
@@ -463,7 +463,7 @@ sp_cx_mat IsingModel<_type>::create_StringOperator(coordinate alfa, coordinate b
 }
 
 template <typename _type>
-sp_cx_mat IsingModel<_type>::create_LIOMoperator_densities(int n, int j) const {
+arma::sp_cx_mat IsingModel<_type>::create_LIOMoperator_densities(int n, int j) const {
 	if (n < 0) assert(false && "Only positive integers for LIOMs");
 	auto S = [this](coordinate alfa, coordinate beta, int j, int ell) {
 		return create_StringOperator(alfa, beta, j, ell);
@@ -557,7 +557,7 @@ arma::vec statistics_average(const arma::vec& data, int num_of_outliers) {
 	}
 	);
 	spec_rep[0] = average / double(data.size() - 2);
-	return (vec)spec_rep;
+	return (arma::vec)spec_rep;
 }
 
 // ------------------------------------------------------------------------------------------------ TOOLS ------------------------------------------------------------------------------------------------
@@ -626,18 +626,17 @@ template void IsingModel<cpx>::diagonalization(bool, const char*);
 template void IsingModel<double>::diagonalization(bool, const char*);
 template double IsingModel<cpx>::eigenlevel_statistics(u64, u64) const;
 template double IsingModel<double>::eigenlevel_statistics(u64, u64) const;
-template vec IsingModel<cpx>::eigenlevel_statistics_with_return() const;
-template vec IsingModel<double>::eigenlevel_statistics_with_return() const;
+template arma::vec IsingModel<cpx>::eigenlevel_statistics_with_return() const;
+template arma::vec IsingModel<double>::eigenlevel_statistics_with_return() const;
 template double IsingModel<double>::ipr(int) const;
 template double IsingModel<cpx>::ipr(int) const;
 template double IsingModel<double>::information_entropy(u64) const;
 template double IsingModel<cpx>::information_entropy(u64) const;
 template double IsingModel<double>::information_entropy(u64, const IsingModel<double>&, u64, u64) const;
 template double IsingModel<cpx>::information_entropy(u64, const IsingModel<cpx>&, u64, u64) const;
-template cpx overlap(const IsingModel<cpx>&, const IsingModel<cpx>&, int, int);
 template double overlap(const IsingModel<double>&, const IsingModel<double>&, int, int);
-template double IsingModel<cpx>::total_spin(const mat&);
-template double IsingModel<double>::total_spin(const mat&);
+template double IsingModel<cpx>::total_spin(const arma::mat&);
+template double IsingModel<double>::total_spin(const arma::mat&);
 template std::tuple<arma::vec, arma::vec, arma::vec> IsingModel<double>::thermal_quantities(const arma::vec&);
 template std::tuple<arma::vec, arma::vec, arma::vec> IsingModel<cpx>::thermal_quantities(const arma::vec&);
 template double IsingModel<double>::mean_level_spacing_av(u64, u64) const;
@@ -645,10 +644,10 @@ template double IsingModel<cpx>::mean_level_spacing_av(u64, u64) const;
 template double IsingModel<double>::mean_level_spacing_trace() const;
 template double IsingModel<cpx>::mean_level_spacing_trace() const;
 
-template sp_cx_mat IsingModel<cpx>::create_StringOperator(coordinate, coordinate, int,int) const;
-template sp_cx_mat IsingModel<double>::create_StringOperator(coordinate, coordinate, int, int) const;
-template sp_cx_mat IsingModel<cpx>::create_LIOMoperator_densities(int, int) const;
-template sp_cx_mat IsingModel<double>::create_LIOMoperator_densities(int, int) const;
+template arma::sp_cx_mat IsingModel<cpx>::create_StringOperator(coordinate, coordinate, int,int) const;
+template arma::sp_cx_mat IsingModel<double>::create_StringOperator(coordinate, coordinate, int, int) const;
+template arma::sp_cx_mat IsingModel<cpx>::create_LIOMoperator_densities(int, int) const;
+template arma::sp_cx_mat IsingModel<double>::create_LIOMoperator_densities(int, int) const;
 template void IsingModel<double>::time_evolve_state(arma::cx_vec&, double);
 template void IsingModel<cpx>::time_evolve_state(arma::cx_vec&, double);
 template arma::vec IsingModel<double>::spectral_structure_factor_folded(const arma::vec&) const;

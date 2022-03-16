@@ -428,7 +428,7 @@ void isingUI::ui::compare_energies() {
 	// handle disorder
 	auto Hamil = std::make_unique<IsingModel_disorder>(L, J, 0, g, 0, h, 0, boundary_conditions);
 	Hamil->diagonalization();
-	const vec E_dis = Hamil->get_eigenvalues();
+	const arma::vec E_dis = Hamil->get_eigenvalues();
 	Hamil.release();
 	// here we push back the energies from symmetries
 	std::vector<double> E_sym = v_1d<double>();
@@ -442,7 +442,7 @@ void isingUI::ui::compare_energies() {
 				for (int x = 0; x <= x_max; x++) {
 					auto ham = std::make_unique<IsingModel_sym>(L, J, g, h, k, p, x, boundary_conditions);
 					ham->diagonalization();
-					vec t = ham->get_eigenvalues();
+					arma::vec t = ham->get_eigenvalues();
 					E_sym.insert(E_sym.end(), std::make_move_iterator(t.begin()), std::make_move_iterator(t.end()));
 					v_1d<std::string> temp_str = v_1d<std::string>(t.size(), "k=" + std::to_string(k) + ",x=" + to_string(x) + ",p=" + to_string(p));
 					symms.insert(symms.end(), std::make_move_iterator(temp_str.begin()), std::make_move_iterator(temp_str.end()));
@@ -454,7 +454,7 @@ void isingUI::ui::compare_energies() {
 			for (int x = 0; x <= x_max; x++) {
 				auto ham = std::make_unique<IsingModel_sym>(L, J, g, h, k, 1, x, boundary_conditions);
 				ham->diagonalization();
-				vec t = ham->get_eigenvalues();
+				arma::vec t = ham->get_eigenvalues();
 				E_sym.insert(E_sym.end(), std::make_move_iterator(t.begin()), std::make_move_iterator(t.end()));
 				v_1d<std::string> temp_str = v_1d<std::string>(t.size(), "k=" + std::to_string(k) + ",x=" + to_string(x) + ",p=*");
 				symms.insert(symms.end(), std::make_move_iterator(temp_str.begin()), std::make_move_iterator(temp_str.end()));
@@ -566,12 +566,12 @@ void isingUI::ui::disorder() {
 		const long int E_min = Hamil->E_av_idx - long(mu / 2);
 		const long int E_max = Hamil->E_av_idx + long(mu / 2);
 
-		vec av_sigma_x(mu, arma::fill::zeros);
+		arma::vec av_sigma_x(mu, arma::fill::zeros);
 		for (u64 k = E_min; k < E_max; k++) {
 			const long long idx = k - E_min;
-			av_sigma_x(idx) = Hamil->av_sigma_x(k, k, { 0 });
+			av_sigma_x(idx) = Hamil->av_sigma_x(k, k, std::vector<int>({ 0 }));
 		}
-		vec fluct = data_fluctuations(av_sigma_x);
+		arma::vec fluct = data_fluctuations(av_sigma_x);
 		double _min = -2.0, _max = 2.0, step = 2e-3;
 		stout << "--> finished writing the sigma _x fluctuations for w = " << w << " <--\n";
 
@@ -584,7 +584,7 @@ void isingUI::ui::disorder() {
 			Hamil->diagonalization();
 			for (u64 k = E_min; k < E_max; k++) {
 				const long long idx = k - E_min;
-				av_sigma_x(idx) = Hamil->av_sigma_x(k, k, { 0 });
+				av_sigma_x(idx) = Hamil->av_sigma_x(k, k, std::vector<int>({ 0 }));
 			}
 			fluct = data_fluctuations(av_sigma_x);
 
@@ -623,13 +623,13 @@ void isingUI::ui::compare_matrix_elements(op_type op, int k_alfa, int k_beta, in
 	// disorder
 	auto model = std::make_unique<IsingModel_disorder>(L, J, 0, g, 0, h, 0);
 	model->diagonalization();
-	sp_cx_mat opMatrix = model->create_operator({ op }, std::vector<int>({ 0 }));
+	arma::sp_cx_mat opMatrix = model->create_operator({ op }, std::vector<int>({ 0 }));
 	file << "WHOLE SIZE = " << model->get_hilbert_size() << endl;
 	// symmetries
 	std::unique_ptr<IsingModel_sym> alfa = std::make_unique<IsingModel_sym>(L, J, g, h, k_alfa, p_alfa, x_alfa);
 	std::unique_ptr<IsingModel_sym> beta = std::make_unique<IsingModel_sym>(L, J, g, h, k_beta, p_beta, x_beta);
-	sp_cx_mat opMatrix_alfa = alfa->create_operator({ op }, std::vector<int>({ 0 }));
-	sp_cx_mat opMatrix_beta = beta->create_operator({ op }, std::vector<int>({ 0 }));
+	arma::sp_cx_mat opMatrix_alfa = alfa->create_operator({ op }, std::vector<int>({ 0 }));
+	arma::sp_cx_mat opMatrix_beta = beta->create_operator({ op }, std::vector<int>({ 0 }));
 	file << "ALFA SECTOR SIZE = " << alfa->get_hilbert_size() << endl;
 	file << "BETA SECTOR SIZE = " << beta->get_hilbert_size() << endl;
 	alfa->diagonalization();
@@ -704,11 +704,11 @@ void isingUI::ui::check_dist_other_sector() {
 				for (int x = 0; x <= x_max; x++) {
 					auto Hamil = std::make_unique<IsingModel_sym>(L, J, g, h, k, p, x, boundary_conditions);
 					Hamil->diagonalization();
-					vec t = Hamil->get_eigenvalues();
+					arma::vec t = Hamil->get_eigenvalues();
 					E_sym.insert(E_sym.end(), std::make_move_iterator(t.begin() + Hamil->E_av_idx - u64(this->mu / 2.)), \
 						std::make_move_iterator(t.begin() + Hamil->E_av_idx + u64(this->mu / 2.)));
 					for (int i = Hamil->E_av_idx - mu / 2; i < Hamil->E_av_idx + mu / 2; i++)
-						av_sig.push_back(Hamil->av_sigma_x(i, i, { 0 }));
+						av_sig.push_back(Hamil->av_sigma_x(i, i, std::vector<int>({ 0 })));
 				}
 			}
 		}
@@ -717,11 +717,11 @@ void isingUI::ui::check_dist_other_sector() {
 			for (int x = 0; x <= x_max; x++) {
 				auto Hamil = std::make_unique<IsingModel_sym>(L, J, g, h, k, 1, x, boundary_conditions);
 				Hamil->diagonalization();
-				vec t = Hamil->get_eigenvalues();
+				arma::vec t = Hamil->get_eigenvalues();
 				E_sym.insert(E_sym.end(), std::make_move_iterator(t.begin() + Hamil->E_av_idx - u64(this->mu / 2.)), \
 					std::make_move_iterator(t.begin() + Hamil->E_av_idx + u64(this->mu / 2.)));
 				for (int i = Hamil->E_av_idx - mu / 2; i < Hamil->E_av_idx + mu / 2; i++)
-					av_sig.push_back(Hamil->av_sigma_x(i, i, { 0 }));
+					av_sig.push_back(Hamil->av_sigma_x(i, i, std::vector<int>({ 0 })));
 			}
 		}
 	}
@@ -815,23 +815,23 @@ void isingUI::ui::size_scaling_sym(int k, int p, int x) {
 
 		// average sigma_x operator at first site
 		std::ofstream sigx(this->saving_dir + "SigmaX" + alfa->get_info() + ".dat");
-		vec av_sigma_x(mu, fill::zeros);
+		arma::vec av_sigma_x(mu, arma::fill::zeros);
 		for (int i = E_min; i < E_max; i++) {
 			const int idx = i - int(alfa->E_av_idx - mu / 2);
-			av_sigma_x(idx) = alfa->av_sigma_x(i, i, { 0 });
+			av_sigma_x(idx) = alfa->av_sigma_x(i, i, std::vector<int>({ 0 }));
 			sigx << alfa->get_eigenEnergy(idx) / double(Lx) << "\t\t" << av_sigma_x(idx) << endl;
 		}
 		sigx.close();
 
 		//outliers and prob distribution for sigma_x
-		NO_OVERFLOW(vec r_sigma_x(mu - 1);)
+		NO_OVERFLOW(arma::vec r_sigma_x(mu - 1);)
 #pragma omp parallel for
 		for (long int i = E_min; i < E_max - 1; i++) {
 			const int idx = i - int(alfa->E_av_idx - mu / 2);
 			NO_OVERFLOW(r_sigma_x(idx) = abs(av_sigma_x(idx + 1) - av_sigma_x(idx)));
 		}
 
-		vec outliers = statistics_average(r_sigma_x, 4);
+		arma::vec outliers = statistics_average(r_sigma_x, 4);
 		fikolo << Lx << "\t\t" << outliers.t();
 		stout << " \t\t--> finished outliers for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
 
@@ -1030,10 +1030,10 @@ void isingUI::ui::matrix_elements_stat_sym(double min, double max, double step, 
 	auto sig_z = IsingModel_sym::sigma_z;
 	auto spin_fl = IsingModel_sym::spin_flip;
 	// sigma _z
-	vec d_sigma_z_nnn(size, arma::fill::zeros), d_sigma_z_nnn_ex(size, arma::fill::zeros);	// for making the probability distribution of close sigma_zs matrix elements
+	arma::vec d_sigma_z_nnn(size, arma::fill::zeros), d_sigma_z_nnn_ex(size, arma::fill::zeros);	// for making the probability distribution of close sigma_zs matrix elements
 	//double min_sz_nnn = 0, min_sz_nnn_ex = 0;													// minimas of sigma_z proba distributions
 	// sigma _x
-	vec d_sigma_x(size, arma::fill::zeros), d_sigma_x_ex(size, arma::fill::zeros);
+	arma::vec d_sigma_x(size, arma::fill::zeros), d_sigma_x_ex(size, arma::fill::zeros);
 	v_1d<double> av_sigma_x(omega_num, 0);													// average sigma_x in small omega bucket
 	v_1d<double> av_sigma_x_ex(omega_num, 0);												// average sigma_x_ex in small omega bucket
 	v_1d<double> av_sigma_x2(omega_num, 0);													// average sigma_x in small omega bucket
@@ -1060,7 +1060,7 @@ void isingUI::ui::matrix_elements_stat_sym(double min, double max, double step, 
 			double sigma_x;
 			double sigma_x_ex;
 			if ((omega_bucket < omega_num) || (omega < omega_dist)) {
-				sigma_x = abs(av_operator(a, b, *alfa, *beta, sig_x, { 0 }));
+				sigma_x = abs(av_operator(a, b, *alfa, *beta, sig_x, std::vector<int>({ 0 })));
 				sigma_x_ex = abs(av_operator(a, b, *alfa, *beta, sig_x));
 			}
 			// sigma x to averages
@@ -1117,10 +1117,10 @@ v_1d <double> isingUI::ui::perturbative_stat_sym(IsingModel_sym& alfa, double gx
 	const long int E_min = 0;// alfa.E_av_idx - mu / 2.;
 	const long int E_max = (long)N;// alfa.E_av_idx + mu / 2.;
 	// ANALITYCAL
-	sp_cx_mat pertMatrix = alfa.create_operator({ IsingModel_sym::sigma_x, IsingModel_sym::sigma_z }) * sqrt(alfa.L);
+	arma::sp_cx_mat pertMatrix = alfa.create_operator({ IsingModel_sym::sigma_x, IsingModel_sym::sigma_z }) * sqrt(alfa.L);
 	//pertMatrix /= sqrt(arma::trace(pertMatrix * pertMatrix) / double(N));
-	cx_mat U = alfa.get_eigenvectors();
-	cx_mat mat_elem = U.t() * pertMatrix * U;
+	arma::cx_mat U = alfa.get_eigenvectors();
+	arma::cx_mat mat_elem = U.t() * pertMatrix * U;
 	cpx order_2nd = 0.0, order_3rd = 0.0, order_4th = 0.0, AGP = 0;
 	for (long int n = 0; n < N; n++) {
 		double temp = 0;
@@ -1139,7 +1139,7 @@ v_1d <double> isingUI::ui::perturbative_stat_sym(IsingModel_sym& alfa, double gx
 	order_3rd /= double(N);
 	order_4th /= double(N);
 #if defined(OPERATOR)
-	arma::sp_cx_mat opMatrix = alfa.create_operator({ IsingModel_sym::sigma_x }, { 0 });
+	arma::sp_cx_mat opMatrix = alfa.create_operator({ IsingModel_sym::sigma_x }, std::vector<int>({ 0 }));
 	cpx opVar = arma::trace(opMatrix * opMatrix) / double(N * N);
 	arma::cx_vec sigma_x(mu, arma::fill::zeros);// = arma::diagvec(alfa.get_eigenvectors().t() * opMatrix * alfa.get_eigenvectors());
 #pragma omp parallel for
@@ -1263,7 +1263,7 @@ v_1d<double> isingUI::ui::perturbative_stat_sym(double pert, double gx, double h
 		arma::vec delta_E(mu, arma::fill::zeros);
 		for (long int i = E_min; i < E_max; i++) {
 			const long int idx = i - E_min;
-			delta_sig_x(idx) = beta->av_sigma_x(i, i, { 0 }) - alfa->av_sigma_x(i, i, { 0 });
+			delta_sig_x(idx) = beta->av_sigma_x(i, i, std::vector<int>({ 0 })) - alfa->av_sigma_x(i, i, std::vector<int>({ 0 }));
 			delta_E(idx) = beta->get_eigenEnergy(i) - alfa->get_eigenEnergy(i);
 		}
 		dis_sig_x += probability_distribution_with_return(delta_sig_x, size);
@@ -1308,7 +1308,7 @@ std::vector<double> isingUI::ui::perturbative_stat_sym(double pert, IsingModel_s
 	// saving sigma_x from alfa not to recalculate it again
 	v_1d<double> kurtos(2, 0.0);
 #if defined(OPERATOR)
-	arma::sp_cx_mat opMatrix = alfa.create_operator({ IsingModel_sym::sigma_x }, { 0 });
+	arma::sp_cx_mat opMatrix = alfa.create_operator({ IsingModel_sym::sigma_x }, std::vector<int>({ 0 }));
 	arma::cx_vec sigma_x(mu, arma::fill::zeros);// = arma::diagvec(alfa.get_eigenvectors().t() * opMatrix * alfa.get_eigenvectors());
 #pragma omp parallel for
 	for (long int k = E_min; k < E_max; k++) {
@@ -1375,11 +1375,11 @@ std::vector<double> isingUI::ui::perturbative_stat_sym(double dist_step, double 
 	const int E_size = static_cast<int>(abs(max - min) / E_dist_step);
 	// operators
 	v_1d<double> kurtos;
-	vec dis_sig_x(size, arma::fill::zeros);
-	vec dis_delta_E(E_size, arma::fill::zeros);
+	arma::vec dis_sig_x(size, arma::fill::zeros);
+	arma::vec dis_delta_E(E_size, arma::fill::zeros);
 	this->mu = long(0.5 * alfa.get_hilbert_size());
 	for (int i = alfa.E_av_idx - mu / 2; i <= alfa.E_av_idx + mu / 2; i++) {
-		const double delta_sig_x = abs(beta.av_sigma_x(i, i, { 0 }) - alfa.av_sigma_x(i, i, { 0 }));
+		const double delta_sig_x = abs(beta.av_sigma_x(i, i, std::vector<int>({ 0 })) - alfa.av_sigma_x(i, i, std::vector<int>({ 0 })));
 		const double delta_E = abs(beta.get_eigenEnergy(i) - alfa.get_eigenEnergy(i));
 		setDistElem(dis_sig_x, min, dist_step, delta_sig_x);
 		setDistElem(dis_delta_E, min, E_dist_step, delta_E);
@@ -1723,7 +1723,7 @@ void isingUI::ui::adiabaticGaugePotential_dis(bool h_vs_g) {
 				static long int E_max = alfa->E_av_idx + long(mu / 2);
 				double typ_susc_local = 0;
 				double AGP_local = 0;
-				const mat U = alfa->get_eigenvectors();
+				const arma::mat U = alfa->get_eigenvectors();
 				arma::cx_mat mat_elem = U.t() * opMat * U;
 			#pragma omp parallel for reduction(+: AGP_local, typ_susc_local)
 				for (long int i = 0; i < N; i++) {
@@ -1799,7 +1799,7 @@ void isingUI::ui::adiabaticGaugePotential_sym(bool SigmaZ, bool avSymSectors) {
 				double typ_susc_local = 0;
 				double AGP_local = 0;
 				int counter_tmp = 0;
-				const cx_mat U = alfa->get_eigenvectors();
+				const arma::cx_mat U = alfa->get_eigenvectors();
 				arma::sp_cx_mat opMatrix = SigmaZ ? alfa->create_operator({ IsingModel_sym::sigma_z }) : \
 					alfa->create_operator({ IsingModel_sym::sigma_x });
 				cpx norm = arma::trace(opMatrix * opMatrix) / double(N);
@@ -1864,7 +1864,7 @@ void isingUI::ui::combineAGPfiles() {
 template <typename _type> std::pair<double, double> isingUI::ui::operator_norm(arma::sp_cx_mat& opMatrix, IsingModel<_type>& alfa) {
 	const u64 N = alfa.get_hilbert_size();
 	normaliseOp(opMatrix);
-	const Mat<_type> U = alfa.get_eigenvectors();
+	const arma::Mat<_type> U = alfa.get_eigenvectors();
 	arma::cx_mat mat_elem = U.t() * opMatrix * U;
 	double norm_diag = 0, norm_off = 0;
 #pragma omp parallel for reduction(+: norm_diag, norm_off)
@@ -1880,9 +1880,9 @@ template <typename _type> std::pair<double, double> isingUI::ui::operator_norm(a
 }
 template <typename _type> void isingUI::ui::energyEvolution(IsingModel<_type >& alfa) {
 	std::ofstream ener(this->saving_dir + "Energies" + alfa.get_info({}) + ".dat");
-	sp_cx_mat pertMatrix = alfa.create_operator({ IsingModel_sym::sigma_x, IsingModel_sym::sigma_z }) * sqrt(alfa.L);
-	cx_mat U = alfa.get_eigenvectors();
-	cx_mat mat_elem = U.t() * pertMatrix * U;
+	arma::sp_cx_mat pertMatrix = alfa.create_operator({ IsingModel_sym::sigma_x, IsingModel_sym::sigma_z }) * sqrt(alfa.L);
+	arma::cx_mat U = alfa.get_eigenvectors();
+	arma::cx_mat mat_elem = U.t() * pertMatrix * U;
 	const u64 N = alfa.get_hilbert_size();
 	auto energyEvolution = [&](int i, double pert)->double {
 		double second_order = 0;
@@ -1925,7 +1925,7 @@ template <typename _type> void isingUI::ui::IsingLIOMs(IsingModel<_type>& alfa) 
 	auto GS = alfa.get_eigenState(0);
 	for (int l = 1; l <= L; l++) {
 		double q = l * two_pi / (double)L;
-		sp_cx_mat Sz_q = Sz[0];
+		arma::sp_cx_mat Sz_q = Sz[0];
 		for (int j = 1; j < L; j++) {
 			Sz_q += Sz[j] * std::exp(im * double(j) * q);
 		}
@@ -2042,7 +2042,7 @@ void isingUI::ui::saveDataForAutoEncoder_symmetries(std::initializer_list<op_typ
 				std::ofstream wavefun;
 				openFile(wavefun, saving_folder_wavefun + to_string_prec(hx) + "_" + std::to_string(w_c)   \
 					+ "_wavefun_" + alfa->get_info() + ".dat", ios::out);
-				const auto sigma_x = alfa->av_sigma_x(i, i, { 0 });
+				const auto sigma_x = alfa->av_sigma_x(i, i, std::vector<int>({ 0 }));
 				printSeparated(wavefunLog, "\t", 10, true, to_string_prec(hx) + "_"\
 					+ std::to_string(w_c) , to_string_prec(sigma_x,8));
 				for (u64 j = 0; j < N; j++) {
@@ -2126,7 +2126,7 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 				this->mu = (M > N) ? long(0.5 * N) : M / 2; // to include small system not not exceed Hilbert space
 				E_min = Hamil->E_av_idx - long(mu / 2);
 				E_max = Hamil->E_av_idx + long(mu / 2);
-				arma::mat H_diag = arma::diagmat(Mat<double>(Hamil->get_hamiltonian()));
+				arma::mat H_diag = arma::diagmat(arma::Mat<double>(Hamil->get_hamiltonian()));
 				arma::mat H_offdiag = Hamil->get_hamiltonian() - H_diag;
 				auto c = matrixVariance(H_diag) / matrixVariance(H_offdiag);
 				c = 1. / c;
@@ -2170,7 +2170,7 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 						// print k state
 						printSeparated(MatElemDiag, "\t", 6, false, k);
 						for (int i = 0; i < this->L; i++) {
-							const auto opElem = Hamil->av_operator(k, k, op, { i });
+							const auto opElem = Hamil->av_operator(k, k, op, std::vector<int>({ i }));
 							//const auto opElem = Hamil->av_op
 							printSeparated(MatElemDiag, "\t", 10, false, to_string_prec(opElem,8));
 						}
@@ -2180,7 +2180,7 @@ void isingUI::ui::saveDataForAutoEncoder_disorder(std::initializer_list<op_type>
 						long int k2 = long(N) - long(k);
 						printSeparated(MatElemLogNonDiag, "\t", 10, false, "<", k, "|", k2, ">");
 						for (int i = 0; i < this->L; i++) {
-							const auto opElem = Hamil->av_operator(k, k2, op, { i }).real();
+							const auto opElem = Hamil->av_operator(k, k2, op, std::vector<int>({ i })).real();
 							printSeparated(MatElemLogNonDiag, "\t", 10, false, to_string_prec(opElem, 8));
 						}
 						printSeparated(MatElemLogNonDiag, "\t", 10, true, to_string_prec(Hamil->get_eigenEnergy(k) - Hamil->get_eigenEnergy(k2),8));
@@ -2397,9 +2397,9 @@ void isingUI::ui::compare_entaglement() {
 		u64 E_max = alfa1->E_av_idx + this->mu / 2.;
 		double entropy_dis1 = 0.0, entropy_dis2 = 0.0, entropy_dis3 = 0.0;
 		for (long k = E_min; k < E_max; k++) {
-			auto state = cx_vec(alfa1->get_eigenState(k), arma::vec(dim, arma::fill::zeros)); entropy_dis1 += alfa1->entaglement_entropy(state, i);
-				 state = cx_vec(alfa2->get_eigenState(k), arma::vec(dim, arma::fill::zeros)); entropy_dis2 += alfa2->entaglement_entropy(state, i);
-				 state = cx_vec(alfa3->get_eigenState(k), arma::vec(dim, arma::fill::zeros)); entropy_dis3 += alfa3->entaglement_entropy(state, i);
+			auto state = arma::cx_vec(alfa1->get_eigenState(k), arma::vec(dim, arma::fill::zeros)); entropy_dis1 += alfa1->entaglement_entropy(state, i);
+				 state = arma::cx_vec(alfa2->get_eigenState(k), arma::vec(dim, arma::fill::zeros)); entropy_dis2 += alfa2->entaglement_entropy(state, i);
+				 state = arma::cx_vec(alfa3->get_eigenState(k), arma::vec(dim, arma::fill::zeros)); entropy_dis3 += alfa3->entaglement_entropy(state, i);
 		}
 		entropy_dis1 /= double(this->mu);
 		entropy_dis2 /= double(this->mu);

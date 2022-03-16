@@ -72,7 +72,7 @@ DISABLE_OVERFLOW;
 	DISABLE_WARNING(-Wenum-compare); // unscoped enum
 	DISABLE_WARNING(-Wimplicit-fallthrough); // unannotated fallthrough
 	DISABLE_WARNING(-Wuninitialized); // unitialized
-	DISABLE_WARNING(-Wopenmp-simd);  // ignore OpenMP warning
+	DISABLE_WARNING(-Wopenmp);  // ignore OpenMP warning
 #else 
 	#pragma message ("not recognized compiler to disable armadillo library warnings");
 #endif
@@ -120,10 +120,9 @@ namespace fs = std::experimental::filesystem;
 extern std::random_device rd;
 extern std::mt19937::result_type seed;
 extern std::mt19937_64 gen;
-
+typedef size_t u64;
 // ----------------------------------------------------------------------------- namespaces -----------------------------------------------------------------------------
 using namespace std;
-using namespace arma;
 using clk = std::chrono::system_clock;
 //namespace exec = std::execution;
 
@@ -434,8 +433,8 @@ inline u64 binary_to_int(const vector<bool>& vec, const v_1d<u64>& powers) {
 /// </summary>
 /// <param name="N"> length of the generated random vector </param>
 /// <returns> returns the custom-length random vector </returns>
-inline vec create_random_vec(u64 N, double h = 1.0) {
-	vec random_vec(N, fill::zeros);
+inline arma::vec create_random_vec(u64 N, double h = 1.0) {
+	arma::vec random_vec(N, arma::fill::zeros);
 	std::uniform_real_distribution<double> distribute(-h, h);
 	// create random vector from middle to always append new disorder at lattice endpoint
 	for (u64 j = 0; j <= N / 2.; j++) {
@@ -572,7 +571,7 @@ inline auto readFromFile(std::ifstream& input, std::string filename) {
 		num_rows++;
 	}
 	for (int i = 0; i < num_cols; i++)
-		data[i] = arma::vec(num_rows, fill::zeros);
+		data[i] = arma::vec(num_rows, arma::fill::zeros);
 	
 	// load data
 	input.close();
@@ -703,7 +702,7 @@ inline int getDistIdx(double min, double step, double elem) {
 /// <summary>
 /// Sets up the element in a given distribution dist
 /// </summary>
-inline void setDistElem(vec& dist, double min, double step, double elem) {
+inline void setDistElem(arma::vec& dist, double min, double step, double elem) {
 	const int idx = getDistIdx(min, step, elem);
 	if (idx >= 0 && idx < dist.size()) dist(idx) += 1;
 }

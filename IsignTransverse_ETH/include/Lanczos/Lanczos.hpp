@@ -55,7 +55,7 @@ namespace lanczos {
 			const arma::sp_mat& hamiltonian,
 			lanczosParams&& input_params = lanczosParams(),
 			const arma::cx_vec& random_vec = arma::cx_vec()
-		) : H(sp_cx_mat(hamiltonian, sp_mat(hamiltonian.n_cols, hamiltonian.n_cols))),
+		) : H(arma::sp_cx_mat(hamiltonian, arma::sp_mat(hamiltonian.n_cols, hamiltonian.n_cols))),
 			params(std::move(input_params)), initial_random_vec(random_vec)
 		{
 			initialize();

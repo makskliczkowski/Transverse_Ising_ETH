@@ -143,7 +143,7 @@ arma::vec get_NonDegenerated_Elements(const arma::vec& arr_in) {
 			});
 		arr_unique.erase(new_end, arr_unique.end());
 	}
-	return arma::unique((vec)arr_unique);
+	return arma::unique((arma::vec)arr_unique);
 }
 
 /// <summary>

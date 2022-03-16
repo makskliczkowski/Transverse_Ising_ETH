@@ -21,9 +21,9 @@
 * -> 10.1103/PhysRevE.90.052105												 *
 * ------------------------------ All rights reserved -------------------------------- *
 * Authors:																	 *
-* - Rafa³ Œwiêtek, soon to be Phd student, Josef Stefan Institute					 *
+* - Rafaï¿½ ï¿½wiï¿½tek, soon to be Phd student, Josef Stefan Institute					 *
 *	- email: 77swietek77.at.gmail.com											 *
-* - Maksymilian Kliczkowski Phd student, Wroc³aw University of Science and Technology *
+* - Maksymilian Kliczkowski Phd student, Wrocï¿½aw University of Science and Technology *
 *	- email: maxgrom97.at.gmail.com												 *
 * ----------------------------------------------------------------------------------- *
 * Special thanks to dr Lev Vidmar at Institute Josef Stefan, with whose support       *
@@ -36,9 +36,9 @@ protected:
 	std::string info;									// information about the model
 	randomGen ran;										// consistent quick random number generator
 
-	SpMat<_type> H;										// the Hamiltonian
-	Mat<_type> eigenvectors;							// matrix of the eigenvectors in increasing order
-	vec eigenvalues;									// eigenvalues vector
+	arma::SpMat<_type> H;										// the Hamiltonian
+	arma::Mat<_type> eigenvectors;							// matrix of the eigenvectors in increasing order
+	arma::vec eigenvalues;									// eigenvalues vector
 
 	u64 N;												// the Hilbert space size
 	std::vector<int> nearest_neighbors;					// vector of nearest neighbors dependend on BC
@@ -123,15 +123,15 @@ public:
 	}
 
 	// ---------------------------------- VIRTUALS ----------------------------------
-	virtual mat correlation_matrix(u64 state_id) const = 0;											// create the spin correlation matrix at a given state
-	static double total_spin(const mat& corr_mat);												// the diagonal part of a spin correlation matrix
+	virtual arma::mat correlation_matrix(u64 state_id) const = 0;											// create the spin correlation matrix at a given state
+	static double total_spin(const arma::mat& corr_mat);												// the diagonal part of a spin correlation matrix
 
 	// ---------------------------------- PHYSICAL QUANTITIES ----------------------------------
 	double ipr(int state_idx) const;																// calculate the ipr coeffincient (inverse participation ratio)
 	double information_entropy(u64 _id) const;														// calculate the information entropy in a given state (based on the ipr) Von Neuman type
 	double information_entropy(u64 _id, const IsingModel<_type>& beta, u64 _min, u64 _max) const;	// calculate the information entropy in basis of other model from input
 	double eigenlevel_statistics(u64 _min, u64 _max) const;											// calculate the statistics based on eigenlevels (r coefficient)
-	vec eigenlevel_statistics_with_return() const;													// calculate the eigenlevel statistics and return the vector with the results
+	arma::vec eigenlevel_statistics_with_return() const;													// calculate the eigenlevel statistics and return the vector with the results
 	virtual double mean_level_spacing_analytical() const = 0;										// mean level spacing from analytical formula calcula
 	double mean_level_spacing_av(u64 _min, u64 _max) const;											// mean level spacing averaged over an input window
 	double mean_level_spacing_trace() const;														// mean level spacing from by variance of hamiltonian in T->inf
@@ -208,30 +208,30 @@ public:
 	// ---------------------------------- USING PHYSICAL QUANTITES FOR PARAMTER RANGES, ETC. ----------------------------------
 	static void operator_av_in_eigenstates(double (IsingModel::* op)(int, int), IsingModel& A, int site, \
 		std::string name = "operator_averaged.txt", string separator = "\t\t");
-	static vec operator_av_in_eigenstates_return(double (IsingModel::* op)(int, int), IsingModel& A, int site);
+	static arma::vec operator_av_in_eigenstates_return(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 	static double spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 
-	virtual sp_cx_mat create_operator(std::initializer_list<op_type> operators) const = 0;
-	virtual sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) const = 0;
-	virtual sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const = 0;
+	virtual arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators) const = 0;
+	virtual arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) const = 0;
+	virtual arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const = 0;
 	// transverse-field Ising LIOMs operator densities
-	sp_cx_mat create_StringOperator(coordinate alfa, coordinate beta, int j, int k) const;
-	sp_cx_mat create_LIOMoperator_densities(int n, int ell) const;
-	sp_cx_mat create_LIOMoperator(int n) const {
-		sp_cx_mat LIOM = create_LIOMoperator_densities(n, 0);
+	arma::sp_cx_mat create_StringOperator(coordinate alfa, coordinate beta, int j, int k) const;
+	arma::sp_cx_mat create_LIOMoperator_densities(int n, int ell) const;
+	arma::sp_cx_mat create_LIOMoperator(int n) const {
+		arma::sp_cx_mat LIOM = create_LIOMoperator_densities(n, 0);
 		for (int i = 1; i < this->L; i++)
 			LIOM += create_LIOMoperator_densities(n, i);
 		return LIOM;
 	}
 	
-	virtual sp_cx_mat createHq(int k) const = 0;
-	virtual sp_cx_mat createHlocal(int k) const = 0;
-	virtual sp_cx_mat fourierTransform(op_type op, int q) const = 0; // with operator input
+	virtual arma::sp_cx_mat createHq(int k) const = 0;
+	virtual arma::sp_cx_mat createHlocal(int k) const = 0;
+	virtual arma::sp_cx_mat fourierTransform(op_type op, int q) const = 0; // with operator input
 	//template <typename op>
 	//virtual sp_cx_mat fourierTransform(int q, op&& opGen) const = 0; // with lambda input to create local operator and perform sum 
 
-	sp_cx_mat chooseOperator(int choose, int site) {
-		sp_cx_mat op;
+	arma::sp_cx_mat chooseOperator(int choose, int site) {
+		arma::sp_cx_mat op;
 		switch (choose) {
 			case 0: op = create_operator({ IsingModel::sigma_z }, std::vector<int>({ site })); break;
 			case 1: op = create_operator({ IsingModel::sigma_x }, std::vector<int>({ site })); break;
@@ -387,21 +387,21 @@ public:
 	friend cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, u64 base_vec, u64 k, \
 		const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::vector<int> sites);
 
-	sp_cx_mat symmetryRotation() const;
+	arma::sp_cx_mat symmetryRotation() const;
 	arma::cx_vec symmetryRotation(const arma::cx_vec& state) const;
 
 	//friend sp_cx_mat create_operatorDistinctSectors()
-	sp_cx_mat create_operator(std::initializer_list<op_type> operators) const override;													
-	sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) const override;
-	sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const override;
-	void set_OperatorElem(std::vector<op_type> operators, std::vector<int> sites, sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx) const;
+	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators) const override;													
+	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) const override;
+	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const override;
+	void set_OperatorElem(std::vector<op_type> operators, std::vector<int> sites, arma::sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx) const;
 	
-	sp_cx_mat createHq(int k) const override { stout << "Not implemented yet!!\n\n"; return sp_cx_mat(); };
-	sp_cx_mat createHlocal(int k) const override { stout << "Not implemented yet!!\n\n"; return sp_cx_mat(); };
-	sp_cx_mat fourierTransform(op_type op, int q) const override;
+	arma::sp_cx_mat createHq(int k) const override { stout << "Not implemented yet!!\n\n"; return arma::sp_cx_mat(); };
+	arma::sp_cx_mat createHlocal(int k) const override { stout << "Not implemented yet!!\n\n"; return arma::sp_cx_mat(); };
+	arma::sp_cx_mat fourierTransform(op_type op, int q) const override;
 
 	arma::cx_mat reduced_density_matrix(const arma::cx_vec& state, int A_size) const override;
-	mat correlation_matrix(u64 state_id) const override;
+	arma::mat correlation_matrix(u64 state_id) const override;
 };
 //-------------------------------------------------------------------------------------------------------------------------------
 /// <summary>
@@ -410,11 +410,11 @@ public:
 class IsingModel_disorder : public IsingModel<double> {
 private:
 
-	vec dh;																		// disorder in the system - deviation from a constant h value
+	arma::vec dh;																		// disorder in the system - deviation from a constant h value
 	double w;																	// the distorder strength to set dh in (-disorder_strength, disorder_strength)
-	vec dJ;																		// disorder in the system - deviation from a constant J0 value
+	arma::vec dJ;																		// disorder in the system - deviation from a constant J0 value
 	double J0;																	// spin exchange coefficient
-	vec dg;																		// disorder in the system - deviation from a constant g0 value
+	arma::vec dg;																		// disorder in the system - deviation from a constant g0 value
 	double g0;																	// transverse magnetic field
 public:
 	/* Constructors */
@@ -449,14 +449,14 @@ public:
 	cpx av_spin_current(u64 alfa, u64 beta) override;										// check the extensive spin current
 	cpx av_spin_current(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the spin current at given sites
 
-	sp_cx_mat create_operator(std::initializer_list<op_type> operators) const override;
-	sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) const override;
-	sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const override;
+	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators) const override;
+	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) const override;
+	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const override;
 
-	sp_cx_mat createHq(int k) const override;
-	sp_cx_mat createHlocal(int k) const override;
-	sp_cx_mat fourierTransform(op_type op, int q) const override;
-	mat correlation_matrix(u64 state_id) const override;
+	arma::sp_cx_mat createHq(int k) const override;
+	arma::sp_cx_mat createHlocal(int k) const override;
+	arma::sp_cx_mat fourierTransform(op_type op, int q) const override;
+	arma::mat correlation_matrix(u64 state_id) const override;
 
 	cpx av_operator(u64 alfa, u64 beta, op_type op, std::vector<int> sites);	// calculates the matrix element of operator at given site
 	cpx av_operator(u64 alfa, u64 beta, op_type op);							// calculates the matrix element of operator at given site in extensive form (a sum)
