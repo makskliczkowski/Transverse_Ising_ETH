@@ -2492,8 +2492,8 @@ void isingUI::ui::make_sim() {
 					alfa->reset_random();
 					stout << "\t\t	-->set random generators for " << alfa->get_info()
 						<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
-					for(double x = 1e-4; x<=10; x *= 10){
-						for(int M = 2; M<=2048; M *= 2){
+					for(double x = 1e-3; x<=100; x *= 10){
+						for(int M = 2; M<=256; M *= 2){
 							if(M >= alfa->get_hilbert_size()) continue;
 							double dt = x / omega_max;
 							auto times = arma::regspace(dt, dt, t_max);

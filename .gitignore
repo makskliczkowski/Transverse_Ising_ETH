@@ -13,11 +13,16 @@
 *.vcxproj
 *.vcxproj.filters
 *.png
-*.txt
 *.git
 *.gz
 *.plt
-
+*.zip
+*.pdf
+*.rar
+*.sh
+# *.txt to keep gnuplot scripts
+# *.dat
+# whole folders will be ignored
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
@@ -72,6 +77,7 @@ artifacts/
 
 # StyleCop
 StyleCopReport.xml
+
 # VS Code files
 *.json
 
@@ -359,12 +365,6 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
-*.dat
-*.zip
-*.pdf
-*.rar
-IsignTransverse_ETH/results/symmetries/PBC/ResponseFun.gp
-IsignTransverse_ETH/results/symmetries/PBC/perturbation data/EnergyDiff/perturbationOperatorsDist_L=18,g=0.80,h=1.10,k=0,p=1,x=1_vs_pert.gif
-IsignTransverse_ETH/results/symmetries/PBC/perturbation data/EnergyDiff/perturbationOperatorsDist_L=18,g=0.80,k=0,p=1,x=1,pert=0.0100_vs_h.gif
-IsignTransverse_ETH/results/symmetries/PBC/perturbation data/OperatorDiff/perturbationOperatorsDist_L=18,g=0.80,k=0,p=1,x=1,pert=0.0010_vs_h.gif
-IsignTransverse_ETH/results/symmetries/PBC/perturbation data/OperatorDiff/perturbationOperatorsDist_L=18,g=0.80,k=0,p=1,x=1,pert=0.0028_vs_h.gif
+
+#User folders
+IsignTransverse_ETH/results/

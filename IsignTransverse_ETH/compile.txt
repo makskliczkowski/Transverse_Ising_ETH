@@ -1,0 +1,8 @@
+user_interface.cpp(600): warning #823: reference is to variable "k" (declared at line 582) -- under old for-init scoping rules it would have been variable "k" (declared at line 585)
+  			if (k % 5 == 0) stout << " \t\t--> " << k << " realisation - in time : " << tim_s(start) << "s" << std::endl;
+  			    ^
+
+user_interface.cpp(600): warning #823: reference is to variable "k" (declared at line 582) -- under old for-init scoping rules it would have been variable "k" (declared at line 585)
+  			if (k % 5 == 0) stout << " \t\t--> " << k << " realisation - in time : " << tim_s(start) << "s" << std::endl;
+  			                                        ^
+
