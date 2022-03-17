@@ -1,0 +1,29 @@
+cd '.\perturbation data\OperatorDiff'
+reset
+
+set autoscale
+set xrange[-0.15:0.15]
+
+L = 18
+g = 0.8
+pert = 0.0150
+set title sprintf("Probability distribution of difference {/Symbol d}O_{nn} = O_{nn}(g+{/Symbol d},h+{/Symbol d}) - O_{nn}(g,h)\n\
+with g=%0.2f and {/Symbol e}=%0.4f, L = %d", g, pert, L)
+
+set ylabel 'P({/Symbol d}O_{nn})'
+set xlabel '{/Symbol d}O_{nn}'
+set key vertical inside right top
+set key spacing 1
+
+
+
+plot sprintf("perturbationOperatorsDist_L=%d,g=%0.2f,h=1.00,k=0,p=-1,x=1,pert=%.4f.dat", L, g, pert) every ::1 u 1:2 w lp title 'h=1.0',\
+sprintf("perturbationOperatorsDist_L=%d,g=%0.2f,h=1.36,k=0,p=-1,x=1,pert=%.4f.dat", L, g, pert) every ::1 u 1:2 w lp title 'h=1.36',\
+sprintf("perturbationOperatorsDist_L=%d,g=%0.2f,h=1.46,k=0,p=-1,x=1,pert=%.4f.dat", L, g, pert) every ::1 u 1:2 w lp title 'h=1.46',\
+sprintf("perturbationOperatorsDist_L=%d,g=%0.2f,h=1.56,k=0,p=-1,x=1,pert=%.4f.dat", L, g, pert) every ::1 u 1:2 w lp title 'h=1.56',\
+sprintf("perturbationOperatorsDist_L=%d,g=%0.2f,h=1.66,k=0,p=-1,x=1,pert=%.4f.dat", L, g, pert) every ::1 u 1:2 w lp title 'h=1.66',\
+sprintf("perturbationOperatorsDist_L=%d,g=%0.2f,h=2.01,k=0,p=-1,x=1,pert=%.4f.dat", L, g, pert) every ::1 u 1:2 w lp title 'h=2.01',\
+sprintf("perturbationOperatorsDist_L=%d,g=%0.2f,h=2.61,k=0,p=-1,x=1,pert=%.4f.dat", L, g, pert) every ::1 u 1:2 w lp title 'h=2.61'
+
+cd '..\'
+cd '..\'

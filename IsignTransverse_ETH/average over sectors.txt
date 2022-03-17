@@ -1,0 +1,146 @@
+// lambda over sectors
+			
+				std::function<void(int, int, int, int, 
+					arma::vec&, arma::vec&, double&, double&)> averageTimeEvolutionOverSectors
+					= [&](int k, int p, int x, int site, 
+						arma::vec& SqEvol, arma::vec& SzEvol, 
+						double& normSq, double& normSz)
+				{
+					const auto start_loop = std::chrono::system_clock::now();
+					auto beta = std::make_unique<IsingModel_sym>(system_size, this->J, gx, hx, k, p, x, this->boundary_conditions);
+					beta->diagonalization();
+					const double N = alfa->get_hilbert_size();
+					auto SqMat = beta->createSq(site + 1);
+					auto Sz = beta->create_operator({ IsingModel_sym::sigma_z }, std::vector<int>({ site }));
+					SqEvol += N * timeEvolution(*beta, SqMat, times);
+					SzEvol += N * timeEvolution(*beta, Sz, times);
+					normSq += N * std::get<0>(operator_norm(SqMat, *beta));
+					normSz += N * std::get<0>(operator_norm(Sz, *beta));
+				};
+				//---
+				const double dim = std::pow(2, system_size);
+				for (int k = 0; k < system_size; k++) {
+					arma::vec SzEvol(times.size(), arma::fill::zeros);
+					arma::vec SqEvol(times.size(), arma::fill::zeros);
+					double normSq = 0, normSz = 0;
+					loopSymmetrySectors<int, arma::vec&, arma::vec&, 
+						double&, double&>(
+							averageTimeEvolutionOverSectors, hx, system_size, 
+							k, SqEvol, SzEvol, normSq, normSz
+							);
+					stout << " \t\t	--> finished first symmetry loop " << alfa->get_info({ "k", "p", "x" })
+						<< " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
+					SqEvol /= dim;
+					SzEvol /= dim;
+					std::ofstream fileSq, fileSz;
+					openFile(fileSq, timeDir + "SigmaZ_q=" + std::to_string(k + 1) + alfa->get_info({ "k", "p", "x" }) + ".dat", ios::out);
+					openFile(fileSz, timeDir + "SigmaZ_j=" + std::to_string(k) + alfa->get_info({ "k", "p", "x" }) + ".dat", ios::out);
+					double t = times(0), x = SqEvol(0), y = SzEvol(0);
+					printSeparated(fileSq, "\t", { t, x, tH, (normSq / dim) }, 12, true);
+					printSeparated(fileSz, "\t", { t, y, tH, (normSz / dim) }, 12, true);
+					for (int i = 1; i < times.size(); i++) {
+						t = times(i); x = SqEvol(i); y = SzEvol(i);
+						printSeparated(fileSq, "\t", { t,x }, 12, true);
+						printSeparated(fileSz, "\t", { t,y }, 12, true);
+					}
+					fileSq.close();	fileSz.close();
+
+				}
+
+
+
+
+-------------------------------------------------------------------------------------
+
+std::function lambda_inner = [&](int k, int p, int x, int site,
+					arma::vec& Sq_t, arma::vec& Sz_t, const arma::vec& times,
+					const arma::sp_cx_mat& fullSq, const arma::sp_cx_mat& fullSz, const arma::sp_cx_mat& Uright,
+					const cx_mat& Vright, const IsingModel_sym& beta)
+				{
+					const auto start_loop = std::chrono::system_clock::now();
+					auto alef = std::make_unique<IsingModel_sym>(beta.L, beta.J, beta.g, beta.h, k, p, x, beta._BC);
+					alef->diagonalization();
+					const u64 Nleft = alef->get_hilbert_size();
+					const u64 Nright = beta.get_hilbert_size();
+
+					// matrix as sector overlap
+					const arma::sp_cx_mat Uleft = alef->symmetryRotation();
+					const arma::sp_cx_mat Sq = Uleft.t() * fullSq * Uright;
+					const arma::sp_cx_mat Sz = Uleft.t() * fullSz * Uright;
+					
+					// matrix elements for different sectors
+					const cx_mat Vleft = alef->get_eigenvectors();
+					const cx_mat mat_elemSq = Vleft * Sq * Vright;
+					const cx_mat mat_elemSz = Vleft * Sz * Vright;
+
+					for (int i = 0; i < times.size(); i++) {
+						const double t = times(i);
+						double Sqtmp = 0, Sztmp = 0;
+					#pragma omp parallel for reduction(+: Sqtmp, Sztmp)
+						for (long int n = 0; n < Nleft; n++) {
+							for (long int m = 0; m < Nright; m++) {
+								const double w_nm = alef->get_eigenEnergy(n) - beta.get_eigenEnergy(m);
+								const cpx overlap1 = mat_elemSq(n, m);
+								const cpx overlap2 = mat_elemSz(n, m);
+								Sqtmp += real(overlap1 * conj(overlap1) * std::exp(1i * w_nm * t));
+								Sztmp += real(overlap2 * conj(overlap2) * std::exp(1i * w_nm * t));
+							}
+						}
+						Sq_t(i) += Sqtmp;
+						Sz_t(i) += Sztmp;
+					}
+					stout << "\n\t\t	--> finished overlap of sectors:" << std::endl;
+					auto sym1 = alef->get_symmetries(); bool k1 = alef->get_k_sector();
+					auto sym2 = beta.get_symmetries(); bool k2 = beta.get_k_sector();
+					stout << "\t\t\tleft sector\tright sector:\n\t\tk = \t" << sym1.k_sym << "\t" << sym2.k_sym;
+					if (k1 || k2) stout << "\n\t\tp = \t" << (k1 ? std::to_string(sym1.p_sym) : "") << "\t" << (k2 ? std::to_string(sym2.p_sym) : "");
+					if (hx == 0) stout << "\t\t\nx = \t" << std::endl << sym1.x_sym << "\t" << sym2.x_sym << std::endl;
+					stout << "\n\t\tfor " << alfa->get_info({"k","p","x"}) << " - in time : " << tim_s(start_loop) << "\n\nTotal time : " << tim_s(start) << "s\n";
+				};
+				//----
+				std::function lambda1
+					= [&](int k, int p, int x, int site,
+						arma::vec& Sq_t, arma::vec& Sz_t, const arma::vec& times)
+				{
+					auto beta = std::make_unique<IsingModel_sym>(system_size, this->J, gx, hx, k, p, x, this->boundary_conditions);
+					const sp_cx_mat Uright = beta->symmetryRotation();
+					beta->diagonalization();
+					const cx_mat Vright = beta->get_eigenvectors();
+					
+					auto totalHam = std::make_unique<IsingModel_disorder>(beta->L, beta->J, 0, beta->g, 0, beta->h, 0, beta->_BC);
+					auto fullSq = totalHam->createSq(site + 1);
+					auto fullSz = totalHam->create_operator({ IsingModel_sym::sigma_z }, std::vector({ site }));
+
+					loopSymmetrySectors<int, arma::vec&, arma::vec&, const arma::vec&,
+						const arma::sp_cx_mat&, const arma::sp_cx_mat&, const arma::sp_cx_mat&,
+						const cx_mat&, const IsingModel_sym&>
+						(
+							lambda_inner, hx, system_size,
+							site, Sq_t, Sz_t, times,
+							fullSq, fullSz, Uright, Vright, *beta
+							);
+				};
+				//------------------------------------------------
+				const u64 dim = ULLPOW(system_size);
+				for (int k = 0; k < system_size; k++) {
+					arma::vec SzEvol(times.size(), arma::fill::zeros);
+					arma::vec SqEvol(times.size(), arma::fill::zeros);
+					std::ofstream fileSq, fileSz;
+					openFile(fileSq, timeDir + "SigmaZ_q=" + std::to_string(k + 1) + alfa->get_info({ "k","p","x" }) + ".dat", ios::out);
+					openFile(fileSz, timeDir + "SigmaZ_j=" + std::to_string(k) + alfa->get_info({ "k","p","x" }) + ".dat", ios::out);
+					loopSymmetrySectors<int, arma::vec&, arma::vec&, const arma::vec&>(lambda1, hx, system_size, k, SqEvol, SzEvol, times);
+					for (int i = 0; i < times.size(); i++) {
+						const double t = times(i);
+						double Sq_t = SqEvol(i), Sz_t = SzEvol(i);
+						if (t == times(0)) {
+							printSeparated(fileSq, "\t", { t, Sq_t / dim, tH, 0.0 }, 12, true);
+							printSeparated(fileSz, "\t", { t, Sz_t / dim, tH, 0.0 }, 12, true);
+						}
+						else {
+							printSeparated(fileSq, "\t", { t, Sq_t / dim }, 12, true);
+							printSeparated(fileSz, "\t", { t, Sz_t / dim }, 12, true);
+						}
+					}
+					fileSq.close();	fileSz.close();
+					stout << "FINISHED CURVE NR."<< k << " for " << alfa->get_info({"k","p","x"}) << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n\n";
+				}	

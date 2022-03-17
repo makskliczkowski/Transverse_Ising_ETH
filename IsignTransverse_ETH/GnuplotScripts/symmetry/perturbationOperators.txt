@@ -1,0 +1,23 @@
+cd '.\perturbation data\OperatorDiff'
+reset
+set autoscale
+set xrange[-0.10:0.1]
+set logscale y
+L=18
+g = 0.8
+h = 1.00
+set title sprintf("Probability distribution of difference {/Symbol d}O_{nn} = O_{nn}(g+{/Symbol d},h+{/Symbol d}) - O_{nn}(g,h)\n\
+with g=%0.2f and h=%0.2f", g, h)
+set ylabel 'P({/Symbol d}O_{nn})'
+set xlabel '{/Symbol d}O_{nn}'
+set key vertical inside right top
+set key spacing 1
+
+
+plot sprintf("perturbationOperatorsDist_L=%d,g=%0.2f,h=%0.2f,k=0,p=-1,x=1,pert=0.0050.dat", L, g, h) every ::1 w lp title '{/Symbol d}=0.005',\
+sprintf("perturbationOperatorsDist_L=%d,g=%0.2f,h=%0.2f,k=0,p=-1,x=1,pert=0.0150.dat", L, g, h) every ::1 w lp title '{/Symbol d}=0.015',\
+sprintf("perturbationOperatorsDist_L=%d,g=%0.2f,h=%0.2f,k=0,p=-1,x=1,pert=0.0350.dat", L, g, h) every ::1 w lp title '{/Symbol d}=0.035',\
+sprintf("perturbationOperatorsDist_L=%d,g=%0.2f,h=%0.2f,k=0,p=-1,x=1,pert=0.0650.dat", L, g, h) every ::1 w lp title '{/Symbol d}=0.065'
+
+cd '..\'
+cd '..\'

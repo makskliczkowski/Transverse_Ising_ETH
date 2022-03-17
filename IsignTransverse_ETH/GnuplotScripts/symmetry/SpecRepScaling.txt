@@ -1,0 +1,20 @@
+cd '.\Size scaling'
+reset
+set autoscale xy
+set size square
+set logscale y
+set ylabel 'z_n'
+set xlabel 'L - system size'
+set key inside right vertical
+
+g=0.8
+L = 16
+set title sprintf("Outliers of z_n = <{/Symbol s}_0^x>_{n+1,n+1} - <{/Symbol s}_0^x>_{n,n} \n with g=%0.2f and h=%0.2f", g, h)
+
+plot 'SpectrumRapScalingSigmaX_g=0.81,h=1.00,k=0,p=1,x=1.dat' u 1:2 w lp pt 6 ps 1 title 'average',\
+'SpectrumRapScalingSigmaX_g=0.81,h=1.00,k=0,p=1,x=1.dat' u 1:3 w lp pt 6 ps 1 title '1^{st} outlier',\
+'SpectrumRapScalingSigmaX_g=0.81,h=1.00,k=0,p=1,x=1.dat' u 1:4 w lp pt 6 ps 1 title '2^{nd} outlier',\
+'SpectrumRapScalingSigmaX_g=0.81,h=1.00,k=0,p=1,x=1.dat' u 1:5 w lp pt 6 ps 1 title '3^{rd} outlier',\
+'SpectrumRapScalingSigmaX_g=0.81,h=1.00,k=0,p=1,x=1.dat' u 1:6 w lp pt 6 ps 1 title '4^{th} outlier'
+
+cd '..\'

@@ -1,0 +1,30 @@
+cd '.\Probability Distributions\Operators'
+reset
+set autoscale xy
+
+L=18
+g = 0.72
+
+set xrange[0:0.15]
+set yrange[0.01:100]
+set logscale y
+
+set ylabel 'P({/Symbol d}{/Symbol s}_{nn})'
+set xlabel '{/Symbol d}{/Symbol s}_{nn}'
+
+set title sprintf("Probability distribution of {/Symbol d}{/Symbol s}_{nn} = {/Symbol s}_{nn} - <{/Symbol s}_{nn}>\n\
+ with g = %.2f and L = %d", g, L)
+
+set key outside right vertical 
+set key spacing 1
+
+plot sprintf("ProbDistSigmaX_L=%d,g=%.2f,h=%.2f,k=1,p=1,x=1.dat", L, g, 0.4) u 1:2 with lp title 'h = 0.4',\
+sprintf("ProbDistSigmaX_L=%d,g=%.2f,h=%.2f,k=1,p=1,x=1.dat", L, g, 0.8) u 1:2 with lp title 'h = 0.8',\
+sprintf("ProbDistSigmaX_L=%d,g=%.2f,h=%.2f,k=1,p=1,x=1.dat", L, g, 1.2) u 1:2 with lp title 'h = 1.2',\
+sprintf("ProbDistSigmaX_L=%d,g=%.2f,h=%.2f,k=1,p=1,x=1.dat", L, g, 1.6) u 1:2 with lp title 'h = 1.6',\
+sprintf("ProbDistSigmaX_L=%d,g=%.2f,h=%.2f,k=1,p=1,x=1.dat", L, g, 2.0) u 1:2 with lp title 'h = 2.0',\
+sprintf("ProbDistSigmaX_L=%d,g=%.2f,h=%.2f,k=1,p=1,x=1.dat", L, g, 2.5) u 1:2 with lp title 'h = 2.5',\
+sprintf("ProbDistSigmaX_L=%d,g=%.2f,h=%.2f,k=1,p=1,x=1.dat", L, g, 3.0) u 1:2 with lp title 'h = 3.0'
+
+cd '..\'
+cd '..\'

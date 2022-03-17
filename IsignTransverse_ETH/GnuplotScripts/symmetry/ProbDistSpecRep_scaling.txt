@@ -1,0 +1,25 @@
+cd '.\Probability Distributions\Spectrum Repulsion'
+reset
+set autoscale xy
+unset logscale
+set size square
+set xrange[0:0.1]
+set ylabel 'P(|r|)'
+set xlabel '|r|'
+set key vertical inside right top
+set logscale y
+g=0.81
+h=0.93
+set title sprintf("Probability distribution of difference of z_n = <{/Symbol s}_0^x>_{n+1,n+1} - <{/Symbol s}_0^x>_{n,n} \n with g=%0.2f and h=%0.2f", g, h)
+
+plot sprintf("ProbDistSpecRapSigmaX_L=8,g=%0.2f,h=%0.2f,k=2,p=-1,x=-1.dat", g, h) w lp title 'L=8',\
+sprintf("ProbDistSpecRapSigmaX_L=10,g=%0.2f,h=%0.2f,k=2,p=-1,x=-1.dat", g, h) w lp title 'L=10',\
+sprintf("ProbDistSpecRapSigmaX_L=12,g=%0.2f,h=%0.2f,k=2,p=-1,x=-1.dat", g, h) w lp title 'L=12',\
+sprintf("ProbDistSpecRapSigmaX_L=14,g=%0.2f,h=%0.2f,k=2,p=-1,x=-1.dat", g, h) w lp title 'L=14',\
+sprintf("ProbDistSpecRapSigmaX_L=16,g=%0.2f,h=%0.2f,k=2,p=-1,x=-1.dat", g, h) w lp title 'L=16',\
+sprintf("ProbDistSpecRapSigmaX_L=18,g=%0.2f,h=%0.2f,k=2,p=-1,x=-1.dat", g, h) w lp title 'L=18',\
+sprintf("ProbDistSpecRapSigmaX_L=20,g=%0.2f,h=%0.2f,k=2,p=-1,x=-1.dat", g, h) w lp title 'L=20',\
+sprintf("ProbDistSpecRapSigmaX_L=22,g=%0.2f,h=%0.2f,k=2,p=-1,x=-1.dat", g, h) w lp title 'L=22'
+
+cd '..\'
+cd '..\'

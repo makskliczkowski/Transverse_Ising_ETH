@@ -1,0 +1,24 @@
+cd '.\Probability Distributions\Operators'
+set autoscale xy
+
+set xrange[-0.3:0.3]
+set ylabel 'P({/Symbol d}{/Symbol s}_{nn})'
+set xlabel '{/Symbol d}{/Symbol s}_{nn}'
+
+set title sprintf("Probability distribution of {/Symbol d}O_{nn} = O_{nn} - <O_{nn}>\n\
+ with g = 0.81 and h=1.0 for O = {/Symbol s}_0^x")
+
+set key inside top right
+set key spacing 1
+
+plot sprintf("ProbDistSigmaX_L=12,g=0.81,h=1.00,k=0,p=1,x=1.dat", g, h) u 1:2 with lp title 'L = 12',\
+sprintf("ProbDistSigmaX_L=13,g=0.81,h=1.00,k=0,p=1,x=1.dat", g, h) u 1:2 with lp title 'L = 13',\
+sprintf("ProbDistSigmaX_L=14,g=0.81,h=1.00,k=0,p=1,x=1.dat", g, h) u 1:2 with lp title 'L = 14',\
+sprintf("ProbDistSigmaX_L=15,g=0.81,h=1.00,k=0,p=1,x=1.dat", g, h) u 1:2 with lp title 'L = 15',\
+sprintf("ProbDistSigmaX_L=16,g=0.81,h=1.00,k=0,p=1,x=1.dat", g, h) u 1:2 with lp title 'L = 16',\
+sprintf("ProbDistSigmaX_L=17,g=0.81,h=1.00,k=0,p=1,x=1.dat", g, h) u 1:2 with lp title 'L = 17',\
+sprintf("ProbDistSigmaX_L=18,g=0.81,h=1.00,k=0,p=1,x=1.dat", g, h) u 1:2 with lp title 'L = 18',\
+sprintf("ProbDistSigmaX_L=19,g=0.81,h=1.00,k=0,p=1,x=1.dat", g, h) u 1:2 with lp title 'L = 19'
+
+cd '..\'
+cd '..\'
