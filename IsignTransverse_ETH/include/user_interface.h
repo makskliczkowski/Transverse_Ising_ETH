@@ -192,6 +192,8 @@ namespace isingUI
 
 		template <typename _type> void timeEvolution(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name = "STH");
 		template <typename _type> auto timeEvolution(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, const arma::vec& times) -> std::pair<arma::vec, double>;
+		void entropy_evolution();
+
 		void relaxationTimesFromFiles();
 		void intSpecFun_from_timeEvol();
 		

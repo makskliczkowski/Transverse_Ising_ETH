@@ -1,5 +1,66 @@
 #include "include/user_interface.h"
-
+void print_help(){
+	printf(
+		" Usage: name of executable [options] outputDirectory \n"
+		" The input can be both introduced with [options] described below or with giving the input directory(which also is the flag in the options)\n"
+		" options:\n"
+		"-f input file for all of the options : (default none)\n"
+		"-mu bucket size for ergodic coefficients (default 5)\n"
+		"-J spin exchange coefficient : (default 1)\n"
+		"-J0 random spin exchange set in uniform distribution [-J0,J0]\n"
+		"-g transverse magnetic field (x-) constant: (default 1)\n"
+		"-gs transverse magnetic field (x-) constant step: (default 0.0)\n"
+		"-gn transverse magnetic field (x-) constant number: (default 1)\n"
+		"-g0 random transverse field set in uniform distribution [-g0,g0]\n"
+		"-g0s transverse disorder strength step: (default 0.0)\n"
+		"-g0n transverse disorder strength number: (default 1)\n"
+		"-h perpendicular (z-) magnetic field constant: (default 0)\n"
+		"-hs perpendicular (z-) magnetic field constant step: (default 0.0)\n"
+		"-hn perpendicular (z-) magnetic field constant number: (default 1)\n"
+		"-w disorder strength : (default 0 - no disorder introduced)\n"
+		"-ws disorder strength step: (default 0.0)\n"
+		"-wn disorder strength number: (default 1)\n"
+		"-L chain length minimum: bigger than 0 (default 8)\n"
+		"-Ls chain length step: bigger equal than 0 (default 0)\n"
+		"-Ln chain length number: bigger than 0 (default 1)\n"
+		"-b boundary conditions : bigger than 0 (default 0 - PBC)\n"
+		"	0 -- PBC\n"
+		"	1 -- OBC\n"
+		"	2 -- ABC -- none so far implemented\n"
+		"-s site to act with local operators (default 0)"
+		"-op flag to choose operator: "
+		"	0 -- Sz_i-local"
+		"	1 -- Sx_i-local"
+		"	2 -- Hi"
+		"	3 -- Sz_q"
+		"	4 -- Sx_q"
+		"	5 -- Hq"
+		"	  -- to get sum of local Sz or Sx take Sz_q or Sx_q with -s=0"
+		"	  -- i or q are set to site (flag -s); (default 0)"
+		""
+		"-fun choose function to start calculations: check user_interface.cpp -> make_sim() to find functions"
+		"	0 -- time evolution (and spectral functions) for disordered model:\n\t\t set -op for operator and -s for acting site"
+		"	1 -- AGPs for small disorder (-m=0) as function of h for input operator from -op flag\n\t\tSET: -L, -Ln, -Ls, -h, -hn, -hs, -op, -w(default=0.01)"
+		"	2 -- AGPs for small disorder (-m=0) as function of g for input operator from -op flag\n\t\tSET: -L, -Ln, -Ls, -g, -gn, -gs, -op, -w(default=0.01)"
+		"	3 -- LIOMs of Tranverse-field-Ising-model:\n\t\t onlt global LIOMs of order n set by -s"
+		"	4 -- relaxation times from integrated spectral function for:\n\t\t operator -op flag on site -s flag\
+				(also derivative of integrated spectral function is calculated)\n\t\tlooped over system sizes: -L, -Ls, -Ln and sites: from 0 to L/2"
+		"   5 -- benchmark diagonalization routines vs CPU count:\n\t\tlooped over different system sizes set by -L, -Ln, -Ls\n\t\tfor number of threads: 1, 2, 4, 8, 16, 24, 32, 40, 48, 64"
+		"	6 -- evolution of entropy from initial state chosen by the -op flag:"
+		"		 \n\t\t* op=0 -- random initial product state averaged over -r realisations"
+		"		 \n\t\t* op=1 -- fully ferromagnetically polarised state |111111...>"
+		"		 \n\t\t* op=2 -- fully anti-ferromagnetically polarised state |111111...>"
+		" def -- in make_sim space for user to write function; designed for non-builtin behavior"
+		""
+		"-m model to be choosen : (default 0 - without symmetries)\n"
+		"	0 -- nonsymmetric model - only here the disorder is working\n"
+		"	1 -- include symmetries - here the parity flag is also working\n"
+		"-k translation symetry sector, 0-L, (default 0)\n"
+		"-p parity symmetry sector, +-1 (if applicable) (default 1)\n"
+		"-x spin flip symmetry sector, +-1 (if applicable) (default 1)\n"
+		"-th number of threads to be used for CPU parallelization : depends on the machine specifics, default(1)"
+		"-h quit with help\n");
+}
 /// <summary>
 /// We want to handle files so let's make the c-way input a string
 /// </summary>
@@ -111,6 +172,8 @@ void isingUI::ui::printAllOptions() const
 			  << "p-sector = " << (this->symmetries.p_sym ? 1 : -1) << std::endl
 			  << "x-sector = " << (this->symmetries.x_sym ? 1 : -1) << std::endl;
 	stout << "---------------------------------------------------------------------------------\n\n";
+	print_help();
+	stout << "---------------------------------------------------------------------------------\n\n";
 }
 // ----------------------------------------------------------------------------- Connected with the parser
 /// <summary>
@@ -183,60 +246,7 @@ isingUI::ui::ui(int argc, char **argv)
 /// </summary>
 void isingUI::ui::exit_with_help() const
 {
-	printf(
-		" Usage: name of executable [options] outputDirectory \n"
-		" The input can be both introduced with [options] described below or with giving the input directory(which also is the flag in the options)\n"
-		" options:\n"
-		"-f input file for all of the options : (default none)\n"
-		"-mu bucket size for ergodic coefficients (default 5)\n"
-		"-J spin exchange coefficient : (default 1)\n"
-		"-J0 random spin exchange set in uniform distribution [-J0,J0]\n"
-		"-g transverse magnetic field (x-) constant: (default 1)\n"
-		"-gs transverse magnetic field (x-) constant step: (default 0.0)\n"
-		"-gn transverse magnetic field (x-) constant number: (default 1)\n"
-		"-g0 random transverse field set in uniform distribution [-g0,g0]\n"
-		"-g0s transverse disorder strength step: (default 0.0)\n"
-		"-g0n transverse disorder strength number: (default 1)\n"
-		"-h perpendicular (z-) magnetic field constant: (default 0)\n"
-		"-hs perpendicular (z-) magnetic field constant step: (default 0.0)\n"
-		"-hn perpendicular (z-) magnetic field constant number: (default 1)\n"
-		"-w disorder strength : (default 0 - no disorder introduced)\n"
-		"-ws disorder strength step: (default 0.0)\n"
-		"-wn disorder strength number: (default 1)\n"
-		"-L chain length minimum: bigger than 0 (default 8)\n"
-		"-Ls chain length step: bigger equal than 0 (default 0)\n"
-		"-Ln chain length number: bigger than 0 (default 1)\n"
-		"-b boundary conditions : bigger than 0 (default 0 - PBC)\n"
-		"	0 -- PBC\n"
-		"	1 -- OBC\n"
-		"	2 -- ABC\n"
-		"-s site to act with local operators (default 0)"
-		"-op flag to choose operator: "
-		"	0 -- Sz_i-local"
-		"	1 -- Sx_i-local"
-		"	2 -- Hi"
-		"	3 -- Sz_q"
-		"	4 -- Sx_q"
-		"	5 -- Hq"
-		"	-- i or q are set to site (flag -s); (default 0 -> local Sz)"
-		""
-		"-fun choose function to start calculations"
-		"	0 -- time evolution (and spectral functions) with disorder --> LIOMsdisorder(...)"
-		"	1 -- AGPs for small disorder (-m=0) as function of h for input operator from -op flag\n\t\t\t\tSET: -L, -Ln, -Ls, -h, -hn, -hs, -op, -w(default=0.01)"
-		"	2 -- AGPs for small disorder (-m=0) as function of g for input operator from -op flag\n\t\t\t\tSET: -L, -Ln, -Ls, -g, -gn, -gs, -op, -w(default=0.01)"
-		"	3 -- LIOMs of Tranverse-field-Ising-model --> TFIsingLIOMs()"
-		"	4 -- relaxation times from integrated spectral function for operator -op flag on site -s flag"
-		"   5 -- benchmark diagonalization routines vs CPU count"
-		" def -- in make_sim space for user to write function; desifned for non-builtin behavior"
-		""
-		"-m model to be choosen : (default 0 - without symmetries)\n"
-		"	0 -- nonsymmetric model - only here the disorder is working\n"
-		"	1 -- include symmetries - here the parity flag is also working\n"
-		"-k translation symetry sector, 0-L, (default 0)\n"
-		"-p parity symmetry sector, +-1 (if applicable) (default 1)\n"
-		"-x spin flip symmetry sector, +-1 (if applicable) (default 1)\n"
-		"-th number of threads to be used for CPU parallelization : depends on the machine specifics, default(1)"
-		"-h quit with help\n");
+	print_help();
 	std::exit(1);
 }
 
@@ -2691,6 +2701,9 @@ void isingUI::ui::compare_entaglement()
 	std::cout << std::endl;
 }
 
+void isingUI::ui::entropy_evolution(){
+
+}
 //----------------------------------------------------------------------------------------------------------------UI main
 void isingUI::ui::make_sim()
 {
@@ -2719,10 +2732,10 @@ void isingUI::ui::make_sim()
 	case 3:
 		TFIsingLIOMs();
 		break;
-	case 4:
-		// for (this->site = 0; this->site <= this->L / 2; this->site++)
+	case 4:		
 		for (this->L = Lmin; this->L < Lmax; this->L += this->Ls)
-			relaxationTimesFromFiles();
+			for (this->site = 0; this->site <= this->L / 2; this->site++)
+				relaxationTimesFromFiles();
 		break;
 	case 5:
 		benchmark();
