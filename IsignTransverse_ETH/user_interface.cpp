@@ -40,16 +40,18 @@ void print_help(){
 		""
 		"-fun choose function to start calculations: check user_interface.cpp -> make_sim() to find functions"
 		"	0 -- time evolution (and spectral functions) for disordered model:\n\t\t set -op for operator and -s for acting site"
-		"	1 -- AGPs for small disorder (-m=0) as function of h for input operator from -op flag\n\t\tSET: -L, -Ln, -Ls, -h, -hn, -hs, -op, -w(default=0.01)"
-		"	2 -- AGPs for small disorder (-m=0) as function of g for input operator from -op flag\n\t\tSET: -L, -Ln, -Ls, -g, -gn, -gs, -op, -w(default=0.01)"
+		"	1 -- AGPs for small disorder (-m=0) as function of h for -ch=1 or as function of g for -ch=0 for input operator from -op flag"
+		"		SET: -L, -Ln, -Ls, -h, -hn, -hs, -op, -w(default=0.01)"
+		"	2 -- evolution of entropy from initial state chosen by the -op flag:"
+		"		for both models (-m flag) and possible to use lanczos iterative method by setting -ch=1"
+		"		use -mu to set number of lanczos steps (<10 is enough) and -ts as time step (divided by E_max - E_min): 0.1 is sufficient"
+		"			* op=0 -- random initial product state averaged over -r realisations"
+		"			* op=1 -- fully ferromagnetically polarised state |111111...>"
+		"			* op=2 -- fully anti-ferromagnetically polarised state |111111...>"
 		"	3 -- LIOMs of Tranverse-field-Ising-model:\n\t\t onlt global LIOMs of order n set by -s"
 		"	4 -- relaxation times from integrated spectral function for:\n\t\t operator -op flag on site -s flag\
 				(also derivative of integrated spectral function is calculated)\n\t\tlooped over system sizes: -L, -Ls, -Ln and sites: from 0 to L/2"
 		"   5 -- benchmark diagonalization routines vs CPU count:\n\t\tlooped over different system sizes set by -L, -Ln, -Ls\n\t\tfor number of threads: 1, 2, 4, 8, 16, 24, 32, 40, 48, 64"
-		"	6 -- evolution of entropy from initial state chosen by the -op flag:"
-		"		 \n\t\t* op=0 -- random initial product state averaged over -r realisations"
-		"		 \n\t\t* op=1 -- fully ferromagnetically polarised state |111111...>"
-		"		 \n\t\t* op=2 -- fully anti-ferromagnetically polarised state |111111...>"
 		" def -- in make_sim space for user to write function; designed for non-builtin behavior"
 		""
 		"-m model to be choosen : (default 0 - without symmetries)\n"
@@ -59,6 +61,8 @@ void print_help(){
 		"-p parity symmetry sector, +-1 (if applicable) (default 1)\n"
 		"-x spin flip symmetry sector, +-1 (if applicable) (default 1)\n"
 		"-th number of threads to be used for CPU parallelization : depends on the machine specifics, default(1)"
+		"-ch general boolean flag used in different context (default: 0)"
+		"-ts time step for evolution (default: 0.1)"
 		"-h quit with help\n");
 }
 /// <summary>
@@ -155,7 +159,9 @@ void isingUI::ui::printAllOptions() const
 		  << "thread_num = " << this->thread_number << std::endl
 		  << "site = " << this->site << std::endl
 		  << "operator = " << opName << std::endl
-		  << "bucket size = " << this->mu << std::endl;
+		  << "bucket size = " << this->mu << std::endl
+		  << "time step = " << this->ts << std::endl
+		  << "boolean value = " << this->ch << std::endl;
 
 	if (this->m == 0)
 		stout << "J0  = " << this->J0 << std::endl
@@ -220,6 +226,9 @@ void isingUI::ui::set_default()
 	this->m = 0;
 	this->p = true;
 	this->thread_number = 1;
+
+	this->ch = false;
+	this->ts = 0.1;
 }
 
 // ------------------------------------- CONSTURCTORS
@@ -328,6 +337,12 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv)
 	// choose operator
 	choosen_option = "-op";
 	this->set_option(this->op, argv, choosen_option);
+
+	// time step and boolean value
+	choosen_option = "-ts";
+	this->set_option(this->ts, argv, choosen_option);
+	choosen_option = "-ch";
+	this->set_option(this->ch, argv, choosen_option);
 
 	// model
 	choosen_option = "-m";
@@ -1943,7 +1958,7 @@ void isingUI::ui::adiabaticGaugePotential_dis(bool h_vs_g)
 			double typ_susc = 0, AGP = 0;
 			int counter = 0;
 			if (this->realisations > 1)
-				average_over_realisations<double &, double &, int &>(*alfa, true, getValues, AGP, typ_susc, counter);
+				average_over_realisations<double, double &, double &, int &>(*alfa, true, getValues, AGP, typ_susc, counter);
 			else
 			{
 				alfa->diagonalization();
@@ -2702,7 +2717,98 @@ void isingUI::ui::compare_entaglement()
 }
 
 void isingUI::ui::entropy_evolution(){
+	clk::time_point start = std::chrono::system_clock::now();
+	// ----------- generate kernel
+	auto kernel = [this, start](auto& alfa){
+		stout << "\n\t\t--> finished creating model for " << alfa.get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
+		const size_t N = alfa.get_hilbert_size();
+		const double tH = 1. / alfa.mean_level_spacing_analytical();
+		int t_max = (int)std::ceil(std::log10(tH));
+		t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
 
+		// ----------- predefinitions
+		arma::vec times, entropy;
+		std::string dir = this->saving_dir + "Entropy" + kPSep;
+		std::function<void()> to_ave_time;
+		arma::vec down = {0, 1};
+		arma::vec up = {1, 0};
+		std::uniform_real_distribution<double> theta(0, pi);
+		std::uniform_real_distribution<double> fi(0, pi);
+		alfa.reset_random();
+		auto set_init_state = [&theta, &fi, this, &up, &down](){
+			auto the = theta(gen);
+			arma::cx_vec init_state = std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down;
+			for (int j = 1; j < this->L; j++)
+			{
+				the = theta(gen);
+				init_state = arma::kron(init_state, std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down);
+			}
+			return init_state;
+		};
+		stout << "\t\t	-->set random generators for " << alfa.get_info()
+					<< " - in time : " << tim_s(start) << "s" << std::endl;
+		// ----------- diagonalize
+		stout << "\t\t	--> start diagonalizing for " << alfa.get_info()
+				<< " - in time : " << tim_s(start) << "s" << std::endl;
+		if(this->ch){
+			dir += "Lanczos" + kPSep;
+			int M = 200;
+			auto H = alfa.get_hamiltonian();
+			lanczos::Lanczos lancz(H, lanczosParams(M, 1, true, false));
+			lancz.diagonalization();
+			double omega_max = lancz.get_eigenvalues()(M - 1) - lancz.get_eigenvalues()(0);
+			double dt = this->ts / omega_max;
+			times = arma::regspace(dt, dt, t_max);
+			entropy = arma::vec(times.size(), arma::fill::zeros);
+			to_ave_time = [&]()
+				{
+					arma::cx_vec changing_state = arma::normalise(set_init_state());
+					for (int i = 0; i < times.size(); i++)
+					{
+						auto t = times(i);
+						auto state = lancz.time_evolution_non_stationary(changing_state, t - (i == 0 ? 0.0 : times(i - 1)), M);
+						entropy(i) += alfa.entaglement_entropy(state, this->L / 2);
+						changing_state = state;
+					}
+				};
+		} else{
+			alfa.diagonalization();
+			times = arma::logspace(-2, t_max, 200);
+			entropy = arma::vec(times.size(), arma::fill::zeros);
+			to_ave_time = [&]()
+				{
+					arma::cx_vec init_state = arma::normalise(set_init_state());
+					for (int i = 0; i < times.size(); i++)
+					{
+						auto t = times(i);
+						arma::cx_vec state = init_state;
+						alfa.time_evolve_state(state, t);
+						entropy(i) += alfa.entaglement_entropy(state, this->L / 2);
+					}
+				};
+		}
+		stout << "\t\t	--> finished diagonalizing for " << alfa.get_info()
+					<< " - in time : " << tim_s(start) << "s" << std::endl;
+		createDirs(dir);
+		average_over_realisations<>(alfa, false, to_ave_time);
+		entropy /= double(this->realisations);
+		std::ofstream file;
+		openFile(file, dir + "TimeEvolution" + alfa.get_info({}) + ".dat");
+		for (int j = 0; j < times.size(); j++)
+			printSeparated(file, "\t", 16, true, times(j), entropy(j));
+		
+		file.close();
+	};
+	// ----------- choose model and run kernel
+	if(this->m){
+		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
+								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+		kernel(*alfa);
+	} else{
+		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+		kernel(*alfa);
+	}
+	
 }
 //----------------------------------------------------------------------------------------------------------------UI main
 void isingUI::ui::make_sim()
@@ -2724,10 +2830,10 @@ void isingUI::ui::make_sim()
 		LIOMsdisorder();
 		break;
 	case 1:
-		adiabaticGaugePotential_dis(1);
+		adiabaticGaugePotential_dis(this->ch);
 		break;
 	case 2:
-		adiabaticGaugePotential_dis(0);
+		entropy_evolution();
 		break;
 	case 3:
 		TFIsingLIOMs();

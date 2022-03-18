@@ -57,10 +57,12 @@ namespace lanczos {
 			const arma::cx_vec& random_vec = arma::cx_vec()
 		) : H(arma::sp_cx_mat(hamiltonian, arma::sp_mat(hamiltonian.n_cols, hamiltonian.n_cols))),
 			params(std::move(input_params)), initial_random_vec(random_vec)
-		{
-			initialize();
-		}
+		{ initialize(); }
 
+		Lanczos(const Lanczos& input_model) = default;
+		Lanczos(Lanczos&& input_model) noexcept = default;
+		auto operator=(const Lanczos& input_model){ return Lanczos(input_model); };
+		//auto operator=(Lanczos&& input_model) noexcept { return Lanczos(std::move(input_model)); };
 		//------------------------------------------------------------------------------------------------ DIAGONALIZING MATRIX
 		void build(const arma::cx_vec& random_vec = arma::cx_vec());
 

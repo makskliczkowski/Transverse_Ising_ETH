@@ -82,7 +82,9 @@ namespace isingUI
 		{"p","0"},						// use parity symmetry?
 		{"th","1"},						// number of threads
 		{"op","0"},						// choose operator
-		{"fun","-1"}					// choose function 
+		{"fun","-1"},					// choose function 
+		{"ch", "0"},					// some boolean choose flag
+		{"ts", "0.1"}					// time step for evolution
 	};
 
 	// ----------------------------------- UI CLASS SPECIALISATION -----------------------------------
@@ -95,13 +97,13 @@ namespace isingUI
 		double hs, gs, ws, g0s;															// external fields step
 		double w, g0, J0;																// disorder strengths
 		int L, Ls, Ln, m;																// lattice params
-		bool p, q;																		//
+		bool p, q, ch;																	// boolean values
 		int realisations;																// number of realisations to average on for disordered case - symmetries got 1
 		int mu;																			// small bucket for the operator fluctuations to be averaged onto
 		int site;																		// site for operator averages
 		int op;																			// choose operator
 		int fun;																		// choose function to start calculations
-		
+		double ts;																		// time step for evolution
 		struct {
 			int k_sym;																	// translational symmetry generator
 			int p_sym;																	// parity symmetry generator
@@ -163,8 +165,8 @@ namespace isingUI
 				}
 			}
 		}
-		template <typename... _types> void average_over_realisations(
-			IsingModel_disorder& model,				   //!< input model with disorder
+		template <typename _ty, typename... _types> void average_over_realisations(
+			IsingModel<_ty>& model,				   	   //!< input model (symmetric model has to have average over external random stuff)
 			bool with_diagonalization,				   //!< checked if each realisation should diagonalize a new matrix
 			std::function<void(_types...args)> lambda, //!< callable function
 			_types... args							   //!< arguments passed to callable interface lambda

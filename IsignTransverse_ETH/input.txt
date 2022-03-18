@@ -1,1 +1,1 @@
--L 14 -Ln 1 -Ls 1 -g 0.05 -gs 0.05 -gn 20 -h 0.1 -hs 0.1 -hn 25 -w 0.01 -th 20 -m 0 -w 0.01 -r 1 -op 0 -fun 4 -s 0 -b 0
+-L 12 -Ln 1 -Ls 1 -g 0.6 -gs 0.05 -gn 1 -h 0.8 -hs 0.1 -hn 1 -w 0.01 -th 10 -m 0 -w 0.01 -r 1 -op 0 -fun 2 -s 0 -b 0 -mu 5 -ts 0.01 -ch 1
