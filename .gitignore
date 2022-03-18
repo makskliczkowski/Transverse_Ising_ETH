@@ -19,7 +19,8 @@
 *.zip
 *.pdf
 *.rar
-*.sh
+slurm-*.out
+#*.sh
 # *.txt to keep gnuplot scripts
 # *.dat
 # whole folders will be ignored
