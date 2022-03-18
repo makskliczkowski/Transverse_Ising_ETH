@@ -7,7 +7,17 @@
 						}
 
 namespace lanczos {
+	inline
+		void Lanczos::diagonalization()
+	{
+		try_alloc(this->build(););
+		arma::eig_sym(
+			this->eigenvalues,
+			this->eigenvectors,
+			this->H_lanczos
+		);
 
+	}
 	inline
 	void Lanczos::diagonalization(
 		const arma::cx_vec& random	//<! random input
@@ -19,9 +29,9 @@ namespace lanczos {
 				this->eigenvectors,
 				this->H_lanczos
 			);
-		//if (!rand.is_empty())
-		//	this->initial_random_vec = rand;
-		//auto eigs = [this](arma::Mat<_type>& V) {
+		//if (!random.is_empty())
+		//	this->initial_random_vec = random;
+		//auto eigs = [this](arma::cx_mat& V) {
 		//	arma::eig_sym(
 		//		this->eigenvalues,
 		//		V,
@@ -30,12 +40,21 @@ namespace lanczos {
 		//};
 		//if (this->use_krylov) {
 		//	try_alloc(this->build_krylov(););
-		//	arma::Mat<_type> V;
-		//	eigs(V);
-		//	this->eigenvectors = this->krylov_space * V * this->krylov_space.t();
+		//	arma::cx_mat V; 
+		//	arma::eig_sym(
+		//		this->eigenvalues,
+		//		V,
+		//		this->H_lanczos
+		//	);
+		//	this->eigenvectors = this->krylov_space * V;
 		//} else {
 		//	try_alloc(this->build_lanczos(););
-		//	eigs(this->eigenvectors);
+		//	//eigs(this->eigenvectors);
+		//	arma::eig_sym(
+		//		this->eigenvalues,
+		//		this->eigenvectors,
+		//		this->H_lanczos
+		//	);
 		//}
 	}
 

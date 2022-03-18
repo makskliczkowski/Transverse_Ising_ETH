@@ -84,7 +84,8 @@ namespace isingUI
 		{"op","0"},						// choose operator
 		{"fun","-1"},					// choose function 
 		{"ch", "0"},					// some boolean choose flag
-		{"ts", "0.1"}					// time step for evolution
+		{"ts", "0.1"},					// time step for 
+		{"scale", "0"}					// scale: linear-0 or log-1
 	};
 
 	// ----------------------------------- UI CLASS SPECIALISATION -----------------------------------
@@ -104,6 +105,7 @@ namespace isingUI
 		int op;																			// choose operator
 		int fun;																		// choose function to start calculations
 		double ts;																		// time step for evolution
+		int scale;																		// choose scale: either linear or log
 		struct {
 			int k_sym;																	// translational symmetry generator
 			int p_sym;																	// parity symmetry generator
@@ -235,5 +237,24 @@ namespace isingUI
 		}
 	};
 }
+
+const arma::vec down = { 0, 1 };
+const arma::vec up = { 1, 0 };
+const std::uniform_real_distribution<double> theta	= std::uniform_real_distribution<double>(0.0, pi);
+const std::uniform_real_distribution<double> fi		= std::uniform_real_distribution<double>(0.0, pi);
+inline 
+arma::cx_vec random_product_state(int system_size) 
+{
+	auto the = theta(gen);
+	arma::cx_vec init_state = std::cos(the / 2.) * up 
+							+ std::exp(im * fi(gen)) * std::sin(the / 2.) * down;
+	for (int j = 1; j < system_size; j++)
+	{
+		the = theta(gen);
+		init_state = arma::kron(init_state, std::cos(the / 2.) * up 
+				   + std::exp(im * fi(gen)) * std::sin(the / 2.) * down);
+	}
+	return init_state;
+};
 
 #endif

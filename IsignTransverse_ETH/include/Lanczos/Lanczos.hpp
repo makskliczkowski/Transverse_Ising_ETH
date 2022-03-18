@@ -49,14 +49,17 @@ namespace lanczos {
 			const arma::sp_cx_mat& hamiltonian, 
 			lanczosParams&& input_params = lanczosParams(),
 			const arma::cx_vec& random_vec = arma::cx_vec()
-		) : H(hamiltonian), params(std::move(input_params)), initial_random_vec(random_vec)
+		) 
+			: H(hamiltonian), params(std::move(input_params)), initial_random_vec(random_vec)
 		{ initialize(); }
+
 		explicit Lanczos(
 			const arma::sp_mat& hamiltonian,
 			lanczosParams&& input_params = lanczosParams(),
 			const arma::cx_vec& random_vec = arma::cx_vec()
-		) : H(arma::sp_cx_mat(hamiltonian, arma::sp_mat(hamiltonian.n_cols, hamiltonian.n_cols))),
-			params(std::move(input_params)), initial_random_vec(random_vec)
+		) 
+			: H(arma::sp_cx_mat(hamiltonian, arma::sp_mat(hamiltonian.n_cols, hamiltonian.n_cols))),
+				params(std::move(input_params)), initial_random_vec(random_vec)
 		{ initialize(); }
 
 		Lanczos(const Lanczos& input_model) = default;
@@ -64,9 +67,11 @@ namespace lanczos {
 		auto operator=(const Lanczos& input_model){ return Lanczos(input_model); };
 		//auto operator=(Lanczos&& input_model) noexcept { return Lanczos(std::move(input_model)); };
 		//------------------------------------------------------------------------------------------------ DIAGONALIZING MATRIX
-		void build(const arma::cx_vec& random_vec = arma::cx_vec());
+		void build(const arma::cx_vec& random_vec);
+		void build();
 
-		void diagonalization(const arma::cx_vec& random_vec = arma::cx_vec());
+		void diagonalization();
+		void diagonalization(const arma::cx_vec& random_vec);
 		//TODO: some methods with return values
 
 		//------------------------------------------------------------------------------------------------ CAST STATES TO ORIGINAL HILBERT SPACE:
@@ -86,15 +91,15 @@ namespace lanczos {
 		
 		//------------------------------------------------------------------------------------------------ DYNAMICS
 		auto time_evolution_stationary(
-			const arma::cx_vec& input_state,
+			arma::cx_vec& input_state,
 			double time
-		) -> arma::cx_vec;
+		);
 
 		auto time_evolution_non_stationary(
-			const arma::cx_vec& prev_state,
+			arma::cx_vec& prev_state,
 			double dt,
 			int lanczos_steps = 10
-		) -> arma::cx_vec;
+		);
 	};
 };
 

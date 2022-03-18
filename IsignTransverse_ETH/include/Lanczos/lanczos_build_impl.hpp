@@ -53,7 +53,7 @@ namespace lanczos
 
 			H_lanczos(j, j) = alfa;
 			H_lanczos(j, j - 1) = beta;
-			H_lanczos(j - 1, j) = beta;
+			H_lanczos(j - 1, j) = conj(beta);
 
 			fi_prev = fi;
 		}
@@ -94,16 +94,19 @@ namespace lanczos
 
 			this->H_lanczos(j, j) = alfa;
 			this->H_lanczos(j, j - 1) = beta;
-			this->H_lanczos(j - 1, j) = beta;
+			this->H_lanczos(j - 1, j) = conj(beta);
 		}
 		this->randVec_inKrylovSpace = this->krylov_space.t() * this->initial_random_vec;
 	}
 
 	//<! general lanczos build selecting either memory efficient or with krylov space
 	inline
-	void Lanczos::build(const arma::cx_vec& rand) {
-		if (!rand.is_empty())
-			this->initial_random_vec = rand;
+	void Lanczos::build(const arma::cx_vec& random) {
+		this->initial_random_vec = random;
+		this->build();
+	}
+	inline
+	void Lanczos::build() {
 		if (this->use_krylov)
 			this->build_krylov();
 		else

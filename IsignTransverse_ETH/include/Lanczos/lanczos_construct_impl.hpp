@@ -8,8 +8,7 @@ namespace lanczos {
 				this->params.use_reorthogonalization 
 			&& !this->params.memory_over_performance;
 		this->ran = randomGen();
-		if (this->initial_random_vec.is_empty())
-			this->initial_random_vec = this->ran.create_random_vec<cpx>(N);
+		this->initial_random_vec = this->ran.create_random_vec<cpx>(N);
 		//this->model->saving_dir += "Lanczos/";
 		std::cout
 			<< "Model transfered to Lanczos wrapper with:\n"
