@@ -1,0 +1,1 @@
+slurmstepd: error: task/cgroup: task[0] infinite loop broken while trying to provision compute elements using unknown (bitmap:0x00ff0000,0xff00ff00,0x00ff0000,0xff00ff00)

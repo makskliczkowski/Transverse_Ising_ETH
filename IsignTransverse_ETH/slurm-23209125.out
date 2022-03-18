@@ -1,0 +1,7 @@
+slurmstepd: error: task/cgroup: task[0] infinite loop broken while trying to provision compute elements using unknown (bitmap:0x0000ffff,0x000000ff,0x0000ffff,0x000000ff)
+
+The following have been reloaded with a version change:
+  1) GCCcore/11.2.0 => GCCcore/10.3.0
+  2) binutils/2.37-GCCcore-11.2.0 => binutils/2.36.1-GCCcore-10.3.0
+  3) zlib/1.2.11-GCCcore-11.2.0 => zlib/1.2.11-GCCcore-10.3.0
+

@@ -1,0 +1,2 @@
+slurmstepd: error: task/cgroup: task[0] infinite loop broken while trying to provision compute elements using unknown (bitmap:0x0000ffff,0x000000ff,0x0000ffff,0x000000ff)
+/var/spool/slurmd/job23209121/slurm_script: line 24: 521788 Aborted                 ./Ising_bench.o -L 15 -Ln 8 -Ls 1 -g 0.7 -h 0.8 -w 0.01 -th 64 -m 0 -w 0.01 -r 1 -op 0 -fun 5 -s 1 -b 0 &>benchmark_${now}.txt

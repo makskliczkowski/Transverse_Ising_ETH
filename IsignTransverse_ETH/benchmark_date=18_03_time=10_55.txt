@@ -1,0 +1,1 @@
+/var/spool/slurmd/job23209123/slurm_script: line 24: ./Ising_bench.o: No such file or directory

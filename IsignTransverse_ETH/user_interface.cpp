@@ -2294,6 +2294,7 @@ void isingUI::ui::LIOMsdisorder() {
 
 void isingUI::ui::benchmark(bool full) {
 	if (full) {
+		const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
 		int th_max = this->thread_number;
 		std::ofstream file;
 		std::vector th_list = { 1, 2, 4, 8, 16, 24, 32, 40, 48, 64 };
@@ -2302,8 +2303,8 @@ void isingUI::ui::benchmark(bool full) {
 		openFile(file, this->saving_dir + "benchmark" + info + ".dat", std::ios::out);
 		file << "Maximum number of threads to parallelize diagonalization by OpenMP:\t " << ARMA_OPENMP_THREADS << std::endl;
 		printSeparated(file, "\t", 16, true, "#cores", "chain length", "dim", "with eigenvec 'dc'", "with eigenvec 'std'", "only eigenvalues", "in seconds");
-		if (this->m) {
-			for (int system_size = 8; system_size <= 22; system_size += 2) {
+		for(int system_size = Lmin; system_size <= Lmax; system_size += this->Ls){
+			if (this->m) {
 				for (auto& th : th_list) {
 					auto alfa = std::make_unique<IsingModel_sym>(system_size, this->J, this->g, this->h,
 						this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
@@ -2319,9 +2320,7 @@ void isingUI::ui::benchmark(bool full) {
 				}
 				file << std::endl;
 			}
-		}
-		else {
-			for (int system_size = 8; system_size <= 16; system_size += 1) {
+			else {
 				for (auto& th : th_list) {
 					auto alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 					omp_set_num_threads(th);
@@ -2487,13 +2486,14 @@ void isingUI::ui::make_sim() {
 
 					arma::vec down = { 0,1 };
 					arma::vec up = { 1,0 };
-					std::uniform_real_distribution<double> theta(0, pi);
-					std::uniform_real_distribution<double> fi(0, pi);
-					alfa->reset_random();
-					stout << "\t\t	-->set random generators for " << alfa->get_info()
-						<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
-					for(double x = 1e-3; x<=100; x *= 10){
+					
+					for(double x = 1e-2; x<=100; x *= 10){
 						for(int M = 2; M<=256; M *= 2){
+							std::uniform_real_distribution<double> theta(0, pi);
+							std::uniform_real_distribution<double> fi(0, pi);
+							alfa->reset_random();
+							stout << "\t\t	-->set random generators for " << alfa->get_info()
+								<< " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 							if(M >= alfa->get_hilbert_size()) continue;
 							double dt = x / omega_max;
 							auto times = arma::regspace(dt, dt, t_max);
