@@ -6,9 +6,9 @@
 
 const arma::vec down = { 0, 1 };
 const arma::vec up	 = { 1, 0 };
-const std::uniform_real_distribution<double> theta	= std::uniform_real_distribution<double>(0.0, pi);
-const std::uniform_real_distribution<double> fi		= std::uniform_real_distribution<double>(0.0, pi);
-
+extern std::uniform_real_distribution<> theta;
+extern std::uniform_real_distribution<> fi;
+// can't be const cause operator() is for non-const only (on microsoft it can be on const)
 using namespace std;
 std::vector<std::string> change_input_to_vec_of_str(int argc, char** argv);
 // ----------------------------------------------------------------------------- GENERAL CLASS -----------------------------------------------------------------------------
@@ -130,87 +130,32 @@ namespace isingUI
 
 		// ----------------------------------- SIMULATION
 		void make_sim() override;														// make default simulation
-		// --------------- DISORDER
-		void disorder();
+		
 		// --------------- COMPARISONS
 		void compare_energies();
 		void compare_matrix_elements(op_type op, int k_alfa, int k_beta, int p_alfa = 1, int p_beta = 1, int x_alfa = 1, int x_beta = 1);
 		void compare_entaglement();
 
-		// --------------- SYMMETRIES
-		void size_scaling_sym(int k, int p, int x);
-
-		void fidelity(std::initializer_list<int> symetries);
-
 		void benchmark(bool full = true);
-		//-------------------------------------------------------------------------- RARELY USED SWEEPS OF PARAMETERS
-		void parameter_sweep_sym(int k, int p, int x);
-		void check_dist_other_sector();
-		void matrix_elements_stat_sym(double min, double max, double step, double omega_dist, \
-			int omega_gauss_max, double energy_constraint, int energy_num, \
-			std::initializer_list<int> alfa_sym = {}, \
-			std::initializer_list<int> beta_sym = {}) const;
-
-
-		//-------------------------------------------------------------------------- SPECIFIC FOR MODELS
-		template <typename... _types> void loopSymmetrySectors(
-			std::function<void(int,int,int,_types...args)> lambda, //!< callable function
-			double hx,											   //!< longitudal field -- whether spin-flip symmetry is allowed
-			int Lx,												   //!< system size
-			_types... args										   //!< arguments passed to callable interface lambda
-		) {
-			const int x_max = (hx != 0) ? 0 : 1;
-			for (int k = 0; k < Lx; k++) {
-				if (k == 0 || k == Lx / 2.) {
-					for (int p = 0; p <= 1; p++)
-						for (int x = 0; x <= x_max; x++)
-							lambda(k, p, x, std::forward<_types>(args)...);
-				}
-				else {
-					for (int x = 0; x <= x_max; x++)
-						lambda(k, 0, x, std::forward<_types>(args)...);
-				}
-			}
-		}
-		template <typename _ty, typename... _types> 
-		void average_over_realisations(
-			IsingModel<_ty>& model,				   	   //!< input model (symmetric model has to have average over external random stuff)
-			bool with_diagonalization,				   //!< checked if each realisation should diagonalize a new matrix
-			std::function<void(_types...args)> lambda, //!< callable function
-			_types... args							   //!< arguments passed to callable interface lambda
-		) {
-			model.reset_random();
-			for (int r = 0; r < this->realisations; r++) {
-				if (with_diagonalization) {
-					model.hamiltonian();
-					model.diagonalization();
-				}
-				lambda(std::forward<_types>(args)...);
-			}
-		};
-		//template <typename... _types>
+		
 		//-------------------------------------------------------------------------- SPECTRAL PROPERTIES
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="alfa"> input model: cpx when with symmetries </param>
-		/// <param name="opMatrix"> input operator as sparse matrix </param>
-		/// <param name="name"> name for file to store data </param>
 		template <typename _type> void spectralFunction(IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name);
+		
 		template <typename _type> void integratedSpectralFunction(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name);
 		template <typename _type> auto integratedSpectralFunction(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, const arma::vec& omegas) -> arma::vec;
 
 		template <typename _type> void timeEvolution(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name = "STH");
 		template <typename _type> auto timeEvolution(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, const arma::vec& times) -> std::pair<arma::vec, double>;
-		void entropy_evolution();
+		
+		void calculate_spectrals();
 
+		
+		void entropy_evolution();
 		void relaxationTimesFromFiles();
 		void intSpecFun_from_timeEvol();
 		
-		template <typename _type> void IsingLIOMs(IsingModel<_type>& alfa);
 		void TFIsingLIOMs();
-		void LIOMsdisorder();
-
+		
 		template <typename _type> void LevelSpacingDist(IsingModel<_type>& alfa);
 		template <typename _type> std::pair<double, double> operator_norm(arma::sp_cx_mat& opMatrix, IsingModel<_type>& alfa);
 		void adiabaticGaugePotential_sym(bool SigmaZ = 0, bool avSymSectors = 0);
@@ -256,7 +201,42 @@ namespace isingUI
 			}
 			return init_state;
 		};
-
+		//-------------------------------------------------------------------------- GENERAL LAMBDA'S
+		template <typename... _types> void loopSymmetrySectors(
+			std::function<void(int,int,int,_types...args)> lambda, //!< callable function
+			double hx,											   //!< longitudal field -- whether spin-flip symmetry is allowed
+			int Lx,												   //!< system size
+			_types... args										   //!< arguments passed to callable interface lambda
+		) {
+			const int x_max = (hx != 0) ? 0 : 1;
+			for (int k = 0; k < Lx; k++) {
+				if (k == 0 || k == Lx / 2.) {
+					for (int p = 0; p <= 1; p++)
+						for (int x = 0; x <= x_max; x++)
+							lambda(k, p, x, std::forward<_types>(args)...);
+				}
+				else {
+					for (int x = 0; x <= x_max; x++)
+						lambda(k, 0, x, std::forward<_types>(args)...);
+				}
+			}
+		}
+		template <typename _ty, typename... _types> 
+		void average_over_realisations(
+			IsingModel<_ty>& model,				   	   //!< input model (symmetric model has to have average over external random stuff)
+			bool with_diagonalization,				   //!< checked if each realisation should diagonalize a new matrix
+			std::function<void(_types...args)> lambda, //!< callable function
+			_types... args							   //!< arguments passed to callable interface lambda
+		) {
+			model.reset_random();
+			for (int r = 0; r < this->realisations; r++) {
+				if (with_diagonalization) {
+					model.hamiltonian();
+					model.diagonalization();
+				}
+				lambda(std::forward<_types>(args)...);
+			}
+		};
 	};
 }
 
