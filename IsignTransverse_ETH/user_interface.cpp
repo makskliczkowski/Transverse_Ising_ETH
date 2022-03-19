@@ -2738,12 +2738,14 @@ void isingUI::ui::entropy_evolution(){
 		std::function<void()> to_ave_time;
 		alfa.reset_random();
 
-		auto set_init_state = [&, this](){
+		auto set_init_state = [N, this]() 
+			-> arma::cx_vec 
+		{
 			arma::cx_vec init_state(N, arma::fill::zeros);
 			switch (this->op) {
 			case 0: // random product state
 			{
-				init_state = random_product_state(this->L); 
+				init_state = this->random_product_state(this->L); 
 				break;
 			}
 			case 1: // ferromagnetically polarised
@@ -2762,10 +2764,16 @@ void isingUI::ui::entropy_evolution(){
 			default:
 				init_state = random_product_state(this->L); 
 			}
-			stout << init_state.t();
 			return arma::normalise(init_state);
 		};
-
+		auto set_times = [t_max, tH, this](double dt)
+			-> arma::vec
+		{
+			if (this->scale) stout << "WARNING: log only valid for t<<1, for larger t linear is resumed with dt = " << dt << std::endl;
+			auto init_log = arma::logspace((int)std::log10(dt) - 1, t_max, 2000);
+			auto rest_lin = arma::regspace(1.0, dt, tH);
+			return this->scale ? arma::join_cols(exctract_vector(init_log, 0.0, 1.0), rest_lin) : arma::regspace(dt, dt, tH);
+		};
 		stout << "\t\t	-->set random generators for " << alfa.get_info()
 					<< " - in time : " << tim_s(start) << "s" << std::endl;
 		// ----------- diagonalize
@@ -2779,7 +2787,7 @@ void isingUI::ui::entropy_evolution(){
 			lancz.diagonalization();
 			double omega_max = lancz.get_eigenvalues()(M - 1) - lancz.get_eigenvalues()(0);
 			dt = this->ts / omega_max;
-			times = this->scale ? arma::regspace(dt, dt, tH) : arma::logspace((int)std::log10(dt) - 1, t_max, 1000);
+			times = set_times(dt);
 			entropy = arma::vec(times.size(), arma::fill::zeros);
 
 			to_ave_time = [&, lancz]() mutable 
@@ -2795,7 +2803,7 @@ void isingUI::ui::entropy_evolution(){
 				};
 		} else{
 			alfa.diagonalization();
-			times = this->scale ? arma::regspace(dt, dt, tH) : arma::logspace(-2, t_max, 200);
+			times = set_times(dt);
 			entropy = arma::vec(times.size(), arma::fill::zeros);
 			to_ave_time = [&]()
 				{
@@ -2900,22 +2908,20 @@ void isingUI::ui::make_sim()
 					createDirs(dir);
 					double omega_max = alfa->get_eigenEnergy(alfa->get_hilbert_size() - 1) - alfa->get_eigenEnergy(0);
 
-					arma::vec down = {0, 1};
-					arma::vec up = {1, 0};
-
-					for (double x = 1e-2; x <= 100; x *= 10)
+					for (double x = 1e-2; x <= 10; x *= 2)
 					{
-						for (int M = 2; M <= 256; M *= 2)
+						double dt = x / omega_max;
+						if (this->scale) stout << "WARNING: log only valid for t<<1, for larger t linear is resumed with dt = " << dt << std::endl;
+						auto init_log = arma::logspace((int)std::log10(dt) - 1, t_max, 2000);
+						auto rest_lin = arma::regspace(1.0, dt, tH);
+						auto times = this->scale ? arma::join_cols(exctract_vector(init_log, 0.0, 1.0), rest_lin) : arma::regspace(dt, dt, tH);
+						for (int M = 2; M < 10; M++)
 						{
-							std::uniform_real_distribution<double> theta(0, pi);
-							std::uniform_real_distribution<double> fi(0, pi);
 							alfa->reset_random();
 							stout << "\t\t	-->set random generators for " << alfa->get_info()
 								  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 							if (M >= alfa->get_hilbert_size())
 								continue;
-							double dt = x / omega_max;
-							auto times = arma::regspace(dt, dt, t_max);
 							arma::vec entropy(times.size(), arma::fill::zeros);
 							arma::vec entropy_lanczos(times.size(), arma::fill::zeros);
 
@@ -2954,7 +2960,6 @@ void isingUI::ui::make_sim()
 							{
 								double diff = entropy(j) - entropy_lanczos(j);
 								printSeparated(file, "\t", 16, true, times(j), entropy(j), entropy_lanczos(j), diff);
-								printSeparated(std::cout, "\t", 16, true, times(j), entropy(j), entropy_lanczos(j), diff);
 							}
 							file.close();
 						}

@@ -877,7 +877,22 @@ std::complex<_ty> dot_prod(const _COLVEC1<std::complex<_ty>> & left, const _COLV
 	return arma::cdot(left, cpx_real_vec(right));
 }															
 											
-
+template <typename _ty>
+inline arma::Col<_ty> exctract_vector(
+	const arma::Col<_ty>& input_vec,	//<! input vector to exctract data from (assumed sorted)
+	_ty start, 							//<! first value of new vector (if lower than lowest in input_vec than taking from beggining)
+	_ty end								//<! last element to copy data
+) {
+	arma::Col<_ty> output(1, arma::fill::zeros);
+	for (auto& it : input_vec) {
+		if (it >= start && it <= end) {
+			int size = output.size();
+			output(size - 1) = it;
+			output.resize(size + 1);
+		}
+	}
+	return output;
+}
 //general_dot_prod(arma::Col,			arma::Col		 );
 //general_dot_prod(arma::subview_col, arma::Col		 );
 //general_dot_prod(arma::Col,			arma::subview_col);

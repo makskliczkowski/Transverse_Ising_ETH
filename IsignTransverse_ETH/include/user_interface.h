@@ -4,6 +4,11 @@
 //#include "headers.h"
 #include "IsingModel.h"
 
+const arma::vec down = { 0, 1 };
+const arma::vec up	 = { 1, 0 };
+const std::uniform_real_distribution<double> theta	= std::uniform_real_distribution<double>(0.0, pi);
+const std::uniform_real_distribution<double> fi		= std::uniform_real_distribution<double>(0.0, pi);
+
 using namespace std;
 std::vector<std::string> change_input_to_vec_of_str(int argc, char** argv);
 // ----------------------------------------------------------------------------- GENERAL CLASS -----------------------------------------------------------------------------
@@ -167,7 +172,8 @@ namespace isingUI
 				}
 			}
 		}
-		template <typename _ty, typename... _types> void average_over_realisations(
+		template <typename _ty, typename... _types> 
+		void average_over_realisations(
 			IsingModel<_ty>& model,				   	   //!< input model (symmetric model has to have average over external random stuff)
 			bool with_diagonalization,				   //!< checked if each realisation should diagonalize a new matrix
 			std::function<void(_types...args)> lambda, //!< callable function
@@ -235,26 +241,24 @@ namespace isingUI
 		std::vector<double> perturbative_stat_sym(IsingModel_sym& alfa) {
 			return perturbative_stat_sym(alfa, this->g, this->h);
 		}
+
+
+		arma::cx_vec random_product_state(int system_size)
+		{
+			auto the = theta(gen);
+			arma::cx_vec init_state = std::cos(the / 2.) * up
+				+ std::exp(im * fi(gen)) * std::sin(the / 2.) * down;
+			for (int j = 1; j < system_size; j++)
+			{
+				the = theta(gen);
+				init_state = arma::kron(init_state, std::cos(the / 2.) * up
+					+ std::exp(im * fi(gen)) * std::sin(the / 2.) * down);
+			}
+			return init_state;
+		};
+
 	};
 }
 
-const arma::vec down = { 0, 1 };
-const arma::vec up = { 1, 0 };
-const std::uniform_real_distribution<double> theta	= std::uniform_real_distribution<double>(0.0, pi);
-const std::uniform_real_distribution<double> fi		= std::uniform_real_distribution<double>(0.0, pi);
-inline 
-arma::cx_vec random_product_state(int system_size) 
-{
-	auto the = theta(gen);
-	arma::cx_vec init_state = std::cos(the / 2.) * up 
-							+ std::exp(im * fi(gen)) * std::sin(the / 2.) * down;
-	for (int j = 1; j < system_size; j++)
-	{
-		the = theta(gen);
-		init_state = arma::kron(init_state, std::cos(the / 2.) * up 
-				   + std::exp(im * fi(gen)) * std::sin(the / 2.) * down);
-	}
-	return init_state;
-};
 
 #endif
