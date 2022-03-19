@@ -15,7 +15,7 @@
 *.png
 *.git
 *.gz
-*.plt
+#*.plt -- keep gnuplot scripts in source control
 *.zip
 *.pdf
 *.rar
