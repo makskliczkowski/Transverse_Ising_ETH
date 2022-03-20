@@ -3,6 +3,7 @@
 #define UI
 //#include "headers.h"
 #include "IsingModel.h"
+#include "spectrals.hpp"
 
 const arma::vec down = { 0, 1 };
 const arma::vec up	 = { 1, 0 };
@@ -139,17 +140,7 @@ namespace isingUI
 		void benchmark(bool full = true);
 		
 		//-------------------------------------------------------------------------- SPECTRAL PROPERTIES
-		template <typename _type> void spectralFunction(IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name);
-		
-		template <typename _type> void integratedSpectralFunction(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name);
-		template <typename _type> auto integratedSpectralFunction(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, const arma::vec& omegas) -> arma::vec;
-
-		template <typename _type> void timeEvolution(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, std::string name = "STH");
-		template <typename _type> auto timeEvolution(const IsingModel<_type>& alfa, const arma::cx_mat& mat_elem, const arma::vec& times) -> std::pair<arma::vec, double>;
-		
 		void calculate_spectrals();
-
-		
 		void entropy_evolution();
 		void relaxationTimesFromFiles();
 		void intSpecFun_from_timeEvol();

@@ -119,7 +119,10 @@ template <typename T> double IsingModel<T>::total_spin(const arma::mat& corr_mat
 /// <typeparam name="T"></typeparam>
 /// <param name="temperature"></param>
 /// <returns></returns>
-template <typename Type> std::tuple<arma::vec, arma::vec, arma::vec> IsingModel<Type>::thermal_quantities(const arma::vec& temperature) {
+template <typename Type> 
+std::tuple<arma::vec, arma::vec, arma::vec> 
+IsingModel<Type>::thermal_quantities(const arma::vec& temperature) 
+{
 	arma::vec Cv(temperature.size(), arma::fill::zeros);
 	arma::vec S(temperature.size(), arma::fill::zeros);
 	arma::vec E(temperature.size(), arma::fill::zeros);
@@ -152,7 +155,8 @@ template <typename Type> std::tuple<arma::vec, arma::vec, arma::vec> IsingModel<
 /// </summary>
 /// <param name="state_idx"> index of the eigenvector used to calculate this quantity </param>
 /// <returns> returns the IPR value </returns>
-template <typename T> double IsingModel<T>::ipr(int state_idx) const {
+template <typename T> 
+double IsingModel<T>::ipr(int state_idx) const {
 	double ipr = 0;
 	arma::subview_col state = eigenvectors.col(state_idx);
 #pragma omp parallel for reduction(+: ipr)
@@ -169,7 +173,8 @@ template <typename T> double IsingModel<T>::ipr(int state_idx) const {
 /// </summary>
 /// <param name="_id">index of the eigenstate</param>
 /// <returns>The information entropy</returns>
-template <typename T> double IsingModel<T>::information_entropy(u64 _id) const {
+template <typename T> 
+double IsingModel<T>::information_entropy(u64 _id) const {
 	arma::subview_col state = this->eigenvectors.col(_id);
 	double ent = 0;
 #pragma omp parallel for reduction(+: ent)
@@ -189,7 +194,8 @@ template <typename T> double IsingModel<T>::information_entropy(u64 _id) const {
 /// <param name="min">minimum state for beta basis</param>
 /// <param name="max">maximum state for beta basis</param>
 /// <returns>information entropy in beta model basis</returns>
-template <typename T> double IsingModel<T>::information_entropy(u64 _id, const IsingModel<T>& beta, u64 _min, u64 _max) const {
+template <typename T> 
+double IsingModel<T>::information_entropy(u64 _id, const IsingModel<T>& beta, u64 _min, u64 _max) const {
 	arma::subview_col state_alfa = this->eigenvectors.col(_id);
 	double ent = 0;
 #pragma omp parallel for reduction(+: ent)
@@ -208,7 +214,8 @@ template <typename T> double IsingModel<T>::information_entropy(u64 _id, const I
 /// <param name="_min"> index of eigenenergy, being the lower bound of energy window </param>
 /// <param name="_max"> index of eigenenergy, being the upper bound of energy window </param>
 /// <returns></returns>
-template <typename T> double IsingModel<T>::eigenlevel_statistics(u64 _min, u64 _max) const {
+template <typename T> 
+double IsingModel<T>::eigenlevel_statistics(u64 _min, u64 _max) const {
 	double r = 0;
 	if (_min <= 0) assert(false && "too low index");
 	if (_max >= N) assert(false && "index exceeding Hilbert space");
@@ -232,7 +239,8 @@ template <typename T> double IsingModel<T>::eigenlevel_statistics(u64 _min, u64 
 /// computed as in: PHYSICAL REVIEW B 91, 081103(R) (2015)
 /// </summary>
 /// <returns>Vector for whole spectrum eigenlevel statistics</returns>
-template <typename T> arma::vec IsingModel<T>::eigenlevel_statistics_with_return() const {
+template <typename T> 
+arma::vec IsingModel<T>::eigenlevel_statistics_with_return() const {
 	arma::vec r(N - 2);
 #pragma omp parallel for shared(r)
 	for (int k = 1; k < N - 1; k++) {
@@ -269,7 +277,8 @@ double IsingModel<T>::spectrum_repulsion(double (IsingModel::* op)(int, int), Is
 /// </summary>
 /// <typeparam name="T"> does not matter </typeparam>
 /// <returns> mean level spacing </returns>
-template <typename T> double IsingModel<T>::mean_level_spacing_av(u64 _min, u64 _max) const {
+template <typename T> 
+double IsingModel<T>::mean_level_spacing_av(u64 _min, u64 _max) const {
 	if (_min <= 0) throw "too low index";
 	if (_max > N) throw "index exceeding Hilbert space";
 	double omega_H = 0;
@@ -285,7 +294,8 @@ template <typename T> double IsingModel<T>::mean_level_spacing_av(u64 _min, u64 
 /// </summary>
 /// <typeparam name="T"></typeparam>
 /// <returns></returns>
-template <typename T> double IsingModel<T>::mean_level_spacing_trace() const {
+template <typename T> 
+double IsingModel<T>::mean_level_spacing_trace() const {
 	const double chi = 0.341345;
 	double trace_H2 = 0;
 	double trace_H = 0;
@@ -298,7 +308,8 @@ template <typename T> double IsingModel<T>::mean_level_spacing_trace() const {
 }
 
 
-template <typename T> double IsingModel<T>::spectral_structure_factor_folded(double t) const {
+template <typename T> 
+double IsingModel<T>::spectral_structure_factor_folded(double t) const {
 	double ssf_re = 0, ssf_im = 0;
 #pragma omp parallel for reduction(+: ssf_re, ssf_im)
 	for (long n = 0; n < this->N; n++) {
@@ -310,7 +321,8 @@ template <typename T> double IsingModel<T>::spectral_structure_factor_folded(dou
 	ssf *= ssf;
 	return ssf / double(N);
 }
-template <typename T> arma::vec IsingModel<T>::spectral_structure_factor_folded(const arma::vec& times) const {
+template <typename T> 
+arma::vec IsingModel<T>::spectral_structure_factor_folded(const arma::vec& times) const {
 	arma::vec ssf(times.size(), arma::fill::zeros);
 	for (long i = 0; i < ssf.size(); i++)
 		ssf(i) = spectral_structure_factor_folded(times(i));
