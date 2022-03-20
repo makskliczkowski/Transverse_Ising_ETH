@@ -131,12 +131,9 @@ public:
 	double information_entropy(u64 _id) const;														// calculate the information entropy in a given state (based on the ipr) Von Neuman type
 	double information_entropy(u64 _id, const IsingModel<_type>& beta, u64 _min, u64 _max) const;	// calculate the information entropy in basis of other model from input
 	double eigenlevel_statistics(u64 _min, u64 _max) const;											// calculate the statistics based on eigenlevels (r coefficient)
-	arma::vec eigenlevel_statistics_with_return() const;													// calculate the eigenlevel statistics and return the vector with the results
+	arma::vec eigenlevel_statistics_with_return() const;											// calculate the eigenlevel statistics and return the vector with the results
 	virtual double mean_level_spacing_analytical() const = 0;										// mean level spacing from analytical formula calcula
-	double mean_level_spacing_av(u64 _min, u64 _max) const;											// mean level spacing averaged over an input window
-	double mean_level_spacing_trace() const;														// mean level spacing from by variance of hamiltonian in T->inf
-	double spectral_structure_factor_folded(double time) const;										// spectral structure factor from folded eigenvalues for given time point
-	arma::vec spectral_structure_factor_folded(const arma::vec& time) const;						// spectral structure factor from folded eigenvalues for input time range
+	
 	// ---------------------------------- THERMODYNAMIC QUANTITIES ----------------------------------
 	std::tuple<arma::vec, arma::vec, arma::vec> thermal_quantities(const arma::vec& temperature);	// calculate thermal quantities with input temperature range
 																									// heat capacity, entropy, average energy

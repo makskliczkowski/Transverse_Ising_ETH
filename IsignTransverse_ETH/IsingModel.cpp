@@ -1,42 +1,7 @@
 #include "include/IsingModel.h"
 template<typename T> IsingModel<T>::~IsingModel() {}
 
-// ------------------------------------------------------------------------------------------------ PRINTERS ------------------------------------------------------------------------------------------------
-
-/// <summary>
-/// prints the basis vector in the given spin-symmetry block
-/// </summary>
-/// <param name="Sz"> custom spin symmetry block </param>
-template <typename T> void IsingModel<T>::print_base_spin_sector(int Sz) {
-	std::vector<bool> temp(L);
-	int summm = 0;
-	int p = +1;
-	int z = +1;
-	arma::Col<int> check_sectors(std::pow(2, L), arma::fill::zeros);
-	for (int k = 0; k < N; k++) {
-		int_to_binary(map(k), temp);
-		if (std::accumulate(temp.begin(), temp.end(), 0) == Sz)
-			stout << k << "\t\t" << temp << endl;
-	}
-}
-
-/// <summary>
-/// prints the state in the regular basis (only the highest coefficients are present)
-/// </summary>
-/// <param name="_id"> index of the printed state </param>
-template <typename T> void IsingModel<T>::print_state(u64 _id) {
-	arma::vec state = abs(eigenvectors.col(_id));
-	double max = arma::max(state);
-	std::vector<bool> base_vector(L);
-	for (int k = 0; k < N; k++) {
-		int_to_binary(map(k), base_vector);
-		if (abs(state(k)) >= 0.01 * max) {
-			stout << state(k) << " * |" << base_vector << "> + ";
-		}
-	}
-	stout << endl;
-}
-
+// ------------------------------------------------------------------------------------------------ INITIALIZE HELPERS ------------------------------------------------------------------------------------------------
 /// <summary>
 /// Sets the neigbours depending on the Boundary condition (BC) defined as a makro in the 'headers.h' file
 /// </summary>
@@ -270,63 +235,6 @@ double IsingModel<T>::spectrum_repulsion(double (IsingModel::* op)(int, int), Is
 		//rn = rn_next;
 	}
 	return average / (A.N - 1.0);
-}
-
-/// <summary>
-/// averages the distance between consecutive energy levels in the system
-/// </summary>
-/// <typeparam name="T"> does not matter </typeparam>
-/// <returns> mean level spacing </returns>
-template <typename T> 
-double IsingModel<T>::mean_level_spacing_av(u64 _min, u64 _max) const {
-	if (_min <= 0) throw "too low index";
-	if (_max > N) throw "index exceeding Hilbert space";
-	double omega_H = 0;
-#pragma omp parallel for reduction(+: omega_H)
-	for (long int k = (long)_min; k < (long)_max; k++) {
-		NO_OVERFLOW(omega_H += this->eigenvalues(k) - this->eigenvalues(k - 1););
-	}
-	return omega_H / double(_max - _min);
-}
-
-/// <summary>
-/// 
-/// </summary>
-/// <typeparam name="T"></typeparam>
-/// <returns></returns>
-template <typename T> 
-double IsingModel<T>::mean_level_spacing_trace() const {
-	const double chi = 0.341345;
-	double trace_H2 = 0;
-	double trace_H = 0;
-#pragma omp parallel for reduction(+: trace_H, trace_H2)
-	for (int k = 0; k < N; k++) {
-		trace_H += this->eigenvalues(k);
-		trace_H2 += this->eigenvalues(k) * this->eigenvalues(k);
-	}
-	return sqrt(trace_H2 / double(N) - trace_H * trace_H / double(N * N)) / (chi * N);
-}
-
-
-template <typename T> 
-double IsingModel<T>::spectral_structure_factor_folded(double t) const {
-	double ssf_re = 0, ssf_im = 0;
-#pragma omp parallel for reduction(+: ssf_re, ssf_im)
-	for (long n = 0; n < this->N; n++) {
-		cpx ssf = std::exp(-im * this->eigenvalues(n) * t);
-		ssf_re += real(ssf);
-		ssf_im += imag(ssf);
-	}
-	double ssf = abs(cpx(ssf_re, ssf_im));
-	ssf *= ssf;
-	return ssf / double(N);
-}
-template <typename T> 
-arma::vec IsingModel<T>::spectral_structure_factor_folded(const arma::vec& times) const {
-	arma::vec ssf(times.size(), arma::fill::zeros);
-	for (long i = 0; i < ssf.size(); i++)
-		ssf(i) = spectral_structure_factor_folded(times(i));
-	return ssf;
 }
 
 
@@ -651,10 +559,6 @@ template double IsingModel<cpx>::total_spin(const arma::mat&);
 template double IsingModel<double>::total_spin(const arma::mat&);
 template std::tuple<arma::vec, arma::vec, arma::vec> IsingModel<double>::thermal_quantities(const arma::vec&);
 template std::tuple<arma::vec, arma::vec, arma::vec> IsingModel<cpx>::thermal_quantities(const arma::vec&);
-template double IsingModel<double>::mean_level_spacing_av(u64, u64) const;
-template double IsingModel<cpx>::mean_level_spacing_av(u64, u64) const;
-template double IsingModel<double>::mean_level_spacing_trace() const;
-template double IsingModel<cpx>::mean_level_spacing_trace() const;
 
 template arma::sp_cx_mat IsingModel<cpx>::create_StringOperator(coordinate, coordinate, int,int) const;
 template arma::sp_cx_mat IsingModel<double>::create_StringOperator(coordinate, coordinate, int, int) const;
@@ -662,10 +566,6 @@ template arma::sp_cx_mat IsingModel<cpx>::create_LIOMoperator_densities(int, int
 template arma::sp_cx_mat IsingModel<double>::create_LIOMoperator_densities(int, int) const;
 template void IsingModel<double>::time_evolve_state(arma::cx_vec&, double);
 template void IsingModel<cpx>::time_evolve_state(arma::cx_vec&, double);
-template arma::vec IsingModel<double>::spectral_structure_factor_folded(const arma::vec&) const;
-template arma::vec IsingModel<cpx>::spectral_structure_factor_folded(const arma::vec&) const;
-template double IsingModel<double>::spectral_structure_factor_folded(double) const;
-template double IsingModel<cpx>::spectral_structure_factor_folded(double) const;
 
 template double IsingModel<double>::shannon_entropy(const arma::cx_vec&, int) const;
 template double IsingModel<cpx>::shannon_entropy(const arma::cx_vec&, int) const;

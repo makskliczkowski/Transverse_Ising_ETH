@@ -1034,7 +1034,7 @@ void isingUI::ui::calculate_spectrals()
 				stout << "\t\t	--> finished integrated spectral function for " << alfa.get_info()
 					  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n\tNEXT: spectral function" << std::endl;
 
-				auto ssf_temp = alfa.spectral_structure_factor_folded(times);
+				auto ssf_temp = spectral_structure_factor_folded(alfa.get_eigenvalues(), times);
 				save_to_file(ssfdir_realisation + alfa.get_info({}) + ".dat", times, ssf_temp, tH, LTA_tmp);
 				spectralFunction(alfa, mat_elem, specdir_realisation + opName);
 
@@ -1068,7 +1068,7 @@ void isingUI::ui::calculate_spectrals()
 			save_to_file(intDir + opName + alfa.get_info({}) + ".dat", omegas, res, 1. / tH, LTA);
 			stout << "\t\t	--> finished integrated spectral function for " << alfa.get_info() << " - in time : " << tim_s(start) << "s\n\tNEXT: spectral function" << std::endl;
 			spectralFunction(alfa, mat_elem, specDir + opName);
-			auto ssf = alfa.spectral_structure_factor_folded(times);
+			auto ssf = spectral_structure_factor_folded(alfa.get_eigenvalues(), times);
 			save_to_file(ssfDir + alfa.get_info({}) + ".dat", times, ssf, tH, LTA);
 		}
 		stout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - \n"
