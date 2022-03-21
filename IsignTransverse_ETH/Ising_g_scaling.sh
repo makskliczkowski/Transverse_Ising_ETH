@@ -74,4 +74,4 @@ fi
 #g++ -std=c++2a main.cpp IsingModel.cpp IsingModel_disorder.cpp IsingModel_sym.cpp tools.cpp user_interface.cpp -o Ising_${funName}_L=${1}_h=${2}_g=${g}${suffix}.o\
 # -DARMA_DONT_USE_WRAPPER -I/home/rswietek/LIBRARIES_CPP/armadillo-10.8.2/include -llapack -lopenblas -fopenmp -lpthread -lm -lstdc++fs -fomit-frame-pointer -Ofast >& compile_${funName}_L=${1}_h=${2}_g=${g}${suffix}.log
  
-./Ising.o -L $1 -g $g -h $2 -w 0.01 -th $thread_num -m 0 -w 0.01 -r $r -op $operator -fun $4 -s $site -b 0 >& ${filename}.log
+./Ising.o -L $1 -g $g -h $2 -w 0.01 -th $thread_num -m 0 -w 0.01 -r $r -op $operator -fun $4 -s $site -b 0 -scale 1 -ch 1 >& ${filename}.log

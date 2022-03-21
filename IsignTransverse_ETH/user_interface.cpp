@@ -107,15 +107,15 @@ void isingUI::ui::make_sim()
 									init_state = arma::kron(init_state, std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down);
 								}
 								arma::cx_vec state2 = init_state;
-								lancz.diagonalization(init_state);
+								//lancz.diagonalization(init_state);
 								for (int i = 0; i < times.size(); i++)
 								{
 									auto t = times(i);
 									arma::cx_vec state = arma::normalise(init_state);
 									// auto state2 = lancz.time_evolution_stationary(state, t);
 									alfa->time_evolve_state(state, t);
-									//lancz.time_evolution_non_stationary(state2, t - (i == 0 ? 0.0 : times(i - 1)), M);
-									auto state2 =  lancz.time_evolution_stationary(init_state, t);
+									lancz.time_evolution_non_stationary(state2, t - (i == 0 ? 0.0 : times(i - 1)), M);
+									//auto state2 =  lancz.time_evolution_stationary(init_state, t);
 									entropy(i) += alfa->entaglement_entropy(state, this->L / 2);
 									entropy_lanczos(i) += alfa->entaglement_entropy(state2, this->L / 2);
 								}
