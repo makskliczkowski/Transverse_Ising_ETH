@@ -1,26 +1,4 @@
-sh Ising_g_scaling_sender.sh 0.1 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 0.2 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 0.3 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 0.4 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 0.5 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 0.6 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 0.7 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 0.8 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 0.9 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 1.0 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 1.1 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 1.2 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 1.3 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 1.4 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 1.5 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 1.6 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 1.7 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 1.8 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 1.9 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 2.0 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 2.1 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 2.2 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 2.3 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 2.4 0 0 0 spectrals
-sh Ising_g_scaling_sender.sh 2.5 0 0 0 spectrals
-
+for h in $(seq 0.2 0.2 3.0)
+do
+    sh Ising_g_scaling_sender.sh $h 0 2 0 ${h}_spectrals    
+done

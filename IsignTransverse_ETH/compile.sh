@@ -10,7 +10,7 @@ module load OpenBLAS/0.3.18-GCC-11.2.0
 module load intel/2022.00
 
 icc main.cpp IsingModel.cpp IsingModel_disorder.cpp IsingModel_sym.cpp tools.cpp user_interface.cpp -o Ising.o\
- -I../LIBRARIES_CPP/armadillo-10.8.2/include/ -lmkl_intel_lp64 -lmkl_core -lmkl_gnu_thread -lblas -lopenblas\
+ -lmkl_intel_lp64 -lmkl_core -lmkl_gnu_thread -lblas -lopenblas\
  -no-multibyte-chars -pthread -lstdc++fs -qopenmp -qmkl=parallel -std=c++17 -O3
 
 
