@@ -5,7 +5,7 @@ reset
 
 #------------------------------------ PREAMBLE
 set autoscale
-use_png = 1		# 1 if use png output, and 0 for qt output
+use_png = 0		# 1 if use png output, and 0 for qt output
 if(use_png) { set term pngcairo size 1200, 1200 font sprintf("Helvetica,%d",16); }
 else {set term qt size 900, 900 font sprintf("Helvetica,%d",14); }
 
@@ -47,7 +47,7 @@ SigX_or_SigZ = 1	 	# 0-SigX , 1-SigZ :local
 operator_sum = 0		# is the operator a sum
 site = 0				# site at which the operator acts
 cor = 0					# correlations
-scaling = 0				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or 4-realisations or 5-M scaling or 6-compare
+scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or 4-realisations or 5-M scaling or 6-compare
 q_vs_j = 0				# =1 - evolution of Sz_q, else ecol of Sz_j
 operator = 1	 		# 1-SigmaZ , 0-Hq :local
 compare = 0
@@ -57,7 +57,7 @@ rescale=0				# rescale S_A by power law to find const region
 add_line=1				# draw power-law: a/omega^n
 a0=8e-5					# value of power-law plot at x=1
 	h0 = 20;	hend = 120;		dh = 20;
-	g0 = 40;	gend = 100;		dg = 20;
+	g0 = 40;	gend = 100;		dg = 10;
 	L0 = 15;	Lend = 15; 		dL = 1;
 
 
@@ -108,28 +108,28 @@ fun(x, y, i) = scaling==1? x**nu*2**i*y : x**nu*2**L*y
 		if(scaling == 0){
 			dir = dir.str(site).'/';
 			name(x) = dir.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, 0.01*x, w);	key_title(x) = sprintf("h=%.2f", x/100.)
-			name2(x) = './IntegratedResponseFunction/DERIVATIVE/'.str(site).'/'.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, 0.01*x, w);
+			name2(x) = dir_base.'IntegratedResponseFunction/DERIVATIVE/'.str(site).'/'.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, 0.01*x, w);
 			i0 = h0; iend = hend; di = dh; 	out_dir = out_dir."h_scaling/";
 			output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,w=%.2f", L, J0, g, g_knot, w);
 		}else{
 			if(scaling == 1){
 				__str(x) = site == -1 ? str(x/2) : str(site)
 				name(x) = dir.__str(x).'/'.op.sprintf("_".__str(x)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", x, J0, g, g_knot, h, w);	key_title(x) = sprintf("L=%d",x);
-				name2(x) = './IntegratedResponseFunction/DERIVATIVE/'.__str(x).'/'.op.sprintf("_".__str(x)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", x, J0, g, g_knot, h, w);
+				name2(x) = dir_base.'IntegratedResponseFunction/DERIVATIVE/'.__str(x).'/'.op.sprintf("_".__str(x)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", x, J0, g, g_knot, h, w);
 				i0 = L0; iend = Lend; di = dL; 	out_dir = out_dir."size_scaling/"
 				output_name = output_name.op.sprintf("_".str(site)."_J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", J0, g, g_knot, h, w)
 			} else{
 				if(scaling == 2){
 					dir = dir.str(site).'/'
 					name(x) = dir.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, 0.01*x, g_knot, h, w);
-					name2(x) = './IntegratedResponseFunction/DERIVATIVE/'.str(site).'/'.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, 0.01*x, g_knot, h, w);
+					name2(x) = dir_base.'IntegratedResponseFunction/DERIVATIVE/'.str(site).'/'.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, 0.01*x, g_knot, h, w);
 					key_title(x) = sprintf("g=%.2f",0.01*x)
 					i0 = g0; iend = gend; di = dg;	out_dir = out_dir."g_scaling/"
 					output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J0, g_knot, h, w);
 				} else{
 					if(scaling == 3){
 						name(x) = dir.str(x).'/'.op."_".str(x).sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);
-						name2(x) = './IntegratedResponseFunction/DERIVATIVE/'.str(x).'/'.op.sprintf("_".str(x)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);
+						name2(x) = dir_base.'IntegratedResponseFunction/DERIVATIVE/'.str(x).'/'.op.sprintf("_".str(x)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);
 						key_title(x) = (q_vs_j? sprintf("q/{/Symbol p}=%.2f", 2*x/(L+0.0)): sprintf("j=%d", x) )
 						i0 = 0; iend = q_vs_j? L / 2 : L-1; di=1; 	out_dir = out_dir.(q_vs_j? "q" : "j")."_scaling/"
 						output_name = output_name.op.sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J0, g, g_knot, h, w);

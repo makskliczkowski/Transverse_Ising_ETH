@@ -6,9 +6,9 @@ reset
 
 #------------------------------------ PREAMBLE
 set autoscale	
-use_png = 1		# 1 if use png output, and 0 for qt output
-if(use_png) { set term pngcairo size 1200, 1200 font sprintf("Helvetica,%d",16); }
-else {set term qt size 900, 900 font sprintf("Helvetica,%d",14); }
+use_png = 0		# 1 if use png output, and 0 for qt output
+if(use_png) { set term pngcairo size 1200, 1200 font sprintf("Helvetica,%d",18); }
+else {set term qt size 900, 900 font sprintf("Helvetica,%d",16); }
 set mxtics
 set mytics
 
@@ -42,7 +42,7 @@ YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
 L = 14; 
-g = 0.3;
+g = 0.4;
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
@@ -65,14 +65,14 @@ if(scaling != 1) rescale = 0;
 LIOM = 0				# plot LIOMs?
 local = 0
 
-	h0 = 20;	hend = 80;		dh = 10;
+	h0 = 30;	hend = 90;		dh = 10;
 	g0 = 10;	gend = 50;		dg = 5;
 	L0 = 10;	Lend = 14; 		dL = 1;
 
 use_fit = 1
 which_fit = 1		# =1 -power-law || =0 -exp || =2-log
 
-x_min = 1e1; x_max = 5e2;  
+x_min = 1e2; x_max =1e4;  
 # fit/rescale range
 SHOW_FT_LABEL=0
 if(use_fit==0) SHOW_FT_LABEL=0;
@@ -128,7 +128,7 @@ i0 = 0; iend = 0; di = 1;
 							_dir(x) = dir.str(site).'/realisation='.sprintf("%d",x).'/';
 							_name(x) = _dir(x).op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);
 							_key_title(x) = sprintf("r=%d",x);
-							i0 = 0; iend = 9; di=1; 	out_dir = out_dir."realisation_scaling/"
+							i0 = 0; iend = 19; di=1; 	out_dir = out_dir."realisation_scaling/"
 							output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J0, g, g_knot, h, w);
 						} else{
 							_name(x) = x==i0? dir.str(site).'/'.op.sprintf("_q=%d_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", site, L, J0, g, g_knot, h, w)\
@@ -151,10 +151,10 @@ i0 = 0; iend = 0; di = 1;
 #------------------------ FIT functions
 _a(a) = substract_LTA? 0.0 : a
 f(x) = which_fit == 2? a - b*log(x+alfa) :\
-		(substract_LTA? (which_fit == 1? b * x**(alfa) : b * exp(-alfa*x)):\
-							(which_fit == 1? a + b * x**(alfa) : a + b * exp(-alfa*x)));
+		(substract_LTA? (which_fit == 1? b * x**(alfa) : b * exp(alfa*x)):\
+							(which_fit == 1? a + b * x**(alfa) : a + b * exp(alfa*x)));
 
-f_plot(a,b,alfa,x) = ((x < x_min || x > x_max)? NaN : (which_fit==2? a-b*log(x+alfa) : (which_fit==1? _a(a) + b*x**(alfa) : _a(a) + b*exp(-alfa*x))))
+f_plot(a,b,alfa,x) = ((x < x_min || x > x_max)? NaN : (which_fit==2? a-b*log(x+alfa) : (which_fit==1? _a(a) + b*x**(alfa) : _a(a) + b * exp(alfa*x))))
 
 fstr(a,b,alfa) = which_fit==1? sprintf("{\\~t^{%.2e}}",alfa) : sprintf("{\\~exp(-t / {/Symbol t}); {/Symbol t}=%.4f}",1./alfa)
 if(which_fit==2) {fstr(a,b,alfa) = "\\~ln[x".(alfa<0?"-":"+").sprintf("%f]",abs(alfa))}
@@ -222,7 +222,7 @@ if(!LIOM){
 			}
 		}
 	}
-	RANGE = substract_LTA? "set xrange[1e0:1e3]; set yrange[1e-4:5e-1];" :\
+	RANGE = substract_LTA? "set xrange[1e0:1e4]; set yrange[1e-4:5e-1];" :\
 						 (rescale? "set xrange[1e-3:9e3];" : "set xrange[2e-2:1e4];")."set yrange[".sprintf("%.5f", 0.75*y_min).":1.0];";
 	#------------------------------------------ Controling output
 	if(use_png){

@@ -112,7 +112,7 @@ set xlabel 't'
 ssf_name(gx,Lx,x,M) = dir.sprintf("TimeEvolution_L=%d,J0=0.00,g=%.2f,g0=0.00,h=0.80,w=0.01,x=%.4f,M=%d.dat", Lx, gx, x, M)
 M=4
 dt=0.16
-L=9
+L=10
 M_list = '2 3 4 5 6 7 8 9'
 dt_list = '1e-2 2e-2 4e-2 8e-2 16e-2 64e-2 128e-2 256e-2 512e-2'
 MARGIN = "set lmargin at screen 0.10; set rmargin at screen 0.99; set bmargin at screen 0.10; set tmargin at screen 0.99;"

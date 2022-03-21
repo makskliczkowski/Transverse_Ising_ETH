@@ -5,7 +5,7 @@ reset
 
 #------------------------------------ PREAMBLE
 set autoscale
-use_png = 1		# 1 if use png output, and 0 for qt output
+use_png = 0		# 1 if use png output, and 0 for qt output
 if(use_png) { set term pngcairo size 1200, 1200 font sprintf("Helvetica,%d",16); }
 else {set term qt size 900, 900 font sprintf("Helvetica,%d",14); }
 
@@ -42,7 +42,7 @@ YTICS = "set format y '%g';"
 #------------------------------------ PARAMETERS
 L = 14; 
 g = 0.1
-h = 0.5;
+h = 0.3;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
 
@@ -52,7 +52,7 @@ integrated_by_hand = 0 #integrated time evolution?
 if(integrated_by_hand) cd '.\integrated'
 rescale = 0				# rescale the spectral function by f(w, L)?
 site = 0				# site at which the operator acts
-scaling = 0				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
+scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
 q_vs_j = 0				# =1 - evolution of Sz_q, else ecol of Sz_j
 operator = 1	 		# 1-SigmaZ , 0-Hq :local
 two_panels = 1
