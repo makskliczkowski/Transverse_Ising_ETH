@@ -21,7 +21,7 @@
 *.rar
 slurm-*.out
 #*.sh
-# *.txt to keep gnuplot scripts
+*.txt to keep gnuplot scripts
 # *.dat
 # whole folders will be ignored
 
