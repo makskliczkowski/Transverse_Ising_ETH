@@ -78,4 +78,4 @@ fi
 	echo "name=${filename}"
 	echo "realisations=${r}"
 
-./Ising.o -L $1 -g $g -h $2 -w 0.01 -th $thread_num -m 0 -r $r -op $3 -fun 0 -s $site -b 0 >& ${filename}.log
+./Ising.o -L $1 -g $g -h $2 -w 0.01 -th $thread_num -m 0 -r $r -op $3 -fun 1 -s $site -b 0 >& ${filename}.log
