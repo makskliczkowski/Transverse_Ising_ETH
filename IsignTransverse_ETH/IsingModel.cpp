@@ -42,13 +42,13 @@ template <typename T> void IsingModel<T>::set_neighbors() {
 /// <summary>
 /// General procedure to diagonalize the Hamiltonian using eig_sym from the Armadillo library
 /// </summary>
-template <typename T> void IsingModel<T>::diagonalization(bool withoutEigenVec, const char* method) {
+template <typename T> void IsingModel<T>::diagonalization(bool get_eigenvectors, const char* method) {
 	//out << real(H) << endl;
 	arma::Mat<T> H_temp;
 	try {
 		H_temp = arma::Mat<T>(this->H);
-		if (withoutEigenVec) arma::eig_sym(this->eigenvalues, H_temp);
-		else arma::eig_sym(this->eigenvalues, this->eigenvectors, H_temp, method);
+		if (get_eigenvectors) arma::eig_sym(this->eigenvalues, this->eigenvectors, H_temp, method);
+		else arma::eig_sym(this->eigenvalues, H_temp);
 	}
 	catch (...) {
 		handle_exception(std::current_exception(), 

@@ -93,7 +93,7 @@ namespace lanczos {
 		auto time_evolution_stationary(
 			arma::cx_vec& input_state,
 			double time
-		);
+		) -> arma::cx_vec;
 
 		auto time_evolution_non_stationary(
 			arma::cx_vec& prev_state,

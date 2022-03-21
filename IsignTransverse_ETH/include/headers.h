@@ -883,12 +883,12 @@ inline arma::Col<_ty> exctract_vector(
 	_ty start, 							//<! first value of new vector (if lower than lowest in input_vec than taking from beggining)
 	_ty end								//<! last element to copy data
 ) {
-	arma::Col<_ty> output(1, arma::fill::zeros);
+	arma::Col<_ty> output;
 	for (auto& it : input_vec) {
 		if (it >= start && it <= end) {
 			int size = output.size();
-			output(size - 1) = it;
 			output.resize(size + 1);
+			output(size) = it;
 		}
 	}
 	return output;

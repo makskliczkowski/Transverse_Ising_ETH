@@ -20,7 +20,7 @@ set xtics mirror;\
 set ytics mirror;"
 @FORMAT
 x_log = 1; 
-y_log = 0;
+y_log = 1;
 SCALE = x_log? "unset logscale xy; set logscale x;" : ""
 SCALE = SCALE.(y_log? "set logscale y;" : "")
 @SCALE
@@ -51,11 +51,11 @@ power = 0.5				# power in scaling with omega
 operator = 1	 		# 1-SigmaZ , 0-Hq :local
 site = 0				# site at which the operator acts
 cor = 0					# correlations
-scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
+scaling = 0				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
 q_vs_j = 0				# =1 - evolution of Sz_q, else ecol of Sz_j
 compare = 0
 
-substract_LTA = 0
+substract_LTA = 1
 
 rescale = 0
 nu = 1		# power on L

@@ -16,7 +16,7 @@ set style line 2 dt (3,3) lc rgb "red" lw 1.5
 set style line 3 dt (8,8) lc rgb "blue" lw 1.5
 set style line 4 dt (1,1) lc rgb "green" lw 1.5
 
-fileexist(name)=int(system("if exist \"".name."\" ( echo 1) else (echo 0)"))
+fileexist(name)=1#int(system("if exist \"".name."\" ( echo 1) else (echo 0)"))
 
 # Margins for each row resp. column
 TMARGIN = "set tmargin at screen 0.99; set bmargin at screen 0.56"
@@ -28,7 +28,7 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 #-- PARAMETERS
 g = 2.0	
 L = 14
-h = 0.2
+h = 0.8
 h0 = 80
 hend = 400
 dh = 40
@@ -74,10 +74,10 @@ set tmargin at screen 0.96; set bmargin at screen 0.10
 
 #set xrange[0:2]
 #plot "OperatorProductHq_L=16,J0=0.00,g=0.05,g0=0.00,h=0.80,w=0.01.dat" u ($1*2./18.):(($2)) w lp lc rgb "black" pt 7 ps 1.5 title "A_q=H_q",\
-	 "OperatorProductHq_L=16,J0=0.00,g=0.05,g0=0.00,h=0.80,w=0.01.dat" u ($1*2./18.):(($3)) w lp ls 1 pt 6 ps 1.5 notitle,\
-	 "OperatorProductSigmaZq_L=16,J0=0.00,g=0.05,g0=0.00,h=0.80,w=0.01.dat" u ($1*2./18.):(sqrt($2 * $2 + $3 * $3)) w l lc rgb "red" lw 1 notitle,\
-	 "OperatorProductSigmaZq_L=16,J0=0.00,g=0.05,g0=0.00,h=0.80,w=0.01.dat" u ($1*2./18.):(($2)) w lp lc rgb "red" pt 7 ps 1.5 title "A_q={/Symbol s}_q^z",\
-	 "OperatorProductSigmaZq_L=16,J0=0.00,g=0.05,g0=0.00,h=0.80,w=0.01.dat" u ($1*2./18.):(($3)) w lp ls 2 pt 6 ps 1.5  notitle
+#	 "OperatorProductHq_L=16,J0=0.00,g=0.05,g0=0.00,h=0.80,w=0.01.dat" u ($1*2./18.):(($3)) w lp ls 1 pt 6 ps 1.5 notitle,\
+#	 "OperatorProductSigmaZq_L=16,J0=0.00,g=0.05,g0=0.00,h=0.80,w=0.01.dat" u ($1*2./18.):(sqrt($2 * $2 + $3 * $3)) w l lc rgb "red" lw 1 notitle,\
+#	 "OperatorProductSigmaZq_L=16,J0=0.00,g=0.05,g0=0.00,h=0.80,w=0.01.dat" u ($1*2./18.):(($2)) w lp lc rgb "red" pt 7 ps 1.5 title "A_q={/Symbol s}_q^z",\
+#	 "OperatorProductSigmaZq_L=16,J0=0.00,g=0.05,g0=0.00,h=0.80,w=0.01.dat" u ($1*2./18.):(($3)) w lp ls 2 pt 6 ps 1.5  notitle
 
 i0=20; iend=80; di=20
 set xlabel 't / t_H'
@@ -87,7 +87,8 @@ set format y '10^{%L}'
 
 dir_base='../../results/disorder/PBC/'
 #dir = dir_base.'SpectralFormFactor/'
-#ssf_name(gx,Lx) = dir.sprintf("_L=%d,J0=0.00,g=%.2f,g0=0.00,h=0.80,w=0.01.dat", Lx, gx)
+#ssf_name(gx,Lx) = dir.sprintf("_L=%d,J0=0.00,g=%.2f,g0=0.00,h=0.20,w=0.01.dat", Lx, gx)
+#key_title(i) = sprintf("g=%.2f", 0.01*i)
 #	array tH[(iend-i0)/di+1]
 #	array LTA[(iend-i0)/di+1]
 #	array val[(iend-i0)/di+1]
@@ -105,12 +106,13 @@ dir_base='../../results/disorder/PBC/'
 #}
 #plot for[i=i0:iend:di] ssf_name(0.01*i, L) u ($1 / tH[(i-i0)/di + 1]):2 w lp lw 1.5 t sprintf("g=%.2f",0.01*i), (x < 1? 2*x - x*log(1+2*x) : 2-x*log( (2*x+1) / (2*x-1))) t 'GOE'
 #
+#exit;
 
 dir = dir_base.'Entropy/'
 set ylabel 'S(t)'
 set xlabel 't'
 ssf_name(gx,Lx,x,M) = dir.sprintf("TimeEvolution_L=%d,J0=0.00,g=%.2f,g0=0.00,h=0.80,w=0.01,x=%.4f,M=%d.dat", Lx, gx, x, M)
-M=4
+M=6
 dt=0.16
 L=10
 M_list = '2 3 4 5 6 7 8 9'

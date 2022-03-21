@@ -110,7 +110,7 @@ namespace isingUI
 		int site;																		// site for operator averages
 		int op;																			// choose operator
 		int fun;																		// choose function to start calculations
-		double ts;																		// time step for evolution
+		double dt;																		// time step for evolution
 		int scale;																		// choose scale: either linear or log
 		struct {
 			int k_sym;																	// translational symmetry generator
@@ -132,6 +132,9 @@ namespace isingUI
 		// ----------------------------------- SIMULATION
 		void make_sim() override;														// make default simulation
 		
+		//-------------------------------------------------------------------------- GENERAL ROUTINES
+		void diagonalize();
+
 		// --------------- COMPARISONS
 		void compare_energies();
 		void compare_matrix_elements(op_type op, int k_alfa, int k_beta, int p_alfa = 1, int p_beta = 1, int x_alfa = 1, int x_beta = 1);
@@ -139,21 +142,35 @@ namespace isingUI
 
 		void benchmark(bool full = true);
 		
-		//-------------------------------------------------------------------------- SPECTRAL PROPERTIES
+		//-------------------------------------------------------------------------- SPECTRAL PROPERTIES AND HELPERS
+		//<! calculate all spectral quantities: time evolution, response function,
+		//<! integrated spectral function and spectral form factor with folded eigenvalues
 		void calculate_spectrals();
+
+		//<! calculate evolution of entaglement from initial state chosen by -op.
+		//<! -s sets the subsystem size, if-s=0 the L/2 is assumed 
 		void entropy_evolution();
+		
+		//<! loop over all parameters (L, site, g, h) for given disorder
+		//<! or symmetry sector and find relaxation times as I(w)=1/2 (the later from integrated time evolution)
 		void relaxationTimesFromFiles();
 		void intSpecFun_from_timeEvol();
+	
+		//<! spectral form factor calculated from eigenvalues in file or diagonalize matrix
+		void spectral_form_factor();
 		
-		void TFIsingLIOMs();
 		
+		//-------------------------------------------------------------------------- ADIABATIC GAUGE POTENTIALS
 		template <typename _type> void LevelSpacingDist(IsingModel<_type>& alfa);
-		template <typename _type> std::pair<double, double> operator_norm(arma::sp_cx_mat& opMatrix, IsingModel<_type>& alfa);
 		void adiabaticGaugePotential_sym(bool SigmaZ = 0, bool avSymSectors = 0);
-		void adiabaticGaugePotential_dis(bool h_vs_g = true);
+		void adiabaticGaugePotential_dis();
 		void combineAGPfiles();
-		template <typename _type> void energyEvolution(IsingModel<_type>& model);
 
+
+
+
+
+		//-------------------------------------------------------------------------- FUNCTIONS TO CALL IN FUN-DEFAULT MODE
 		/// <summary>
 		/// saves matrix elements for using in the autoencoder
 		/// </summary>
@@ -163,22 +180,8 @@ namespace isingUI
 		void saveDataForAutoEncoder_symmetries(std::initializer_list<op_type> operators, std::initializer_list<std::string> names);
 
 
-		//------------------------------------------------------------------------------ PERTURBATIVE METHODS (DISTRIBUTIONS WITH PERTURBATIONS)
-		std::vector<double> perturbative_stat_sym(double pert, double gx, double hx);
-		std::vector<double> perturbative_stat_sym(double pert, IsingModel_sym& alfa, double gx, double hx);
-		std::vector<double> perturbative_stat_sym(IsingModel_sym& alfa, double gx, double hx);
-		std::vector<double> perturbative_stat_sym(double dist_step, double min, double max, double pert, IsingModel_sym& alfa, IsingModel_sym& beta);
-		std::vector<double> perturbative_stat_sym(double pert) {
-			return perturbative_stat_sym(pert, this->g, this->h);
-		}
-		std::vector<double> perturbative_stat_sym(double pert, IsingModel_sym& alfa) {
-			return perturbative_stat_sym(pert, alfa, this->g, this->h);
-		}
-		std::vector<double> perturbative_stat_sym(IsingModel_sym& alfa) {
-			return perturbative_stat_sym(alfa, this->g, this->h);
-		}
-
-
+		//-------------------------------------------------------------------------- GENERAL LAMBDA'S
+		//<! generate random product state (random orientation of spins on the bloch sphere)
 		arma::cx_vec random_product_state(int system_size)
 		{
 			auto the = theta(gen);
@@ -192,7 +195,8 @@ namespace isingUI
 			}
 			return init_state;
 		};
-		//-------------------------------------------------------------------------- GENERAL LAMBDA'S
+
+		//<! loop over all symmetry sectors
 		template <typename... _types> void loopSymmetrySectors(
 			std::function<void(int,int,int,_types...args)> lambda, //!< callable function
 			double hx,											   //!< longitudal field -- whether spin-flip symmetry is allowed
@@ -212,6 +216,8 @@ namespace isingUI
 				}
 			}
 		}
+
+		//<! loop over disorder realisations and call lambda each time
 		template <typename _ty, typename... _types> 
 		void average_over_realisations(
 			IsingModel<_ty>& model,				   	   //!< input model (symmetric model has to have average over external random stuff)
