@@ -76,7 +76,7 @@ void isingUI::ui::make_sim()
 					//for (double x = 1e-2; x <= 10; x *= 2)
 					double x = this->dt;
 					{
-						double dt_new = 10 * x / omega_max;
+						double dt_new = x;//M * 10 * x / omega_max;
 						if (this->scale) stout << "WARNING: log only valid for t<10, for larger t linear is resumed with dt = " << dt_new << std::endl;
 						auto init_log = arma::logspace(-2, t_max, 4000);
 						auto rest_lin = arma::regspace(10.0, dt_new, 10 * tH);
@@ -94,18 +94,11 @@ void isingUI::ui::make_sim()
 
 							lanczosParams params(200, 1, true, false);
 							lanczos::Lanczos lancz(alfa->get_hamiltonian(), std::move(params));
-							lancz.diagonalization();
-							for (int f = 0; f < 10; f++)
-								printSeparated(std::cout, "\t", 12, true, f, alfa->get_eigenEnergy(f), lancz.get_eigenvalues()(f));
+							//lancz.diagonalization();
+							
 							std::function to_ave_time = [&]()
 							{
-								auto the = theta(gen);
-								arma::cx_vec init_state = std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down;
-								for (int j = 1; j < this->L; j++)
-								{
-									the = theta(gen);
-									init_state = arma::kron(init_state, std::cos(the / 2.) * up + std::exp(im * fi(gen)) * std::sin(the / 2.) * down);
-								}
+								const arma::cx_vec init_state = random_product_state(this->L);
 								arma::cx_vec state2 = init_state;
 								//lancz.diagonalization(init_state);
 								for (int i = 0; i < times.size(); i++)
@@ -120,7 +113,7 @@ void isingUI::ui::make_sim()
 									entropy_lanczos(i) += alfa->entaglement_entropy(state2, this->L / 2);
 								}
 							};
-							average_over_realisations<>(*alfa, false, to_ave_time);
+							average_over_realisations(*alfa, false, to_ave_time);
 							entropy /= double(this->realisations);
 							entropy_lanczos /= double(this->realisations);
 							std::ofstream file;
@@ -1138,7 +1131,7 @@ void isingUI::ui::entropy_evolution(){
 
 		// ----------- predefinitions
 		arma::vec times, entropy;
-		double dt = 1e-2;
+		double dt_new = 1e-2;
 		std::string dir = this->saving_dir + "Entropy" + kPSep;
 		std::function<void()> to_ave_time;
 		alfa.reset_random();
@@ -1171,14 +1164,7 @@ void isingUI::ui::entropy_evolution(){
 			}
 			return arma::normalise(init_state);
 		};
-		auto set_times = [t_max, tH, this](double dt_new)
-			-> arma::vec
-		{
-			if (this->scale) stout << "WARNING: log only valid for t<10, for larger t linear is resumed with dt = " << dt_new << std::endl;
-			auto init_log = arma::logspace(-2, t_max, 4000);
-			auto rest_lin = arma::regspace(10.0, dt_new, tH);
-			return this->scale ? arma::join_cols(exctract_vector(init_log, 0.0, 10.0), rest_lin) : arma::regspace(dt_new, dt_new, tH);
-		};
+		
 		stout << "\t\t	-->set random generators for " << alfa.get_info()
 					<< " - in time : " << tim_s(start) << "s" << std::endl;
 		// ----------- diagonalize
@@ -1191,28 +1177,31 @@ void isingUI::ui::entropy_evolution(){
 			lanczos::Lanczos lancz(H, lanczosParams(M, 1, true, false));
 			lancz.diagonalization();
 			double omega_max = lancz.get_eigenvalues()(M - 1) - lancz.get_eigenvalues()(0);
-			dt = 10 * this->dt / omega_max;
-			times = set_times(dt);
+			dt_new = 10 * this->dt / omega_max;
+			if (this->scale) stout << "WARNING: log only valid for t<10, for larger t linear is resumed with dt = " << dt_new << std::endl;
+			auto init_log = arma::logspace(-3, t_max, 4000);
+			auto rest_lin = arma::regspace(10.0, dt_new, tH);
+			times = this->scale? arma::join_cols(exctract_vector(init_log, 0.0, 10.0), rest_lin) : arma::regspace(dt_new, dt_new, tH);
 			entropy = arma::vec(times.size(), arma::fill::zeros);
 
 			to_ave_time = [&, lancz]() mutable 
 				{	// capture lancz by value to access it outsied the if-else scope, i.e. when the lambda is called
 					// entropy and times are declared outside the if-else scope so they can be passed by reference
 					arma::cx_vec state = set_init_state();
-					lancz.diagonalization(state);
+					//lancz.diagonalization(state);
 					for (int i = 0; i < times.size(); i++)
 					{
 						auto t = times(i);
-						//lancz.time_evolution_non_stationary(state, t - (i == 0 ? 0.0 : times(i - 1)), this->mu);
-						auto evolved_state = lancz.time_evolution_stationary(state, t);
-						entropy(i) += alfa.entaglement_entropy(evolved_state, this->L / 2);
+						lancz.time_evolution_non_stationary(state, t - (i == 0 ? 0.0 : times(i - 1)), this->mu);
+						//auto evolved_state = lancz.time_evolution_stationary(state, t);
+						entropy(i) += alfa.entaglement_entropy(state, this->L / 2);
 					}
 				};
 		} else{
 			alfa.diagonalization();
 			double omega_max = alfa.get_eigenvalues()(N - 1) - alfa.get_eigenvalues()(0);
-			dt = 10 * this->dt / omega_max;
-			times = set_times(dt);
+			dt_new = 10 * this->dt / omega_max;
+			times = this->scale ? arma::logspace(-3, t_max, 500) : arma::regspace(dt_new, dt_new, tH);
 			entropy = arma::vec(times.size(), arma::fill::zeros);
 			to_ave_time = [&]()
 				{
