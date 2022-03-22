@@ -81,6 +81,8 @@ void isingUI::ui::make_sim()
 						auto init_log = arma::logspace(-2, t_max, 4000);
 						auto rest_lin = arma::regspace(10.0, dt_new, 10 * tH);
 						auto times = this->scale ? arma::join_cols(exctract_vector(init_log, 0.0, 10.0), rest_lin) : arma::regspace(dt_new, dt_new, tH);
+						// temporary check
+						times = this->scale ? arma::logspace(-3, t_max, 500) : arma::regspace(dt_new, dt_new, tH);
 					//	for (int M = 2; M < 10; M++)
 					int M = this->mu;
 						{
@@ -92,7 +94,7 @@ void isingUI::ui::make_sim()
 							arma::vec entropy(times.size(), arma::fill::zeros);
 							arma::vec entropy_lanczos(times.size(), arma::fill::zeros);
 
-							lanczosParams params(200, 1, true, false);
+							lanczosParams params(1000, 1, true, false);
 							lanczos::Lanczos lancz(alfa->get_hamiltonian(), std::move(params));
 							//lancz.diagonalization();
 							
@@ -100,14 +102,14 @@ void isingUI::ui::make_sim()
 							{
 								const arma::cx_vec init_state = random_product_state(this->L);
 								arma::cx_vec state2 = init_state;
-								//lancz.diagonalization(init_state);
+								lancz.diagonalization(init_state);
 								for (int i = 0; i < times.size(); i++)
 								{
 									auto t = times(i);
 									arma::cx_vec state = arma::normalise(init_state);
-									// auto state2 = lancz.time_evolution_stationary(state, t);
+									state2 = lancz.time_evolution_stationary(state, t);
 									alfa->time_evolve_state(state, t);
-									lancz.time_evolution_non_stationary(state2, t - (i == 0 ? 0.0 : times(i - 1)), M);
+									//lancz.time_evolution_non_stationary(state2, t - (i == 0 ? 0.0 : times(i - 1)), M);
 									//auto state2 =  lancz.time_evolution_stationary(init_state, t);
 									entropy(i) += alfa->entaglement_entropy(state, this->L / 2);
 									entropy_lanczos(i) += alfa->entaglement_entropy(state2, this->L / 2);
@@ -1170,6 +1172,7 @@ void isingUI::ui::entropy_evolution(){
 		// ----------- diagonalize
 		stout << "\t\t	--> start diagonalizing for " << alfa.get_info()
 				<< " - in time : " << tim_s(start) << "s" << std::endl;
+		int realisation = 0;
 		if(this->ch){
 			dir += "Lanczos" + kPSep;
 			int M = 200;
@@ -1178,24 +1181,26 @@ void isingUI::ui::entropy_evolution(){
 			lancz.diagonalization();
 			double omega_max = lancz.get_eigenvalues()(M - 1) - lancz.get_eigenvalues()(0);
 			dt_new = 10 * this->dt / omega_max;
-			if (this->scale) stout << "WARNING: log only valid for t<10, for larger t linear is resumed with dt = " << dt_new << std::endl;
-			auto init_log = arma::logspace(-3, t_max, 4000);
-			auto rest_lin = arma::regspace(10.0, dt_new, tH);
-			times = this->scale? arma::join_cols(exctract_vector(init_log, 0.0, 10.0), rest_lin) : arma::regspace(dt_new, dt_new, tH);
+			//if (this->scale) stout << "WARNING: log only valid for t<10, for larger t linear is resumed with dt = " << dt_new << std::endl;
+			//auto init_log = arma::logspace(-3, t_max, 4000);
+			//auto rest_lin = arma::regspace(10.0, dt_new, tH);
+			//times = this->scale? arma::join_cols(exctract_vector(init_log, 0.0, 10.0), rest_lin) : arma::regspace(dt_new, dt_new, tH);
+			times = this->scale ? arma::logspace(-3, t_max, 500) : arma::regspace(dt_new, dt_new, tH);
 			entropy = arma::vec(times.size(), arma::fill::zeros);
 
 			to_ave_time = [&, lancz]() mutable 
 				{	// capture lancz by value to access it outsied the if-else scope, i.e. when the lambda is called
 					// entropy and times are declared outside the if-else scope so they can be passed by reference
 					arma::cx_vec state = set_init_state();
-					//lancz.diagonalization(state);
+					lancz.diagonalization(state);
 					for (int i = 0; i < times.size(); i++)
 					{
 						auto t = times(i);
-						lancz.time_evolution_non_stationary(state, t - (i == 0 ? 0.0 : times(i - 1)), this->mu);
-						//auto evolved_state = lancz.time_evolution_stationary(state, t);
-						entropy(i) += alfa.entaglement_entropy(state, this->L / 2);
+						//lancz.time_evolution_non_stationary(state, t - (i == 0 ? 0.0 : times(i - 1)), this->mu);
+						auto evolved_state = lancz.time_evolution_stationary(state, t);
+						entropy(i) += alfa.entaglement_entropy(evolved_state, this->L / 2);
 					}
+					stout << "realisation: " << ++realisation << " - in time : " << tim_s(start) << "s" << std::endl;
 				};
 		} else{
 			alfa.diagonalization();
@@ -1213,6 +1218,7 @@ void isingUI::ui::entropy_evolution(){
 						alfa.time_evolve_state(state, t);
 						entropy(i) += alfa.entaglement_entropy(state, this->L / 2);
 					}
+					stout << "realisation: " << ++realisation << " - in time : " << tim_s(start) << "s" << std::endl;
 				};
 		}
 		stout << "\t\t	--> finished diagonalizing for " << alfa.get_info()

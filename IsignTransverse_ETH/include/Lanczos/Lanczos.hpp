@@ -91,7 +91,7 @@ namespace lanczos {
 		
 		//------------------------------------------------------------------------------------------------ DYNAMICS
 		auto time_evolution_stationary(
-			arma::cx_vec& input_state,
+			const arma::cx_vec& input_state,
 			double time
 		) -> arma::cx_vec;
 

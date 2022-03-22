@@ -4,7 +4,7 @@ namespace lanczos{
 
 	inline
 	auto Lanczos::time_evolution_stationary(
-		arma::cx_vec& _state,	//<! initial state
+		const arma::cx_vec& _state,	//<! initial state
 		double time				//<! time step
 	) -> arma::cx_vec
 	{
