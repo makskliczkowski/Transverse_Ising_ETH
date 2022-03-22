@@ -1,0 +1,142 @@
+ - - - - - - MAKING ISING INTERFACE AND USING OUTER THREADS : 64 - - - - - - 
+------------------------------CHOSEN OPTIONS:
+DIR = ./results/disorder/PBC/
+model = disordered
+BC = PBC
+L  = 15
+Ls = 1
+Ln = 8
+J  = 1.00000000
+h  = 0.80000000
+hs = 0.10000000
+hn = 1
+g  = 0.70000000
+gs = 0.10000000
+gn = 1
+thread_num = 64
+site = 1
+operator = SigmaZ_j=1
+bucket size = 5
+time step = 0.10000000
+boolean value = 0
+scale = linear
+J0  = 0.00000000
+w   = 0.01000000
+ws  = 0.00000000
+wn  = 1
+g0  = 0.00000000
+g0s = 0.00000000
+g0n = 1
+realisations = 1
+---------------------------------------------------------------------------------
+
+
+ Usage: name of executable [options] outputDirectory 
+
+ The input can be both introduced with [options] described below or with giving the input directory(which also is the flag in the options)
+
+ options:
+
+-f input file for all of the options : (default none)
+
+-mu bucket size for ergodic coefficients (default 5)
+
+-J spin exchange coefficient : (default 1)
+
+-J0 random spin exchange set in uniform distribution [-J0,J0]
+
+-g transverse magnetic field (x-) constant: (default 1)
+
+-gs transverse magnetic field (x-) constant step: (default 0.0)
+
+-gn transverse magnetic field (x-) constant number: (default 1)
+
+-g0 random transverse field set in uniform distribution [-g0,g0]
+
+-g0s transverse disorder strength step: (default 0.0)
+
+-g0n transverse disorder strength number: (default 1)
+
+-h perpendicular (z-) magnetic field constant: (default 0)
+
+-hs perpendicular (z-) magnetic field constant step: (default 0.0)
+
+-hn perpendicular (z-) magnetic field constant number: (default 1)
+
+-w disorder strength : (default 0 - no disorder introduced)
+
+-ws disorder strength step: (default 0.0)
+
+-wn disorder strength number: (default 1)
+
+-L chain length minimum: bigger than 0 (default 8)
+
+-Ls chain length step: bigger equal than 0 (default 0)
+
+-Ln chain length number: bigger than 0 (default 1)
+
+-b boundary conditions : bigger than 0 (default 0 - PBC)
+
+	0 -- PBC
+
+	1 -- OBC
+
+	2 -- ABC -- none so far implemented
+
+-s site to act with local operators (default 0)
+-op flag to choose operator: 
+	0 -- Sz_i-local
+	1 -- Sx_i-local
+	2 -- Hi
+	3 -- Sz_q
+	4 -- Sx_q
+	5 -- Hq
+	  -- to get sum of local Sz or Sx take Sz_q or Sx_q with -s=0
+	  -- i or q are set to site (flag -s); (default 0)
+
+-fun choose function to start calculations: check user_interface.cpp -> make_sim() to find functions
+		0 -- diagonalizing hamiltonian and writing to file eigenvalues. Set -ch=1 to include eigenvector calculation
+		1 -- time evolution (and spectral functions) for any model (disordered is with averaging):
+		 set -op for operator and -s for acting site
+		2 -- evolution of entropy from initial state chosen by the -op flag:
+			for both models (-m flag) and possible to use lanczos iterative method by setting -ch=1
+			use -mu to set number of lanczos steps (<10 is enough) and -ts as time step (divided by E_max - E_min): 0.1 is sufficient
+				* op=0 -- random initial product state averaged over -r realisations
+				* op=1 -- fully ferromagnetically polarised state |111111...>
+				* op=2 -- fully anti-ferromagnetically polarised state |111111...>
+		3 -- spectral form factor calculation (checks if file exists with data, if not then diagonalize and save
+		4 -- relaxation times from integrated spectral function for:
+		 operator -op flag on site -s flag					(also derivative of integrated spectral function is calculated)
+		looped over system sizes: -L, -Ls, -Ln and sites: from 0 to L/2
+	   5 -- benchmark diagonalization routines vs CPU count:
+		looped over different system sizes set by -L, -Ln, -Ls
+		for number of threads: 1, 2, 4, 8, 16, 24, 32, 40, 48, 64
+		6 -- AGPs for small disorder (-m=0) as function of h for -ch=1 or as function of g for -ch=0 for input operator from -op flag
+			SET: -L, -Ln, -Ls, -h, -hn, -hs, -op, -w(default=0.01)
+ def -- in make_sim space for user to write function; designed for non-builtin behavior
+
+-m model to be choosen : (default 0 - without symmetries)
+
+	0 -- nonsymmetric model - only here the disorder is working
+
+	1 -- include symmetries - here the parity flag is also working
+
+-k translation symetry sector, 0-L, (default 0)
+
+-p parity symmetry sector, +-1 (if applicable) (default 1)
+
+-x spin flip symmetry sector, +-1 (if applicable) (default 1)
+
+-th number of threads to be used for CPU parallelization : depends on the machine specifics, default(1)
+-ch general boolean flag used in different context (default: 0)
+-ts time step for evolution (default: 0.1)
+-scale choose scale for data: either linear-0 or log-1 (default: linear)
+-h quit with help
+---------------------------------------------------------------------------------
+
+
+Intel MKL ERROR: Parameter 9 was incorrect on entry to DSYTRD.
+
+Intel MKL ERROR: Parameter 8 was incorrect on entry to DSTEDC.
+
+Intel MKL ERROR: Parameter 12 was incorrect on entry to DORMTR.

@@ -2,36 +2,16 @@
 #SBATCH --output=logs/g_scale_log-%j-%a.out
 #INPUTS TO SCRIPT ARE: L,  h,  dg, fun, operator , site, thread_num
 
-operator=0; site=0; thread_num=1;
+operator=$5; site=$6; thread_num=$7;
 num=4	 #minimum number of required input
-suffix=""
+suffix="_op=${5}_site=${6}";
 if [[ $# -lt 4 ]]; then   
   echo "Too few input parameters! Required ${num}"
   echo "INPUTS TO SCRIPT ARE: L,  h, dg, fun"
   exit 1
-elif [[ $# -eq 4 ]]; then
-  operator=0; site=0;
-elif [[ $# -eq 5 ]]; then
-  operator=$5; site=0;
-  suffix="_op=${5}";
-elif [[ $# -eq 6 ]]; then
-  operator=$5;  site=$6;
-  suffix="_op=${5}_site=${6}";
-else
-  operator=$5;  site=$6;  thread_num=$7
 fi
-
 module purge
-#unset MKL_SERIAL
-#export CPATH="/usr/include/hdf5/serial"
-#export LD_LIBRARY_PATH="/share/apps/eb2/software/imkl/2022.0.1/mkl/2022.0.1/lib/intel64"
-#export LIBRARY_PATH="/home/rswietek/LIBRARIES_CPP/armadillo-10.8.2/lib64"
 export OMP_NUM_THREADS=$thread_num
-
-#module load Armadillo/9.900.1-foss-2020a
-
-#module load imkl/2022.0.1
-#module load foss/2021b
 
 module load OpenBLAS/0.3.18-GCC-11.2.0
 module load intel/2022
@@ -82,4 +62,5 @@ fi
 #g++ -std=c++2a main.cpp IsingModel.cpp IsingModel_disorder.cpp IsingModel_sym.cpp tools.cpp user_interface.cpp -o Ising_${funName}_L=${1}_h=${2}_g=${g}${suffix}.o\
 # -DARMA_DONT_USE_WRAPPER -I/home/rswietek/LIBRARIES_CPP/armadillo-10.8.2/include -llapack -lopenblas -fopenmp -lpthread -lm -lstdc++fs -fomit-frame-pointer -Ofast >& compile_${funName}_L=${1}_h=${2}_g=${g}${suffix}.log
  
-./Ising.o -L $1 -g $g -h $2 -w 0.01 -th $thread_num -m 0 -w 0.01 -r $r -op $operator -fun $4 -s $site -b 0 -scale 1 -ch $use_lanczos  -mu 10 >& ${filename}.log
+./Ising.o -L $1 -g $g -h $2 -w 0.01 -th $thread_num -m 0 -w 0.01 -r $r\
+ -op $operator -fun $4 -s $site -b 0 -scale 1 -ch $use_lanczos  -mu 10 "${@:8}" >& ${filename}.log
