@@ -80,9 +80,11 @@ void isingUI::ui::make_sim()
 						if (this->scale) stout << "WARNING: log only valid for t<10, for larger t linear is resumed with dt = " << dt_new << std::endl;
 						auto init_log = arma::logspace(-2, t_max, 4000);
 						auto rest_lin = arma::regspace(10.0, dt_new, 10 * tH);
-						auto times = this->scale ? arma::join_cols(exctract_vector(init_log, 0.0, 10.0), rest_lin) : arma::regspace(dt_new, dt_new, tH);
-						// temporary check
-						times = this->scale ? arma::logspace(-3, t_max, 500) : arma::regspace(dt_new, dt_new, tH);
+						auto range1 = arma::regspace(dt_new / 1000., dt_new / 1000., 2 * dt_new / 100.);
+						auto range2 = arma::regspace(3 * dt_new / 100., dt_new / 100., 2 * dt_new / 10.);
+						auto range3 = arma::regspace(3 * dt_new / 10.,  dt_new / 10.,  dt_new);
+						auto times = this->scale ? arma::join_cols(exctract_vector(init_log, 0.0, 10.0), rest_lin)
+						 							: arma::join_cols(range1, range2, range3, arma::regspace(dt_new, dt_new, 5 * tH) );
 					//	for (int M = 2; M < 10; M++)
 					int M = this->mu;
 						{
@@ -94,7 +96,7 @@ void isingUI::ui::make_sim()
 							arma::vec entropy(times.size(), arma::fill::zeros);
 							arma::vec entropy_lanczos(times.size(), arma::fill::zeros);
 
-							lanczosParams params(1000, 1, true, false);
+							lanczosParams params(200, 1, true, false);
 							lanczos::Lanczos lancz(alfa->get_hamiltonian(), std::move(params));
 							//lancz.diagonalization();
 							
@@ -107,9 +109,9 @@ void isingUI::ui::make_sim()
 								{
 									auto t = times(i);
 									arma::cx_vec state = arma::normalise(init_state);
-									state2 = lancz.time_evolution_stationary(state, t);
+									//state2 = lancz.time_evolution_stationary(state, t);
 									alfa->time_evolve_state(state, t);
-									//lancz.time_evolution_non_stationary(state2, t - (i == 0 ? 0.0 : times(i - 1)), M);
+									lancz.time_evolution_non_stationary(state2, t - (i == 0 ? 0.0 : times(i - 1)), M);
 									//auto state2 =  lancz.time_evolution_stationary(init_state, t);
 									entropy(i) += alfa->entaglement_entropy(state, this->L / 2);
 									entropy_lanczos(i) += alfa->entaglement_entropy(state2, this->L / 2);
@@ -124,7 +126,7 @@ void isingUI::ui::make_sim()
 							{
 								double diff = entropy(j) - entropy_lanczos(j);
 								printSeparated(file, "\t", 16, true, times(j), entropy(j), entropy_lanczos(j), diff);
-								if(abs(diff) > 1e-8)
+								//if(abs(diff) > 1e-8)
 									printSeparated(std::cout, "\t", 16, true, times(j), entropy(j), entropy_lanczos(j), diff);
 							}
 							file.close();
@@ -538,7 +540,7 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv)
 	this->set_option(this->op, argv, choosen_option);
 
 	// time step and boolean value and scale
-	choosen_option = "-ts";
+	choosen_option = "-dt";
 	this->set_option(this->dt, argv, choosen_option);
 	choosen_option = "-ch";
 	this->set_option(this->ch, argv, choosen_option);
@@ -914,8 +916,19 @@ void isingUI::ui::compare_entaglement()
 
 	std::cout << std::endl;
 }
-void isingUI::ui::benchmark(bool full)
+void isingUI::ui::benchmark()
 {
+	auto save_eigs = [this](auto& alfa){
+		auto eigenvalues = alfa.get_eigenvalues();
+		std::string info = alfa.get_info({});
+		std::string dir = this->saving_dir + "EIGENVALUES" + kPSep;
+		createDirs(dir);
+		eigenvalues.save(arma::hdf5_name(dir + kPSep + info + ".h5", "eigenvalues"));
+		dir = this->saving_dir + "EIGENVECTORS" + kPSep;
+		createDirs(dir);
+		auto V = alfa.get_eigenvectors();
+		V.save(arma::hdf5_name(dir + kPSep + info + ".h5", "eigenvectors"));
+	};
 	if (!this->ch)
 	{
 		const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
@@ -926,7 +939,7 @@ void isingUI::ui::benchmark(bool full)
 								   : IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, {"L"}, ",");
 		openFile(file, this->saving_dir + "benchmark" + info + ".dat", std::ios::out);
 		file << "Maximum number of threads to parallelize diagonalization by OpenMP:\t " << ARMA_OPENMP_THREADS << std::endl;
-		printSeparated(file, "\t", 16, true, "#cores", "chain length", "dim", "with eigenvec 'dc'", "with eigenvec 'std'", "only eigenvalues", "in seconds");
+		printSeparated(file, "\t", 16, true, "#cores", "chain length", "dim", "with eigenvec 'dc'", "only eigenvalues", "time in seconds");
 		for (int system_size = Lmin; system_size <= Lmax; system_size += this->Ls)
 		{
 			for (auto &th : th_list)
@@ -939,28 +952,26 @@ void isingUI::ui::benchmark(bool full)
 																 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 					auto start = std::chrono::system_clock::now();
 					alfa->diagonalization(true, "dc");
+					save_eigs(*alfa);
 					double tim1 = tim_s(start);
-					// start = std::chrono::system_clock::now();
-					// alfa->diagonalization(false, "std"); double tim2 = tim_s(start);
 					start = std::chrono::system_clock::now();
 					alfa->diagonalization(false);
-					double tim3 = tim_s(start);
-					printSeparated(file, "\t", 16, true, th, system_size, alfa->get_hilbert_size(), tim1, "-----------", tim3);
-					printSeparated(std::cout, "\t", 16, true, th, system_size, alfa->get_hilbert_size(), tim1, "-----------", tim3);
+					double tim2 = tim_s(start);
+					printSeparated(file, "\t", 16, true, th, system_size, alfa->get_hilbert_size(), tim1, tim2);
+					printSeparated(std::cout, "\t", 16, true, th, system_size, alfa->get_hilbert_size(), tim1, tim2);
 				}
 				else
 				{
 					auto alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 					auto start = std::chrono::system_clock::now();
 					alfa->diagonalization(true, "dc");
+					save_eigs(*alfa);
 					double tim1 = tim_s(start);
-					// start = std::chrono::system_clock::now();
-					// alfa->diagonalization(false, "std"); double tim2 = tim_s(start);
 					start = std::chrono::system_clock::now();
 					alfa->diagonalization(false);
-					double tim3 = tim_s(start);
-					printSeparated(file, "\t", 16, true, th, system_size, alfa->get_hilbert_size(), tim1, "-----------", tim3);
-					printSeparated(std::cout, "\t", 16, true, th, system_size, alfa->get_hilbert_size(), tim1, "-----------", tim3);
+					double tim2 = tim_s(start);
+					printSeparated(file, "\t", 16, true, th, system_size, alfa->get_hilbert_size(), tim1, tim2);
+					printSeparated(std::cout, "\t", 16, true, th, system_size, alfa->get_hilbert_size(), tim1, tim2);
 				}
 			}
 			file << std::endl;
@@ -974,14 +985,12 @@ void isingUI::ui::benchmark(bool full)
 			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 			auto start = std::chrono::system_clock::now();
 			alfa->diagonalization(true, "dc");
+			save_eigs(*alfa);
 			double tim1 = tim_s(start);
 			start = std::chrono::system_clock::now();
-			alfa->diagonalization(true, "std");
-			double tim2 = tim_s(start);
-			start = std::chrono::system_clock::now();
 			alfa->diagonalization(false);
-			double tim3 = tim_s(start);
-			printSeparated(std::cout, "\t", 16, true, this->thread_number, this->L, alfa->get_hilbert_size(), tim1, tim2, tim3);
+			double tim2 = tim_s(start);
+			printSeparated(std::cout, "\t", 16, true, this->thread_number, this->L, alfa->get_hilbert_size(), tim1, tim2);
 			if (this->thread_number == 32)
 				std::cout << std::endl;
 		}
@@ -990,14 +999,12 @@ void isingUI::ui::benchmark(bool full)
 			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 			auto start = std::chrono::system_clock::now();
 			alfa->diagonalization(true, "dc");
+			save_eigs(*alfa);
 			double tim1 = tim_s(start);
 			start = std::chrono::system_clock::now();
-			alfa->diagonalization(true, "std");
-			double tim2 = tim_s(start);
-			start = std::chrono::system_clock::now();
 			alfa->diagonalization(false);
-			double tim3 = tim_s(start);
-			printSeparated(std::cout, "\t", 16, true, this->thread_number, this->L, alfa->get_hilbert_size(), tim1, tim2, tim3);
+			double tim2 = tim_s(start);
+			printSeparated(std::cout, "\t", 16, true, this->thread_number, this->L, alfa->get_hilbert_size(), tim1, tim2);
 			if (this->thread_number == 32)
 				std::cout << std::endl;
 		}

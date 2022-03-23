@@ -140,7 +140,7 @@ namespace isingUI
 		void compare_matrix_elements(op_type op, int k_alfa, int k_beta, int p_alfa = 1, int p_beta = 1, int x_alfa = 1, int x_beta = 1);
 		void compare_entaglement();
 
-		void benchmark(bool full = true);
+		void benchmark();
 		
 		//-------------------------------------------------------------------------- SPECTRAL PROPERTIES AND HELPERS
 		//<! calculate all spectral quantities: time evolution, response function,

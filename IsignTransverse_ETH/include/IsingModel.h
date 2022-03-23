@@ -260,8 +260,8 @@ public:
 	}
 
 
-	void time_evolve_state(arma::cx_vec& state, double time);
-
+	void time_evolve_state(arma::cx_vec& state, double time); 					//<! stationary time evolution
+	void time_evolve_state_ns(arma::cx_vec& state, double dt, int order = 3); 	// non-stationary time evolution (time-dependent model)
 	// entanglement entropy based on the density matrices
 	virtual arma::cx_mat reduced_density_matrix(const arma::cx_vec& state, int A_size) const  = 0;
 

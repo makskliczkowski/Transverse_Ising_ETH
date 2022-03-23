@@ -525,16 +525,26 @@ template<> cpx overlap<cpx>(const IsingModel<cpx>& A, const IsingModel<cpx>& B, 
 
 template <typename _type>
 void IsingModel<_type>::time_evolve_state(arma::cx_vec& state, double time) {
-	//assert(state.size() == this->N, ("state is of wrong dimensions! set dimension to:" + std::to_string(this->N)));
-	if (this->eigenvectors.is_empty()) {
-		stout << "Model not diagonalized! Did it for you, but dude...";
-		this->diagonalization();
-	}
 	const arma::cx_vec initial_state = arma::normalise(state);
 	state = arma::cx_vec(this->N, arma::fill::zeros);
 	for (long k = 0; k < this->N; k++)
 		state += std::exp(-im * eigenvalues(k) * time) * arma::dot(eigenvectors.col(k), initial_state) * eigenvectors.col(k);
 	state = arma::normalise(state);
+}
+
+template <typename _type>
+void IsingModel<_type>::time_evolve_state_ns(
+	arma::cx_vec& state,	//<! state at time dt
+	double dt, 				//<! time step, dt << 1
+	int order				//<! maximal order of expansion
+	) {
+	arma::cx_vec temp_state = state;
+	for(int i = 1; i <= order; i++){
+		const cpx prefactor = -im * dt /  double(i);
+		temp_state = prefactor * this->H * temp_state;
+		state += temp_state;
+	}
+	//state = arma::normalise(state);
 }
 
 // UNRESOLVED TEMPLATE EXTERNALS <- COMPILER DOESN"T KNOW ABOUT THEM SADLY
@@ -566,6 +576,8 @@ template arma::sp_cx_mat IsingModel<cpx>::create_LIOMoperator_densities(int, int
 template arma::sp_cx_mat IsingModel<double>::create_LIOMoperator_densities(int, int) const;
 template void IsingModel<double>::time_evolve_state(arma::cx_vec&, double);
 template void IsingModel<cpx>::time_evolve_state(arma::cx_vec&, double);
+template void IsingModel<double>::time_evolve_state_ns(arma::cx_vec&, double, int);
+template void IsingModel<cpx>::time_evolve_state_ns(arma::cx_vec&, double, int);
 
 template double IsingModel<double>::shannon_entropy(const arma::cx_vec&, int) const;
 template double IsingModel<cpx>::shannon_entropy(const arma::cx_vec&, int) const;
