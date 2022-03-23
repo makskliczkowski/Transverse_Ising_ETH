@@ -18,7 +18,7 @@ module load HDF5/1.12.0-gompi-2021a
 module load intel/2022.00
 
 # set number of realisations, array from L=8 to L=16
-	R_ARR=(100 100 100 100 100 50 50 200 100)
+	R_ARR=(1000 1000 600 600 600 300 300 100 100)
 	#R_ARR=(20 20 20 20 20 20 20 10 5)
 	r=${R_ARR[`expr ${1}-8`]}
 
@@ -46,7 +46,7 @@ else
 	funName="Entropy"
 fi
 
-use_lanczos=0
+use_lanczos=1
 if [[ $use_lanczos == 1 ]]; then
 	funName="${funName}_lanczos";
 fi

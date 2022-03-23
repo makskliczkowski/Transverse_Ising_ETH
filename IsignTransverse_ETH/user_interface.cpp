@@ -70,30 +70,30 @@ void isingUI::ui::make_sim()
 					int t_max = (int)std::ceil(std::log10(tH));
 					t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
 					
-					double h0 = 0, g0 = 0;
-					auto alfa0 = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, g0, this->g0, h0, this->w, this->boundary_conditions);
-					alfa0->diagonalization();
-					std::string dir2 = this->saving_dir + "Magnetization" + kPSep;
-					createDirs(dir2);
-					std::string name = dir2 + "quench_g_init=" + to_string_prec(g0, 2) + ",h_init" + to_string_prec(h0, 2) + alfa->get_info({}) + ".dat";
-					std::ofstream fileee;
-					auto timez = arma::logspace(-2, t_max, 300);
-					openFile(fileee, name, ios::out);
-					arma::vec GS = alfa0->get_eigenState(0);
-					arma::cx_vec _state(GS.size(), arma::fill::zeros);
-					_state.set_real(GS);
-					auto op1 = alfa->create_operator({IsingModel_disorder::sigma_z}, std::vector( {this->L / 2} ));
-					for(int i = 0; i<this->L; i++){
-						auto op = alfa->create_operator({IsingModel_disorder::sigma_z}, std::vector( {i} ));
-						for(auto& t : timez){	
-							alfa->time_evolve_state(_state, t);
-							cpx evol = arma::cdot(_state, op1 * op * _state) - arma::cdot(_state, op1 * _state) * arma::cdot(_state, op * _state);
-							printSeparated(fileee, "\t", 12, true, i, t, real(evol), imag(evol));
-						}
-					}
-					fileee.close();
-
-					continue;
+					//double h0 = 0, g0 = 0;
+					//auto alfa0 = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, g0, this->g0, h0, this->w, this->boundary_conditions);
+					//alfa0->diagonalization();
+					//std::string dir2 = this->saving_dir + "Magnetization" + kPSep;
+					//createDirs(dir2);
+					//std::string name = dir2 + "quench_g_init=" + to_string_prec(g0, 2) + ",h_init" + to_string_prec(h0, 2) + alfa->get_info({}) + ".dat";
+					//std::ofstream fileee;
+					//auto timez = arma::logspace(-2, t_max, 300);
+					//openFile(fileee, name, ios::out);
+					//arma::vec GS = alfa0->get_eigenState(0);
+					//arma::cx_vec _state(GS.size(), arma::fill::zeros);
+					//_state.set_real(GS);
+					//auto op1 = alfa->create_operator({IsingModel_disorder::sigma_z}, std::vector( {this->L / 2} ));
+					//for(int i = 0; i<this->L; i++){
+					//	auto op = alfa->create_operator({IsingModel_disorder::sigma_z}, std::vector( {i} ));
+					//	for(auto& t : timez){	
+					//		alfa->time_evolve_state(_state, t);
+					//		cpx evol = arma::cdot(_state, op1 * op * _state) - arma::cdot(_state, op1 * _state) * arma::cdot(_state, op * _state);
+					//		printSeparated(fileee, "\t", 12, true, i, t, real(evol), imag(evol));
+					//	}
+					//}
+					//fileee.close();
+//
+					//continue;
 					std::string dir = this->saving_dir + "Entropy" + kPSep;
 					createDirs(dir);
 					double omega_max = alfa->get_eigenEnergy(alfa->get_hilbert_size() - 1) - alfa->get_eigenEnergy(0);
@@ -1213,24 +1213,33 @@ void isingUI::ui::entropy_evolution(){
 			lancz.diagonalization();
 			double omega_max = lancz.get_eigenvalues()(M - 1) - lancz.get_eigenvalues()(0);
 			dt_new = 10 * this->dt / omega_max;
-			//if (this->scale) stout << "WARNING: log only valid for t<10, for larger t linear is resumed with dt = " << dt_new << std::endl;
-			//auto init_log = arma::logspace(-3, t_max, 4000);
-			//auto rest_lin = arma::regspace(10.0, dt_new, tH);
-			//times = this->scale? arma::join_cols(exctract_vector(init_log, 0.0, 10.0), rest_lin) : arma::regspace(dt_new, dt_new, tH);
-			times = this->scale ? arma::logspace(-3, t_max, 500) : arma::regspace(dt_new, dt_new, tH);
+			if (this->scale) stout << "WARNING: log only valid for t<10, for larger t linear is resumed with dt = " << dt_new << std::endl;
+			auto init_log = arma::logspace(-2, t_max, 4000);
+			auto rest_lin = arma::regspace(10.0, dt_new, 10 * tH);
+			auto range1 = arma::regspace(1e-5, 1e-5, 2e-4);
+			auto range2 = arma::regspace(3e-4, 1e-4, 2e-3);
+			auto range3 = arma::regspace(3e-3, 1e-3, 2e-2);
+			auto range4 = arma::regspace(3e-2, 1e-2, 2e-1);
+			auto range5 = arma::regspace(3e-1, 1e-1, 2e0);
+			auto range6 = arma::regspace(3e-1, 1e-1, 2e0);
+			auto range7 = arma::regspace(3e0, 2e-1, 100);
+			auto range8 = arma::regspace(100.4, 0.4, 3 * tH);
+			auto times = this->scale ? arma::join_cols(exctract_vector(init_log, 0.0, 10.0), rest_lin)
+			 							: arma::join_cols(arma::join_cols(range1, range2, range3), arma::join_cols(range4, range5, range6), arma::join_cols(range7, range8));
+			//times = this->scale ? arma::logspace(-3, t_max, 500) : arma::regspace(dt_new, dt_new, tH);
 			entropy = arma::vec(times.size(), arma::fill::zeros);
 
 			to_ave_time = [&, lancz]() mutable 
 				{	// capture lancz by value to access it outsied the if-else scope, i.e. when the lambda is called
 					// entropy and times are declared outside the if-else scope so they can be passed by reference
 					arma::cx_vec state = set_init_state();
-					lancz.diagonalization(state);
+					//lancz.diagonalization(state);
 					for (int i = 0; i < times.size(); i++)
 					{
 						auto t = times(i);
-						//lancz.time_evolution_non_stationary(state, t - (i == 0 ? 0.0 : times(i - 1)), this->mu);
-						auto evolved_state = lancz.time_evolution_stationary(state, t);
-						entropy(i) += alfa.entaglement_entropy(evolved_state, this->L / 2);
+						lancz.time_evolution_non_stationary(state, t - (i == 0 ? 0.0 : times(i - 1)), this->mu);
+						//auto evolved_state = lancz.time_evolution_stationary(state, t);
+						entropy(i) += alfa.entaglement_entropy(state, this->L / 2);
 					}
 					stout << "realisation: " << ++realisation << " - in time : " << tim_s(start) << "s" << std::endl;
 				};
