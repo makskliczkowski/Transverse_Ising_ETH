@@ -26,9 +26,9 @@ RMARGIN = "set lmargin at screen 0.46; set rmargin at screen 0.82"
 RANGE = "set xrange[0:1]; set yrange[0:2.0]"
 UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset border;"
 #-- PARAMETERS
-g = 2.0	
-L = 14
-h = 0.8
+g = -0.25	
+L = 11
+h = -0.4
 h0 = 80
 hend = 400
 dh = 40
@@ -53,7 +53,7 @@ if(g_scaling && !scaling){
 }
 #set title my_title
 
-set y2tics -100, 10
+#set y2tics -100, 10
 set ytics nomirror
 set xlabel "{/*1.25q/{/Symbol p}}"
 set ylabel "{/*1.25{/Symbol \341} A_q\267{/Symbol s}^z_{L/2}{/Symbol \361}}"
@@ -63,7 +63,7 @@ set ylabel "{/*1.25{/Symbol \341} A_q\267{/Symbol s}^z_{L/2}{/Symbol \361}}"
 set xrange[0.1:5.0]
 set ytics nomirror
 set autoscale xy
-set autoscale y2
+#set autoscale y2
 
 set lmargin at screen 0.13; set rmargin at screen 0.96;
 set tmargin at screen 0.96; set bmargin at screen 0.10
@@ -81,9 +81,9 @@ set tmargin at screen 0.96; set bmargin at screen 0.10
 
 i0=20; iend=80; di=20
 set xlabel 't / t_H'
-set logscale xy
-set format x '10^{%L}'
-set format y '10^{%L}'
+#set logscale y
+#set format x '10^{%L}'
+#set format y '10^{%L}'
 
 dir_base='../../results/disorder/PBC/'
 #dir = dir_base.'SpectralFormFactor/'
@@ -107,7 +107,19 @@ dir_base='../../results/disorder/PBC/'
 #plot for[i=i0:iend:di] ssf_name(0.01*i, L) u ($1 / tH[(i-i0)/di + 1]):2 w lp lw 1.5 t sprintf("g=%.2f",0.01*i), (x < 1? 2*x - x*log(1+2*x) : 2-x*log( (2*x+1) / (2*x-1))) t 'GOE'
 #
 #exit;
+dir = dir_base.'Magnetization/'
+_name = dir.sprintf("quench_g_init=0.00,h_init0.00_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=0.01.dat", L, g, h)
+set view map
+set pm3d interpolate 10,10
+#set dgrid3d 300,10,1
+set xrange[0:10]
+set yrange[0.1:40]
+set cbrange[0:1e-1]
+set yrange
+splot _name u 1:2:3 with image
 
+
+exit;
 dir = dir_base.'Entropy/'
 set ylabel 'S(t)'
 set xlabel 't'

@@ -137,11 +137,22 @@ namespace spectrals{
 	}
 
 	// ---------------------------------------------------------------------------------- TIME EVOLUTION
+	// ----------------------------------------- OUT-OF-TIME CORRELATION FUNCTION (OTOC)
+#define OTOC out_o_time_correlator
+	//<! out of time correlator: < A(t) * B >
+	template <typename _type>
+	inline 
+	void out_of_time_correlator(
+	    const IsingModel<_type> &alfa,  //<! input model (diagonalized) 
+	    const arma::cx_mat &A,    		//<! evolving operator
+	    const arma::cx_mat &B,    		//<! static operator
+	    std::string name                //<! filename to write data (contains directory)
+	    );
 	// ----------------------------------------- AUTOCORRELATION FUNCTION
 	//<! time evolution of autocorrelation function
 	template <typename _type>
 	inline 
-	void timeEvolution(
+	void autocorrelation_function(
 	    const IsingModel<_type> &alfa,   //<! input model (diagonalized) 
 	    const arma::cx_mat &mat_elem,    //<! input calculated matrix elements for any operator
 	    std::string name                 //<! filename to write data (contains directory)
@@ -191,7 +202,7 @@ namespace spectrals{
 	template <typename _type>
 	[[nodiscard]]
 	inline
-	auto timeEvolution(
+	auto autocorrelation_function(
 	    const IsingModel<_type> &alfa,   //<! input model (diagonalized)  
 	    const arma::cx_mat &mat_elem,    //<! input calculated matrix elements for any operator 
 	    const arma::vec &times           //<! time range to caluclate data on
@@ -227,8 +238,30 @@ namespace spectrals{
 		}
 		return std::make_pair(timeEv, LTA);
 	}
+#define timeEvolution autocorrelation_function // this to be deleted
+	
+	// -----------------------------------------  QUANTUM QUENCH
+	[[nodiscard]]
+	inline
+	auto time_evolution(
+		const arma::cx_vec& init_state,	//<! initial state
+		const arma::sp_cx_mat& op_mat,	//<! operator matrix to fine time evolution
+		double time
+	) -> double
+	{
+		double output = 0;
 
 
+		return output;
+	}
+
+	inline
+	auto
+	magnetization_profile(
+		const arma::cx_vec& init_state,	//<! initial state
+		const op_type& op, 
+		double time
+		) -> arma::vec;
 	// ---------------------------------------------------------------------------------- SPECTRAL FORM FACTOR
 	// ----------------------------------------- MEAN LEVEL SPACING
 	//<! mean level spacing between iterators

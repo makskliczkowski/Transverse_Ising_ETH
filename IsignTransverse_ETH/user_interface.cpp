@@ -65,10 +65,35 @@ void isingUI::ui::make_sim()
 
 					stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
 						  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
+					
 					const double tH = 1. / alfa->mean_level_spacing_analytical();
 					int t_max = (int)std::ceil(std::log10(tH));
 					t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
-					// auto times = arma::logspace(-2, t_max, 300);
+					
+					double h0 = 0, g0 = 0;
+					auto alfa0 = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, g0, this->g0, h0, this->w, this->boundary_conditions);
+					alfa0->diagonalization();
+					std::string dir2 = this->saving_dir + "Magnetization" + kPSep;
+					createDirs(dir2);
+					std::string name = dir2 + "quench_g_init=" + to_string_prec(g0, 2) + ",h_init" + to_string_prec(h0, 2) + alfa->get_info({}) + ".dat";
+					std::ofstream fileee;
+					auto timez = arma::logspace(-2, t_max, 300);
+					openFile(fileee, name, ios::out);
+					arma::vec GS = alfa0->get_eigenState(0);
+					arma::cx_vec _state(GS.size(), arma::fill::zeros);
+					_state.set_real(GS);
+					auto op1 = alfa->create_operator({IsingModel_disorder::sigma_z}, std::vector( {this->L / 2} ));
+					for(int i = 0; i<this->L; i++){
+						auto op = alfa->create_operator({IsingModel_disorder::sigma_z}, std::vector( {i} ));
+						for(auto& t : timez){	
+							alfa->time_evolve_state(_state, t);
+							cpx evol = arma::cdot(_state, op1 * op * _state) - arma::cdot(_state, op1 * _state) * arma::cdot(_state, op * _state);
+							printSeparated(fileee, "\t", 12, true, i, t, real(evol), imag(evol));
+						}
+					}
+					fileee.close();
+
+					continue;
 					std::string dir = this->saving_dir + "Entropy" + kPSep;
 					createDirs(dir);
 					double omega_max = alfa->get_eigenEnergy(alfa->get_hilbert_size() - 1) - alfa->get_eigenEnergy(0);
