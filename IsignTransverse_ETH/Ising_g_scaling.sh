@@ -14,11 +14,12 @@ module purge
 export OMP_NUM_THREADS=$thread_num
 
 module load OpenBLAS/0.3.18-GCC-11.2.0
-module load intel/2022
+module load HDF5/1.12.0-gompi-2021a
+module load intel/2022.00
 
 # set number of realisations, array from L=8 to L=16
-	#R_ARR=(1000 1000 1000 1000 1000 500 500 200 100)
-	R_ARR=(20 20 20 20 20 20 20 10 5)
+	R_ARR=(100 100 100 100 100 50 50 200 100)
+	#R_ARR=(20 20 20 20 20 20 20 10 5)
 	r=${R_ARR[`expr ${1}-8`]}
 
 # set input parameters: to multiply use \*, cause * means 'all files'
@@ -63,4 +64,4 @@ fi
 # -DARMA_DONT_USE_WRAPPER -I/home/rswietek/LIBRARIES_CPP/armadillo-10.8.2/include -llapack -lopenblas -fopenmp -lpthread -lm -lstdc++fs -fomit-frame-pointer -Ofast >& compile_${funName}_L=${1}_h=${2}_g=${g}${suffix}.log
  
 ./Ising.o -L $1 -g $g -h $2 -w 0.01 -th $thread_num -m 0 -w 0.01 -r $r\
- -op $operator -fun $4 -s $site -b 0 -scale 1 -ch $use_lanczos  -mu 10 "${@:8}" >& ${filename}.log
+ -op $operator -fun $4 -s $site -b 0 -ch $use_lanczos "${@:8}" >& ${filename}.log

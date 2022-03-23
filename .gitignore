@@ -19,6 +19,7 @@
 *.zip
 *.pdf
 *.rar
+*.o 	# ignore executable files
 slurm-*.out
 #*.sh
 *.txt to keep gnuplot scripts

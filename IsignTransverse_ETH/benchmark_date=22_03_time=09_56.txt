@@ -140,3 +140,23 @@ Intel MKL ERROR: Parameter 9 was incorrect on entry to DSYTRD.
 Intel MKL ERROR: Parameter 8 was incorrect on entry to DSTEDC.
 
 Intel MKL ERROR: Parameter 12 was incorrect on entry to DORMTR.
+               1	              15	           32768	  25043.33200000	     -----------	   6812.15300000	
+
+Intel MKL ERROR: Parameter 8 was incorrect on entry to DSTEDC.
+
+Intel MKL ERROR: Parameter 12 was incorrect on entry to DORMTR.
+               2	              15	           32768	  17573.88400000	     -----------	   3868.31200000	
+
+Intel MKL ERROR: Parameter 8 was incorrect on entry to DSTEDC.
+
+Intel MKL ERROR: Parameter 12 was incorrect on entry to DORMTR.
+               4	              15	           32768	  11129.01700000	     -----------	   2236.82100000	
+
+Intel MKL ERROR: Parameter 8 was incorrect on entry to DSTEDC.
+
+Intel MKL ERROR: Parameter 12 was incorrect on entry to DORMTR.
+               8	              15	           32768	   7733.51100000	     -----------	   1974.87900000	
+
+Intel MKL ERROR: Parameter 8 was incorrect on entry to DSTEDC.
+
+Intel MKL ERROR: Parameter 12 was incorrect on entry to DORMTR.
