@@ -90,6 +90,9 @@ public:
 	auto get_eigenEnergy(u64 idx)				const { return this->eigenvalues(idx); }		 // get eigenenergy at a given idx
 	auto get_eigenState(u64 idx)				const { return this->eigenvectors.col(idx); }	 // get an eigenstate at a given idx
 	auto get_eigenStateValue(u64 idx, u64 elem) const { return this->eigenvectors(elem, idx);}	 // get an eigenstate at a given idx
+	auto calculate_energy(const arma::cx_vec& input) const{
+		return real(arma::cdot(input, this->H * input));
+	};
 	// ---------------------------------- PRINTERS ----------------------------------
 	void print_base_spin_sector(int Sz = 0);													// print basis state with a given total spin (for clarity purposes)
 	void print_state(u64 _id);																	// prints the eigenstate at a given idx

@@ -39,8 +39,8 @@ namespace lanczos {
 		);
 
 	public:
-		auto get_eigenvalues() const { return this->eigenvalues; }
-
+		auto get_eigenvalues() 				const { return this->eigenvalues; }
+		auto get_eigenstate(int _id = 0) 	const { return conv_to_hilbert_space(_id); }
 		//friend _returnTy FTLM(Lanczos&);
 		//------------------------------------------------------------------------------------------------ CONSTRUCTOS
 		~Lanczos() = default;
@@ -79,12 +79,12 @@ namespace lanczos {
 		//	hilbert,	//<! Hilbert basis, i.e. computational basis
 		//	krylov		//<! Krylov basis build from random vector
 		//};
-		[[nodiscard]] auto conv_to_hilbert_space(int state_id) -> arma::cx_vec;
+		[[nodiscard]] auto conv_to_hilbert_space(int state_id) const -> arma::cx_vec;
 
-		[[nodiscard]] auto conv_to_hilbert_space(const arma::cx_vec& input) -> arma::cx_vec;
-		[[nodiscard]] auto conv_to_krylov_space( const arma::cx_vec& input) -> arma::cx_vec;
-		[[nodiscard]] auto conv_to_hilbert_space(const arma::vec&	 input) -> arma::cx_vec;
-		[[nodiscard]] auto conv_to_krylov_space( const arma::vec&	 input) -> arma::cx_vec;
+		[[nodiscard]] auto conv_to_hilbert_space(const arma::cx_vec& input) const -> arma::cx_vec;
+		[[nodiscard]] auto conv_to_krylov_space( const arma::cx_vec& input) const -> arma::cx_vec;
+		[[nodiscard]] auto conv_to_hilbert_space(const arma::vec&	 input) const -> arma::cx_vec;
+		[[nodiscard]] auto conv_to_krylov_space( const arma::vec&	 input) const -> arma::cx_vec;
 		
 		//------------------------------------------------------------------------------------------------ TOOLS
 		void convergence(int num_state_out = 10);

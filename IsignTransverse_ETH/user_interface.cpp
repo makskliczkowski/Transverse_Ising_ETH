@@ -56,9 +56,11 @@ void isingUI::ui::make_sim()
 
 					// compare_entaglement();
 					// continue;
-					auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+					//auto alfa = std::make_unique<IsingModel_disorder>(this->L, -this->J, this->J0, -this->g, this->g0, -this->h, this->w, this->boundary_conditions);
+					auto alfa = std::make_unique<IsingModel_sym>(this->L, -this->J, -this->g, -this->h,
+								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 					stout << "\n\t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
-					// const long long N = alfa->get_hilbert_size();
+					const size_t N = alfa->get_hilbert_size();
 					stout << "\t\t	--> start diagonalizing for " << alfa->get_info()
 						  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 					alfa->diagonalization();
@@ -70,30 +72,48 @@ void isingUI::ui::make_sim()
 					int t_max = (int)std::ceil(std::log10(tH));
 					t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
 					
-					//double h0 = 0, g0 = 0;
-					//auto alfa0 = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, g0, this->g0, h0, this->w, this->boundary_conditions);
-					//alfa0->diagonalization();
-					//std::string dir2 = this->saving_dir + "Magnetization" + kPSep;
-					//createDirs(dir2);
-					//std::string name = dir2 + "quench_g_init=" + to_string_prec(g0, 2) + ",h_init" + to_string_prec(h0, 2) + alfa->get_info({}) + ".dat";
-					//std::ofstream fileee;
-					//auto timez = arma::logspace(-2, t_max, 300);
-					//openFile(fileee, name, ios::out);
+					double h0 = 0.001, g0 = 0;
+					auto alfa0 = std::make_unique<IsingModel_sym>(this->L, -this->J, g0, h0,
+								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+					//auto alfa0 = std::make_unique<IsingModel_disorder>(this->L, -this->J, this->J0, g0, this->g0, h0, this->w, this->boundary_conditions);
+					alfa0->diagonalization();
 					//arma::vec GS = alfa0->get_eigenState(0);
 					//arma::cx_vec _state(GS.size(), arma::fill::zeros);
 					//_state.set_real(GS);
-					//auto op1 = alfa->create_operator({IsingModel_disorder::sigma_z}, std::vector( {this->L / 2} ));
-					//for(int i = 0; i<this->L; i++){
-					//	auto op = alfa->create_operator({IsingModel_disorder::sigma_z}, std::vector( {i} ));
-					//	for(auto& t : timez){	
-					//		alfa->time_evolve_state(_state, t);
-					//		cpx evol = arma::cdot(_state, op1 * op * _state) - arma::cdot(_state, op1 * _state) * arma::cdot(_state, op * _state);
-					//		printSeparated(fileee, "\t", 12, true, i, t, real(evol), imag(evol));
-					//	}
-					//}
-					//fileee.close();
-//
-					//continue;
+					arma::cx_vec _state = alfa0->get_eigenState(0);
+					//lanczosParams params(200, 1, true, false);
+					//lanczos::Lanczos lancz(alfa0->get_hamiltonian(), std::move(params));
+					//lancz.diagonalization();
+					//arma::cx_vec _state = lancz.get_eigenstate(0);
+					//lancz.diagonalization(_state); const arma::cx_vec temp_state = _state;
+					//_state( (ULLPOW(this->L / 2)) - 1 ) = 1.0;
+					std::string dir2 = this->saving_dir + "Magnetization" + kPSep;
+					createDirs(dir2);
+					std::string name = dir2 + "quench_g_init=" + to_string_prec(g0, 2) + ",h_init" + to_string_prec(h0, 2) + alfa->get_info({}) + ".dat";
+					std::ofstream fileee;
+					//auto timez = arma::logspace(-1, t_max, 50);
+					auto timez = arma::regspace(0.5, 0.5, 60);
+					openFile(fileee, name, ios::out);
+
+					
+					auto E = alfa->calculate_energy(_state);
+					stout << "initial state energy = " << E << std::endl;
+					auto temperature = thermodynamics::assign_temperature(alfa->get_eigenvalues(), E);
+					stout << "initial state temperature = " << temperature << std::endl;
+					auto op1 = alfa->create_operator({IsingModel_disorder::sigma_z}, std::vector( {this->L / 2} ));
+					for(int i = 0; i<this->L; i++){
+						auto op = alfa->create_operator({IsingModel_disorder::sigma_z}, std::vector( {i} ));
+						for(int k = 0; k<timez.size(); k++)
+						{
+							auto t = timez(k);	
+							alfa->time_evolve_state(_state, t);
+							cpx evol = arma::cdot(_state, op1 * op * _state);// - arma::cdot(_state, op1 * _state) * arma::cdot(_state, op * _state);
+							printSeparated(fileee, "\t", 12, true, i, t, real(evol), imag(evol));
+						}
+					}
+					fileee.close();
+					
+					continue;
 					std::string dir = this->saving_dir + "Entropy" + kPSep;
 					createDirs(dir);
 					double omega_max = alfa->get_eigenEnergy(alfa->get_hilbert_size() - 1) - alfa->get_eigenEnergy(0);
@@ -223,71 +243,71 @@ void isingUI::ui::make_sim()
 
 void print_help(){
 	printf(
-		"\n Usage: name of executable [options] outputDirectory \n"
-		"\n The input can be both introduced with [options] described below or with giving the input directory(which also is the flag in the options)\n"
-		"\n options:\n"
-		"\n-f input file for all of the options : (default none)\n"
-		"\n-mu bucket size for ergodic coefficients (default 5)\n"
-		"\n-J spin exchange coefficient : (default 1)\n"
-		"\n-J0 random spin exchange set in uniform distribution [-J0,J0]\n"
-		"\n-g transverse magnetic field (x-) constant: (default 1)\n"
-		"\n-gs transverse magnetic field (x-) constant step: (default 0.0)\n"
-		"\n-gn transverse magnetic field (x-) constant number: (default 1)\n"
-		"\n-g0 random transverse field set in uniform distribution [-g0,g0]\n"
-		"\n-g0s transverse disorder strength step: (default 0.0)\n"
-		"\n-g0n transverse disorder strength number: (default 1)\n"
-		"\n-h perpendicular (z-) magnetic field constant: (default 0)\n"
-		"\n-hs perpendicular (z-) magnetic field constant step: (default 0.0)\n"
-		"\n-hn perpendicular (z-) magnetic field constant number: (default 1)\n"
-		"\n-w disorder strength : (default 0 - no disorder introduced)\n"
-		"\n-ws disorder strength step: (default 0.0)\n"
-		"\n-wn disorder strength number: (default 1)\n"
-		"\n-L chain length minimum: bigger than 0 (default 8)\n"
-		"\n-Ls chain length step: bigger equal than 0 (default 0)\n"
-		"\n-Ln chain length number: bigger than 0 (default 1)\n"
-		"\n-b boundary conditions : bigger than 0 (default 0 - PBC)\n"
-		"\n	0 -- PBC\n"
-		"\n	1 -- OBC\n"
-		"\n	2 -- ABC -- none so far implemented\n"
-		"\n-s site to act with local operators (default 0)"
-		"\n-op flag to choose operator: "
-		"\n	0 -- Sz_i-local"
-		"\n	1 -- Sx_i-local"
-		"\n	2 -- Hi"
-		"\n	3 -- Sz_q"
-		"\n	4 -- Sx_q"
-		"\n	5 -- Hq"
-		"\n	  -- to get sum of local Sz or Sx take Sz_q or Sx_q with -s=0"
-		"\n	  -- i or q are set to site (flag -s); (default 0)"
-		"\n"
-		"\n-fun choose function to start calculations: check user_interface.cpp -> make_sim() to find functions"
-		"\n\t	0 -- diagonalizing hamiltonian and writing to file eigenvalues. Set -ch=1 to include eigenvector calculation"
-		"\n\t	1 -- time evolution (and spectral functions) for any model (disordered is with averaging):\n\t\t set -op for operator and -s for acting site"
-		"\n\t	2 -- evolution of entropy from initial state chosen by the -op flag:"
-		"\n\t		for both models (-m flag) and possible to use lanczos iterative method by setting -ch=1"
-		"\n\t		use -mu to set number of lanczos steps (<10 is enough) and -ts as time step (divided by E_max - E_min): 0.1 is sufficient"
-		"\n\t			* op=0 -- random initial product state averaged over -r realisations"
-		"\n\t			* op=1 -- fully ferromagnetically polarised state |111111...>"
-		"\n\t			* op=2 -- fully anti-ferromagnetically polarised state |111111...>"
-		"\n\t	3 -- spectral form factor calculation (checks if file exists with data, if not then diagonalize and save"
-		"\n\t	4 -- relaxation times from integrated spectral function for:\n\t\t operator -op flag on site -s flag\
-		\t\t	(also derivative of integrated spectral function is calculated)\n\t\tlooped over system sizes: -L, -Ls, -Ln and sites: from 0 to L/2"
-		"\n\t   5 -- benchmark diagonalization routines vs CPU count:\n\t\tlooped over different system sizes set by -L, -Ln, -Ls\n\t\tfor number of threads: 1, 2, 4, 8, 16, 24, 32, 40, 48, 64"
-		"\n\t	6 -- AGPs for small disorder (-m=0) as function of h for -ch=1 or as function of g for -ch=0 for input operator from -op flag"
-		"\n\t		SET: -L, -Ln, -Ls, -h, -hn, -hs, -op, -w(default=0.01)"
-		"\n def -- in make_sim space for user to write function; designed for non-builtin behavior"
-		"\n"
-		"\n-m model to be choosen : (default 0 - without symmetries)\n"
-		"\n	0 -- nonsymmetric model - only here the disorder is working\n"
-		"\n	1 -- include symmetries - here the parity flag is also working\n"
-		"\n-k translation symetry sector, 0-L, (default 0)\n"
-		"\n-p parity symmetry sector, +-1 (if applicable) (default 1)\n"
-		"\n-x spin flip symmetry sector, +-1 (if applicable) (default 1)\n"
-		"\n-th number of threads to be used for CPU parallelization : depends on the machine specifics, default(1)"
-		"\n-ch general boolean flag used in different context (default: 0)"
-		"\n-ts time step for evolution (default: 0.1)"
-		"\n-scale choose scale for data: either linear-0 or log-1 (default: linear)"
-		"\n-h quit with help\n");
+		" Usage: name of executable [options] outputDirectory \n"
+		" The input can be both introduced with [options] described below or with giving the input directory(which also is the flag in the options)\n"
+		" options:\n"
+		"-f input file for all of the options : (default none)\n"
+		"-mu bucket size for ergodic coefficients (default 5)\n"
+		"-J spin exchange coefficient : (default 1)\n"
+		"-J0 random spin exchange set in uniform distribution [-J0,J0]\n"
+		"-g transverse magnetic field (x-) constant: (default 1)\n"
+		"-gs transverse magnetic field (x-) constant step: (default 0.0)\n"
+		"-gn transverse magnetic field (x-) constant number: (default 1)\n"
+		"-g0 random transverse field set in uniform distribution [-g0,g0]\n"
+		"-g0s transverse disorder strength step: (default 0.0)\n"
+		"-g0n transverse disorder strength number: (default 1)\n"
+		"-h perpendicular (z-) magnetic field constant: (default 0)\n"
+		"-hs perpendicular (z-) magnetic field constant step: (default 0.0)\n"
+		"-hn perpendicular (z-) magnetic field constant number: (default 1)\n"
+		"-w disorder strength : (default 0 - no disorder introduced)\n"
+		"-ws disorder strength step: (default 0.0)\n"
+		"-wn disorder strength number: (default 1)\n"
+		"-L chain length minimum: bigger than 0 (default 8)\n"
+		"-Ls chain length step: bigger equal than 0 (default 0)\n"
+		"-Ln chain length number: bigger than 0 (default 1)\n"
+		"-b boundary conditions : bigger than 0 (default 0 - PBC)\n"
+		"	0 -- PBC\n"
+		"	1 -- OBC\n"
+		"	2 -- ABC -- none so far implemented\n"
+		"-s site to act with local operators (default 0)"
+		"-op flag to choose operator: "
+		"	0 -- Sz_i-local"
+		"	1 -- Sx_i-local"
+		"	2 -- Hi"
+		"	3 -- Sz_q"
+		"	4 -- Sx_q"
+		"	5 -- Hq"
+		"	  -- to get sum of local Sz or Sx take Sz_q or Sx_q with -s=0"
+		"	  -- i or q are set to site (flag -s); (default 0)"
+		""
+		"-fun choose function to start calculations: check user_interface.cpp -> make_sim() to find functions"
+		"\t	0 -- diagonalizing hamiltonian and writing to file eigenvalues. Set -ch=1 to include eigenvector calculation"
+		"\t	1 -- time evolution (and spectral functions) for any model (disordered is with averaging):\n\t\t set -op for operator and -s for acting site"
+		"\t	2 -- evolution of entropy from initial state chosen by the -op flag:"
+		"\t		for both models (-m flag) and possible to use lanczos iterative method by setting -ch=1"
+		"\t		use -mu to set number of lanczos steps (<10 is enough) and -ts as time step (divided by E_max - E_min): 0.1 is sufficient"
+		"\t			* op=0 -- random initial product state averaged over -r realisations"
+		"\t			* op=1 -- fully ferromagnetically polarised state |111111...>"
+		"\t			* op=2 -- fully anti-ferromagnetically polarised state |111111...>"
+		"\t	3 -- spectral form factor calculation (checks if file exists with data, if not then diagonalize and save"
+		"\t	4 -- relaxation times from integrated spectral function for:\n\t\t operator -op flag on site -s flag\
+			\t\t	(also derivative of integrated spectral function is calculated)\n\t\tlooped over system sizes: -L, -Ls, -Ln and sites: from 0 to L/2"
+		"\t   5 -- benchmark diagonalization routines vs CPU count:\n\t\tlooped over different system sizes set by -L, -Ln, -Ls\n\t\tfor number of threads: 1, 2, 4, 8, 16, 24, 32, 40, 48, 64"
+		"\t	6 -- AGPs for small disorder (-m=0) as function of h for -ch=1 or as function of g for -ch=0 for input operator from -op flag"
+		"\t		SET: -L, -Ln, -Ls, -h, -hn, -hs, -op, -w(default=0.01)"
+		" def -- in make_sim space for user to write function; designed for non-builtin behavior"
+		""
+		"-m model to be choosen : (default 0 - without symmetries)\n"
+		"	0 -- nonsymmetric model - only here the disorder is working\n"
+		"	1 -- include symmetries - here the parity flag is also working\n"
+		"-k translation symetry sector, 0-L, (default 0)\n"
+		"-p parity symmetry sector, +-1 (if applicable) (default 1)\n"
+		"-x spin flip symmetry sector, +-1 (if applicable) (default 1)\n"
+		"-th number of threads to be used for CPU parallelization : depends on the machine specifics, default(1)"
+		"-ch general boolean flag used in different context (default: 0)"
+		"-ts time step for evolution (default: 0.1)"
+		"-scale choose scale for data: either linear-0 or log-1 (default: linear)"
+		"-h quit with help\n");
 }
 /// <summary>
 /// We want to handle files so let's make the c-way input a string

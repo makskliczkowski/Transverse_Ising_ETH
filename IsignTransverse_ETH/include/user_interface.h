@@ -4,6 +4,7 @@
 //#include "headers.h"
 #include "IsingModel.h"
 #include "spectrals.hpp"
+#include "thermodynamics.hpp"
 
 const arma::vec down = { 0, 1 };
 const arma::vec up	 = { 1, 0 };

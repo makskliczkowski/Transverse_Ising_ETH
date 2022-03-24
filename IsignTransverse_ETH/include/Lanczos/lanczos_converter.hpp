@@ -7,7 +7,7 @@ namespace lanczos {
 	inline
 	auto Lanczos::conv_to_hilbert_space(
 			const arma::cx_vec& state_lanczos	//<! state to transform
-		) -> arma::cx_vec
+		) const -> arma::cx_vec
 	{
 		assert(state_lanczos.size() == this->params.lanczos_steps
 			&& "Wrong state dimensions! Required dim is the number of lanczos steps "
@@ -49,7 +49,7 @@ namespace lanczos {
 	inline
 	auto Lanczos::conv_to_hilbert_space(
 			const arma::vec& state_lanczos	//<! state to transform
-		) -> arma::cx_vec
+		) const -> arma::cx_vec
 	{
 		auto state = cpx_real_vec(state_lanczos);
 		return this->conv_to_hilbert_space(state);
@@ -59,7 +59,7 @@ namespace lanczos {
 	auto
 	Lanczos::conv_to_hilbert_space(
 			int state_id						//<! index of state to transform
-		) -> arma::cx_vec
+		) const -> arma::cx_vec
 	{
 		assert(!this->H_lanczos.is_empty() && "Diagonalize!!");
 		return this->conv_to_hilbert_space(this->eigenvectors.col(state_id));
@@ -69,7 +69,7 @@ namespace lanczos {
 	inline
 	auto Lanczos::conv_to_krylov_space(
 		const arma::cx_vec& input		//<! state to transform from hilbert to krylov
-	) -> arma::cx_vec
+	) const -> arma::cx_vec
 	{
 		assert(input.size() == this->N
 			&& "Wrong state dimensions! Required dim is the original hilbert space size "
@@ -89,7 +89,6 @@ namespace lanczos {
 
 			cpx alfa = arma::cdot(this->initial_random_vec, fi_next);
 			fi_next = fi_next - alfa * this->initial_random_vec;
-			H_lanczos(0, 0) = alfa;
 
 			//<! lanczos procedure
 			for (int j = 1; j < params.lanczos_steps; j++) {
@@ -108,7 +107,7 @@ namespace lanczos {
 	inline
 	auto Lanczos::conv_to_krylov_space(
 			const arma::vec& input	//<! state to transform
-		) -> arma::cx_vec
+		) const -> arma::cx_vec
 	{
 		auto state = cpx_real_vec(input);
 		return this->conv_to_krylov_space(state);
