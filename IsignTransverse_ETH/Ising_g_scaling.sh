@@ -43,10 +43,10 @@ elif [[ $4 -eq 5 ]]; then
 elif [[ $4 -eq 6 ]]; then
 	funName="AGP"
 else
-	funName="Entropy"
+	funName="Other"
 fi
 
-use_lanczos=1
+use_lanczos=0
 if [[ $use_lanczos == 1 ]]; then
 	funName="${funName}_lanczos";
 fi
@@ -63,5 +63,5 @@ fi
 #g++ -std=c++2a main.cpp IsingModel.cpp IsingModel_disorder.cpp IsingModel_sym.cpp tools.cpp user_interface.cpp -o Ising_${funName}_L=${1}_h=${2}_g=${g}${suffix}.o\
 # -DARMA_DONT_USE_WRAPPER -I/home/rswietek/LIBRARIES_CPP/armadillo-10.8.2/include -llapack -lopenblas -fopenmp -lpthread -lm -lstdc++fs -fomit-frame-pointer -Ofast >& compile_${funName}_L=${1}_h=${2}_g=${g}${suffix}.log
  
-./Ising.o -L $1 -g $g -h $2 -w 0.01 -th $thread_num -m 0 -w 0.01 -r $r\
+./Ising.o -L $1 -g $g -h $2 -th $thread_num -m 0 -w 0.0 -r $r\
  -op $operator -fun $4 -s $site -b 0 -ch $use_lanczos "${@:8}" >& ${filename}.log
