@@ -488,14 +488,21 @@ template<> cpx overlap<cpx>(const IsingModel<cpx>& A, const IsingModel<cpx>& B, 
 	return cpx(overlap_real, overlap_imag);
 }
 
+template <typename _type>
+void IsingModel<_type>::set_coefficients(const arma::cx_vec& initial_state){
+	this->coeff = arma::cx_vec(N, arma::fill::zeros);
+	for (long k = 0; k < this->N; k++)
+		this->coeff(k) = arma::dot(eigenvectors.col(k), initial_state);
+}
 
 template <typename _type>
-void IsingModel<_type>::time_evolve_state(arma::cx_vec& state, double time) {
-	const arma::cx_vec initial_state = arma::normalise(state);
-	state = arma::cx_vec(this->N, arma::fill::zeros);
+auto IsingModel<_type>::time_evolve_state(const arma::cx_vec& state, double time)
+	-> arma::cx_vec
+{
+	arma::cx_vec output = state;
 	for (long k = 0; k < this->N; k++)
-		state += std::exp(-im * eigenvalues(k) * time) * arma::dot(eigenvectors.col(k), initial_state) * eigenvectors.col(k);
-	state = arma::normalise(state);
+		output += std::exp(-im * eigenvalues(k) * time) * this->coeff(k) * eigenvectors.col(k);
+	return arma::normalise(output);
 }
 
 template <typename _type>
@@ -538,10 +545,12 @@ template arma::sp_cx_mat IsingModel<cpx>::create_StringOperator(coordinate, coor
 template arma::sp_cx_mat IsingModel<double>::create_StringOperator(coordinate, coordinate, int, int) const;
 template arma::sp_cx_mat IsingModel<cpx>::create_LIOMoperator_densities(int, int) const;
 template arma::sp_cx_mat IsingModel<double>::create_LIOMoperator_densities(int, int) const;
-template void IsingModel<double>::time_evolve_state(arma::cx_vec&, double);
-template void IsingModel<cpx>::time_evolve_state(arma::cx_vec&, double);
+template arma::cx_vec IsingModel<double>::time_evolve_state(const arma::cx_vec&, double);
+template arma::cx_vec IsingModel<cpx>::time_evolve_state(const arma::cx_vec&, double);
 template void IsingModel<double>::time_evolve_state_ns(arma::cx_vec&, double, int);
 template void IsingModel<cpx>::time_evolve_state_ns(arma::cx_vec&, double, int);
+template void IsingModel<double>::set_coefficients(const arma::cx_vec&);
+template void IsingModel<cpx>::set_coefficients(const arma::cx_vec&);
 
 template double IsingModel<double>::shannon_entropy(const arma::cx_vec&, int) const;
 template double IsingModel<cpx>::shannon_entropy(const arma::cx_vec&, int) const;

@@ -27,9 +27,9 @@ RANGE = "set xrange[0:1]; set yrange[0:2.0]"
 UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset border;"
 #-- PARAMETERS
 w = 0.0
-g = -0.25	
-L = 14
-h = -0.4
+g = 0.2
+L = 12
+h = 0.2
 h0 = 80
 hend = 400
 dh = 40
@@ -109,28 +109,25 @@ dir_base='../../results/disorder/PBC/'
 #
 #exit;
 dir = dir_base.'Magnetization/'
-_name = dir.sprintf("quench_g_init=0.00,h_init0.00_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", L, g, h, w)
-#_name = dir.sprintf("quench_g_init=0.00,h_init0.00_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", L, g, h, w)
- heatmap = 0
+#_name = dir.sprintf("quench_g_init=0.00,h_init-0.50_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", L, g, h)
+_name = dir.sprintf("quench_g_init=0.00,h_init-0.50_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", L, g, h, w)
+ heatmap = 1
 if(heatmap){
 	set xrange[0:L]
 	set yrange[0:60]
 	set view map
-	#set pm3d map
 	set pm3d interpolate 0,0
-	#set autoscale fix
-	#set dgrid3d 10, 120, 10
-	#set cbrange[0:1e-1]
+	#set cbrange[*:0.85]
 	set yrange
 	splot _name u 1:2:3 with image
 } else {
 	set xrange[0:60];
 	#set logscale x
 	i = 0;
-	plot _name u ($1 == 0? $2 : NaN):3 w lp title 'i=0',\
+	plot _name u ($1 == 1? $2 : NaN):3 w lp title 'i=1',\
 		_name u ($1 == 2? $2 : NaN):3 w lp title 'i=2',\
-		_name u ($1 == 5? $2 : NaN):3 w lp title 'i=5',\
-		_name u ($1 == 7? $2 : NaN):3 w lp title 'i=7'
+		_name u ($1 == L / 2? $2 : NaN):3 w lp title 'i=L/2',\
+		_name u ($1 == L / 2 + 1? $2 : NaN):3 w lp title 'i=L/2+1'
 }
 
 exit;

@@ -40,6 +40,8 @@ protected:
 	arma::Mat<_type> eigenvectors;							// matrix of the eigenvectors in increasing order
 	arma::vec eigenvalues;									// eigenvalues vector
 
+	arma::cx_vec coeff;									// coefficients of state in eigenbasis
+
 	u64 N;												// the Hilbert space size
 	std::vector<int> nearest_neighbors;					// vector of nearest neighbors dependend on BC
 	std::vector<int> next_nearest_neighbors;			// vector of next nearest neighbors dependent on BC
@@ -263,8 +265,8 @@ public:
 	}
 
 
-	void time_evolve_state(arma::cx_vec& state, double time); 					//<! stationary time evolution
-	void time_evolve_state_ns(arma::cx_vec& state, double dt, int order = 3); 	// non-stationary time evolution (time-dependent model)
+	auto time_evolve_state(const arma::cx_vec& state, double time) -> arma::cx_vec; 	//<! stationary time evolution
+	void time_evolve_state_ns(arma::cx_vec& state, double dt, int order = 3); 			// non-stationary time evolution (time-dependent model)
 	// entanglement entropy based on the density matrices
 	virtual arma::cx_mat reduced_density_matrix(const arma::cx_vec& state, int A_size) const  = 0;
 
@@ -273,6 +275,8 @@ public:
 	double shannon_entropy(		const arma::cx_vec& state, int A_size)						const;
 
 	arma::vec entaglement_entropy(const arma::cx_vec& state) const;
+
+	void set_coefficients(const arma::cx_vec& initial_state);
 };
 
 inline void normaliseOp(arma::sp_cx_mat& op) {

@@ -56,9 +56,9 @@ void isingUI::ui::make_sim()
 
 					// compare_entaglement();
 					// continue;
-					//auto alfa = std::make_unique<IsingModel_disorder>(this->L, -this->J, this->J0, -this->g, this->g0, -this->h, this->w, this->boundary_conditions);
-					auto alfa = std::make_unique<IsingModel_sym>(this->L, -this->J, -this->g, -this->h,
-								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+					auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+					//auto alfa = std::make_unique<IsingModel_sym>(this->L, -this->J, -this->g, -this->h,
+					//			 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 					stout << "\n\t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
 					const size_t N = alfa->get_hilbert_size();
 					stout << "\t\t	--> start diagonalizing for " << alfa->get_info()
@@ -72,42 +72,39 @@ void isingUI::ui::make_sim()
 					int t_max = (int)std::ceil(std::log10(tH));
 					t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
 					
-					double h0 = 0.001, g0 = 0;
-					auto alfa0 = std::make_unique<IsingModel_sym>(this->L, -this->J, g0, h0,
-								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+					//double h0 = -0.5, g0 = 0.0;
+					//auto alfa0 = std::make_unique<IsingModel_sym>(this->L, -this->J, g0, h0,
+					//			 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 					//auto alfa0 = std::make_unique<IsingModel_disorder>(this->L, -this->J, this->J0, g0, this->g0, h0, this->w, this->boundary_conditions);
-					alfa0->diagonalization();
-					//arma::vec GS = alfa0->get_eigenState(0);
+					//alfa0->diagonalization();
+					//arma::vec GS = alfa0->get_eigenState(alfa0->E_av_idx);
 					//arma::cx_vec _state(GS.size(), arma::fill::zeros);
 					//_state.set_real(GS);
-					arma::cx_vec _state = alfa0->get_eigenState(0);
-					//lanczosParams params(200, 1, true, false);
-					//lanczos::Lanczos lancz(alfa0->get_hamiltonian(), std::move(params));
-					//lancz.diagonalization();
-					//arma::cx_vec _state = lancz.get_eigenstate(0);
-					//lancz.diagonalization(_state); const arma::cx_vec temp_state = _state;
-					//_state( (ULLPOW(this->L / 2)) - 1 ) = 1.0;
+					arma::cx_vec init_state(N, arma::fill::zeros);
+					const u64 idx = ULLPOW(( L / 2 ));
+					init_state(idx - 1) = 1.0;
+
+					auto E = alfa->calculate_energy(init_state);
+					auto temperature = thermodynamics::assign_temperature(alfa->get_eigenvalues(), E);
+					stout << "initial state energy = " << E << std::endl;
+					stout << "initial state temperature = " << temperature << std::endl;
+
 					std::string dir2 = this->saving_dir + "Magnetization" + kPSep;
 					createDirs(dir2);
-					std::string name = dir2 + "quench_g_init=" + to_string_prec(g0, 2) + ",h_init" + to_string_prec(h0, 2) + alfa->get_info({}) + ".dat";
+					std::string name = dir2 + "quench_domain_wall" + alfa->get_info({}) + ".dat";
 					std::ofstream fileee;
-					//auto timez = arma::logspace(-1, t_max, 50);
-					auto timez = arma::regspace(0.5, 0.5, 60);
+					auto timez = arma::logspace(-2, t_max, 300);
+					//auto timez = arma::regspace(0.2, 0.2, 100);
 					openFile(fileee, name, ios::out);
 
-					
-					auto E = alfa->calculate_energy(_state);
-					stout << "initial state energy = " << E << std::endl;
-					auto temperature = thermodynamics::assign_temperature(alfa->get_eigenvalues(), E);
-					stout << "initial state temperature = " << temperature << std::endl;
-					auto op1 = alfa->create_operator({IsingModel_disorder::sigma_z}, std::vector( {this->L / 2} ));
-					for(int i = 0; i<this->L; i++){
+					alfa->set_coefficients(init_state);
+					for(int i = 0; i < this->L; i++){
 						auto op = alfa->create_operator({IsingModel_disorder::sigma_z}, std::vector( {i} ));
 						for(int k = 0; k<timez.size(); k++)
 						{
-							auto t = timez(k);	
-							alfa->time_evolve_state(_state, t);
-							cpx evol = arma::cdot(_state, op1 * op * _state);// - arma::cdot(_state, op1 * _state) * arma::cdot(_state, op * _state);
+							auto t = timez(k);
+							arma::cx_vec _state = alfa->time_evolve_state(init_state, t);	
+							cpx evol = arma::cdot(_state, op * _state);// - arma::cdot(_state, op1 * _state) * arma::cdot(_state, op * _state);
 							printSeparated(fileee, "\t", 12, true, i, t, real(evol), imag(evol));
 						}
 					}
@@ -149,13 +146,13 @@ void isingUI::ui::make_sim()
 							{
 								const arma::cx_vec init_state = random_product_state(this->L);
 								arma::cx_vec state2 = init_state;
+								alfa->set_coefficients(init_state);
 								lancz.diagonalization(init_state);
 								for (int i = 0; i < times.size(); i++)
 								{
 									auto t = times(i);
-									arma::cx_vec state = arma::normalise(init_state);
-									//state2 = lancz.time_evolution_stationary(state, t);
-									alfa->time_evolve_state(state, t);
+									arma::cx_vec state = alfa->time_evolve_state(init_state, t);
+									//state2 = lancz.time_evolution_stationary(init_state, t);
 									lancz.time_evolution_non_stationary(state2, t - (i == 0 ? 0.0 : times(i - 1)), M);
 									//auto state2 =  lancz.time_evolution_stationary(init_state, t);
 									entropy(i) += alfa->entaglement_entropy(state, this->L / 2);
@@ -1245,7 +1242,7 @@ void isingUI::ui::entropy_evolution(){
 			auto range7 = arma::regspace(3e0, 2e-1, 100);
 			auto range8 = arma::regspace(100.4, 0.4, 3 * tH);
 			auto times = this->scale ? arma::join_cols(exctract_vector(init_log, 0.0, 10.0), rest_lin)
-			 							: arma::join_cols(arma::join_cols(range1, range2, range3), arma::join_cols(range4, range5, range6), arma::join_cols(range7, range8));
+			 							: arma::join_cols(arma::join_cols(range1, range2, range3), range4, arma::join_cols(range5, range6, range7, range8));
 			//times = this->scale ? arma::logspace(-3, t_max, 500) : arma::regspace(dt_new, dt_new, tH);
 			entropy = arma::vec(times.size(), arma::fill::zeros);
 
@@ -1272,11 +1269,11 @@ void isingUI::ui::entropy_evolution(){
 			to_ave_time = [&]()
 				{
 					arma::cx_vec init_state = set_init_state();
+					alfa.set_coefficients(init_state);
 					for (int i = 0; i < times.size(); i++)
 					{
 						auto t = times(i);
-						arma::cx_vec state = init_state;
-						alfa.time_evolve_state(state, t);
+						arma::cx_vec state = alfa.time_evolve_state(init_state, t);
 						entropy(i) += alfa.entaglement_entropy(state, this->L / 2);
 					}
 					stout << "realisation: " << ++realisation << " - in time : " << tim_s(start) << "s" << std::endl;
