@@ -21,7 +21,7 @@
 *.rar
 *.o 	# ignore executable files
 slurm-*.out
-#*.sh
+*.sh
 *.txt to keep gnuplot scripts
 # *.dat
 # whole folders will be ignored
