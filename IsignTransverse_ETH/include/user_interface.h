@@ -169,7 +169,8 @@ namespace isingUI
 
 
 
-
+		//-------------------------------------------------------------------------- STATISTICS
+		void level_spacing_from_distribution();
 
 		//-------------------------------------------------------------------------- FUNCTIONS TO CALL IN FUN-DEFAULT MODE
 		/// <summary>

@@ -28,8 +28,8 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 #-- PARAMETERS
 w = 0.0
 g = 0.2
-L = 12
-h = 0.2
+L = 11
+h = 0.01
 h0 = 80
 hend = 400
 dh = 40
@@ -86,7 +86,7 @@ set xlabel 't / t_H'
 #set format x '10^{%L}'
 #set format y '10^{%L}'
 
-dir_base='../../results/disorder/PBC/'
+dir_base='../results/disorder/PBC/'
 #dir = dir_base.'SpectralFormFactor/'
 #ssf_name(gx,Lx) = dir.sprintf("_L=%d,J0=0.00,g=%.2f,g0=0.00,h=0.20,w=0.01.dat", Lx, gx)
 #key_title(i) = sprintf("g=%.2f", 0.01*i)
@@ -108,21 +108,25 @@ dir_base='../../results/disorder/PBC/'
 #plot for[i=i0:iend:di] ssf_name(0.01*i, L) u ($1 / tH[(i-i0)/di + 1]):2 w lp lw 1.5 t sprintf("g=%.2f",0.01*i), (x < 1? 2*x - x*log(1+2*x) : 2-x*log( (2*x+1) / (2*x-1))) t 'GOE'
 #
 #exit;
+set logscale x; set xrange[*:150]
 dir = dir_base.'Magnetization/'
 #_name = dir.sprintf("quench_g_init=0.00,h_init-0.50_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", L, g, h)
-_name = dir.sprintf("quench_g_init=0.00,h_init-0.50_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", L, g, h, w)
+_name = dir.sprintf("quench_domain_wall_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", L, g, h, w)
+plot for[gx=20:60:10] dir.sprintf("meson_coverage_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", L, gx*0.01, h, w) u 1:2 w lp title sprintf("g=%.2f", 0.01*gx)
+exit;
  heatmap = 1
 if(heatmap){
 	set xrange[0:L]
-	set yrange[0:60]
+	#set yrange[0:200]
 	set view map
 	set pm3d interpolate 0,0
-	#set cbrange[*:0.85]
+	#set cbrange[-0.55:0.55]
 	set yrange
 	splot _name u 1:2:3 with image
 } else {
-	set xrange[0:60];
-	#set logscale x
+	set key outside right
+	set xrange[0:1000];
+	set logscale x
 	i = 0;
 	plot _name u ($1 == 1? $2 : NaN):3 w lp title 'i=1',\
 		_name u ($1 == 2? $2 : NaN):3 w lp title 'i=2',\

@@ -44,7 +44,7 @@ set tmargin at screen 0.9
 
 dir_base='../../results/disorder/PBC/'
 dir = dir_base.'RelaxationTimes/'
-load dir_base.'gnuplot-colorbrewer-master/diverging/RdYlGn.plt'
+load './gnuplot-colorbrewer-master/diverging/RdYlGn.plt'
 
 out_dir = "Relaxation_Times/".(h_vs_g? "vs_h/" : "vs_g/")
 command = "mkdir ".out_dir; 

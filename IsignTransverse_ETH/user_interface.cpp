@@ -15,7 +15,7 @@ void isingUI::ui::make_sim()
 	const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
 	const double gmin = this->g, gmax = this->g + this->gn * this->gs;
 	const double hmin = this->h, hmax = this->h + this->hn * this->hs;
-
+	//level_spacing_from_distribution(); exit(1);
 	switch (this->fun)
 	{
 	case 0: 
@@ -91,23 +91,25 @@ void isingUI::ui::make_sim()
 
 					std::string dir2 = this->saving_dir + "Magnetization" + kPSep;
 					createDirs(dir2);
-					std::string name = dir2 + "quench_domain_wall" + alfa->get_info({}) + ".dat";
+					std::string nejm = "meson_coverage"; //"quench_domain_wall"
+					std::string name = dir2 + nejm + alfa->get_info({}) + ".dat";
 					std::ofstream fileee;
-					auto timez = arma::logspace(-2, t_max, 300);
-					//auto timez = arma::regspace(0.2, 0.2, 100);
+					//auto timez = arma::logspace(-2, t_max, 300);
+					auto timez = arma::regspace(0.5, 0.5, 1000);
 					openFile(fileee, name, ios::out);
-
+					const double sig_bar = std::pow(1 - this->g * this->g, -1. / 8.);
 					alfa->set_coefficients(init_state);
-					for(int i = 0; i < this->L; i++){
-						auto op = alfa->create_operator({IsingModel_disorder::sigma_z}, std::vector( {i} ));
+					//for(int i = 0; i < this->L; i++){
+						auto op = alfa->create_operator({IsingModel_disorder::sigma_z});//, std::vector( {i} ));
 						for(int k = 0; k<timez.size(); k++)
 						{
 							auto t = timez(k);
 							arma::cx_vec _state = alfa->time_evolve_state(init_state, t);	
-							cpx evol = arma::cdot(_state, op * _state);// - arma::cdot(_state, op1 * _state) * arma::cdot(_state, op * _state);
-							printSeparated(fileee, "\t", 12, true, i, t, real(evol), imag(evol));
+							cpx evol = 0.5 - 0.5 * sig_bar * arma::cdot(_state, op * _state);// - arma::cdot(_state, op1 * _state) * arma::cdot(_state, op * _state);
+							//printSeparated(fileee, "\t", 12, true, i, t, real(evol), imag(evol));
+							printSeparated(fileee, "\t", 12, true, t, real(evol), imag(evol));
 						}
-					}
+					//}
 					fileee.close();
 					
 					continue;
@@ -1698,6 +1700,52 @@ void isingUI::ui::combineAGPfiles()
 	}
 }
 
+
+//-------------------------------------------------------------------------- STATISTICS
+void isingUI::ui::level_spacing_from_distribution(){
+
+	const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
+	const double gmin = this->g, gmax = this->g + this->gn * this->gs;
+	const double hmin = this->h, hmax = this->h + this->hn * this->hs;
+	
+	auto kernel = [this](
+		std::ofstream& file, double par,
+		int Lx, double gx, double hx
+		){
+		std::ifstream lvl;
+		std::string dir = this->saving_dir + "LevelSpacing" + kPSep + "distribution" + kPSep;
+		std::string info = this->m ? IsingModel_sym::set_info(Lx, this->J, gx, hx, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym)
+							   : IsingModel_disorder::set_info(Lx, this->J, this->J0, gx, this->g0, hx, this->w);
+		auto data = readFromFile(lvl, dir + info + ".dat");
+		if(data.empty()) return;
+		double r 	 = simpson_rule(data[0],			  data[0]  % data[1])		   ;
+		double r_var = simpson_rule(data[0], arma::square(data[0]) % data[1]) - r * r;
+		printSeparated(file, "\t", 12, true, par, r);
+	};
+	std::ofstream file;
+	std::string dir_out = this->saving_dir + "LevelSpacing" + kPSep + "ratio" + kPSep;
+	for (int system_size = Lmin; system_size < Lmax; system_size += this->Ls)
+	{
+		for (double gx = gmin; gx < gmax; gx += this->gs)
+		{
+			std::string info = this->m ? IsingModel_sym::set_info(system_size, this->J, gx, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"h"})
+							   : IsingModel_disorder::set_info(system_size, this->J, this->J0, gx, this->g0, this->h, this->w, {"h"});
+			openFile(file, dir_out + info + ".dat", std::ios::out);
+			for (double hx = hmin; hx < hmax; hx += this->hs)
+				kernel(file, hx, system_size, gx, hx);
+			file.close();	
+		}
+		for (double hx = hmin; hx < hmax; hx += this->hs)
+		{
+			std::string info = this->m ? IsingModel_sym::set_info(system_size, this->J, this->g, hx, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"g"})
+							   : IsingModel_disorder::set_info(system_size, this->J, this->J0, this->g, this->g0, hx, this->w, {"g"});
+			openFile(file, dir_out + info + ".dat", std::ios::out);
+			for (double gx = gmin; gx < gmax; gx += this->gs)
+				kernel(file, gx, system_size, gx, hx);
+			file.close();	
+		}
+	}
+}
 template <typename _type>
 void isingUI::ui::LevelSpacingDist(IsingModel<_type> &alfa)
 {
