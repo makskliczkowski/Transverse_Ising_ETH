@@ -27,9 +27,9 @@ RANGE = "set xrange[0:1]; set yrange[0:2.0]"
 UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset border;"
 #-- PARAMETERS
 w = 0.0
-g = 0.2
-L = 11
-h = 0.01
+g = 0.25
+L = 10
+h = 0.05
 h0 = 80
 hend = 400
 dh = 40
@@ -108,25 +108,27 @@ dir_base='../results/disorder/PBC/'
 #plot for[i=i0:iend:di] ssf_name(0.01*i, L) u ($1 / tH[(i-i0)/di + 1]):2 w lp lw 1.5 t sprintf("g=%.2f",0.01*i), (x < 1? 2*x - x*log(1+2*x) : 2-x*log( (2*x+1) / (2*x-1))) t 'GOE'
 #
 #exit;
-set logscale x; set xrange[*:150]
+#set logscale x; set xrange[*:150]
 dir = dir_base.'Magnetization/'
 #_name = dir.sprintf("quench_g_init=0.00,h_init-0.50_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", L, g, h)
-_name = dir.sprintf("quench_domain_wall_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", L, g, h, w)
-plot for[gx=20:60:10] dir.sprintf("meson_coverage_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", L, gx*0.01, h, w) u 1:2 w lp title sprintf("g=%.2f", 0.01*gx)
-exit;
- heatmap = 1
+
+nejm = "quench_ferromagnet"; #"quench_domain_wall"
+_name = dir.nejm.sprintf("_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", L, g, h, w);
+#plot for[gx=20:60:10] dir.sprintf("meson_coverage_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", L, gx*0.01, h, w) u 1:2 w lp title sprintf("g=%.2f", 0.01*gx)
+#exit;
+ heatmap = 0
 if(heatmap){
-	set xrange[0:L]
-	#set yrange[0:200]
+	set xrange[-0.5:L-0.5]
+	set yrange[0:60]
 	set view map
 	set pm3d interpolate 0,0
-	#set cbrange[-0.55:0.55]
+	set cbrange[0:0.1]
 	set yrange
 	splot _name u 1:2:3 with image
 } else {
 	set key outside right
-	set xrange[0:1000];
-	set logscale x
+	set xrange[0:60];
+	#set logscale x
 	i = 0;
 	plot _name u ($1 == 1? $2 : NaN):3 w lp title 'i=1',\
 		_name u ($1 == 2? $2 : NaN):3 w lp title 'i=2',\
