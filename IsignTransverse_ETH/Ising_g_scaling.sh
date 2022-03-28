@@ -21,7 +21,7 @@ module load intel/2022.00
 	R_ARR=(1000 1000 600 600 600 300 300 100 100)
 	#R_ARR=(20 20 20 20 20 20 20 10 5)
 	r=${R_ARR[`expr ${1}-8`]}
-
+	r=1
 # set input parameters: to multiply use \*, cause * means 'all files'
 # also to have floating-point use =$echo("scale=num_of_digits; {expresion}" | bc)
 	g=$(echo $3 $SLURM_ARRAY_TASK_ID | awk '{printf "%.3f", $1 + $1 * $2}')
