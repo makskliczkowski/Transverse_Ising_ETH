@@ -44,6 +44,10 @@ void isingUI::ui::make_sim()
 	default:
 		for (int system_size = Lmin; system_size < Lmax; system_size += this->Ls)
 		{
+			std::ofstream qpt;
+			openFile(qpt, this->saving_dir + "Magnetization" + kPSep + "IsingQPT"
+							+ IsingModel_disorder::set_info(system_size, this->J, this->J0, this->g, this->g0, this->h, this->w, {"g"})
+							+ ".dat");
 			for (double gx = gmin; gx < gmax; gx += this->gs)
 			{
 				for (double hx = hmin; hx < hmax; hx += this->hs)
@@ -56,59 +60,70 @@ void isingUI::ui::make_sim()
 
 					// compare_entaglement();
 					// continue;
-					auto alfa = std::make_unique<IsingModel_disorder>(this->L, -this->J, this->J0, this->g, this->g0, -this->h, this->w, this->boundary_conditions);
+					//this->boundary_conditions = 1;
+					auto alfa = std::make_unique<IsingModel_disorder>(this->L, -this->J, this->J0, -this->g, this->g0, this->h, this->w, this->boundary_conditions);
 					//auto alfa = std::make_unique<IsingModel_sym>(this->L, -this->J, -this->g, -this->h,
 					//			 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-					//stout << "\n\t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
+					stout << "\n\t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
 					const size_t N = alfa->get_hilbert_size();
-					//stout << "\t\t	--> start diagonalizing for " << alfa->get_info()
-					//	  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
-					alfa->diagonalization();
-
-					//stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
-					//	  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
-					
+					stout << "\t\t	--> start diagonalizing for " << alfa->get_info()
+						  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
+					//alfa->diagonalization();
+					lanczosParams params(100, 1, false, false);
+					arma::sp_mat H = alfa->get_hamiltonian();
+					lanczos::Lanczos lancz(H, std::move(params));
+					lancz.diagonalization();
+					arma::cx_vec GS = lancz.get_eigenstate(0);// alfa->get_eigenState(0);
+					stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
+						  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
+					auto op_x = alfa->create_operator({IsingModel_disorder::sigma_x});
+					auto op_z = alfa->create_operator({IsingModel_disorder::sigma_z});
+					double tmp_x = real(arma::cdot(GS, op_x * GS)) / sqrt(this->L);
+					double tmp_z = real(arma::cdot(GS, op_z * GS)) / sqrt(this->L);
+					printSeparated(qpt, "\t", 14, true, this->g, tmp_x, tmp_z);
+					continue;
 					const double tH = 1. / alfa->mean_level_spacing_analytical();
 					int t_max = (int)std::ceil(std::log10(tH));
 					t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
 					
 					double h0 = 0.0;
-					double g_start = 0.0;
+					double g_start = -0.8;
 					//auto alfa0 = std::make_unique<IsingModel_sym>(this->L, -this->J, g0, h0,
 					//			 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-					auto alfa0 = std::make_unique<IsingModel_disorder>(this->L, -this->J, this->J0, g_start, this->g0, h0, this->w, this->boundary_conditions);
-					alfa0->diagonalization();
-					arma::vec GS = alfa0->get_eigenState(0);
-					arma::cx_vec init_state(GS.size(), arma::fill::zeros);
-					init_state.set_real(GS);
-					//arma::cx_vec init_state(N, arma::fill::zeros);
-					//const u64 idx = ULLPOW(( L / 2 ));
-					//init_state(0) = 1.0;
+					//auto alfa0 = std::make_unique<IsingModel_disorder>(this->L, -this->J, this->J0, g_start, this->g0, h0, this->w, this->boundary_conditions);
+					//alfa0->diagonalization();
+					//arma::vec GS = alfa0->get_eigenState(0);
+					//arma::cx_vec init_state(GS.size(), arma::fill::zeros);
+					//init_state.set_real(GS);
+					arma::cx_vec init_state(N, arma::fill::zeros);
+					const u64 idx = ULLPOW(( L / 2 ));
+					init_state(idx - 1) = 1.0;
 
 					auto E = alfa->calculate_energy(init_state);
 					auto temperature = thermodynamics::assign_temperature(alfa->get_eigenvalues(), E);
-					//stout << "initial state energy = " << E << std::endl;
-					//stout << "initial state temperature = " << temperature << std::endl;
-					printSeparated(std::cout, "\t", 12, true, system_size, E - alfa->get_eigenEnergy(0), temperature);
-					continue;
+					stout << "initial state energy = " << E << std::endl;
+					stout << "initial state temperature = " << temperature << std::endl;
+					//printSeparated(std::cout, "\t", 12, true, system_size, E - alfa->get_eigenEnergy(0), temperature);
+
 					std::string dir2 = this->saving_dir + "Magnetization" + kPSep;
 					createDirs(dir2);
-					std::string nejm = "quench_ferromagnet"; //"quench_domain_wall"
+					bool eh = 0;
+					std::string nejm = eh? "quench_ferromagnet" : "quench_domain_wall";
 					std::string name = dir2 + nejm + alfa->get_info({}) + ".dat";
 					std::ofstream fileee;
 					//auto timez = arma::logspace(-2, t_max, 300);
-					auto timez = arma::regspace(0.0, 0.1, 60);
+					auto timez = arma::regspace(0.0, 0.2, 200);
 					openFile(fileee, name, ios::out);
 					const double sig_bar = std::pow(1 - this->g * this->g, -1. / 8.);
 					alfa->set_coefficients(init_state);
-					auto op1 = alfa->create_operator({IsingModel_disorder::sigma_z}, std::vector( {0} ));
+					//auto op1 = alfa->create_operator({IsingModel_disorder::sigma_z}, std::vector( {L / 2} ));
 					for(int i = 0; i < this->L; i++){
 						auto op = alfa->create_operator({IsingModel_disorder::sigma_z}, std::vector( {i} ));
 						for(int k = 0; k<timez.size(); k++)
 						{
 							auto t = timez(k);
 							arma::cx_vec _state = alfa->time_evolve_state(init_state, t);	
-							cpx evol = arma::cdot(_state, op1 * op * _state) - arma::cdot(_state, op1 * _state) * arma::cdot(_state, op * _state);
+							cpx evol = arma::cdot(_state,  op * _state);// - arma::cdot(_state, op1 * _state) * arma::cdot(_state, op * _state);
 							printSeparated(fileee, "\t", 12, true, i, t, real(evol), imag(evol));
 							//printSeparated(fileee, "\t", 12, true, t, real(evol), imag(evol));
 						}
@@ -233,6 +248,7 @@ void isingUI::ui::make_sim()
 					}
 				}
 			}
+			qpt.close();
 		}
 	}
 
