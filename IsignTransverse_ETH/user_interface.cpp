@@ -287,33 +287,33 @@ void print_help(){
 		"	0 -- PBC\n"
 		"	1 -- OBC\n"
 		"	2 -- ABC -- none so far implemented\n"
-		"-s site to act with local operators (default 0)"
-		"-op flag to choose operator: "
-		"	0 -- Sz_i-local"
-		"	1 -- Sx_i-local"
-		"	2 -- Hi"
-		"	3 -- Sz_q"
-		"	4 -- Sx_q"
-		"	5 -- Hq"
-		"	  -- to get sum of local Sz or Sx take Sz_q or Sx_q with -s=0"
-		"	  -- i or q are set to site (flag -s); (default 0)"
+		"-s site to act with local operators (default 0)\n"
+		"-op flag to choose operator: \n"
+		"	0 -- Sz_i-local\n"
+		"	1 -- Sx_i-local\n"
+		"	2 -- Hi\n"
+		"	3 -- Sz_q\n"
+		"	4 -- Sx_q\n"
+		"	5 -- Hq\n"
+		"	  -- to get sum of local Sz or Sx take Sz_q or Sx_q with -s=0\n"
+		"	  -- i or q are set to site (flag -s); (default 0)\n"
 		""
-		"-fun choose function to start calculations: check user_interface.cpp -> make_sim() to find functions"
-		"\t	0 -- diagonalizing hamiltonian and writing to file eigenvalues. Set -ch=1 to include eigenvector calculation"
-		"\t	1 -- time evolution (and spectral functions) for any model (disordered is with averaging):\n\t\t set -op for operator and -s for acting site"
-		"\t	2 -- evolution of entropy from initial state chosen by the -op flag:"
-		"\t		for both models (-m flag) and possible to use lanczos iterative method by setting -ch=1"
-		"\t		use -mu to set number of lanczos steps (<10 is enough) and -ts as time step (divided by E_max - E_min): 0.1 is sufficient"
-		"\t			* op=0 -- random initial product state averaged over -r realisations"
-		"\t			* op=1 -- fully ferromagnetically polarised state |111111...>"
-		"\t			* op=2 -- fully anti-ferromagnetically polarised state |111111...>"
-		"\t	3 -- spectral form factor calculation (checks if file exists with data, if not then diagonalize and save"
+		"-fun choose function to start calculations: check user_interface.cpp -> make_sim() to find functions\n"
+		"\t	0 -- diagonalizing hamiltonian and writing to file eigenvalues. Set -ch=1 to include eigenvector calculation\n"
+		"\t	1 -- time evolution (and spectral functions) for any model (disordered is with averaging):\n\t\t set -op for operator and -s for acting site\n"
+		"\t	2 -- evolution of entropy from initial state chosen by the -op flag:\n"
+		"\t		for both models (-m flag) and possible to use lanczos iterative method by setting -ch=1\n"
+		"\t		use -mu to set number of lanczos steps (<10 is enough) and -ts as time step (divided by E_max - E_min): 0.1 is sufficient\n"
+		"\t			* op=0 -- random initial product state averaged over -r realisations\n"
+		"\t			* op=1 -- fully ferromagnetically polarised state |111111...>\n"
+		"\t			* op=2 -- fully anti-ferromagnetically polarised state |111111...>\n"
+		"\t	3 -- spectral form factor calculation (checks if file exists with data, if not then diagonalize and save\n"
 		"\t	4 -- relaxation times from integrated spectral function for:\n\t\t operator -op flag on site -s flag\
-			\t\t	(also derivative of integrated spectral function is calculated)\n\t\tlooped over system sizes: -L, -Ls, -Ln and sites: from 0 to L/2"
-		"\t   5 -- benchmark diagonalization routines vs CPU count:\n\t\tlooped over different system sizes set by -L, -Ln, -Ls\n\t\tfor number of threads: 1, 2, 4, 8, 16, 24, 32, 40, 48, 64"
-		"\t	6 -- AGPs for small disorder (-m=0) as function of h for -ch=1 or as function of g for -ch=0 for input operator from -op flag"
-		"\t		SET: -L, -Ln, -Ls, -h, -hn, -hs, -op, -w(default=0.01)"
-		" def -- in make_sim space for user to write function; designed for non-builtin behavior"
+			\t\t	(also derivative of integrated spectral function is calculated)\n\t\tlooped over system sizes: -L, -Ls, -Ln and sites: from 0 to L/2\n"
+		"\t   5 -- benchmark diagonalization routines vs CPU count:\n\t\tlooped over different system sizes set by -L, -Ln, -Ls\n\t\tfor number of threads: 1, 2, 4, 8, 16, 24, 32, 40, 48, 64\n"
+		"\t	6 -- AGPs for small disorder (-m=0) as function of h for -ch=1 or as function of g for -ch=0 for input operator from -op flag\n"
+		"\t		SET: -L, -Ln, -Ls, -h, -hn, -hs, -op, -w(default=0.01)\n"
+		" def -- in make_sim space for user to write function; designed for non-builtin behavior\n"
 		""
 		"-m model to be choosen : (default 0 - without symmetries)\n"
 		"	0 -- nonsymmetric model - only here the disorder is working\n"
@@ -321,10 +321,10 @@ void print_help(){
 		"-k translation symetry sector, 0-L, (default 0)\n"
 		"-p parity symmetry sector, +-1 (if applicable) (default 1)\n"
 		"-x spin flip symmetry sector, +-1 (if applicable) (default 1)\n"
-		"-th number of threads to be used for CPU parallelization : depends on the machine specifics, default(1)"
-		"-ch general boolean flag used in different context (default: 0)"
-		"-ts time step for evolution (default: 0.1)"
-		"-scale choose scale for data: either linear-0 or log-1 (default: linear)"
+		"-th number of threads to be used for CPU parallelization : depends on the machine specifics, default(1)\n"
+		"-ch general boolean flag used in different context (default: 0)\n"
+		"-ts time step for evolution (default: 0.1)\n"
+		"-scale choose scale for data: either linear-0 or log-1 (default: linear)\n"
 		"-h quit with help\n");
 }
 /// <summary>
@@ -1208,7 +1208,7 @@ void isingUI::ui::entropy_evolution(){
 		std::function<void()> to_ave_time;
 		alfa.reset_random();
 
-		auto set_init_state = [N, this]() 
+		auto set_init_state = [&, this]() mutable
 			-> arma::cx_vec 
 		{
 			arma::cx_vec init_state(N, arma::fill::zeros);
@@ -1236,9 +1236,7 @@ void isingUI::ui::entropy_evolution(){
 			}
 			return arma::normalise(init_state);
 		};
-		
-		stout << "\t\t	-->set random generators for " << alfa.get_info()
-					<< " - in time : " << tim_s(start) << "s" << std::endl;
+
 		// ----------- diagonalize
 		stout << "\t\t	--> start diagonalizing for " << alfa.get_info()
 				<< " - in time : " << tim_s(start) << "s" << std::endl;
@@ -1267,17 +1265,19 @@ void isingUI::ui::entropy_evolution(){
 			//times = this->scale ? arma::logspace(-3, t_max, 500) : arma::regspace(dt_new, dt_new, tH);
 			entropy = arma::vec(times.size(), arma::fill::zeros);
 
-			to_ave_time = [&, lancz]() mutable 
+			to_ave_time = [&, set_init_state, lancz]() mutable 
 				{	// capture lancz by value to access it outsied the if-else scope, i.e. when the lambda is called
 					// entropy and times are declared outside the if-else scope so they can be passed by reference
 					arma::cx_vec state = set_init_state();
+					stout << "\t\t	-->set initial state for " << alfa.get_info()
+						<< " - in time : " << tim_s(start) << "s" << std::endl;
 					//lancz.diagonalization(state);
 					for (int i = 0; i < times.size(); i++)
 					{
 						auto t = times(i);
 						lancz.time_evolution_non_stationary(state, t - (i == 0 ? 0.0 : times(i - 1)), this->mu);
 						//auto evolved_state = lancz.time_evolution_stationary(state, t);
-						entropy(i) += alfa.entaglement_entropy(state, this->L / 2);
+						entropy(i) += alfa.entaglement_entropy(state, this->site == 0? this->L / 2 : this->site);
 					}
 					stout << "realisation: " << ++realisation << " - in time : " << tim_s(start) << "s" << std::endl;
 				};
@@ -1295,7 +1295,7 @@ void isingUI::ui::entropy_evolution(){
 					{
 						auto t = times(i);
 						arma::cx_vec state = alfa.time_evolve_state(init_state, t);
-						entropy(i) += alfa.entaglement_entropy(state, this->L / 2);
+						entropy(i) += alfa.entaglement_entropy(state, this->site == 0? this->L / 2 : this->site);
 					}
 					stout << "realisation: " << ++realisation << " - in time : " << tim_s(start) << "s" << std::endl;
 				};

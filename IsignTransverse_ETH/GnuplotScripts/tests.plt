@@ -91,7 +91,7 @@ dir = dir_base.'Magnetization/'
 _name(Lx) = dir.sprintf("IsingQPT_L=%d,J0=0.00,g0=0.00,h=%.2f,w=%.2f.dat", Lx, h, w);
 set xrange[0:2]
 set yrange[0:1]
-plot for [Lx=8:18:2] _name(Lx) using 1:2 w lp title sprintf("L=%d", Lx)
+plot for [Lx=10:18:2] _name(Lx) using 1:2 w lp title sprintf("L=%d", Lx)
 
 
 exit;
