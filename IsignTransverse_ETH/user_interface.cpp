@@ -1260,12 +1260,13 @@ void isingUI::ui::entropy_evolution(){
 			auto range6 = arma::regspace(3e-1, 1e-1, 2e0);
 			auto range7 = arma::regspace(3e0, 2e-1, 100);
 			auto range8 = arma::regspace(100.4, 0.4, 3 * tH);
-			auto times = this->scale ? arma::join_cols(exctract_vector(init_log, 0.0, 10.0), rest_lin)
+			times = this->scale ? arma::join_cols(exctract_vector(init_log, 0.0, 10.0), rest_lin)
 			 							: arma::join_cols(arma::join_cols(range1, range2, range3), range4, arma::join_cols(range5, range6, range7, range8));
+			stout << times.t() << std::endl;
 			//times = this->scale ? arma::logspace(-3, t_max, 500) : arma::regspace(dt_new, dt_new, tH);
 			entropy = arma::vec(times.size(), arma::fill::zeros);
 
-			to_ave_time = [&, set_init_state, lancz]() mutable 
+			to_ave_time = [&, this, lancz]() mutable 
 				{	// capture lancz by value to access it outsied the if-else scope, i.e. when the lambda is called
 					// entropy and times are declared outside the if-else scope so they can be passed by reference
 					arma::cx_vec state = set_init_state();

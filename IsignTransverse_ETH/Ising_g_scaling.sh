@@ -1,6 +1,12 @@
 #!/bin/bash
 #SBATCH --output=logs/g_scale_log-%j-%a.out
+#SBATCH --constraint=rack-6
+
 #INPUTS TO SCRIPT ARE: L,  h,  dg, fun, operator , site, thread_num
+
+#set boolean value
+ch=2
+
 
 operator=$5; site=$6; thread_num=$7;
 num=4	 #minimum number of required input
@@ -21,7 +27,7 @@ module load intel/2022.00
 	R_ARR=(1000 1000 600 600 600 300 300 100 100)
 	#R_ARR=(20 20 20 20 20 20 20 10 5)
 	r=${R_ARR[`expr ${1}-8`]}
-	r=1
+
 # set input parameters: to multiply use \*, cause * means 'all files'
 # also to have floating-point use =$echo("scale=num_of_digits; {expresion}" | bc)
 	g=$(echo $3 $SLURM_ARRAY_TASK_ID | awk '{printf "%.3f", $1 + $1 * $2}')
@@ -34,6 +40,9 @@ elif [[ $4 -eq 1 ]]; then
 	funName="Spectrals"
 elif [[ $4 -eq 2 ]]; then
 	funName="EntropyEvolution"
+	if [[ $ch == 1 ]]; then
+		funName="${funName}_lanczos";
+	fi
 elif [[ $4 -eq 3 ]]; then
 	funName="SFF"
 elif [[ $4 -eq 4 ]]; then
@@ -45,12 +54,7 @@ elif [[ $4 -eq 6 ]]; then
 else
 	funName="Other"
 fi
-
-use_lanczos=0
-if [[ $use_lanczos == 1 ]]; then
-	funName="${funName}_lanczos";
-fi
-	filename="run_logs/${funName}_L=${1}_h=${2}_g=${g}${suffix}"
+filename="run_logs/${funName}_L=${1}_h=${2}_g=${g}${suffix}"
 
 #print all variables to see if all correct
 	echo "L=${1}"
@@ -64,4 +68,4 @@ fi
 # -DARMA_DONT_USE_WRAPPER -I/home/rswietek/LIBRARIES_CPP/armadillo-10.8.2/include -llapack -lopenblas -fopenmp -lpthread -lm -lstdc++fs -fomit-frame-pointer -Ofast >& compile_${funName}_L=${1}_h=${2}_g=${g}${suffix}.log
  
 ./Ising.o -L $1 -g $g -h $2 -th $thread_num -m 0 -w 0.0 -r $r\
- -op $operator -fun $4 -s $site -b 0 -ch $use_lanczos "${@:8}" >& ${filename}.log
+ -op $operator -fun $4 -s $site -b 0 -ch $ch "${@:8}" >& ${filename}.log
