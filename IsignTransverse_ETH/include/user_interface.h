@@ -137,6 +137,9 @@ namespace isingUI
 		//-------------------------------------------------------------------------- GENERAL ROUTINES
 		void diagonalize();
 
+		template <typename _type> [[nodiscard]]
+		auto get_eigenvalues(IsingModel<_type>& alfa) -> arma::vec;
+
 		// --------------- COMPARISONS
 		void compare_energies();
 		void compare_matrix_elements(op_type op, int k_alfa, int k_beta, int p_alfa = 1, int p_beta = 1, int x_alfa = 1, int x_beta = 1);
@@ -172,6 +175,7 @@ namespace isingUI
 
 		//-------------------------------------------------------------------------- STATISTICS
 		void level_spacing_from_distribution();
+		void level_spacing();
 
 		//-------------------------------------------------------------------------- FUNCTIONS TO CALL IN FUN-DEFAULT MODE
 		/// <summary>

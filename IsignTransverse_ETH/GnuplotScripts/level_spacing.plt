@@ -28,19 +28,21 @@ RMARGIN = "set lmargin at screen 0.46; set rmargin at screen 0.82"
 RANGE = "set xrange[0:1]; set yrange[0:2.0]"
 UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset border;"
 #-- PARAMETERS
-model = 1       # 1=symmetries and 0=disorder
-w = 0.0
-g = 0.2
-L = 19
+model = 0       # 1=symmetries and 0=disorder
+w = 0.01
+g = 0.6
+L = 14
 h = 1.0
-scaling = 2		# 0 - h scaling / 1 - L scaling / 2 - g scaling
-function = 0    # 1 - gap ratio / 0 - prob distribution
-h_vs_g = 1      # as function of h
-if(scaling == 0) h_vs_g = 0;
-if(scaling == 2) h_vs_g = 1;
-
+scaling = 0		# 0 - h scaling / 1 - L scaling / 2 - g scaling
+function = 1    # 1 - gap ratio / 0 - prob distribution
+h_vs_g = 1      # 1 - as function of h / 0 - as function of g
+heatmap = 1
+if(!heatmap){
+    if(scaling == 0) { h_vs_g = 0; }
+    if(scaling == 2) { h_vs_g = 1; }
+}
 	h0 = 20;	hend = 120;		dh = 20;
-	g0 = 10;	gend = 50;		dg = 5;
+	g0 = 10;	gend = 100;		dg = 10;
 	L0 = 14;	Lend = 19; 		dL = 1;
 
 GOE(x) = x < 1.5? 0.5307 : NaN;
@@ -50,26 +52,47 @@ dir_base = '../results/'.(model? 'symmetries' : 'disorder').'/PBC/LevelSpacing/'
 set key top right
 load './gnuplot-colorbrewer-master/diverging/RdYlGn.plt'
 
-_name_suffix(Lx, hx, gx) = 0;
+name_prefix = dir_base.(function? (h_vs_g? "hMap" : "gMap") : "");
+_name_ratio(Lx) = name_prefix.sprintf("_L=%d",Lx).(model? ",k=0,p=1,x=1.dat" : sprintf(",J0=0.00,g0=0.00,w=%.2f.dat", w));
+_name_dist(Lx, hx, gx) = model? name_prefix.sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", Lx, gx, hx) :\
+                        name_prefix.sprintf("_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", Lx, gx, hx, w);
 if(function){
-   _name_suffix(Lx, hx, gx) = model? sprintf("_L=%d",Lx).(h_vs_g? sprintf(",g=%.2f", gx) : sprintf(",h=%.2f", hx)).",k=0,p=1,x=1.dat" :\
-                        sprintf("_L=%d,J0=0.00",Lx).(h_vs_g? sprintf(",g=%.2f,g0=0.00", gx) : sprintf(",g0=0.00,h=%.2f", hx)).",w=%.2f.dat";
-} else {
-   _name_suffix(Lx, hx, gx) = model? sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", Lx, gx, hx) :\
-                        sprintf("_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", Lx, gx, hx, w);
-}
-if(scaling == 1){
-    _name(x) = dir_base._name_suffix(x, h, g);
-    plot for[Lx=L0:Lend:dL] _name(Lx) u 1:2 w lp ls ((Lx-L0)/dL) pt 6 ps 1.5 title sprintf("L=%d", Lx), @ADD
-} else {
-    if(scaling == 0){
-        _name(x) = dir_base._name_suffix(L, x, g);
-        h_list = '0.20 0.60 1.20 1.40 1.60 1.80 2.40 3.00 3.60'
-        #plot for[hx in h_list] _name(1. * hx) u 1:2 w lp ls ((1.*hx-0.01*h0)/(0.01*dh)) pt 6 ps 1.5 title sprintf("h=%.2f", 1. * hx), @ADD
-        plot for[hx=h0:hend:dh] _name(0.01 * hx) u 1:2 w lp ls ((hx-h0)/dh) pt 6 ps 1.5 title sprintf("h=%.2f", 0.01*hx), @ADD
+    if(heatmap){
+        set xrange[0.05:1.2]
+        set yrange[0.05:1.2]
+        set cbrange[0.39:0.53]
+    	set view map
+        set pm3d map
+        set dgrid3d 24, 24, 2
+    	set pm3d interpolate 0,0
+        splot _name_ratio(L) u 1:2:3 with pm3d
     } else {
-        _name(x) = dir_base._name_suffix(L, h, x);
-        g_list = '0.20 0.50 0.70 0.80 1.40 2.00'
-        plot for[gx in g_list] _name(1. * gx) u 1:2 w lp ls ((1. * gx - 0.01*g0)/ (0.01*dg)) pt 6 ps 1.5 title sprintf("g=%.2f", 1. * gx), @ADD
+        if(scaling == 1){
+            data(x) = $1 == (h_vs_g? g : h)? x : NaN
+            plot for[Lx=L0:Lend:dL] _name_ratio(Lx) u 2:3 w lp ls ((Lx-L0)/dL) pt 6 ps 1.5 title sprintf("L=%d", Lx), @ADD
+        } else {
+            if(scaling == 0){
+                h_list = '0.20 0.60 1.20 1.40 1.60 1.80 2.40 3.00 3.60'
+                #plot for[hx in h_list] _name(1. * hx) u 1:2 w lp ls ((1.*hx-0.01*h0)/(0.01*dh)) pt 6 ps 1.5 title sprintf("h=%.2f", 1. * hx), @ADD
+                plot for[hx=h0:hend:dh] _name_ratio(L) u 2:($1 == 0.01*hx? $3 : NaN) w lp ls ((hx-h0)/dh) pt 6 ps 1.5 title sprintf("h=%.2f", 0.01*hx), @ADD
+            } else {
+                g_list = '0.20 0.50 0.70 0.80 1.40 2.00'
+                #plot for[gx in g_list] _name u 2:($1 == 1.*gx? $3 : NaN) w lp ls ((1. * gx - 0.01*g0)/ (0.01*dg)) pt 6 ps 1.5 title sprintf("g=%.2f", 1. * gx), @ADD
+                plot for[gx=g0:gend:dg] _name_ratio(L) u 2:($1 == 0.01*gx? $3 : NaN) w lp ls ((gx-g0)/dg) pt 6 ps 1.5 title sprintf("g=%.2f", 0.01*gx), @ADD
+            }
+        }
     }
+} else{
+    if(scaling == 1){
+        plot for[Lx=L0:Lend:dL] _name_dist(Lx, h, g) u 1:2 w lp ls ((Lx-L0)/dL) pt 6 ps 1.5 title sprintf("L=%d", Lx), @ADD
+    } else {
+        if(scaling == 0){
+            h_list = '0.20 0.60 1.20 1.40 1.60 1.80 2.40 3.00 3.60'
+            #plot for[hx in h_list] _name(1. * hx) u 1:2 w lp ls ((1.*hx-0.01*h0)/(0.01*dh)) pt 6 ps 1.5 title sprintf("h=%.2f", 1. * hx), @ADD
+            plot for[hx=h0:hend:dh] _name_dist(L, 0.01 * hx, g) u 1:2 w lp ls ((hx-h0)/dh) pt 6 ps 1.5 title sprintf("h=%.2f", 0.01*hx), @ADD
+        } else {
+            g_list = '0.20 0.50 0.70 0.80 1.40 2.00'
+            plot for[gx in g_list] _name_dist(L, h, 1. * gx) u 1:2 w lp ls ((1. * gx - 0.01*g0)/ (0.01*dg)) pt 6 ps 1.5 title sprintf("g=%.2f", 1. * gx), @ADD
+        }
+    }    
 }

@@ -1,5 +1,5 @@
 reset 
-use_png = 1		# 1 if use png output, and 0 for qt output
+use_png = 0		# 1 if use png output, and 0 for qt output
 if(use_png) { set term pngcairo size 1250, 1200 font sprintf("Helvetica,%d",16); }
 else {set term qt size 950, 900 font sprintf("Helvetica,%d",14); }
 
@@ -66,16 +66,6 @@ rescale(t,L) = rescale_times? t/L**nu : t
 
 set encoding utf8
 
-	my_title = "Relaxation time for"
-	if(scaling != 1) { my_title = my_title.sprintf(" L=%d", L); }
-	if(scaling != 2) { my_title = my_title.(h_vs_g? sprintf(" g=%.3f", g) : sprintf(" h=%.2f", h)); }
-	tmp_title = my_title."\n\n for operator A = ";
-	if(operator){ my_title = tmp_title.(q_vs_j? "L^{-1/2}{/Symbol S}_j e^{iqj} {/Symbol s}^z_j" : "{/Symbol s}^z_j");
-	} else{ my_title = tmp_title.(q_vs_j? "L^{-1/2}{/Symbol S}_j cos(2{/Symbol p}/L\267qj) H^j" : "H^j");}
-	
-	str(s) = (q_vs_j? "q" : "j").(s<0? "=L/2" : sprintf("=%d",s))
-	if(scaling != 0){ my_title = my_title."; ".(str(site)); }
-	#set title my_title
 	if(use_png){
 		output_name = out_dir.op."_".(q_vs_j? "q" : "j");
 		if(scaling != 0) { output_name = output_name.sprintf("=%d", site); }
