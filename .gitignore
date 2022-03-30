@@ -12,7 +12,7 @@
 *.sln
 *.vcxproj
 *.vcxproj.filters
-*.png
+#*.png
 *.git
 *.gz
 #*.plt -- keep gnuplot scripts in source control
