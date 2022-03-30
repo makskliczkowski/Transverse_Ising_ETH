@@ -1,5 +1,5 @@
-dir_base='../../results/disorder/PBC/'
-dir = dir_base.'entropy/'
+dir_base='../results/disorder/PBC/'
+dir = dir_base.'Entropy/'
 out_dir = 'Time_Evolution/'
 
 reset 
@@ -34,19 +34,19 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 10; 
-g = 0.1
+L = 14; 
+g = 0.5
 g2 = 0.9 
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
 
 subsystem_size=3		# subsystem size
-scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2 or subsystem_size=3
+scaling = 1				# size scaling=1 or h-scaling=0 or 	g-scaling=2 or subsystem_size=3
 what_to_plot = 1   		# subsystem size=0, time evolution=1  or  eigenstates parabola=2
 rescale_x_axis = 0		# rescale x ax0s?
-compare_scales = 0		# plot 4 panels, 2g's anf log-log and lin-log for each
-compare_to_lanczos = 1	# compare all results to lanczos eovlution (if available)
+compare_scales = 1		# plot 4 panels, 2g's anf log-log and lin-log for each
+compare_to_lanczos = 0	# compare all results to lanczos eovlution (if available)
 if(scaling == 2) compare_scales = 0;
 	h0 = 20;	hend = 300;		dh = 20;
 	g0 = 10;	gend = 80;		dg = 10;
@@ -56,13 +56,6 @@ str_name = (what_to_plot==1? "TimeEvolution" : (what_to_plot==0? "SubsystemSize"
 
 fit = 0
 x_min = 3e0; x_max = 1e1;
-
-my_title = "Entalgement entropy ".str_name." for \n";
-if(scaling != 1) my_title = my_title.sprintf("L=%d, ",L)
-if(scaling != 2) my_title = my_title.sprintf("g=%.2f, ", g)
-if(scaling != 0) my_title = my_title.sprintf("h=%.2f, ", h) 
-if(scaling != 3) my_title = my_title.sprintf("L_A = %d", L / 2.-3+subsystem_size) 
-#set title my_title
 
 fileexist(name)=1#int(system("if exist \"".name."\" ( echo 1) else (echo 0)"))
 
@@ -138,7 +131,7 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 			}		
 		}
 	
-	page(x) = (L * log(2.0) - 0.5) / 2.
+	page(x) = scaling == 1? (x * log(2.0) - 0.5) / 2. : (L * log(2.0) - 0.5) / 2.
 	#set logscale y
 	#set xrange[0:1]
 	#plot dir.sprintf("compare_to_disorder_L=%d,g=%.2f,h=0.80,k=0,p=1,x=1.dat", L, g) u ($1 / (L+0.0)):($2 / page($1)) w p ps 2 t 'w=1e-2',\
@@ -147,7 +140,7 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 	#	dir.sprintf("compare_to_disorder_L=%d,g=%.2f,h=0.80,k=0,p=1,x=1.dat", L, g) u ($1 / (L+0.0)):($5 / page($1)) w p ps 2 t 'k=0,p=1',\
 	#	dir.sprintf("compare_to_disorder_L=%d,g=%.2f,h=0.80,k=0,p=1,x=1.dat", L, g) u ($1 / (L+0.0)):($6 / page($1)) w p ps 2 t 'k=1', 1-abs(1-2*x) w l ls 1 notitle
 	#exit;
-	RANGE="set xrange[1e-2:1000]; set yrange[1e-8:1];"
+	RANGE="set xrange[2e-2:5000]; set yrange[1e-3:5];"
 	MARGIN = compare_scales? "set lmargin at screen 0.10; set rmargin at screen 0.54; set bmargin at screen 0.10; set tmargin at screen 0.54;"\
 					: "set lmargin at screen 0.10; set rmargin at screen 0.98; set bmargin at screen 0.10; set tmargin at screen 0.98;"
 	if(what_to_plot==1){

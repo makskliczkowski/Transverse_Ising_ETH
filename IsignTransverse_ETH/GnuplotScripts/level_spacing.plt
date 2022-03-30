@@ -37,6 +37,8 @@ scaling = 0		# 0 - h scaling / 1 - L scaling / 2 - g scaling
 function = 1    # 1 - gap ratio / 0 - prob distribution
 h_vs_g = 1      # 1 - as function of h / 0 - as function of g
 heatmap = 1
+interpolate = 1
+
 if(!heatmap){
     if(scaling == 0) { h_vs_g = 0; }
     if(scaling == 2) { h_vs_g = 1; }
@@ -61,11 +63,19 @@ if(function){
         set xrange[0.05:1.2]
         set yrange[0.05:1.2]
         set cbrange[0.39:0.53]
-    	set view map
-        set pm3d map
-        set dgrid3d 24, 24, 2
-    	set pm3d interpolate 0,0
-        splot _name_ratio(L) u 1:2:3 with pm3d
+        set ylabel (h_vs_g? "h" : "g")
+        set xlabel (h_vs_g? "g" : "h")
+        #set cblabel "<r>"
+        if(interpolate){
+            set pm3d map
+            set dgrid3d 24, 24, 1
+    	    set pm3d interpolate 0,0
+            splot _name_ratio(L) u 1:2:3 with pm3d
+        } else{
+        	set view map
+    	    set pm3d interpolate 0,0
+            splot _name_ratio(L) u 1:2:3 with image
+        }
     } else {
         if(scaling == 1){
             data(x) = $1 == (h_vs_g? g : h)? x : NaN
