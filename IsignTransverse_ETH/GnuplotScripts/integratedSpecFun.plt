@@ -1,4 +1,4 @@
-dir_base='../../results/disorder/PBC/'
+dir_base='../results/disorder/PBC/'
 dir = dir_base.'IntegratedResponseFunction/'
 out_dir = 'Integrated_Spectral_Function/'
 reset 
@@ -40,9 +40,9 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 14; 
+L = 15; 
 g = 0.1
-h = 0.3;
+h = 0.8;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
 
@@ -51,11 +51,11 @@ x_range_min=1e-5
 integrated_by_hand = 0 #integrated time evolution?
 if(integrated_by_hand) cd '.\integrated'
 rescale = 0				# rescale the spectral function by f(w, L)?
-site = 0				# site at which the operator acts
+site = 1				# site at which the operator acts
 scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
-q_vs_j = 0				# =1 - evolution of Sz_q, else ecol of Sz_j
+q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
 operator = 1	 		# 1-SigmaZ , 0-Hq :local
-two_panels = 1
+two_panels = 0
 
 rescale = 0
 nu = 2		# power on L
