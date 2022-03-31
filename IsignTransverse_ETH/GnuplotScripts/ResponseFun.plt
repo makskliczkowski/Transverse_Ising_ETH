@@ -1,6 +1,3 @@
-dir_base='../../results/disorder/PBC/'
-dir = dir_base.'ResponseFunction/'
-out_dir = 'Spectral_Function/'
 reset 
 
 #------------------------------------ PREAMBLE
@@ -37,7 +34,7 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 14; 
+L = 15; 
 g = 0.4; 
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
@@ -45,55 +42,45 @@ w = 0.01;
 
 SigX_or_SigZ = 1	 	# 0-SigX , 1-SigZ :local
 operator_sum = 0		# is the operator a sum
-site = 0				# site at which the operator acts
+site = 1				# site at which the operator acts
 cor = 0					# correlations
-scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or 4-realisations or 5-M scaling or 6-compare
-q_vs_j = 0				# =1 - evolution of Sz_q, else ecol of Sz_j
+scaling = 1				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or 4-realisations or 5-M scaling or 6-compare
+q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
 operator = 1	 		# 1-SigmaZ , 0-Hq :local
 compare = 0
+use_derivative = 1		# use derivative of integrated spectral function
+if(use_derivative){ compare = 0};
+
 LIOM = 0				# plot LIOMs?
 local = 0
+
 rescale=0				# rescale S_A by power law to find const region
-add_line=1				# draw power-law: a/omega^n
+add_line=0				# draw power-law: a/omega^n
 a0=8e-5					# value of power-law plot at x=1
 	h0 = 20;	hend = 120;		dh = 20;
-	g0 = 40;	gend = 100;		dg = 10;
-	L0 = 15;	Lend = 15; 		dL = 1;
+	g0 = 5;	gend = 40;		dg = 5;
+	L0 = 11;	Lend = 15; 		dL = 1;
 
 
 
 op = operator? "SigmaZ" : "H";
 str(x) = (q_vs_j? "q" : "j").sprintf("=%d",x);
 
-x_min = 3e-2;
-x_max = 2e-1;
+x_min = 1e-2;
+x_max = 1e-1;
 y_min = 1e-1
 y_max = 2e0
 RANGE2 = "set xrange[x_min:x_max]; set yrange[y_min:y_max];"
-RANGE = "set xrange[1e-3:3e1]; set yrange[1e-10:0.05];"
-
+RANGE = (use_derivative? "set xrange[1e-3:3e1]; set yrange[1e-4:1e2];" : "set xrange[1e-3:3e1]; set yrange[1e-10:0.05];")
+if(use_derivative){ a0 = 1e-3}
 #rescale function
 nu=2.0
 fun(x, y, i) = scaling==1? x**nu*2**i*y : x**nu*2**L*y
 	
-	
+dir_base='../results/disorder/PBC/'
+dir = dir_base.(use_derivative? 'IntegratedResponseFunction/DERIVATIVE/' : 'ResponseFunction/')
+out_dir = 'Spectral_Function/'
 	#------------------------------------ GRAPHICS
-	my_title = "{/*1.1 Spectral function S_A({/Symbol w}) with"
-	if(scaling != 1) my_title = my_title.sprintf(" L=%d", L)
-	if(scaling != 2) my_title = my_title.sprintf(" g=%0.2f,", g)
-	if(scaling != 0) my_title = my_title.sprintf(" h=%0.2f,", h)
-	
-	tmp_title = my_title."}\n{/*1.1 for operator}\n\n{/*1.25 A = ";
-	q_str = (site == -1? "L/2}" : ( site == 0? "0" : sprintf("%d{/Symbol p}/L}", 2.*site)))
-	if(operator){
-		if(scaling != 3) { my_title = tmp_title.(q_vs_j? "L^{-1/2}{/Symbol S}_j e^{iqj} {/Symbol s}^z_j; q=".q_str : sprintf("{/Symbol s}^z_{%d}}", site));}
-		else {my_title = tmp_title.(q_vs_j? "L^{-1/2}{/Symbol S}_j e^{iqj} {/Symbol s}^z_j" : "{/Symbol s}^z_{j}");}
-	} else{
-		if(scaling != 3) { my_title = tmp_title.(q_vs_j? "L^{-1/2}{/Symbol S}_j cos(qj) H^j; q=".q_str : sprintf("H^{%d}}", site));}
-		else {my_title = tmp_title.(q_vs_j? "L^{-1/2}{/Symbol S}_j cos(qj) H^j}" : "H_{j}}");}
-	}
-	
-	#set title my_title
 	set key inside right top
 	set xlabel "{/Symbol w}"
 	set ylabel 'S_A({/Symbol w})'
@@ -196,7 +183,7 @@ fun(x, y, i) = scaling==1? x**nu*2**i*y : x**nu*2**L*y
 			if(add_line){						
 				@MARGIN; @UNSET; @RANGE; @SET_LOG
 				plot name(iend) u 1:( ($1>x_min && $1 < x_max)? 10**(1-nu)* a0 /$1**nu : NaN) w l ls 1 notitle
-				set label 1 at 5e-2,7e-3 sprintf("{/Symbol w}^{%.2f}",nu) front
+				set label 1 at 0.5*(x_max - x_min), 0.5*(y_max-y_min) sprintf("{/Symbol w}^{%.2f}",nu) front
 			}
 			#plot sample [i=1:(iend-i0)/di + 1] '+' using (wH[i]):(2*val[i]) w l ls 3 notitle
 		}

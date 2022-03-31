@@ -27,9 +27,7 @@ void isingUI::ui::make_sim()
 		spectral_form_factor();
 		break;
 	case 4:		
-		for (this->L = Lmin; this->L < Lmax; this->L += this->Ls)
-			for (this->site = 0; this->site <= this->L / 2; this->site++)
-				relaxationTimesFromFiles();
+		relaxationTimesFromFiles();
 		break;
 	case 5:
 		benchmark();
@@ -60,23 +58,27 @@ void isingUI::ui::make_sim()
 					// compare_entaglement();
 					// continue;
 					//this->boundary_conditions = 1;
-					auto alfa = std::make_unique<IsingModel_disorder>(this->L, -this->J, this->J0, -this->g, this->g0, this->h, this->w, this->boundary_conditions);
-					//auto alfa = std::make_unique<IsingModel_sym>(this->L, -this->J, -this->g, -this->h,
-					//			 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+					//auto alfa = std::make_unique<IsingModel_disorder>(this->L, -this->J, this->J0, -this->g, this->g0, this->h, this->w, this->boundary_conditions);
+					auto alfa = std::make_unique<IsingModel_sym>(this->L, -this->J, -this->g, -this->h,
+								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 					//stout << "\n\t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
 					const size_t N = alfa->get_hilbert_size();
 					//stout << "\t\t	--> start diagonalizing for " << alfa->get_info()
-				//		  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
-					alfa->diagonalization();
+					//		  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
+					//alfa->diagonalization();
+					lanczos::Lanczos lancz(alfa->get_hamiltonian());
+					lancz.diagonalization();
+					arma::cx_vec GS = lancz.get_eigenstate(0);
 					//stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
 					//	  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 					
-					arma::vec diff = alfa->eigenlevel_statistics_with_return() 
-									- statistics::eigenlevel_statistics_return(alfa->get_eigenvalues());
-					for(int k = 0; k<diff.size(); k++)
-						if(abs(diff(k)) >= 1e-8)
-							stout << k << " " << diff(k) << std::endl;
-					stout << std::endl;
+					auto op_x = alfa->create_operator({IsingModel_sym::sigma_x});
+					auto op_xloc = alfa->create_operator({IsingModel_sym::sigma_x}, std::vector({this->L / 2}));
+					auto op_z = alfa->create_operator({IsingModel_sym::sigma_z});
+					auto op_zloc = alfa->create_operator({IsingModel_sym::sigma_z}, std::vector({this->L / 2}));
+					printSeparated(qpt, "\t", 12, true, this->g, real(arma::cdot(GS, op_x * GS)), real(arma::cdot(GS, op_xloc * GS)),
+										real(arma::cdot(GS, op_z * GS)), real(arma::cdot(GS, op_zloc * GS)));
+					
 					continue;
 					const double tH = 1. / alfa->mean_level_spacing_analytical();
 					int t_max = (int)std::ceil(std::log10(tH));
@@ -882,103 +884,96 @@ void isingUI::ui::entropy_evolution(){
 //<! or symmetry sector and find relaxation times as I(w)=1/2 (the later from integrated time evolution)
 void isingUI::ui::relaxationTimesFromFiles()
 {
-	std::string s = (this->op < 3) ? "j" : "q";
-	if(this->op == 6) s = "n";
-	std::string dir = this->saving_dir + "RelaxationTimes" + kPSep;
-	createDirs(dir);
-	std::string op = IsingModel_disorder::opName(this->op, this->site);
-	std::ofstream map_g, map_h;
-	openFile(map_h, dir + "_h" + op + IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, {"h", "g"}) + ".dat", ios::out);
-	// std::vector<double> gx_list = { 0.025, 0.05, 0.1, 0.15, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 };
+	const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
 	auto gx_list = arma::linspace(this->g, this->g + this->gs * (this->gn - 1), this->gn);
 	auto hx_list = arma::linspace(this->h, this->h + this->hs * (this->hn - 1), this->hn);
-	for (auto &gx : gx_list)
-	{
-		for (auto &hx : hx_list)
+	auto kernel = [this](
+		int Lx, double gx, double hx, 
+		std::ofstream& map, const std::string& s, int _site,
+		auto... prints
+		){
+		if(_site < 0) _site = Lx / 2.;
+		// read time-evolution data
+		std::ifstream file;
+		std::string info = this->m? IsingModel_sym::set_info(this->L, this->J,gx, hx, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
+						: IsingModel_disorder::set_info(this->L, this->J, this->J0, gx, this->g0, hx, this->w);
+		std::string name = IsingModel_disorder::opName(this->op, _site) + info + ".dat";
+		std::string filename = this->saving_dir + "IntegratedResponseFunction" + kPSep + s + "=" + std::to_string(_site) + kPSep + name;
+		std::string filename_time = this->saving_dir + "TimeEvolution" + kPSep + s + "=" + std::to_string(_site) + kPSep + name;
+		std::string dir_out = this->saving_dir + "IntegratedResponseFunction" + kPSep + "DERIVATIVE" + kPSep + s + "=" + std::to_string(_site) + kPSep;
+		createDirs(dir_out);
+		auto data = readFromFile(file, filename);
+		file.close();
+		if (data.empty()) return;
+		// thouless time
+		auto timeEvol = readFromFile(file, filename_time);
+		auto i = timeEvol[1].index_min();
+		double t_Th = timeEvol[0](i);
+		file.close();
+		// take derivative
+		std::ofstream file2;
+		openFile(file2, dir_out + name, std::ios::out);
+		arma::vec specFun = non_uniform_derivative(data[0], data[1]);
+		for (int j = 0; j < specFun.size(); j++)
+			printSeparated(file2, "\t", 12, true, data[0](j + 1), specFun(j));
+		file2.close();
+		// find relax rate
+		double wH = data[2](0);
+		if (data[1](0) <= 0.5)
 		{
-			// read time-evolution data
-			std::ifstream file;
-			std::string name = op + IsingModel_disorder::set_info(this->L, this->J, this->J0, gx, this->g0, hx, this->w) + ".dat";
-			std::string filename = this->saving_dir + "IntegratedResponseFunction" + kPSep + s + "=" + std::to_string(this->site) + kPSep + name;
-			std::string filename_time = this->saving_dir + "TimeEvolution" + kPSep + s + "=" + std::to_string(this->site) + kPSep + name;
-			std::string dir_out = this->saving_dir + "IntegratedResponseFunction" + kPSep + "DERIVATIVE" + kPSep + s + "=" + std::to_string(this->site) + kPSep;
-			createDirs(dir_out);
-			auto data = readFromFile(file, filename);
-			file.close();
-			if (data.empty())
-				continue;
-			// thouless time
-			auto timeEvol = readFromFile(file, filename_time);
-			auto i = timeEvol[1].index_min();
-			double t_Th = timeEvol[0](i);
-			file.close();
-			// take derivative
-			std::ofstream file2;
-			openFile(file2, dir_out + name, std::ios::out);
-			arma::vec specFun = non_uniform_derivative(data[0], data[1]);
-			for (int j = 0; j < specFun.size(); j++)
-				printSeparated(file2, "\t", 12, true, data[0](j + 1), specFun(j));
-			file2.close();
-			// find relax rate
-			double wH = data[2](0);
-			if (data[1](0) <= 0.5)
+			for (int k = 0; k < data[0].size(); k++)
 			{
-				for (int k = 0; k < data[0].size(); k++)
+				if (data[1](k) >= 0.5)
 				{
-					if (data[1](k) >= 0.5)
-					{
-						printSeparated(map_h, "\t", 12, true, hx, gx, 1. / data[0](k), 1. / wH, t_Th);
-						break;
-					}
+					printSeparated(std::cout, "\t", 12, false, prints...);
+					printSeparated(std::cout, "\t", 12, true, 1. / data[0](k), 1. / wH, t_Th);
+					printSeparated(map, "\t", 12, false, prints...);
+					printSeparated(map, "\t", 12, true, 1. / data[0](k), 1. / wH, t_Th);
+					break;
 				}
 			}
 		}
+	};
+	std::string dir = this->saving_dir + "RelaxationTimes" + kPSep;
+	createDirs(dir);
+	std::string s = (this->op < 3) ? "j" : "q";
+	if(this->op == 6) s = "n";
+
+	for (this->L = Lmin; this->L < Lmax; this->L += this->Ls){
+		for (int si = 0; si <= this->L / 2; si++){
+				
+			std::string op = IsingModel_disorder::opName(this->op, si);
+			std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"h", "g"}) 
+						: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, {"h", "g"});
+			std::ofstream map_g, map_h;
+			openFile(map_g, dir + "_g" + op + info + ".dat", ios::out);
+			for (auto &hx : hx_list)
+				for (auto &gx : gx_list)
+					kernel(this->L, gx, hx, map_g, s, si, hx, gx);
+			map_g.close();
+
+			openFile(map_h, dir + "_h" + op + info + ".dat", ios::out);
+			for (auto &gx : gx_list)
+				for (auto &hx : hx_list)
+					kernel(this->L, gx, hx, map_h, s, si, hx, gx);
+			map_h.close();
+			
+		}
 	}
-	map_h.close();
-	openFile(map_g, dir + "_g" + op + IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, {"h", "g"}) + ".dat", ios::out);
-	for (auto &hx : hx_list)
-	{
-		for (auto &gx : gx_list)
-		{
-			// read time-evolution data
-			std::ifstream file;
-			std::string name = op + IsingModel_disorder::set_info(this->L, this->J, this->J0, gx, this->g0, hx, this->w) + ".dat";
-			std::string filename = this->saving_dir + "IntegratedResponseFunction" + kPSep + s + "=" + std::to_string(this->site) + kPSep + name;
-			std::string filename_time = this->saving_dir + "TimeEvolution" + kPSep + s + "=" + std::to_string(this->site) + kPSep + name;
-			std::string dir_out = this->saving_dir + "IntegratedResponseFunction" + kPSep + "DERIVATIVE" + kPSep + s + "=" + std::to_string(this->site) + kPSep;
-			createDirs(dir_out);
-			auto data = readFromFile(file, filename);
-			file.close();
-			if (data.empty())
-				continue;
-			// thouless time
-			auto timeEvol = readFromFile(file, filename_time);
-			auto i = timeEvol[1].index_min();
-			double t_Th = timeEvol[0](i);
-			file.close();
-			// take derivative
-			std::ofstream file2;
-			openFile(file2, dir_out + name, std::ios::out);
-			arma::vec specFun = non_uniform_derivative(data[0], data[1]);
-			for (int j = 0; j < specFun.size(); j++)
-				printSeparated(file2, "\t", 12, true, data[0](j + 1), specFun(j));
-			file2.close();
-			// find relax rate
-			double wH = data[2](0);
-			if (data[1](0) <= 0.5)
-			{
-				for (int k = 0; k < data[0].size(); k++)
-				{
-					if (data[1](k) >= 0.5)
-					{
-						printSeparated(map_g, "\t", 12, true, hx, gx, 1. / data[0](k), 1. / wH, t_Th);
-						break;
-					}
-				}
+	for (auto &gx : gx_list){
+		for (auto &hx : hx_list){
+			for (int si = -1; si <= 2; si++){
+				std::ofstream map_L;
+				std::string op = IsingModel_disorder::opName(this->op, si);
+				std::string info = this->m? IsingModel_sym::set_info(this->L, this->J,gx, hx, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"L"}, ",") 
+						: IsingModel_disorder::set_info(this->L, this->J, this->J0, gx, this->g0, hx, this->w, {"L"}, ",");
+				openFile(map_L, dir + "_L" + op + info + ".dat", ios::out);
+				for (this->L = Lmin; this->L < Lmax; this->L += this->Ls)
+					kernel(this->L, gx, hx, map_L, s, si, this->L);
+				map_L.close();	
 			}
 		}
 	}
-	map_g.close();
 }
 void isingUI::ui::intSpecFun_from_timeEvol()
 {

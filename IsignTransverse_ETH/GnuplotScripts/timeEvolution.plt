@@ -1,5 +1,5 @@
 
-dir_base='../../results/disorder/PBC/'
+dir_base='../results/disorder/PBC/'
 dir = dir_base.'TimeEvolution/'
 out_dir = 'Time_Evolution/'
 reset 
@@ -8,7 +8,7 @@ reset
 set autoscale	
 use_png = 0		# 1 if use png output, and 0 for qt output
 if(use_png) { set term pngcairo size 1200, 1200 font sprintf("Helvetica,%d",18); }
-else {set term qt size 900, 900 font sprintf("Helvetica,%d",16); }
+else {set term qt size 900, 900 font sprintf("Helvetica,%d",18); }
 set mxtics
 set mytics
 
@@ -41,56 +41,47 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 14; 
-g = 0.4;
+L = 15; 
+g = 0.2;
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
 rescale = 0				# rescale the spectral function by f(w, L)?
 power = 0.5				# power in scaling with omega
 operator = 1	 		# 1-SigmaZ , 0-Hq :local
-site = 0				# site at which the operator acts
+site = 1				# site at which the operator acts
 cor = 0					# correlations
-scaling = 0				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
-q_vs_j = 0				# =1 - evolution of Sz_q, else ecol of Sz_j
+scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
+q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
 compare = 0
 
-substract_LTA = 1
+substract_LTA = 0
 
-rescale = 0
-nu = 1		# power on L
-if(scaling != 1) rescale = 0;
+rescale = 1
+nu = 3		# power on L
+#if(scaling != 1) rescale = 0;
 
 
 LIOM = 0				# plot LIOMs?
 local = 0
 
 	h0 = 30;	hend = 90;		dh = 10;
-	g0 = 10;	gend = 50;		dg = 5;
-	L0 = 10;	Lend = 14; 		dL = 1;
+	g0 = 10;	gend = 100;		dg = 10;
+	L0 = 10;	Lend = 15; 		dL = 1;
 
-use_fit = 1
+use_fit = 0
 which_fit = 1		# =1 -power-law || =0 -exp || =2-log
 
 x_min = 1e2; x_max =1e4;  
 # fit/rescale range
 SHOW_FT_LABEL=0
 if(use_fit==0) SHOW_FT_LABEL=0;
+
+rescale_x(x, i) = 0
+if(scaling == 1){ rescale_x(x, i) = x / (rescale? (i**nu) : 1.0); }
+if(scaling == 2){ rescale_x(x, i) = x * (rescale? ((0.01*i)**nu) : 1.0); }
 #------------------------------------ GRAPHICS
-my_title = "{/*1.1 Time evolution <A(t)A> with"
-if(scaling != 2) my_title = my_title.sprintf(" g=%0.2f,", g)
-if(scaling != 1) my_title = my_title.sprintf(" h=%0.2f,", h)
-if(scaling != 0) my_title = my_title.sprintf(" L=%d", L)
-tmp_title = my_title."}\n{/*1.1 for operator}\n\n{/*1.25 A = ";
-q_str = (site == -1? "L/2}" : ( site == 0? "0" : sprintf("%d{/Symbol p}/L}", 2.*site)))
-if(operator) {
-	if(scaling != 3) { my_title = tmp_title.(q_vs_j? "L^{-1/2}{/Symbol S}_j e^{iqj} {/Symbol s}^z_j; q=".q_str : sprintf("{/Symbol s}^z_{%d}}", site));}
-	else {my_title = tmp_title.(q_vs_j? "L^{-1/2}{/Symbol S}_j e^{iqj} {/Symbol s}^z_j" : "{/Symbol s}^z_{j}");}
-} else {
-	if(scaling != 3) { my_title = tmp_title.(q_vs_j? "L^{-1/2}{/Symbol S}_j cos(qj) H^j; q=".q_str : sprintf("H^{%d}}", site));}
-	else {my_title = tmp_title.(q_vs_j? "L^{-1/2}{/Symbol S}_j cos(qj) H^j}" : "H_{j}}");}
-}
-#set title my_title
+
 if(compare){ set key inside bottom left}
 set xlabel (rescale? sprintf("t*L^{%.2f}",nu) : 't')
 set ylabel '<A(t)A>'
@@ -148,6 +139,7 @@ i0 = 0; iend = 0; di = 1;
 			else{ set term qt size 1800, 600;}
 			set key inside bottom left spacing 1.1
 		}
+		set key inside bottom left
 #------------------------ FIT functions
 _a(a) = substract_LTA? 0.0 : a
 f(x) = which_fit == 2? a - b*log(x+alfa) :\
@@ -159,7 +151,7 @@ f_plot(a,b,alfa,x) = ((x < x_min || x > x_max)? NaN : (which_fit==2? a-b*log(x+a
 fstr(a,b,alfa) = which_fit==1? sprintf("{\\~t^{%.2e}}",alfa) : sprintf("{\\~exp(-t / {/Symbol t}); {/Symbol t}=%.4f}",1./alfa)
 if(which_fit==2) {fstr(a,b,alfa) = "\\~ln[x".(alfa<0?"-":"+").sprintf("%f]",abs(alfa))}
 
-fileexist(name)=1#int(system("if exist \"".name."\" (echo 1) else (echo 0)"))
+fileexist(name)=system("[ -f '".name."' ] && echo '1' || echo '0'") + 0	#int(system("if exist \"".name."\" (echo 1) else (echo 0)"))
 label_fit = ""
 a = 0.01
 b = 1
@@ -176,11 +168,6 @@ if(!LIOM){
 		idx = (i-i0)/di+1
 		name = _name(i)	
 		if(fileexist(name)){
-			if(use_fit){
-				#fit[x_min:x_max][*:*] f(x) _name u 1:2 via a, b, alfa
-				#print _key_title(i).sprintf("\t\t%.2f", tau)
-				a_list[idx] = a; b_list[idx] = b; alfa_list[idx] = alfa; #x0_list[idx] = x0;
-			}
 			stats name every ::0::1 using 2 nooutput;	val[idx] = STATS_min
 			stats name every ::0::1 using 3 nooutput; 	tH[idx]  = STATS_min;
 			stats name every ::0::1 using 4 nooutput; 	LTA[idx] = STATS_min
@@ -188,22 +175,22 @@ if(!LIOM){
 			label_fit = label_fit."\t"._key_title(i).":\t".fstr(a,b,alfa)."\n\n"
 		}
 		else{
+			val[idx] = NaN; tH[idx] = NaN; LTA[idx] = NaN;
 			if(use_fit){
-				val[idx] = 0; tH[idx] = 0; LTA[idx] = 0;
 				a_list[idx] = 0; b_list[idx] = 0; alfa_list[idx] = 0; #x0_list[idx] = 0;
 			}
 			print key_title(i)," -----------------------------------------------------------------------------"
 		}
 	}
 	sub(i,i0,di) = substract_LTA? LTA[(i-i0)/di+1] : 0.0;
-	if(use_fit){
+	
 		print "par\t\t a\t b\t alfa"
 		y_min = 1e10
 		do for[i=i0:iend:di]{
 			idx = (i-i0)/di+1
 			if( LTA[idx] < y_min){ y_min = LTA[idx]; }
 			name = _name(i)	
-			if(fileexist(name)){
+			if(use_fit && fileexist(name)){
 				if(which_fit == 2){
 					fit[x_min:x_max][*:*] f(x) name u 1:($2-sub(i,i0,di)) via a, b, alfa;
 					a_list[idx] = a; b_list[idx] = b; alfa_list[idx] = alfa;
@@ -216,14 +203,13 @@ if(!LIOM){
 				label_fit = label_fit."\t"._key_title(i).":\t".fstr(a,b,alfa)."\n\n"
 			}
 			else{
-				val[idx] = 0; tH[idx] = 0; LTA[idx] = 0;
 				a_list[idx] = 0; b_list[idx] = 0; alfa_list[idx] = 0; #x0_list[idx] = 0;
 				print _key_title(i)," -----------------------------------------------------------------------------"
 			}
 		}
-	}
+		if(y_min > 0.1){ set ytics add(y_min);}
 	RANGE = substract_LTA? "set xrange[1e0:1e4]; set yrange[1e-4:5e-1];" :\
-						 (rescale? "set xrange[1e-3:9e3];" : "set xrange[2e-2:1e4];")."set yrange[".sprintf("%.5f", 0.75*y_min).":1.0];";
+						 (rescale? "set xrange[1e-3:9e3];" : "set xrange[2e-2:1e5];")."set yrange[".sprintf("%.5f", 0.75*y_min).":1.0];";
 	#------------------------------------------ Controling output
 	if(use_png){
 		if(compare){ out_dir = out_dir.'compare_scales/'; };
@@ -244,12 +230,12 @@ if(!LIOM){
 	set multiplot
 		if(compare){ set logscale xy;}
 		else{ @SCALE; }
-		@MARGIN; @RANGE; plot for[i=i0:iend:di] _name(i) u ($1/(rescale? (i**nu) : 1.0)):($2-sub(i,i0,di)) w l lw 1.5 title _key_title(i)#, (var+exp(-x/85.7258+2))/(1+var) w l ls 4 t "e^{-t/{/Symbol t}}"
+		@MARGIN; @RANGE; plot for[i=i0:iend:di] _name(i) u (rescale_x($1, i)):($2-sub(i,i0,di)) w l lw 1.5 title _key_title(i)#, (var+exp(-x/85.7258+2))/(1+var) w l ls 4 t "e^{-t/{/Symbol t}}"
 		if(compare){
 			unset label 1;
-			unset logscale x; set format x '%g'; set logscale y; unset ylabel; @MARGIN2; @RANGE; plot for[i=i0:iend:di] _name(i) u ($1/(rescale? (i**nu) : 1.0)):($2-sub(i,i0,di)) w l lw 1.5 notitle
+			unset logscale x; set format x '%g'; set logscale y; unset ylabel; @MARGIN2; @RANGE; plot for[i=i0:iend:di] _name(i) u (rescale_x($1, i)):($2-sub(i,i0,di)) w l lw 1.5 notitle
 			#set label 1 at 0.012,0.4 sprintf("%s",label_fit) front
-			unset logscale y; set format y '%g'; set logscale x; unset ylabel; @MARGIN3; @RANGE; plot for[i=i0:iend:di] _name(i) u ($1/(rescale? (i**nu) : 1.0)):($2-sub(i,i0,di)) w l lw 1.5 notitle
+			unset logscale y; set format y '%g'; set logscale x; unset ylabel; @MARGIN3; @RANGE; plot for[i=i0:iend:di] _name(i) u (rescale_x($1, i)):($2-sub(i,i0,di)) w l lw 1.5 notitle
 		}
 		#ssf_name(gx,Lx) = sprintf("./Spectracd Pro	lFormFactor/_L=%d,J0=0.00,g=%.2f,g0=0.00,h=0.80,w=0.01.dat", Lx, gx)
 		#dim=2.0**L
@@ -267,6 +253,7 @@ if(!LIOM){
 			}
 		}	
 		if(!rescale && !substract_LTA && !compare){
+			print "am here"
 			@UNSET; @MARGIN; @RANGE; @SCALE;
 			plot for[i=i0:iend:di] _name(i) u ($1 < tH[(i-i0)/di + 1]? NaN : $1):(LTA[(i-i0)/di + 1]) w l ls 2 notitle
 			

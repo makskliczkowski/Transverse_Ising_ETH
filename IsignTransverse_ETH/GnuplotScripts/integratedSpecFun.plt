@@ -6,8 +6,8 @@ reset
 #------------------------------------ PREAMBLE
 set autoscale
 use_png = 0		# 1 if use png output, and 0 for qt output
-if(use_png) { set term pngcairo size 1200, 1200 font sprintf("Helvetica,%d",16); }
-else {set term qt size 900, 900 font sprintf("Helvetica,%d",14); }
+if(use_png) { set term pngcairo size 1200, 1200 font sprintf("Helvetica,%d",20); }
+else {set term qt size 900, 900 font sprintf("Helvetica,%d",18); }
 
 set mxtics
 set mytics
@@ -41,20 +41,20 @@ YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
 L = 15; 
-g = 0.1
+g = 0.4
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
 
-x_range_min=1e-5
+x_range_min=1e-4
 
 integrated_by_hand = 0 #integrated time evolution?
 if(integrated_by_hand) cd '.\integrated'
 rescale = 0				# rescale the spectral function by f(w, L)?
-site = 1				# site at which the operator acts
-scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
+site = -1				# site at which the operator acts
+scaling = 1				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
 q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
-operator = 1	 		# 1-SigmaZ , 0-Hq :local
+operator = 0	 		# 1-SigmaZ , 0-Hq :local
 two_panels = 0
 
 rescale = 0
@@ -64,7 +64,7 @@ LIOM = 0				# plot LIOMs?
 local = 0
 
 	h0 = 20;	hend = 160;		dh = 20;
-	g0 = 20;	gend = 90;		dg = 10;
+	g0 = 5;	gend = 40;		dg = 5;
 	L0 = 10;	Lend = 15; 		dL = 1;
 
 fit = 0
@@ -73,26 +73,9 @@ x_min = 1e-3; x_max = 2e-1;
 
 op = operator? "SigmaZ" : "H";
 str(x) = (q_vs_j? "q" : "j").sprintf("=%d",x);
-#------------------------------------ GRAPHICS
-	my_title = "{/*1.1 Integrated Spectral function I_A({/Symbol w}) with"
-	if(scaling != 1) {my_title = my_title.sprintf(" L=%d", L);}
-	if(scaling != 2) {my_title = my_title.sprintf(" g=%0.2f,", g);}
-	if(scaling != 0) {my_title = my_title.sprintf(" h=%0.2f,", h);}
-	tmp_title = my_title."}\n{/*1.1 for operator}\n\n{/*1.25 A = ";
-	q_str = (site == -1? "L/2}" : ( site == 0? "0" : sprintf("%d{/Symbol p}/L}", 2.*site)))
-	if(operator){
-		if(scaling != 3) { my_title = tmp_title.(q_vs_j? "L^{-1/2}{/Symbol S}_j e^{iqj} {/Symbol s}^z_j; q=".q_str : sprintf("{/Symbol s}^z_{%d}}", site));}
-		else {my_title = tmp_title.(q_vs_j? "L^{-1/2}{/Symbol S}_j e^{iqj} {/Symbol s}^z_j" : "{/Symbol s}^z_{j}");}
-	} else{
-		if(scaling != 3) { my_title = tmp_title.(q_vs_j? "L^{-1/2}{/Symbol S}_j cos(qj) H^j; q=".q_str : sprintf("H^{%d}}", site));}
-		else {my_title = tmp_title.(q_vs_j? "L^{-1/2}{/Symbol S}_j cos(qj) H^j}" : "H_{j}}");}
-	}
-	#set title my_title
 
 plot_dir = dir_base.'graph/IntegratedSpectralFunction/'
 
-	
-	
 	#------------------------------------ DATA, FIT AND PLOT
 	output_name = ""
 	_name(x) = 0; _key_title(x) = 0;
@@ -223,7 +206,7 @@ plot_dir = dir_base.'graph/IntegratedSpectralFunction/'
 	}
 
 		set key inside right bottom #font ",16"
-		set xlabel (rescale? "{/Symbol w}\267 L^".sprintf("{%.2f}",nu) : '{/Symbol w}')
+		set xlabel (rescale? "{/Symbol w}* L^".sprintf("{%.2f}",nu) : '{/Symbol w}')
 		set ylabel 'I_A({/Symbol w})'
 		
 		MARGIN = !two_panels? "set lmargin at screen 0.10; set rmargin at screen 0.99; set bmargin at screen 0.10; set tmargin at screen 0.99;"\

@@ -1,7 +1,7 @@
 reset 
 ##--PREAMBLE
 set autoscale
-set term qt size 1050, 900 font "Helvetica,14"
+set term qt size 1050, 900 font "Helvetica,18"
 set mxtics
 set mytics
 set style line 12 lc rgb '#ddccdd' lt 1 lw 1.5
@@ -26,7 +26,7 @@ RMARGIN = "set lmargin at screen 0.46; set rmargin at screen 0.82"
 RANGE = "set xrange[0:1]; set yrange[0:2.0]"
 UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset border;"
 #-- PARAMETERS
-w = 0.0
+w = 0.01
 g = 0.4
 L = 16
 h = 0.0
@@ -86,12 +86,29 @@ set xlabel 't / t_H'
 #set format x '10^{%L}'
 #set format y '10^{%L}'
 
-dir_base='../results/disorder/PBC/'
+delta = 0.025
+# integral_f(x) takes one variable, the upper limit.  0 is the lower limit. calculate the integral of function f(t) from 0 to x
+# choose a step size no larger than delta such that an integral number of steps will cover the range of integration.
+f(x,gx) = (1. - cos(x)) / (sqrt(1+gx**2+2*gx*cos(x)))
+integral_f(x, gx) = (x>0)?int1a(x,gx,x/ceil(x/delta)):-int1b(x,gx,-x/ceil(-x/delta))
+int1a(x,gx,d) = (x<=d*.1) ? 0 : (int1a(x-d,gx,d)+(f(x-d,gx)+4*f(x-d*.5,gx)+f(x,gx))*d/6.)
+int1b(x,gx,d) = (x>=-d*.1) ? 0 : (int1b(x+d,gx,d)+(f(x+d,gx)+4*f(x+d*.5,gx)+f(x,gx))*d/6.)
+#
+# integral2_f(x,y) takes two variables; x is the lower limit, and y the upper.
+# calculate the integral of function f(t) from x to y
+integral2_f(x,y) = (x<y)?int2(x,y,(y-x)/ceil((y-x)/delta)): \
+                        -int2(y,x,(x-y)/ceil((x-y)/delta))
+int2(x,y,d) = (x>y-d*.5) ? 0 : (int2(x+d,y,d) + (f(x)+4*f(x+d*.5)+f(x+d))*d/6.)
+mx(gx) = gx < 1? 0 : (1. - 1. / gx ** 2)**(1./8.)
+set xlabel 'g / J'
+set ylabel '<{/Symbol s}^z>' rotate by 0
+dir_base='../results/symmetries/PBC/'
 dir = dir_base.'Magnetization/'
+#_name(Lx) = dir.sprintf("IsingQPT_L=%d,h=%.2f,k=0,p=1,x=1.dat", Lx, h);
 _name(Lx) = dir.sprintf("IsingQPT_L=%d,J0=0.00,g0=0.00,h=%.2f,w=%.2f.dat", Lx, h, w);
 set xrange[0:2]
 set yrange[0:1]
-plot for [Lx=10:22:2] _name(Lx) using 1:3 w lp title sprintf("L=%d", Lx)
+plot for [Lx=10:26:2] _name(Lx) using 1:3 w lp title sprintf("L=%d", Lx), mx(x)#integral_f(pi, 1. / x) / pi w l ls 1
 
 
 exit;

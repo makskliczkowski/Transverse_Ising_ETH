@@ -1,7 +1,7 @@
 reset 
 use_png = 0		# 1 if use png output, and 0 for qt output
-if(use_png) { set term pngcairo size 1250, 1200 font sprintf("Helvetica,%d",16); }
-else {set term qt size 950, 900 font sprintf("Helvetica,%d",14); }
+if(use_png) { set term pngcairo size 1250, 1200 font sprintf("Helvetica,%d",18); }
+else {set term qt size 1050, 900 font sprintf("Helvetica,%d",18); }
 
 FORMAT = "set style line 12 lc rgb '#ddccdd' lt 1 lw 1.5; \
 set style line 13 lc rgb '#ddccdd' lt 1 lw 0.5; \
@@ -27,22 +27,23 @@ h_vs_g = 0;			# ==0 --> as function of g
 relax_vs_th = 1		# pick relaxation-time=1 ot thouless-time=0
 idx = relax_vs_th? 3 : 5 
 scaling = 2			# = 0 q/j-scaling, =1-size scaling, =2-h/g
+user_defined = 1
 
-
-q_vs_j = 0
-site = 0
-operator = 1	 		# 1-SigmaZ , 0-Hq :local
+q_vs_j = 1
+site = 1
+operator = 0	 		# 1-SigmaZ , 0-Hq :local
 rescale_times = 0
 L = 14
-g = 0.1
+g = 1.0
 h=0.8
 
+fileexist(name)=system("[ -f '".name."' ] && echo '1' || echo '0'") + 0
 set lmargin at screen 0.15
 set rmargin at screen 0.85
 set bmargin at screen 0.15
 set tmargin at screen 0.9
 
-dir_base='../../results/disorder/PBC/'
+dir_base='../results/disorder/PBC/'
 dir = dir_base.'RelaxationTimes/'
 load './gnuplot-colorbrewer-master/diverging/RdYlGn.plt'
 
@@ -65,7 +66,7 @@ rescale(t,L) = rescale_times? t/L**nu : t
 #h = 0.01*hx
 
 set encoding utf8
-
+if(!user_defined){
 	if(use_png){
 		output_name = out_dir.op."_".(q_vs_j? "q" : "j");
 		if(scaling != 0) { output_name = output_name.sprintf("=%d", site); }
@@ -99,7 +100,7 @@ set encoding utf8
 		}
 	} else{
 		set xrange[0:1];
-		RANGE="set yrange[1e-1:1e5]; set xrange[0.1:1.5];"
+		RANGE="set yrange[1e-1:1e4]; set xrange[0.1:1.5];"
 		set xlabel "{/*1.5g/J}"
 		if(scaling == 2){
 			plot for[i=h0:hend:dh] name u (100*$1 == i? $2 : NaN):($3/$4) w lp ls ((i-h0)/dh) pt 6 ps 1.5 title sprintf("h=%.2f", 0.01*i)
@@ -110,7 +111,7 @@ set encoding utf8
 				plot for[i=0:(q_vs_j? L/2 : L-1)] dir._name(L,i).".dat" u ($1 == h? $2 : NaN):(column(idx)) w lp ls (i+1) pt (i+4) ps 1.5 title str(i)
 				@UNSET; @MARGIN; @RANGE; plot dir._name(L,1).".dat" u ($1 == h? $2 : NaN):4 w l ls 0 lw 3 notitle
 			} else{
-				L_list = '10 11 12 13 15'; set logscale x
+				L_list = '10 11 12 13 15'; #set logscale x
 				plot for[i in L_list] dir._name(1.0*i,site<0? i / 2 : site).".dat" u ($1 == h? $2 : NaN):(rescale((column(idx)),1.0*i)) w lp ls ((1.0*i-7)) pt (2*(1.0*i-10)+5) ps 1 title sprintf("L=%d", 1.0*i) #, 1e2*x**(-2) notitle
 				if(0&&!rescale_times){
 					@UNSET; @MARGIN;
@@ -120,4 +121,60 @@ set encoding utf8
 			unset multiplot
 		}	
 	}
+} else {
+
+set style line 1 dt (3,5,10,5) lc rgb "violet" lw 1.5
+set style line 2 dt (3,3) lc rgb "red" lw 1.5
+set style line 3 dt (8,8) lc rgb "blue" lw 1.5
+set style line 4 dt (3,3) lc rgb "green" lw 1.5
+set style line 5 dt (8,8) lc rgb "orange" lw 1.5
+set style line 10 dt (8,8)
+
+	info(s, gx, hx) = "_".(q_vs_j? "q" : "j").sprintf("=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=0.01", s, gx, hx);
+	_name(s, gx, hx) = "_L".op.info(s, gx, hx)
+	set key right outside spacing 2
+	RANGE="set yrange[5e0:4e2]; set xrange[10:16];"
+	set ylabel '{/Symbol t}_{rel}' rotate by 0 font ",22"
+	set xlabel 'L' font ",22"
+	if(scaling == 2){ 
+		i0 = 30; di = 10; iend = 100;
+
+		a=1; b=1;
+		f(x) = a * x**b
+		f_plot(as, bs, x) = as * x**bs
+		size = (iend - i0) / di+1
+		array a_list[size]
+		array b_list[size]
+
+		do for[i=i0:iend:di]{
+			idx = (i-i0)/di + 1
+			fit f(x) dir._name(site, 0.01*i, h).".dat" u 1:2 via a, b
+			a_list[idx] = a; b_list[idx] = b;
+			print a, b
+		}
+		set multiplot
+			@MARGIN; @RANGE;
+			plot for[i=i0:iend:di] dir._name(site, 0.01*i, h).".dat" u 1:2 w p pt 7 ps 2 lc ((i-i0)/di+1) title sprintf("g=%.2f", 0.01*i)
+			@UNSET; @MARGIN; @RANGE; set key outside bottom
+			plot for[i=1:size] f_plot(a_list[i], b_list[i], x) w l ls 10 lc i lw 2 t (abs(b_list[i]) < 0.2? "O(1)" : sprintf("O( L^{%.2f} )", b_list[i]))
+		unset multiplot
+	} else {
+		if(scaling == 0){ 
+			plot for[i=-1:1:1] dir._name(i, g, h).".dat" u 1:2 w lp ls (i+1) pt (i+4) ps 1.5 title (i < 0? "q=L/2" : sprintf("q=%d", i))
+		} else{
+			@MARGIN; @RANGE;
+			plot dir."_LSigmaZ".info(-1, g, h).".dat" u 1:2 w p pt 7 ps 2 lc 1 title "{/Symbol s}_{q=L/2}", 2.5 w l ls 1 lw 2 t "O(1)",\
+				dir."_LSigmaZ".info(1, g, h).".dat" u 1:2 w p pt 7 ps 2 lc 2 title "{/Symbol s}_{q=1}", 0.7*x w l ls 4 lw 2 t "O(L)",\
+				dir."_LH".info(-1, g, h).".dat" u 1:2 w p pt 7 ps 2 lc 7 title "H_{q=L/2}", 0.7 w l ls 2 lw 2 t "O(1)",\
+				dir."_LH".info(1, g, h).".dat" u 1:2 w p pt 7 ps 2 lc 4 title "H_{q=1}", 0.63*x**1.5 w l ls 5 lw 2 t "O( L^{3/2} )",\
+				dir."_LH".info(2, g, h).".dat" u 1:2 w p pt 7 ps 2 lc 3 title "H_{q=2}", 6*(x/10)**1.5 w l ls 3 lw 2 t "O( L^{3/2} )"
+			#0.9
+			#plot dir."_LSigmaZ".info(-1, g, h).".dat" u 1:2 w p pt 7 ps 2 lc 1 title "{/Symbol s}_{q=L/2}", 0.98 w l ls 1 lw 2 t "O(1)",\
+			#	dir."_LSigmaZ".info(1, g, h).".dat" u 1:2 w p pt 7 ps 2 lc 2 title "{/Symbol s}_{q=1}", 1.1*(x/10)**0 w l ls 4 lw 2 t "O(1)",\
+			#	dir."_LH".info(-1, g, h).".dat" u 1:2 w p pt 7 ps 2 lc 7 title "H_{q=L/2}", 0.5 w l ls 2 lw 2 t "O(1)",\
+			#	dir."_LH".info(1, g, h).".dat" u 1:2 w p pt 7 ps 2 lc 4 title "H_{q=1}", 7.2*(x/10)**2 w l ls 5 lw 2 t "O(L^2)",\
+			#	dir."_LH".info(2, g, h).".dat" u 1:2 w p pt 7 ps 2 lc 3 title "H_{q=2}", 2.1*(x/10)**2 w l ls 3 lw 2 t "O(L^2)"
+		}
+	}
+}	
 #}
