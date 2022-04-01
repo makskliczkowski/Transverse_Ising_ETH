@@ -8,7 +8,7 @@
 #INPUTS TO SCRIPT ARE: L,  h,  dg, fun, operator , site, thread_num
 
 #set boolean value
-ch=0
+ch=1
 
 
 operator=$5; site=$6; thread_num=$7;
@@ -27,8 +27,8 @@ module load HDF5/1.12.0-gompi-2021a
 module load intel/2022.00
 
 # set number of realisations, array from L=8 to L=16
-	R_ARR=(600 600 400 400 400 200 200 50 50)
-	#R_ARR=(20 20 20 20 20 20 20 10 5)
+	#R_ARR=(600 600 400 400 400 200 200 100 100)								# ch = 0
+	R_ARR=(1000 1000 1000 1000 500 500 500 500 200 200 200 100 100 100 100 100) # ch = 1
 	r=${R_ARR[`expr ${1}-8`]}
 
 # set input parameters: to multiply use \*, cause * means 'all files'

@@ -801,9 +801,9 @@ void isingUI::ui::entropy_evolution(){
 			int M = 200;
 			auto H = alfa.get_hamiltonian();
 			lanczos::Lanczos lancz(H, lanczosParams(M, 1, true, false));
-			lancz.diagonalization();
-			double omega_max = lancz.get_eigenvalues()(M - 1) - lancz.get_eigenvalues()(0);
-			dt_new = 10 * this->dt / omega_max;
+			//lancz.diagonalization();
+			//double omega_max = lancz.get_eigenvalues()(M - 1) - lancz.get_eigenvalues()(0);
+			//dt_new = 10 * this->dt / omega_max;
 			if (this->scale) stout << "WARNING: log only valid for t<10, for larger t linear is resumed with dt = " << dt_new << std::endl;
 			auto init_log = arma::logspace(-2, t_max, 4000);
 			auto rest_lin = arma::regspace(10.0, dt_new, 10 * tH);
@@ -814,7 +814,7 @@ void isingUI::ui::entropy_evolution(){
 			auto range5 = arma::regspace(3e-1, 1e-1, 2e0);
 			auto range6 = arma::regspace(3e-1, 1e-1, 2e0);
 			auto range7 = arma::regspace(3e0, 2e-1, 100);
-			auto range8 = arma::regspace(100.4, 0.4, 3 * tH);
+			auto range8 = arma::regspace(100.4, 0.4, 1e3);
 			times = this->scale ? arma::join_cols(exctract_vector(init_log, 0.0, 10.0), rest_lin)
 			 							: arma::join_cols(arma::join_cols(range1, range2, range3), range4, arma::join_cols(range5, range6, range7, range8));
 			stout << times.t() << std::endl;
