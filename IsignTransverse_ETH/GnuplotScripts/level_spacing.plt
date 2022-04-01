@@ -2,8 +2,8 @@ reset
 ##--PREAMBLE
 set autoscale
 use_png = 0		# 1 if use png output, and 0 for qt output
-if(use_png) { set term pngcairo size 1200, 1200 font sprintf("Helvetica,%d",18); }
-else {set term qt size 900, 900 font sprintf("Helvetica,%d",16); }
+if(use_png) { set term pngcairo size 1200, 1200 font sprintf("Helvetica,%d",20); }
+else {set term qt size 900, 900 font sprintf("Helvetica,%d",20); }
 set mxtics
 set mytics
 set style line 12 lc rgb '#ddccdd' lt 1 lw 1.5
@@ -28,13 +28,13 @@ RMARGIN = "set lmargin at screen 0.46; set rmargin at screen 0.82"
 RANGE = "set xrange[0:1]; set yrange[0:2.0]"
 UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset border;"
 #-- PARAMETERS
-model = 0       # 1=symmetries and 0=disorder
+model = 1       # 1=symmetries and 0=disorder
 w = 0.01
-g = 0.6
-L = 14
-h = 1.0
-scaling = 0		# 0 - h scaling / 1 - L scaling / 2 - g scaling
-function = 1    # 1 - gap ratio / 0 - prob distribution
+g = 0.7
+L = 19
+h = 1.6
+scaling = 2		# 0 - h scaling / 1 - L scaling / 2 - g scaling
+function = 0    # 1 - gap ratio / 0 - prob distribution
 h_vs_g = 1      # 1 - as function of h / 0 - as function of g
 heatmap = 1
 interpolate = 1
@@ -43,13 +43,13 @@ if(!heatmap){
     if(scaling == 0) { h_vs_g = 0; }
     if(scaling == 2) { h_vs_g = 1; }
 }
-	h0 = 20;	hend = 120;		dh = 20;
+	h0 = 20;	hend = 380;		dh = 60;
 	g0 = 10;	gend = 100;		dg = 10;
 	L0 = 14;	Lend = 19; 		dL = 1;
 
 GOE(x) = x < 1.5? 0.5307 : NaN;
 Lap(x) = x > 2.? 0.3863 : NaN;
-ADD = function?  " GOE(x) w l ls 3 lw 2 notitle, Lap(x) w l ls 3 lw 2 notitle" : " 2/(1+x)**2 w l ls 2 notitle, 27./4 * (x+x**2)/(1+x+x**2)**2.5 w l ls 2 notitle"
+ADD = function?  " GOE(x) w l ls 3 lw 2 notitle, Lap(x) w l ls 3 lw 2 notitle" : " 2/(1+x)**2 w l ls 1 lw 2.5 lc rgb 'black' notitle, 27./4 * (x+x**2)/(1+x+x**2)**2.5 w l ls 3 lw 2.5 lc rgb  'blue' notitle"
 dir_base = '../results/'.(model? 'symmetries' : 'disorder').'/PBC/LevelSpacing/'.(function? 'ratio/' : 'distribution/');
 set key top right
 load './gnuplot-colorbrewer-master/diverging/RdYlGn.plt'
@@ -93,6 +93,8 @@ if(function){
         }
     }
 } else{
+    set ylabel 'P(s)' rotate by 0;
+    set xlabel 's'
     if(scaling == 1){
         plot for[Lx=L0:Lend:dL] _name_dist(Lx, h, g) u 1:2 w lp ls ((Lx-L0)/dL) pt 6 ps 1.5 title sprintf("L=%d", Lx), @ADD
     } else {

@@ -7,8 +7,8 @@ reset
 #------------------------------------ PREAMBLE
 set autoscale	
 use_png = 0		# 1 if use png output, and 0 for qt output
-if(use_png) { set term pngcairo size 1200, 1200 font sprintf("Helvetica,%d",18); }
-else {set term qt size 900, 900 font sprintf("Helvetica,%d",18); }
+if(use_png) { set term pngcairo size 1200, 1200 font sprintf("Helvetica,%d",22); }
+else {set term qt size 900, 900 font sprintf("Helvetica,%d",22); }
 set mxtics
 set mytics
 
@@ -20,7 +20,7 @@ set xtics mirror;\
 set ytics mirror;"
 @FORMAT
 x_log = 1; 
-y_log = 1;
+y_log = 0;
 SCALE = x_log? "unset logscale xy; set logscale x;" : ""
 SCALE = SCALE.(y_log? "set logscale y;" : "")
 @SCALE
@@ -42,14 +42,14 @@ YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
 L = 15; 
-g = 0.2;
+g = 0.4;
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
 rescale = 0				# rescale the spectral function by f(w, L)?
 power = 0.5				# power in scaling with omega
 operator = 1	 		# 1-SigmaZ , 0-Hq :local
-site = 1				# site at which the operator acts
+site = 0				# site at which the operator acts
 cor = 0					# correlations
 scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
 q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
@@ -57,7 +57,7 @@ compare = 0
 
 substract_LTA = 0
 
-rescale = 1
+rescale = 0
 nu = 3		# power on L
 #if(scaling != 1) rescale = 0;
 
@@ -66,7 +66,7 @@ LIOM = 0				# plot LIOMs?
 local = 0
 
 	h0 = 30;	hend = 90;		dh = 10;
-	g0 = 10;	gend = 100;		dg = 10;
+	g0 = 20;	gend = 90;		dg = 10;
 	L0 = 10;	Lend = 15; 		dL = 1;
 
 use_fit = 0
@@ -84,10 +84,16 @@ if(scaling == 2){ rescale_x(x, i) = x * (rescale? ((0.01*i)**nu) : 1.0); }
 
 if(compare){ set key inside bottom left}
 set xlabel (rescale? sprintf("t*L^{%.2f}",nu) : 't')
-set ylabel '<A(t)A>'
+set ylabel '<A(t)A>' rotate by 0 offset 4, 2
 
 op = operator? "SigmaZ" : "H";
 #------------------------------------ DATA, FIT AND PLOT
+#set yrange[0:1]
+#plot dir.sprintf("q=1/SigmaZ_q=1_L=12,J0=0.00,g=%.2f,g0=0.00,h=0.80,w=0.01.dat", 0.0) u 1:2 notitle w lp ls 1,\
+#	dir.sprintf("q=1/SigmaZ_q=1_L=12,J0=0.00,g=%.2f,g0=0.00,h=0.80,w=0.01.dat", 0.2) u 1:2 notitle w lp ls 2,\
+#	dir.sprintf("q=1/SigmaZ_q=1_L=12,J0=0.00,g=%.2f,g0=0.00,h=0.80,w=0.01.dat", 1.1) u 1:2 notitle w lp ls 3
+#
+#exit;
 output_name = ""
 str(x) = (q_vs_j? "q" : "j").sprintf("=%d",x);
 _name(x) = 0; _key_title(x) = 0;
@@ -207,9 +213,9 @@ if(!LIOM){
 				print _key_title(i)," -----------------------------------------------------------------------------"
 			}
 		}
-		if(y_min > 0.1){ set ytics add(y_min);}
+		if(y_min > 0.1 && y_log){ set ytics add(y_min);}
 	RANGE = substract_LTA? "set xrange[1e0:1e4]; set yrange[1e-4:5e-1];" :\
-						 (rescale? "set xrange[1e-3:9e3];" : "set xrange[2e-2:1e5];")."set yrange[".sprintf("%.5f", 0.75*y_min).":1.0];";
+						 (rescale? "set xrange[1e-3:9e3];" : "set xrange[2e-2:1e4];")."set yrange[".sprintf("%.5f", 0.75*y_min).":1.0];";
 	#------------------------------------------ Controling output
 	if(use_png){
 		if(compare){ out_dir = out_dir.'compare_scales/'; };

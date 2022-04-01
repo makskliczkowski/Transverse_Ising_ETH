@@ -54,7 +54,7 @@ void isingUI::ui::make_sim()
 					this->L = system_size;
 					this->g = gx;
 					this->h = hx;
-
+					spectral_form_factor(); continue;
 					// compare_entaglement();
 					// continue;
 					//this->boundary_conditions = 1;

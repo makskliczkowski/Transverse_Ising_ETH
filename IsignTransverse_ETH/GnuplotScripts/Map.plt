@@ -11,7 +11,7 @@ set xtics mirror;\
 set ytics mirror; set border;"
 @FORMAT
 set autoscale
-set logscale y
+set logscale xy
 set format y "10^{%L}"
 set size square
 #set xrange[0.05:5]
@@ -31,7 +31,7 @@ user_defined = 1
 
 q_vs_j = 1
 site = 1
-operator = 0	 		# 1-SigmaZ , 0-Hq :local
+operator = 1	 		# 1-SigmaZ , 0-Hq :local
 rescale_times = 0
 L = 14
 g = 1.0
@@ -57,7 +57,7 @@ _name(Lx, s) = str.op."_".(q_vs_j? "q" : "j").sprintf("=%d_L=%d,J0=0.00,g0=0.00,
 	
 nu=2
 rescale(t,L) = rescale_times? t/L**nu : t
-
+use_fit = 1
 #do for[gx in glist]{
 #	g = 1. * gx
 #do for[site=-1:7]{
@@ -79,12 +79,12 @@ if(!user_defined){
 	
 	name = dir.name.".dat"
 	
-	set key outside right top
+	set key inside right top
 	nejm = relax_vs_th? 'rel' : 'Th'
 	label_y=rescale_times? sprintf("{/*1.5t_{%s}/L^{%d}}", nejm, nu) : '{/*1.5t_{'.nejm.'}}'
 	set ylabel label_y #rotate by 0 offset 2,0.
 	#set ylabel '{/*1.5t_{rel}/t_H}' rotate by 0 offset 2,0.
-	set arrow from 0,1 to 2.5,1 nohead
+	#set arrow from 0,1 to 2.5,1 nohead
 	if(h_vs_g){
 		set xrange[0:2.5]
 		#set yrange[0.01:1000]
@@ -108,7 +108,10 @@ if(!user_defined){
 			set multiplot
 			@MARGIN; @FORMAT; @RANGE;
 			if(scaling == 0){
-				plot for[i=0:(q_vs_j? L/2 : L-1)] dir._name(L,i).".dat" u ($1 == h? $2 : NaN):(column(idx)) w lp ls (i+1) pt (i+4) ps 1.5 title str(i)
+				set logscale x; alfa = -6
+				f(x) = 7e5 * (x/0.1)**(alfa)
+				plot for[i=0:(q_vs_j? L/2 : L-1)] dir._name(L,i).".dat" u ($1 == h? $2 : NaN):(column(idx)) w lp ls (i+1) pt (i+4) ps 1.5 title str(i),\
+					f(x) w l ls 0 lw 4 lc rgb 'blue' notitle#, f(x) w l ls 0 lw 4 lc rgb 'black' notitle
 				@UNSET; @MARGIN; @RANGE; plot dir._name(L,1).".dat" u ($1 == h? $2 : NaN):4 w l ls 0 lw 3 notitle
 			} else{
 				L_list = '10 11 12 13 15'; #set logscale x
@@ -133,11 +136,12 @@ set style line 10 dt (8,8)
 	info(s, gx, hx) = "_".(q_vs_j? "q" : "j").sprintf("=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=0.01", s, gx, hx);
 	_name(s, gx, hx) = "_L".op.info(s, gx, hx)
 	set key right outside spacing 2
-	RANGE="set yrange[5e0:4e2]; set xrange[10:16];"
+	RANGE="set yrange[5e-1:4e3]; set xrange[1./16.:0.1];"
 	set ylabel '{/Symbol t}_{rel}' rotate by 0 font ",22"
-	set xlabel 'L' font ",22"
+	set xlabel '1 / L' font ",22"
+	set xtics add("1/10" 1./10.); set xtics add("1/12" 1./12.); set xtics add("1/14" 1./14.); set xtics add("1/16" 1./16.);
 	if(scaling == 2){ 
-		i0 = 30; di = 10; iend = 100;
+		i0 = 30; di = 10; iend = 120;
 
 		a=1; b=1;
 		f(x) = a * x**b
@@ -148,15 +152,17 @@ set style line 10 dt (8,8)
 
 		do for[i=i0:iend:di]{
 			idx = (i-i0)/di + 1
-			fit f(x) dir._name(site, 0.01*i, h).".dat" u 1:2 via a, b
+			if(use_fit){ fit f(x) dir._name(site, 0.01*i, h).".dat" u 1:2 via a, b; }
 			a_list[idx] = a; b_list[idx] = b;
 			print a, b
 		}
 		set multiplot
 			@MARGIN; @RANGE;
-			plot for[i=i0:iend:di] dir._name(site, 0.01*i, h).".dat" u 1:2 w p pt 7 ps 2 lc ((i-i0)/di+1) title sprintf("g=%.2f", 0.01*i)
-			@UNSET; @MARGIN; @RANGE; set key outside bottom
-			plot for[i=1:size] f_plot(a_list[i], b_list[i], x) w l ls 10 lc i lw 2 t (abs(b_list[i]) < 0.2? "O(1)" : sprintf("O( L^{%.2f} )", b_list[i]))
+			plot for[i=i0:iend:di] dir._name(site, 0.01*i, h).".dat" u (1./$1):2 w p pt 7 ps 2 lc ((i-i0)/di+1) title sprintf("g=%.2f", 0.01*i)
+			if(use_fit){
+				@UNSET; @MARGIN; @RANGE; set key outside bottom
+				plot for[i=1:size] f_plot(a_list[i], b_list[i], 1./x) w l ls 10 lc i lw 2 t (abs(b_list[i]) < 0.2? "O(1)" : sprintf("O( L^{%.2f} )", b_list[i]))
+			}
 		unset multiplot
 	} else {
 		if(scaling == 0){ 

@@ -7,7 +7,7 @@ reset
 set autoscale
 use_png = 0		# 1 if use png output, and 0 for qt output
 if(use_png) { set term pngcairo size 1200, 1200 font sprintf("Helvetica,%d",20); }
-else {set term qt size 900, 900 font sprintf("Helvetica,%d",18); }
+else {set term qt size 900, 900 font sprintf("Helvetica,%d",20); }
 
 set mxtics
 set mytics
@@ -46,15 +46,15 @@ h = 0.8;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
 
-x_range_min=1e-4
+x_range_min=1e-5
 
 integrated_by_hand = 0 #integrated time evolution?
 if(integrated_by_hand) cd '.\integrated'
 rescale = 0				# rescale the spectral function by f(w, L)?
-site = -1				# site at which the operator acts
-scaling = 1				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
+site = 0				# site at which the operator acts
+scaling = 3				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
 q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
-operator = 0	 		# 1-SigmaZ , 0-Hq :local
+operator = 1	 		# 1-SigmaZ , 0-Hq :local
 two_panels = 0
 
 rescale = 0
@@ -64,12 +64,12 @@ LIOM = 0				# plot LIOMs?
 local = 0
 
 	h0 = 20;	hend = 160;		dh = 20;
-	g0 = 5;	gend = 40;		dg = 5;
+	g0 = 20;	gend = 90;		dg = 10;
 	L0 = 10;	Lend = 15; 		dL = 1;
 
 fit = 0
 which_fit = 1						#=0 - a*exp(-t/b); =1 - a-b*log(t)
-x_min = 1e-3; x_max = 2e-1;
+x_min = 1e-5; x_max = 1e-1;
 
 op = operator? "SigmaZ" : "H";
 str(x) = (q_vs_j? "q" : "j").sprintf("=%d",x);
@@ -110,9 +110,10 @@ plot_dir = dir_base.'graph/IntegratedSpectralFunction/'
 							i0 = 0; iend = 9; di=1; 	out_dir = out_dir."realisation_scaling/"
 							output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J0, g, g_knot, h, w);
 						} else{
-							_name(x) = str(site).'/'.op."_".str(x).sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);
+							_name(x) = str(site).'/'.op."_".str(site).sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);
 							i0=1; iend=1; di=1;
 							output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J0, g, g_knot, h, w);
+							_key_title(x) = sprintf("L=%d, g=%.2f, h=%.2f",L,g,h);
 						}
 					}
 				}
@@ -138,7 +139,7 @@ plot_dir = dir_base.'graph/IntegratedSpectralFunction/'
 	f(w) = a * atan(alfa * (w-w0))+b
 	fun1(w) = C * gamma / ((w - w01) * gamma**2 + 1.0)
 	fun2(w) = D * delta / ((w - w02)**2 * delta**2 + 1.0)
-	f_plot(a,b,alfa, w0,w) = (w < 1e-5 || w > 0.2)? NaN : a*atan(alfa*(w-w0))+b;
+	f_plot(a,b,alfa, w0,w) = (w < x_min || w > x_max)? NaN : a*atan(alfa*(w-w0))+b;
 	fun_plot(C, tau, w0, w, which) = which == 1? ( (w < x_min || w > x_max)? NaN : C * tau / ((w-w0) * tau**2 + 1.0) )\
 												: ( (w < x_min || w > x_max)? NaN : C * tau / ( (tau * (w-w0))**2 + 1.0) )
 	integrated_fun_plot1(aa, tau, w, w00) = 2 * aa / tau * log( (1 + (w-w00)*tau**2) / (1-(w+w00)*tau**2) )
@@ -164,7 +165,7 @@ plot_dir = dir_base.'graph/IntegratedSpectralFunction/'
 			if(fileexist(name)){
 				if(fit){
 					if(!two_panels){
-						fit[1e-5:0.1][*:*] f(x) name u 1:2 via a, b, alfa, w0; a_list[(i-i0)/di+1] = a; b_list[(i-i0)/di+1] = b; alfa_list[(i-i0)/di+1] = alfa; w0_list[(i-i0)/di+1] = w0;
+						fit[x_min:x_max][*:*] f(x) name u 1:2 via a, b, alfa, w0; a_list[(i-i0)/di+1] = a; b_list[(i-i0)/di+1] = b; alfa_list[(i-i0)/di+1] = alfa; w0_list[(i-i0)/di+1] = w0;
 					}else {
 						if(i <= iend){
 							fit[1e-5:0.2][*:*] f(x) name u 1:2 via a, b, alfa, w0; a_list[(i-i0)/di+1] = a; b_list[(i-i0)/di+1] = b; alfa_list[(i-i0)/di+1] = alfa; w0_list[(i-i0)/di+1] = w0;
@@ -189,7 +190,7 @@ plot_dir = dir_base.'graph/IntegratedSpectralFunction/'
 			}		
 		}
 		set ytics add(0.5);
-		if(y_min > 0.1){ set ytics add(y_min);}
+		if(y_min > 0.1){ set ytics add(sprintf("%.4f",y_min) y_min);}
 		XRANGE = (rescale? "set xrange[15**nu*x_range_min:15**nu*1e2];" : "set xrange[x_range_min:1e2];" );
 		YRANGE = "set yrange[0.9*y_min:1e0];"
 		#if(fit) {set label 1 at 0.02,(y_log? 0.6:0.6) sprintf("%s",label_fit) front }
@@ -205,17 +206,18 @@ plot_dir = dir_base.'graph/IntegratedSpectralFunction/'
 		set output output_name.".png";
 	}
 
-		set key inside right bottom #font ",16"
+		set key inside right bottom
 		set xlabel (rescale? "{/Symbol w}* L^".sprintf("{%.2f}",nu) : '{/Symbol w}')
-		set ylabel 'I_A({/Symbol w})'
+		set ylabel 'I_A({/Symbol w})' offset 4,2 rotate by 0
 		
-		MARGIN = !two_panels? "set lmargin at screen 0.10; set rmargin at screen 0.99; set bmargin at screen 0.10; set tmargin at screen 0.99;"\
+		MARGIN = !two_panels? "set lmargin at screen 0.10; set rmargin at screen 0.95; set bmargin at screen 0.10; set tmargin at screen 0.95;"\
 			: "set lmargin at screen 0.10; set rmargin at screen 0.5; set bmargin at screen 0.12; set tmargin at screen 0.99;"
 		MARGIN2= "set lmargin at screen 0.55; set rmargin at screen 0.99; set bmargin at screen 0.12; set tmargin at screen 0.99;"
 		XRANGE2="set xrange[1e-3:1e1];"; YRANGE2="set yrange[1e-6:1e-1];";
 		
 		set multiplot
 		@MARGIN; @XRANGE; @YRANGE;
+		if(scaling == 5){ set key at 1e-2,0.92 font ",23";}
 		plot for[i=i0:iend:di] name(i) u ($1*(rescale? i**nu : 1.0)):2 w l lw 2.5 title key_title(i)
 		
 		if(two_panels){
@@ -224,8 +226,9 @@ plot_dir = dir_base.'graph/IntegratedSpectralFunction/'
 		}
 		set format y '%g'
 		if(fit){
-			set key left top
-			@MARGIN; @UNSET;@XRANGE; @YRANGE; plot for[i=1:(iend-i0)/di + 1] f_plot(a_list[i], b_list[i], alfa_list[i], w0_list[i], x) w l ls 1 lw 2.5 title "atan({/Symbol w}) fit"
+			if(scaling == 5){ set key at 1e-2,0.84 font ",23";}
+			else{ set key left top font ",25";}
+			@MARGIN; @UNSET;@XRANGE; @YRANGE; plot for[i=1:(iend-i0)/di + 1] f_plot(a_list[i], b_list[i], alfa_list[i], w0_list[i], x) w l ls 1 lw 2.5 notitle# "atan({/Symbol w}) fit"
 			#@MARGIN; @UNSET;@XRANGE; plot for[i=iend+1:new_end:di] D_list[(i-i0)/di+1] / norm*0.01 * ( atan( (x - w02_list[(i-i0)/di+1]) * delta_list[(i-i0)/di+1]) + atan( (x + w02_list[(i-i0)/di+1]) * delta_list[(i-i0)/di+1])) w l ls 4 lw 2.5 notitle
 			if(two_panels){
 				norm = 3.5e-4; 
