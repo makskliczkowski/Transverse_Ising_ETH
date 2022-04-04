@@ -17,7 +17,18 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 		",h=" + to_string_prec(this->h, 2) + \
 		",w=" + to_string_prec(this->w, 2);
 	this->set_neighbors();
-	this->hamiltonian();
+	#ifndef USE_HEISENBERG
+		if(this->g == 0 && this->g0 == 0)
+			generate_mapping();
+	#else
+		generate_mapping();
+	#endif
+		
+	#ifdef USE_HEISENBERG
+		this->hamiltonian_heisenberg();
+	#else
+		this->hamiltonian();
+	#endif
 }
 
 // ----------------------------------------------------------------------------- BASE GENERATION AND RAPPING -----------------------------------------------------------------------------
@@ -29,7 +40,11 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 /// <returns>index</returns>
 u64 IsingModel_disorder::map(u64 index) {
 	if (index < 0 || index >= std::pow(2, L)) throw "Element out of range\n No such index in map\n";
-	return index;
+	#ifndef USE_HEISENBERG
+		return (this->g == 0? mapping[index] : index);
+	#else
+		return mapping[index];
+	#endif
 }
 
 /// <summary>
@@ -37,10 +52,9 @@ u64 IsingModel_disorder::map(u64 index) {
 /// </summary>
 void IsingModel_disorder::generate_mapping() {
 	this->mapping = std::vector<u64>();
-	std::vector<bool> base_vector(L);
-	int_to_binary(u64(std::pow(2, L / 2) - 1), base_vector);
-	while (next_permutation(base_vector.begin(), base_vector.end()))
-		this->mapping.push_back(binary_to_int(base_vector));
+	for (u64 j = 0; j < (ULLPOW(this->L)); j++)
+		if (__builtin_popcountll(j) != this->L / 2.)
+			this->mapping.push_back(j);
 	this->N = this->mapping.size();
 }
 
@@ -94,6 +108,34 @@ void IsingModel_disorder::hamiltonian() {
 	}
 }
 
+void IsingModel_disorder::hamiltonian_heisenberg(){
+	this->H = arma::sp_mat(N, N); 
+
+	this->dh = create_random_vec(L, this->w);                               // creates random disorder vector
+	this->dJ = create_random_vec(L, this->J0);                              // creates random exchange vector
+	this->dg = create_random_vec(L, this->g0);                              // creates random transverse field vector
+	for (long int kk = 0; kk < N; kk++) {
+		double s_i, s_j;
+		int k = map(k);
+		for (int j = 0; j <= L - 1; j++) {
+			s_i = checkBit(k, L - 1 - j) ? 1.0 : -1.0;;							 // true - spin up, false - spin down
+			/* disorder */
+			H(kk, kk) += (this->h + this->dh(j)) * s_i;                             // diagonal elements setting
+
+			if (nearest_neighbors[j] >= 0) {
+				auto [value_x, new_idx_x] = IsingModel_disorder::sigma_x(k, this->L, {j, nearest_neighbors[j]});
+				setHamiltonianElem(kk, this->J + this->dJ(j), new_idx_x);
+				
+				auto [value_y, new_idx_y] = IsingModel_disorder::sigma_y(k, this->L, {j, nearest_neighbors[j]});
+				setHamiltonianElem(kk, real(value_y) * (this->J + this->dJ(j)), new_idx_y);
+
+				/* Ising-like spin correlation */
+				auto [value_z, new_idx_z] = IsingModel_disorder::sigma_z(k, this->L, {j, nearest_neighbors[j]});
+				setHamiltonianElem(kk, real(value_z) * (this->g + this->dg(j)), new_idx_z);
+			}
+		}
+	}
+}
 // ----------------------------------------------------------------------------- PHYSICAL QUANTITES -----------------------------------------------------------------------------
 
 /// <summary>

@@ -28,7 +28,7 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 #-- PARAMETERS
 w = 0.01
 g = 0.4
-L = 14
+L = 10
 h = 1.0
 h0 = 80
 hend = 400

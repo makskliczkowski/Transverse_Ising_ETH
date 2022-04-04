@@ -26,7 +26,11 @@ IsingModel_sym::IsingModel_sym(int L, double J, double g, double h, int k_sym, b
 	this->generate_mapping();
 	if (this->N <= 0) return;
 	this->set_neighbors(); // generate neighbors
-	this->hamiltonian();
+	#ifdef USE_HEISENBERG
+		this->hamiltonian_heisenberg();
+	#else
+		this->hamiltonian();
+	#endif
 }
 
 // ------------------------------------------------------------------------------------------------ BASE GENERATION, SEC CLASSES AND RAPPING ------------------------------------------------------------------------------------------------
@@ -109,7 +113,7 @@ cpx IsingModel_sym::get_symmetry_normalization(u64 base_idx) const {
 /// <param name="_id"> identificator for a given thread </param>
 void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id){
 	for (u64 j = start; j < stop; j++) {
-		//if (this->g == 0 && __builtin_popcountll(j) != this->L / 2.) continue;
+		if (this->g == 0 && __builtin_popcountll(j) != this->L / 2.) continue;
 		auto [SEC, some_value] = find_SEC_representative(j);
 		if (SEC == j) {
 			cpx N = get_symmetry_normalization(j);					// normalisation condition -- check wether state in basis
@@ -128,6 +132,10 @@ void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_t
 void IsingModel_sym::generate_mapping() {
 	u64 start = 0, stop = static_cast<u64>(std::pow(2, this->L));
 	u64 two_powL = BinaryPowers[L];
+	#ifdef USE_HEISENBERG
+		double g_temp = this->g;
+		this->g = 0;
+	#endif
 	if (num_of_threads == 1)
 		mapping_kernel(start, stop, this->mapping, this->normalisation, 0);
 	else {
@@ -152,6 +160,9 @@ void IsingModel_sym::generate_mapping() {
 			this->normalisation.insert(this->normalisation.end(), std::make_move_iterator(t.begin()), std::make_move_iterator(t.end()));
 	}
 	this->N = this->mapping.size();
+	#ifdef USE_HEISENBERG
+		this->g = g_temp;
+	#endif
 	//assert(mapping.size() > 0 && "Not possible number of electrons - no. of states < 1");
 }
 
@@ -212,6 +223,33 @@ void IsingModel_sym::hamiltonian() {
 				/* Ising-like spin correlation */
 				s_j = checkBit(this->mapping[k], this->L - 1 - this->nearest_neighbors[j]) ? 1.0 : -1.0;
 				this->H(k, k) += this->J * s_i * s_j;
+			}
+		}
+	}
+}
+
+void IsingModel_sym::hamiltonian_heisenberg() {
+	this->H = arma::sp_cx_mat(this->N, this->N); //hamiltonian
+	for (long int kk = 0; kk < this->N; kk++) {
+		double s_i;
+		double s_j;
+		int k = this->mapping[kk];
+		for (int j = 0; j <= this->L - 1; j++) { 
+			s_i = checkBit(k, L - 1 - j) ? 1.0 : -1.0;	// true - spin up, false - spin down
+			
+			/* longitudal field */
+			H(kk, kk) += (this->h) * s_i;                             // diagonal elements setting
+
+			if (nearest_neighbors[j] >= 0) {
+				auto [value_x, new_idx_x] = IsingModel_disorder::sigma_x(k, this->L, {j, nearest_neighbors[j]});
+				setHamiltonianElem(kk, this->J, new_idx_x);
+				
+				auto [value_y, new_idx_y] = IsingModel_disorder::sigma_y(k, this->L, {j, nearest_neighbors[j]});
+				setHamiltonianElem(kk, real(value_y) * (this->J), new_idx_y);
+
+				/* Ising-like spin correlation */
+				auto [value_z, new_idx_z] = IsingModel_disorder::sigma_z(k, this->L, {j, nearest_neighbors[j]});
+				setHamiltonianElem(kk, real(value_z) * (this->g), new_idx_z);
 			}
 		}
 	}

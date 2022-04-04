@@ -115,6 +115,9 @@ namespace fs = std::experimental::filesystem;
 #define __builtin_popcountll _mm_popcnt_u64
 #endif
 
+#if !defined(USE_HEISENBERG)
+	#define USE_HEISENBERG
+#endif
 
 extern std::random_device rd;
 extern std::mt19937::result_type seed;

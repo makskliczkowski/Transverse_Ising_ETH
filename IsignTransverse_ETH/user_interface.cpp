@@ -970,7 +970,7 @@ void isingUI::ui::adiabaticGaugePotential_dis()
 {
 	clk::time_point start = std::chrono::system_clock::now();
 	auto s = this->ch ? "h" : "g"; // (now not inversed because separated h sweep) //inversed, cause exclude the other one
-	std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, {"L"}, ",");
+	std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, {"L", s}, ",");
 	std::string dir = this->saving_dir + "AGP" + kPSep;
 	createDirs(dir);
 	std::ofstream farante;
@@ -987,18 +987,24 @@ void isingUI::ui::adiabaticGaugePotential_dis()
 		for (int system_size = this->L; system_size < this->L + this->Ls * this->Ln; system_size += this->Ls)
 		{
 			const auto start_loop = std::chrono::system_clock::now();
-			std::unique_ptr<IsingModel_disorder> alfa;
+			//std::unique_ptr<IsingModel_disorder> alfa;
+			//if (this->ch)
+			//	alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, this->J0, this->g, this->g0, x, this->w);
+			//else
+			//	alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, this->J0, x, this->g0, this->h, this->w);
+			std::unique_ptr<IsingModel_sym> alfa;
 			if (this->ch)
-				alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, this->J0, this->g, this->g0, x, this->w);
+				alfa = std::make_unique<IsingModel_sym>(system_size, this->J, this->g, x, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 			else
-				alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, this->J0, x, this->g0, this->h, this->w);
-			stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
+				alfa = std::make_unique<IsingModel_sym>(system_size, this->J, x, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+			
+			stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s" << std::endl;
 			auto opMat = alfa->chooseOperator(this->op, this->site);
 			normaliseOp(opMat);
 			std::function
 				getValues = [&](double &AGP, double &typ_susc, int &counter)
 			{
-				stout << " \t\t--> next realisation " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
+				stout << " \t\t--> next realisation " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s" << std::endl;
 				const u64 N = alfa->get_hilbert_size();
 				const double omegaH = alfa->mean_level_spacing_analytical();
 				const double rescale = (double)N * omegaH * omegaH / (double)L;
@@ -1008,7 +1014,7 @@ void isingUI::ui::adiabaticGaugePotential_dis()
 				static long int E_max = alfa->E_av_idx + long(mu / 2);
 				double typ_susc_local = 0;
 				double AGP_local = 0;
-				const arma::mat U = alfa->get_eigenvectors();
+				const auto U = alfa->get_eigenvectors();
 				arma::cx_mat mat_elem = U.t() * opMat * U;
 #pragma omp parallel for reduction(+ \
 								   : AGP_local, typ_susc_local)
@@ -1034,7 +1040,7 @@ void isingUI::ui::adiabaticGaugePotential_dis()
 			double typ_susc = 0, AGP = 0;
 			int counter = 0;
 			if (this->realisations > 1)
-				average_over_realisations<double, double &, double &, int &>(*alfa, true, getValues, AGP, typ_susc, counter);
+				average_over_realisations<cpx, double &, double &, int &>(*alfa, true, getValues, AGP, typ_susc, counter);
 			else
 			{
 				alfa->diagonalization();
@@ -1057,7 +1063,7 @@ void isingUI::ui::adiabaticGaugePotential_sym(bool SigmaZ, bool avSymSectors)
 	std::string info = (avSymSectors ? IsingModel_sym::set_info(L, J, g, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"L", "h", "k", "p", "x"}) : IsingModel_sym::set_info(L, J, g, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"L", "h"}));
 	std::string dir = this->saving_dir + "AGP" + kPSep;
 	createDirs(dir);
-	std::ofstream farante(dir + (SigmaZ ? "SigZ" : "SigX") + info + ".dat");
+	std::ofstream farante(dir + IsingModel_sym::opName(this->op, this->site) + info + ".dat");
 	farante << std::setprecision(6) << std::scientific;
 	// std::ofstream scaling(this->saving_dir + "AGPsize_DELETE" + info + ".dat");
 	// scaling << std::setprecision(6) << std::scientific;
@@ -1076,9 +1082,9 @@ void isingUI::ui::adiabaticGaugePotential_sym(bool SigmaZ, bool avSymSectors)
 				getValues = [&](int k, int p, int x, double &AGP, double &typ_susc, int &counter)
 			{
 				auto alfa = std::make_unique<IsingModel_sym>(system_size, this->J, this->g, hx, k, p, x, this->boundary_conditions);
-				stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
+				stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s" << std::endl;
 				alfa->diagonalization();
-				stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s\n";
+				stout << " \t\t--> finished diagonalizing for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s" << std::endl;
 				const u64 N = alfa->get_hilbert_size();
 				const double omegaH = alfa->mean_level_spacing_analytical();
 				const double rescale = (double)N * omegaH * omegaH / (double)L;

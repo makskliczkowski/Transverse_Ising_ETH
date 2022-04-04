@@ -31,7 +31,7 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 model = 0       # 1=symmetries and 0=disorder
 w = 0.01
 g = 0.7
-L = 14
+L = 12
 h = 1.6
 scaling = 2		# 0 - h scaling / 1 - L scaling / 2 - g scaling
 function = 1    # 1 - gap ratio / 0 - prob distribution

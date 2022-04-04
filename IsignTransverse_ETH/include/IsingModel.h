@@ -101,8 +101,9 @@ public:
 
 	// ---------------------------------- GENERAL METHODS ----------------------------------
 	void set_neighbors();																		// create neighbors list according to the boundary conditions
-	void diagonalization(bool get_eigenvectors = true, const char* method = "dc");											// diagonalize the Hamiltonian
+	void diagonalization(bool get_eigenvectors = true, const char* method = "dc");				// diagonalize the Hamiltonian
 	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
+	virtual void hamiltonian_heisenberg() = 0;													// pure virtual heisenberg hamiltonian creator
 	virtual void setHamiltonianElem(u64 k, double value, u64 new_idx) = 0;						// sets the Hamiltonian elements in a virtual way
 	void reset_random() const {
 		gen = std::mt19937_64(seed);
@@ -146,7 +147,7 @@ public:
 	static std::pair<cpx, u64> sigma_x(u64 base_vec, int L, std::vector<int> sites) {
 		for (auto& site : sites) {
 			//site = properSite(site);
-			NO_OVERFLOW(base_vec = flip(base_vec, BinaryPowers[L - 1 - site], L - 1 - site));
+			base_vec = flip(base_vec, BinaryPowers[L - 1 - site], L - 1 - site);
 		}
 		return std::make_pair(1.0, base_vec);
 	};
@@ -338,6 +339,7 @@ public:
 	v_1d<cpx> get_sym_eigVal() const { return this->symmetry_eigVal; }
 	// OVERRIDES OF THE MODEL METHODS
 	void hamiltonian() override;
+	void hamiltonian_heisenberg() override;
 	void setHamiltonianElem(u64 k, double value, u64 new_idx) override;
 	double mean_level_spacing_analytical() const override {
 		const double chi = 0.341345;
@@ -434,6 +436,7 @@ private:
 public:
 	// METHODS
 	void hamiltonian() override;
+	void hamiltonian_heisenberg() override;
 	void setHamiltonianElem(u64 k, double value, u64 new_idx) override;
 	double mean_level_spacing_analytical() const override {
 		const double chi = 0.341345;
