@@ -22,11 +22,11 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset border;"
     glist2 = '0.025 0.05 0.075 0.10 0.125 0.2 0.3 0.35 0.4 0.45 0.50 0.55 0.60 0.65 0.70 0.75'
 	glist = '0.05 0.1 0.15 0.2 0.25 0.3 0.35 0.4 0.45 0.5'# 0.55 0.6 0.65 0.7 0.75 0.8 0.85 0.9 0.95 1.0'
 	h0 = 20;	hend = 180; 	dh = 20;
-heatmap = 0 		# ==1 plot 2D heatmap, else plot cuts at specific values
+heatmap = 1 		# ==1 plot 2D heatmap, else plot cuts at specific values
 h_vs_g = 0;			# ==0 --> as function of g
 relax_vs_th = 1		# pick relaxation-time=1 ot thouless-time=0
 idx = relax_vs_th? 3 : 5 
-scaling = 2			# = 0 q/j-scaling, =1-size scaling, =2-h/g
+scaling = 1			# = 0 q/j-scaling, =1-size scaling, =2-h/g
 user_defined = 1
 
 q_vs_j = 1

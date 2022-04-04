@@ -499,10 +499,10 @@ template <typename _type>
 auto IsingModel<_type>::time_evolve_state(const arma::cx_vec& state, double time)
 	-> arma::cx_vec
 {
-	arma::cx_vec output = state;
+	arma::cx_vec state_evolved(this->N, arma::fill::zeros);
 	for (long k = 0; k < this->N; k++)
-		output += std::exp(-im * eigenvalues(k) * time) * this->coeff(k) * eigenvectors.col(k);
-	return arma::normalise(output);
+		state_evolved += std::exp(-im * eigenvalues(k) * time) * this->coeff(k) * eigenvectors.col(k);
+	return arma::normalise(state_evolved);
 }
 
 template <typename _type>

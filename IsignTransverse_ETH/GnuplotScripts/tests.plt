@@ -29,15 +29,14 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 w = 0.01
 g = 0.4
 L = 14
-h = 0.0
+h = 1.0
 h0 = 80
 hend = 400
 dh = 40
 E_or_O = 0  	#energies(0) or operator(1)
 var = 1			# variance?
-smoothen = 0	# smooth data?
-scaling = 0		# use size scaling?
-g_scaling = 1	# scaling with g
+smoothen = 1	# smooth data?
+scaling = 2		# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
 y_ax = 2		# =0 - ||O_diag||; =1 - ||O_off||; =2 - <r>
 model = 0
 
@@ -53,7 +52,6 @@ set autoscale xy
 
 set lmargin at screen 0.13; set rmargin at screen 0.96;
 set tmargin at screen 0.96; set bmargin at screen 0.10
-i0=20; iend=120; di=20
 dir_base='../results/'.(model? "symmetries" : "disorder").'/PBC/'
 if(choose == 0){
 	delta = 0.025
@@ -115,22 +113,41 @@ if(choose == 0){
 			set format x '10^{%L}'
 			set format y '10^{%L}'
 			dir = dir_base.'SpectralFormFactor/'
-			ssf_name(gx,Lx) = dir.sprintf("_L=%d,J0=0.00,g=%.2f,g0=0.00,h=0.20,w=0.01.dat", Lx, gx)
-			key_title(i) = sprintf("g=%.2f", 0.01*i)
+			if(smoothen){ dir = dir.'smoothed/';}
+			i0=0; iend=1; di=1;
+			ssf_name(x) = ""; key_title(x) = "";
+			if(scaling == 0){	# h - sclaing
+				i0=20; iend=120; di=10;
+				ssf_name(x) = dir.sprintf("_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=0.01.dat", L, g, 0.01 * x);
+				key_title(x) = sprintf("h = %.2f", 0.01 * x);
+			} else {	
+				if(scaling == 1){	# L - scaling
+					i0=10; iend=14; di=1;
+					ssf_name(x) = dir.sprintf("_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=0.01.dat", x, g, h);
+					key_title(x) = sprintf("L = %d", x);
+				} else {	#	g - scaling
+					i0=10; iend=110; di=20;
+					ssf_name(x) = dir.sprintf("_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=0.01.dat", L, 0.01 * x, h);
+					key_title(x) = sprintf("g = %.2f", 0.01 * x);
+				}
+			}
+			set key right top
+			set xrange[1e-5:8];
+			set yrange[2e-3:4e4]
 				array tH[(iend-i0)/di+1]
 				array val[(iend-i0)/di+1]
 			do for[i=i0:iend:di]{
-					_name = ssf_name(0.01*i, L)	
+					_name = ssf_name(i)
 					if(fileexist(_name)){
-						stats _name every ::0::1 using 2 nooutput;	val[(i-i0)/di+1] = STATS_min
-						stats _name every ::0::1 using 3 nooutput; 	tH[(i-i0)/di+1] = STATS_min;
+						stats _name every ::0::0 using 2 nooutput;	val[(i-i0)/di+1] = STATS_min
+						stats _name every ::0::0 using 3 nooutput; 	tH[(i-i0)/di+1] = STATS_min;
 						print key_title(i),"  ", val[(i-i0)/di+1], tH[(i-i0)/di+1]
 					}
 					else{
 						print key_title(i)," -----------------------------------------------------------------------------"
 					}
 			}
-			plot for[i=i0:iend:di] ssf_name(0.01*i, L) u ($1 / tH[(i-i0)/di + 1]):2 w lp lw 1.5 t sprintf("g=%.2f",0.01*i), (x < 1? 2*x - x*log(1+2*x) : 2-x*log( (2*x+1) / (2*x-1))) t 'GOE'
+			plot for[i=i0:iend:di] ssf_name(i) u 1:2 w l lw 1.5 t key_title(i), (x < 1? 2 * x - x*log(1+2*x) : 2-x*log( (2*x+1) / (2*x-1))) t 'GOE'
 
 		} else{
 			#set logscale x; set xrange[*:150]

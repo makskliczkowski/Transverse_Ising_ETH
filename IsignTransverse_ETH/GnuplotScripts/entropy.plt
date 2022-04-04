@@ -42,14 +42,14 @@ J0 = 0.; g_knot = 0.;
 w = 0.01;
 
 subsystem_size=3		# subsystem size
-scaling = 1				# size scaling=1 or h-scaling=0 or 	g-scaling=2 or subsystem_size=3
+scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2 or subsystem_size=3
 what_to_plot = 1   		# subsystem size=0, time evolution=1  or  eigenstates parabola=2
 rescale_x_axis = 0		# rescale x ax0s?
 compare_scales = 1		# plot 4 panels, 2g's anf log-log and lin-log for each
-compare_to_lanczos = 0	# compare all results to lanczos eovlution (if available)
+compare_to_lanczos = 1	# compare all results to lanczos eovlution (if available)
 if(scaling == 2) compare_scales = 0;
 	h0 = 20;	hend = 300;		dh = 20;
-	g0 = 10;	gend = 80;		dg = 10;
+	g0 = 30;	gend = 80;		dg = 10;
 	L0 = 11;	Lend = 16; 		dL = 1;
 	
 str_name = (what_to_plot==1? "TimeEvolution" : (what_to_plot==0? "SubsystemSize" : "Eigenstates"));
@@ -57,7 +57,7 @@ str_name = (what_to_plot==1? "TimeEvolution" : (what_to_plot==0? "SubsystemSize"
 fit = 0
 x_min = 3e0; x_max = 1e1;
 
-fileexist(name)=1#int(system("if exist \"".name."\" ( echo 1) else (echo 0)"))
+fileexist(name)=system("[ -f '".name."' ] && echo '1' || echo '0'") + 0#int(system("if exist \"".name."\" ( echo 1) else (echo 0)"))
 
 f(t) = a*log((t-t0)) + b
 f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
@@ -140,8 +140,8 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 	#	dir.sprintf("compare_to_disorder_L=%d,g=%.2f,h=0.80,k=0,p=1,x=1.dat", L, g) u ($1 / (L+0.0)):($5 / page($1)) w p ps 2 t 'k=0,p=1',\
 	#	dir.sprintf("compare_to_disorder_L=%d,g=%.2f,h=0.80,k=0,p=1,x=1.dat", L, g) u ($1 / (L+0.0)):($6 / page($1)) w p ps 2 t 'k=1', 1-abs(1-2*x) w l ls 1 notitle
 	#exit;
-	RANGE ="set xrange[2e-2:200]; set yrange[1e-3:6];"
-	RANGE2="set xrange[2e-1:200]; set yrange[1e-1:6];"
+	RANGE ="set xrange[2e-1:2000]; set yrange[1e-1:1];"
+	RANGE2="set xrange[2e-1:2000]; set yrange[1e-1:6];"
 	MARGIN = compare_scales? "set lmargin at screen 0.10; set rmargin at screen 0.54; set bmargin at screen 0.10; set tmargin at screen 0.54;"\
 					: "set lmargin at screen 0.10; set rmargin at screen 0.98; set bmargin at screen 0.10; set tmargin at screen 0.98;"
 	if(what_to_plot==1){
@@ -183,7 +183,7 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 			set logscale xy;
 			set multiplot
 			@MARGIN; @RANGE;
-			plot for[i=i0:iend:di] name(i) u (rescale_X($1,i)):(rescale(abs($2-$3),i)) w l title key_title(i)#,\
+			plot for[i=i0:iend:di] name(i) u (rescale_X($1,i)):(rescale(abs($2),i)) w l title key_title(i)#,\
 					f(x,0.4,0.0) w l ls 1 title 'ln(x)', f(x,0.28,0.0) w l ls 1 notitle, f(x,0.28,0.4) w l ls 1 notitle,\
 					f(x,0.28,0.65) w l ls 1 notitle, f(x,0.28,0.2) w l ls 1 notitle, f(x,0.35,-0.2) w l ls 1 notitle
 			if(fit){
@@ -192,7 +192,7 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 			}
 			if(compare_to_lanczos){
 				@MARGIN; @UNSET; @RANGE;
-				#plot for[i=i0:iend:di] name_lancz(i) u (rescale_X($1,i)):(rescale($2,i)) w p ps 0.75 pt 5 notitle
+				plot for[i=i0:iend:di] name_lancz(i) u (rescale_X($1,i)):(rescale($2,i)) w p ps 0.75 pt 5 notitle
 				#plot for[i=i0:iend:di] name(i) u (rescale_X($1,i)):(rescale($3,i)) w p ps 0.75 pt 5 notitle
 			}
 			#plot for[i=i0:iend:di] name(i) u 1:($1 < 10 ? NaN : L/2.*log(2) - 0.5) w l ls 2 notitle 

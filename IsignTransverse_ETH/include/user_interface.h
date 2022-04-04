@@ -6,6 +6,7 @@
 #include "spectrals.hpp"
 #include "thermodynamics.hpp"
 #include "statistics.hpp"
+#include "statistics_dist.hpp"
 
 const arma::vec down = { 0, 1 };
 const arma::vec up	 = { 1, 0 };
@@ -176,6 +177,8 @@ namespace isingUI
 		//-------------------------------------------------------------------------- STATISTICS
 		void level_spacing_from_distribution();
 		void level_spacing();
+
+		void smoothen_data(const std::string& dir, const std::string& name);
 
 		//-------------------------------------------------------------------------- FUNCTIONS TO CALL IN FUN-DEFAULT MODE
 		/// <summary>

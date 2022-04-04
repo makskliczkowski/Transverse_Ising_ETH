@@ -14,7 +14,7 @@ namespace lanczos{
 			cpx overlap = dot_prod(this->eigenvectors.col(j), state_in_krylov);
 			evolved_state += std::exp(-im * this->eigenvalues(j) * time) * overlap * this->eigenvectors.col(j);
 		}
-		return this->conv_to_hilbert_space(evolved_state);
+		return arma::normalise(this->conv_to_hilbert_space(evolved_state));
 	}
 
 	inline
