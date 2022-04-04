@@ -807,18 +807,14 @@ void isingUI::ui::entropy_evolution(){
 			if (this->scale) stout << "WARNING: log only valid for t<10, for larger t linear is resumed with dt = " << dt_new << std::endl;
 			auto init_log = arma::logspace(-2, t_max, 4000);
 			auto rest_lin = arma::regspace(10.0, dt_new, 10 * tH);
-			auto range1 = arma::regspace(1e-5, 1e-5, 2e-4);
-			auto range2 = arma::regspace(3e-4, 1e-4, 2e-3);
-			auto range3 = arma::regspace(3e-3, 1e-3, 2e-2);
-			auto range4 = arma::regspace(3e-2, 1e-2, 2e-1);
-			auto range5 = arma::regspace(3e-1, 1e-1, 2e0);
-			auto range6 = arma::regspace(3e-1, 1e-1, 2e0);
-			auto range7 = arma::regspace(3e0, 2e-1, 100);
-			auto range8 = arma::regspace(100.4, 0.4, 1e3);
-			times = this->scale ? arma::join_cols(exctract_vector(init_log, 0.0, 10.0), rest_lin)
-			 							: arma::join_cols(arma::join_cols(range1, range2, range3), range4, arma::join_cols(range5, range6, range7, range8));
-			stout << times.t() << std::endl;
-			//times = this->scale ? arma::logspace(-3, t_max, 500) : arma::regspace(dt_new, dt_new, tH);
+			auto range1 = arma::regspace(1e-3, 1e-3, 2e-2);
+			auto range2 = arma::regspace(3e-2, 1e-2, 2e-1);
+			auto range3 = arma::regspace(3e-1, 1e-1, 2e0);
+			auto range4 = arma::regspace(3e0, 2e-1, 100);
+			auto range5 = arma::regspace(100.4, 0.4, 5e2);
+			times = arma::join_cols(range1, arma::join_cols(range2, range3), arma::join_cols(range4, range5));
+			if(this->scale == 1) times = arma::join_cols(exctract_vector(init_log, 0.0, 10.0), rest_lin);
+			if(this->scale == 0) times = arma::regspace(dt_new, dt_new, tH);
 			entropy = arma::vec(times.size(), arma::fill::zeros);
 
 			to_ave_time = [&, this, lancz]() mutable 
@@ -1688,7 +1684,7 @@ void print_help(){
 		"-th number of threads to be used for CPU parallelization : depends on the machine specifics, default(1)\n"
 		"-ch general boolean flag used in different context (default: 0)\n"
 		"-ts time step for evolution (default: 0.1)\n"
-		"-scale choose scale for data: either linear-0 or log-1 (default: linear)\n"
+		"-scale choose scale for data: either linear-0, log-1 or custom-2 (default: linear)\n"
 		"-h quit with help\n");
 }
 
