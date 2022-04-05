@@ -58,11 +58,10 @@ void isingUI::ui::make_sim()
 					//			 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 					stout << "\n\t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
 					
-					
-					std::string _dir = this->saving_dir + "SpectralFormFactor" + kPSep;
-					std::string name = alfa->get_info({}) + ".dat";
-					smoothen_data(_dir, name);
-					continue;
+					//std::string _dir = this->saving_dir + "SpectralFormFactor" + kPSep;
+					//std::string name = alfa->get_info({}) + ".dat";
+					//smoothen_data(_dir, name);
+					//continue;
 					const size_t N = alfa->get_hilbert_size();
 					stout << "\t\t	--> start diagonalizing for " << alfa->get_info()
 							  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
@@ -74,53 +73,36 @@ void isingUI::ui::make_sim()
 					int t_max = (int)std::ceil(std::log10(tH));
 					t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
 					
-					double h0 = 0.0;
-					double g_start = -0.8;
-					//auto alfa0 = std::make_unique<IsingModel_sym>(this->L, -this->J, g0, h0,
-					//			 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-					//auto alfa0 = std::make_unique<IsingModel_disorder>(this->L, -this->J, this->J0, g_start, this->g0, h0, this->w, this->boundary_conditions);
-					//alfa0->diagonalization();
-					//arma::vec GS = alfa0->get_eigenState(0);
-					//arma::cx_vec init_state(GS.size(), arma::fill::zeros);
-					//init_state.set_real(GS);
 					std::string dir = this->saving_dir + "Entropy" + kPSep;
 					createDirs(dir);
 					double omega_max = alfa->get_eigenEnergy(alfa->get_hilbert_size() - 1) - alfa->get_eigenEnergy(0);
 
-					//for (double x = 1e-2; x <= 10; x *= 2)
-					double x = this->dt;
-					{
-						double dt_new = x;//M * 10 * x / omega_max;
-						if (this->scale) stout << "WARNING: log only valid for t<10, for larger t linear is resumed with dt = " << dt_new << std::endl;
 						auto init_log = arma::logspace(-2, t_max, 4000);
-						auto rest_lin = arma::regspace(10.0, dt_new, 10 * tH);
-						auto range1 = arma::regspace(dt_new / 1000., dt_new / 1000., 2 * dt_new / 100.);
-						auto range2 = arma::regspace(3 * dt_new / 100., dt_new / 100., 2 * dt_new / 10.);
-						auto range3 = arma::regspace(3 * dt_new / 10.,  dt_new / 10.,  dt_new);
+						auto rest_lin = arma::regspace(10.0, this->dt, 10 * tH);
+						auto range1 = arma::regspace(this->dt / 1000., this->dt / 1000., 2 * this->dt / 100.);
+						auto range2 = arma::regspace(3 * this->dt / 100., this->dt / 100., 2 * this->dt / 10.);
+						auto range3 = arma::regspace(3 * this->dt / 10.,  this->dt / 10.,  this->dt);
 						auto times = this->scale ? arma::join_cols(exctract_vector(init_log, 0.0, 10.0), rest_lin)
-						 							: arma::join_cols(range1, range2, range3, arma::regspace(dt_new, dt_new, 5 * tH) );
+						 							: arma::join_cols(range1, range2, range3, arma::regspace(this->dt, this->dt, 5 * tH) );
 						times = arma::logspace(-2, t_max, 500);
-						int M = this->mu;
-					//	for (int M = 2; M < 10; M++)
-						{
 							alfa->reset_random();
 							stout << "\t\t	-->set random generators for " << alfa->get_info()
 								  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
-							if (M >= alfa->get_hilbert_size())
-								continue;
 							arma::vec entropy(times.size(), arma::fill::zeros);
 							arma::vec entropy_lanczos(times.size(), arma::fill::zeros);
 
-							lanczosParams params(M, 1, true, false);
+							lanczosParams params(this->mu, 1, true, false);
 							lanczos::Lanczos lancz(alfa->get_hamiltonian(), std::move(params));
 							//lancz.diagonalization();
-							
+							int realisation = 0;
 							std::function to_ave_time = [&]()
 							{
+								const auto start_real = std::chrono::system_clock::now();
 								const arma::cx_vec init_state = random_product_state(this->L);
 								arma::cx_vec state2 = init_state;
 								alfa->set_coefficients(init_state);
 								lancz.diagonalization(init_state);
+								stout << "\t\tfinished preparing for evolutin: - in time : " << tim_s(start) << "s" << std::endl;
 								for (int i = 0; i < times.size(); i++)
 								{
 									auto t = times(i);
@@ -131,6 +113,7 @@ void isingUI::ui::make_sim()
 									entropy(i) += alfa->entaglement_entropy(state, this->L / 2);
 									entropy_lanczos(i) += alfa->entaglement_entropy(state2, this->L / 2);
 								}
+								stout << "\t\tfinished realisation realisation: " << ++realisation << " - in time : " << tim_s(start_real) << "s" << std::endl;
 							};
 							average_over_realisations(*alfa, false, to_ave_time);
 							entropy /= double(this->realisations);
@@ -145,8 +128,6 @@ void isingUI::ui::make_sim()
 									printSeparated(std::cout, "\t", 16, true, times(j), entropy(j), entropy_lanczos(j), diff);
 							}
 							file.close();
-						}
-					}
 					printSeparated(std::cout, "\t", 16, true, this->L, this->g, this->h);
 				}
 			}
