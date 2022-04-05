@@ -50,19 +50,36 @@ void isingUI::ui::make_sim()
 					this->g = gx;
 					this->h = hx;
 					//spectral_form_factor(); continue;
-					// compare_entaglement();
-					// continue;
-					//this->boundary_conditions = 1;
+					
+					//std::string dir = this->saving_dir + "Entropy" + kPSep;
+		std::string str = (this->op < 3) ? "j" : "q";
+		if(this->op == 6) str = "n";
+		std::string dir = this->saving_dir + "timeEvolution" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
+					std::string dir2 = dir + + "exponent" + kPSep;
+					createDirs(dir, dir2);
 					auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 					//auto alfa = std::make_unique<IsingModel_sym>(this->L, -this->J, -this->g, -this->h,
 					//			 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-					stout << "\n\t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
-					
-					//std::string _dir = this->saving_dir + "SpectralFormFactor" + kPSep;
-					//std::string name = alfa->get_info({}) + ".dat";
-					//smoothen_data(_dir, name);
-					//continue;
+					const std::string name = alfa->get_info();
 					const size_t N = alfa->get_hilbert_size();
+					stout << "\n\t\t--> finished creating model for " << name << " - in time : " << tim_s(start) << "s" << std::endl;
+
+					std::ifstream input;
+					std::string opName = IsingModel_disorder::opName(this->op, this->site);
+					auto data = readFromFile(input, dir + opName + name + ".dat");
+					//auto data = readFromFile(input, dir + "TimeEvolution" + name + ".dat");
+					if(data.empty()) continue;
+					arma::vec exponent = non_uniform_derivative(arma::log(data[0]), arma::log(data[1]));
+					std::ofstream output;
+					openFile(output, dir2 + opName + name + ".dat", std::ios::out);
+					for(int j = 0; j < exponent.size(); j++)
+						printSeparated(output, "\t", 16, true, data[0](j+1), data[1](j+1) * exponent(j));
+					output.close();
+					continue;
+
+					std::string _dir = this->saving_dir + "SpectralFormFactor" + kPSep;
+					smoothen_data(_dir, name);
+					continue;
 					stout << "\t\t	--> start diagonalizing for " << alfa->get_info()
 							  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 					alfa->diagonalization();
@@ -73,8 +90,6 @@ void isingUI::ui::make_sim()
 					int t_max = (int)std::ceil(std::log10(tH));
 					t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
 					
-					std::string dir = this->saving_dir + "Entropy" + kPSep;
-					createDirs(dir);
 					double omega_max = alfa->get_eigenEnergy(alfa->get_hilbert_size() - 1) - alfa->get_eigenEnergy(0);
 
 						auto init_log = arma::logspace(-2, t_max, 4000);
@@ -86,7 +101,7 @@ void isingUI::ui::make_sim()
 						 							: arma::join_cols(range1, range2, range3, arma::regspace(this->dt, this->dt, 5 * tH) );
 						times = arma::logspace(-2, t_max, 500);
 							alfa->reset_random();
-							stout << "\t\t	-->set random generators for " << alfa->get_info()
+							stout << "\t\t	-->set random generators for " << name
 								  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 							arma::vec entropy(times.size(), arma::fill::zeros);
 							arma::vec entropy_lanczos(times.size(), arma::fill::zeros);
@@ -102,7 +117,7 @@ void isingUI::ui::make_sim()
 								arma::cx_vec state2 = init_state;
 								alfa->set_coefficients(init_state);
 								lancz.diagonalization(init_state);
-								stout << "\t\tfinished preparing for evolutin: - in time : " << tim_s(start) << "s" << std::endl;
+								stout << "\n\t\tfinished preparing for evolutin: - in time : " << tim_s(start_real) << "s" << std::endl;
 								for (int i = 0; i < times.size(); i++)
 								{
 									auto t = times(i);
@@ -119,7 +134,7 @@ void isingUI::ui::make_sim()
 							entropy /= double(this->realisations);
 							entropy_lanczos /= double(this->realisations);
 							std::ofstream file;
-							openFile(file, dir + "TimeEvolution" + alfa->get_info({}) + ".dat");
+							openFile(file, dir + "TimeEvolution" + name + ".dat");
 							for (int j = 0; j < times.size(); j++)
 							{
 								double diff = entropy(j) - entropy_lanczos(j);

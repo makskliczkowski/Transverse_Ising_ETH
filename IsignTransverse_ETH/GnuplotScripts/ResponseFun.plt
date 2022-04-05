@@ -19,7 +19,7 @@ set ytics mirror;"
 SET_LOG = "set logscale xy; set format x '10^{%L}'; set format y '10^{%L}';"
 @SET_LOG;
 SET_LINX = "unset logscale xy; set format x '%g'; set format y '%g';"
-fileexist(name)=1#int(system("if exist \"".name."\" ( echo 1) else (echo 0)"))
+fileexist(name)=system("[ -f '".name."' ] && echo '1' || echo '0'") + 0	#int(system("if exist \"".name."\" (echo 1) else (echo 0)"))
 
 UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset border;"
 
@@ -35,7 +35,7 @@ YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
 L = 15; 
-g = 0.4; 
+g = 0.6; 
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
@@ -47,8 +47,8 @@ cor = 0					# correlations
 scaling = 1				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or 4-realisations or 5-M scaling or 6-compare
 q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
 operator = 1	 		# 1-SigmaZ , 0-Hq :local
-compare = 0
-use_derivative = 1		# use derivative of integrated spectral function
+compare = 1
+use_derivative = 0		# use derivative of integrated spectral function
 if(use_derivative){ compare = 0};
 
 LIOM = 0				# plot LIOMs?
@@ -59,7 +59,7 @@ add_line=0				# draw power-law: a/omega^n
 a0=8e-5					# value of power-law plot at x=1
 	h0 = 20;	hend = 120;		dh = 20;
 	g0 = 5;	gend = 40;		dg = 5;
-	L0 = 11;	Lend = 15; 		dL = 1;
+	L0 = 11;	Lend = 14; 		dL = 1;
 
 
 

@@ -88,11 +88,8 @@ DISABLE_OVERFLOW // VS19 error with simple implicit cast, instead produces warni
 arma::vec non_uniform_derivative(const arma::vec& x, const arma::vec& y) {
 	const int size = y.size();
 	arma::vec output(size - 1, arma::fill::zeros);
-	for (int j = 1; j < size; j++) {
-		//const double step = (x(j + 1) - x(j)) / (x(j) - x(j - 1));
-		//output(j - 1) = (y(j + 1) - step * step * y(j - 1) - (1 - step * step) * y(j)) / (step * (1 + step));
+	for (int j = 1; j < size; j++) 
 		output(j - 1) = (y(j) - y(j - 1)) / (x(j) - x(j - 1));
-	}
 	return output;
 }
 

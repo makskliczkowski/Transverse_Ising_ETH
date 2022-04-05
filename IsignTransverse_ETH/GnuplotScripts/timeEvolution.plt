@@ -20,7 +20,7 @@ set xtics mirror;\
 set ytics mirror;"
 @FORMAT
 x_log = 1; 
-y_log = 0;
+y_log = 1;
 SCALE = x_log? "unset logscale xy; set logscale x;" : ""
 SCALE = SCALE.(y_log? "set logscale y;" : "")
 @SCALE
@@ -41,7 +41,7 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 15; 
+L = 14; 
 g = 0.4;
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
@@ -52,7 +52,7 @@ operator = 1	 		# 1-SigmaZ , 0-Hq :local
 site = 0				# site at which the operator acts
 cor = 0					# correlations
 scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
-q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
+q_vs_j = 0				# =1 - evolution of Sz_q, else ecol of Sz_j
 compare = 0
 
 substract_LTA = 0
@@ -66,7 +66,7 @@ LIOM = 0				# plot LIOMs?
 local = 0
 
 	h0 = 30;	hend = 90;		dh = 10;
-	g0 = 20;	gend = 90;		dg = 10;
+	g0 = 30;	gend = 70;		dg = 10;
 	L0 = 10;	Lend = 15; 		dL = 1;
 
 use_fit = 0
@@ -236,7 +236,7 @@ if(!LIOM){
 	set multiplot
 		if(compare){ set logscale xy;}
 		else{ @SCALE; }
-		@MARGIN; @RANGE; plot for[i=i0:iend:di] _name(i) u (rescale_x($1, i)):($2-sub(i,i0,di)) w l lw 1.5 title _key_title(i)#, (var+exp(-x/85.7258+2))/(1+var) w l ls 4 t "e^{-t/{/Symbol t}}"
+		@MARGIN; @RANGE; plot for[i=i0:iend:di] _name(i) u (rescale_x($1, i)):(abs($2-sub(i,i0,di))) w l lw 1.5 title _key_title(i)#, (var+exp(-x/85.7258+2))/(1+var) w l ls 4 t "e^{-t/{/Symbol t}}"
 		if(compare){
 			unset label 1;
 			unset logscale x; set format x '%g'; set logscale y; unset ylabel; @MARGIN2; @RANGE; plot for[i=i0:iend:di] _name(i) u (rescale_x($1, i)):($2-sub(i,i0,di)) w l lw 1.5 notitle
