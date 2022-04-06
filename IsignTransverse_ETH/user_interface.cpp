@@ -89,23 +89,18 @@ void isingUI::ui::make_sim()
 					const double tH = 1. / alfa->mean_level_spacing_analytical();
 					int t_max = (int)std::ceil(std::log10(tH));
 					t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
-					
-					double omega_max = alfa->get_eigenEnergy(alfa->get_hilbert_size() - 1) - alfa->get_eigenEnergy(0);
 
-						auto init_log = arma::logspace(-2, t_max, 4000);
-						auto rest_lin = arma::regspace(10.0, this->dt, 10 * tH);
-						auto range1 = arma::regspace(this->dt / 1000., this->dt / 1000., 2 * this->dt / 100.);
-						auto range2 = arma::regspace(3 * this->dt / 100., this->dt / 100., 2 * this->dt / 10.);
-						auto range3 = arma::regspace(3 * this->dt / 10.,  this->dt / 10.,  this->dt);
-						auto times = this->scale ? arma::join_cols(exctract_vector(init_log, 0.0, 10.0), rest_lin)
-						 							: arma::join_cols(range1, range2, range3, arma::regspace(this->dt, this->dt, 5 * tH) );
-						times = arma::logspace(-1, t_max, 300);
+					auto range1 = arma::regspace(0.01 * this->dt, 0.01 * this->dt, 0.3 * this->dt);
+					auto range2 = arma::regspace(0.4 * this->dt, 0.10 * this->dt, 10.0 * this->dt);
+					double omega_max = alfa->get_eigenEnergy(alfa->get_hilbert_size() - 1) - alfa->get_eigenEnergy(0);
+						auto times = this->scale ? arma::logspace(-2, t_max, 500) : arma::join_cols(range1, range2, arma::regspace(11.0 * this->dt, this->dt, 2e2));
+							
 							alfa->reset_random();
 							stout << "\t\t	-->set random generators for " << name
 								  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 							arma::vec entropy(times.size(), arma::fill::zeros);
 							arma::vec entropy_lanczos(times.size(), arma::fill::zeros);
-							this->mu = this->L <= 12? N : (this->L <= 14? 0.5 * N : 0.25 * N);
+							
 							lanczosParams params(this->mu, 1, true, false);
 							lanczos::Lanczos lancz(alfa->get_hamiltonian(), std::move(params));
 							//lancz.diagonalization();
@@ -116,15 +111,17 @@ void isingUI::ui::make_sim()
 								const arma::cx_vec init_state = random_product_state(this->L);
 								arma::cx_vec state2 = init_state;
 								alfa->set_coefficients(init_state);
-								lancz.diagonalization(init_state);
+								if(this->scale) 
+									lancz.diagonalization(init_state);
 								stout << "\n\t\tfinished preparing for evolutin: - in time : " << tim_s(start_real) << "s" << std::endl;
 								for (int i = 0; i < times.size(); i++)
 								{
 									auto t = times(i);
 									arma::cx_vec state = alfa->time_evolve_state(init_state, t);
-									state2 = lancz.time_evolution_stationary(init_state, t);
-									//lancz.time_evolution_non_stationary(state2, t - (i == 0 ? 0.0 : times(i - 1)), M);
-									//auto state2 =  lancz.time_evolution_stationary(init_state, t);
+									if(this->scale)
+										state2 = lancz.time_evolution_stationary(init_state, t);
+									else
+										lancz.time_evolution_non_stationary(state2, t - (i == 0 ? 0.0 : times(i - 1)), this->mu);
 									entropy(i) += alfa->entaglement_entropy(state, this->L / 2);
 									entropy_lanczos(i) += alfa->entaglement_entropy(state2, this->L / 2);
 								}
