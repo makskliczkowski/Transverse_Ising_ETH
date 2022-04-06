@@ -34,7 +34,7 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 14; 
+L = 11; 
 g = 0.9
 g2 = 0.9 
 h = 0.8;
@@ -42,17 +42,17 @@ J0 = 0.; g_knot = 0.;
 w = 0.01;
 
 subsystem_size=3		# subsystem size
-scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2 or subsystem_size=3
+scaling = 1				# size scaling=1 or h-scaling=0 or 	g-scaling=2 or subsystem_size=3
 what_to_plot = 1   		# subsystem size=0, time evolution=1  or  eigenstates parabola=2
 rescale_x_axis = 0		# rescale x ax0s?
 rescale_by_page=0		# rescale byu Page value
 compare_scales = 0		# plot 4 panels, 2g's anf log-log and lin-log for each
 compare_to_lanczos = 0	# compare all results to lanczos eovlution (if available)
-plot_exponent = 1
+plot_exponent = 0
 if(scaling == 2) compare_scales = 0;
 	h0 = 20;	hend = 300;		dh = 20;
-	g0 = 40;	gend = 70;		dg = 10;
-	L0 = 11;	Lend = 14; 		dL = 1;
+	g0 = 40;	gend = 90;		dg = 10;
+	L0 = 10;	Lend = 15; 		dL = 1;
 plot_only_lanczos = 0
 if(plot_exponent) plot_only_lanczos = 0;
 str_name = (what_to_plot==1? "TimeEvolution" : (what_to_plot==0? "SubsystemSize" : "Eigenstates"));
@@ -69,8 +69,8 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 	if(plot_only_lanczos){ dir = dir.'Lanczos/';}
 	if(plot_exponent){ dir = dir.'exponent/'; str_name = "";}
 
-	dir = '../results/disorder/PBC/TimeEvolution/j=0/exponent/'
-	str_name="SigmaZ_j=0"
+	#dir = '../results/disorder/PBC/TimeEvolution/j=0/exponent/'
+	#str_name="SigmaZ_j=0"
 	name(x) = 0; key_title(x) = 0; rescale_X(x,y) = x;
 	name2(x) = 0;
 	name_lancz(x) = 0;
@@ -148,7 +148,7 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 	#	dir.sprintf("compare_to_disorder_L=%d,g=%.2f,h=0.80,k=0,p=1,x=1.dat", L, g) u ($1 / (L+0.0)):($5 / page($1)) w p ps 2 t 'k=0,p=1',\
 	#	dir.sprintf("compare_to_disorder_L=%d,g=%.2f,h=0.80,k=0,p=1,x=1.dat", L, g) u ($1 / (L+0.0)):($6 / page($1)) w p ps 2 t 'k=1', 1-abs(1-2*x) w l ls 1 notitle
 	#exit;
-	RANGE =plot_exponent? "set xrange[2e-2:1000]; set yrange[-0.6:2e-1];" : "set xrange[2e-1:100]; set yrange[3e-1:6];"
+	RANGE =plot_exponent? "set xrange[2e-2:1000]; set yrange[0:2e-0];" : "set xrange[2e-1:100]; set yrange[3e-1:6];"
 	RANGE2="set xrange[2e-1:10]; set yrange[3e-1:6];"
 	MARGIN = compare_scales? "set lmargin at screen 0.10; set rmargin at screen 0.54; set bmargin at screen 0.10; set tmargin at screen 0.54;"\
 					: "set lmargin at screen 0.10; set rmargin at screen 0.98; set bmargin at screen 0.10; set tmargin at screen 0.98;"
@@ -186,7 +186,7 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 			set xlabel 't'
 			set ylabel 'S(t)'
 			set key left top font ",16"
-			@LIN_LOG
+			@LOG_LOG
 			if(plot_exponent == 0){
 				set multiplot
 				@MARGIN; @RANGE;

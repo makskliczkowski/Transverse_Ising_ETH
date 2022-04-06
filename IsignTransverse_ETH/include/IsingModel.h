@@ -100,8 +100,11 @@ public:
 	void print_state(u64 _id);																	// prints the eigenstate at a given idx
 
 	// ---------------------------------- GENERAL METHODS ----------------------------------
-	void set_neighbors();																		// create neighbors list according to the boundary conditions
-	void diagonalization(bool get_eigenvectors = true, const char* method = "dc");				// diagonalize the Hamiltonian
+	void set_neighbors();																							// create neighbors list according to the boundary conditions
+	void diagonalization(bool get_eigenvectors = true, const char* method = "dc");									// diagonalize the Hamiltonian
+	void diagonalization_sparse(int num_of_eigvals = 500, bool get_eigenvectors = true, const char* form = "lm");	// diagonalize the Hamiltonian in sparse mode
+	void diagonalization_sparse(int num_of_eigvals = 500, bool get_eigenvectors = true, double sigma = 0.0);		// diagonalize the Hamiltonian in sparse mode - shift invert around sigma
+
 	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
 	virtual void hamiltonian_heisenberg() = 0;													// pure virtual heisenberg hamiltonian creator
 	virtual void setHamiltonianElem(u64 k, double value, u64 new_idx) = 0;						// sets the Hamiltonian elements in a virtual way

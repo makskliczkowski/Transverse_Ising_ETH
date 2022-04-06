@@ -238,7 +238,7 @@ namespace spectrals{
 		}
 		return std::make_pair(timeEv, LTA);
 	}
-#define timeEvolution autocorrelation_function // this to be deleted
+
 	
 	// -----------------------------------------  QUANTUM QUENCH
 	[[nodiscard]]

@@ -83,6 +83,18 @@ void isingUI::ui::make_sim()
 					stout << "\t\t	--> start diagonalizing for " << alfa->get_info()
 							  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 					alfa->diagonalization();
+					arma::eigs_opts opts;
+					opts.maxiter =  10000;
+					opts.tol=1e-16;
+					arma::vec E;
+					arma::eigs_sym(E, alfa->get_hamiltonian(), 500, alfa->get_eigenEnergy(0.4 * N), opts);
+					int con = 0;
+					for(int k = 0.4 * N - 250; k < 0.4 * N + 250; k++){
+						if(con < E.size())
+							printSeparated(std::cout, "\t", 16, true, alfa->get_eigenEnergy(k), E(con), abs(alfa->get_eigenEnergy(k) - E(con)));
+						con++;
+					}
+					continue;	
 					stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
 						  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 					
@@ -584,7 +596,7 @@ void isingUI::ui::calculate_spectrals()
 				stout << "\t\t	--> set matrix elements for " << alfa.get_info() << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 				normaliseMat(mat_elem);
 
-				auto [op_tmp, LTA_tmp] = spectrals::timeEvolution(alfa, mat_elem, times);
+				auto [op_tmp, LTA_tmp] = spectrals::autocorrelation_function(alfa, mat_elem, times);
 				save_to_file(tdir_realisation + opName + alfa.get_info({}) + ".dat", times, op_tmp, tH, LTA_tmp);
 				stout << "\t\t	--> finished time evolution for " << alfa.get_info()
 					  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n\tNEXT: integrated spectral function" << std::endl;
@@ -621,7 +633,7 @@ void isingUI::ui::calculate_spectrals()
 			arma::cx_mat mat_elem = U.t() * op * U;
 			stout << "\t\t	--> set matrix elements for " << alfa.get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
 			normaliseMat(mat_elem);
-			auto [opEvol, LTA] = spectrals::timeEvolution(alfa, mat_elem, times);
+			auto [opEvol, LTA] = spectrals::autocorrelation_function(alfa, mat_elem, times);
 			save_to_file(timeDir + opName + alfa.get_info({}) + ".dat", times, opEvol, tH, LTA);
 			stout << "\t\t	--> finished time evolution for " << alfa.get_info() << " - in time : " << tim_s(start) << "s\n\tNEXT: integrated spectral function" << std::endl;
 			auto res = spectrals::integratedSpectralFunction(alfa, mat_elem, omegas);

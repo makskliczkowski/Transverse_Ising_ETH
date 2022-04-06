@@ -66,6 +66,20 @@ template <typename T> void IsingModel<T>::diagonalization(bool get_eigenvectors,
 	this->E_av_idx = i - begin(eigenvalues);
 }
 
+template <typename T> void IsingModel<T>::diagonalization_sparse(int num_of_eigvals, bool get_eigenvectors, const char* form){
+	arma::eigs_opts opts;
+	opts.maxiter =  10000;
+	//if(get_eigenvectors) arma::eigs_sym(this->eigenvalues, this->eigenvectors, this->H, num_of_eigvals, form, opts);
+	//else arma::eigs_sym(this->eigenvalues, this->H, num_of_eigvals, form, opts);
+}
+template <typename T> void IsingModel<T>::diagonalization_sparse(int num_of_eigvals, bool get_eigenvectors, double sigma){
+	arma::eigs_opts opts;
+	opts.maxiter =  10000;
+	//if(get_eigenvectors) arma::eigs_sym(this->eigenvalues, this->eigenvectors, this->H, num_of_eigvals, sigma, opts);
+	//else arma::eigs_sym(this->eigenvalues, this->H, num_of_eigvals, sigma, opts);
+}
+
+
 /// <summary>
 /// calculates the total spin from the correlation matrix
 /// </summary>
@@ -527,6 +541,10 @@ template void IsingModel<double>::set_neighbors();
 template void IsingModel<cpx>::set_neighbors();
 template void IsingModel<cpx>::diagonalization(bool, const char*);
 template void IsingModel<double>::diagonalization(bool, const char*);
+template void IsingModel<double>::diagonalization_sparse(int, bool, double);
+template void IsingModel<cpx>::diagonalization_sparse(int, bool, double);
+template void IsingModel<double>::diagonalization_sparse(int, bool, const char*);
+template void IsingModel<cpx>::diagonalization_sparse(int, bool, const char*);
 template double IsingModel<cpx>::eigenlevel_statistics(u64, u64) const;
 template double IsingModel<double>::eigenlevel_statistics(u64, u64) const;
 template arma::vec IsingModel<cpx>::eigenlevel_statistics_with_return() const;
