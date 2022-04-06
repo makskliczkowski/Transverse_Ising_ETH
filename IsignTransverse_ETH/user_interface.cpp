@@ -51,10 +51,10 @@ void isingUI::ui::make_sim()
 					this->h = hx;
 					//spectral_form_factor(); continue;
 					
-					//std::string dir = this->saving_dir + "Entropy" + kPSep;
-		std::string str = (this->op < 3) ? "j" : "q";
-		if(this->op == 6) str = "n";
-		std::string dir = this->saving_dir + "timeEvolution" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
+					std::string dir = this->saving_dir + "Entropy" + kPSep;
+					//std::string str = (this->op < 3) ? "j" : "q";
+					//if(this->op == 6) str = "n";
+					//std::string dir = this->saving_dir + "timeEvolution" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
 					std::string dir2 = dir + + "exponent" + kPSep;
 					createDirs(dir, dir2);
 					auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
@@ -64,22 +64,22 @@ void isingUI::ui::make_sim()
 					const size_t N = alfa->get_hilbert_size();
 					stout << "\n\t\t--> finished creating model for " << name << " - in time : " << tim_s(start) << "s" << std::endl;
 
-					std::ifstream input;
-					std::string opName = IsingModel_disorder::opName(this->op, this->site);
-					auto data = readFromFile(input, dir + opName + name + ".dat");
-					//auto data = readFromFile(input, dir + "TimeEvolution" + name + ".dat");
-					if(data.empty()) continue;
-					arma::vec exponent = non_uniform_derivative(arma::log(data[0]), arma::log(data[1]));
-					std::ofstream output;
-					openFile(output, dir2 + opName + name + ".dat", std::ios::out);
-					for(int j = 0; j < exponent.size(); j++)
-						printSeparated(output, "\t", 16, true, data[0](j+1), data[1](j+1) * exponent(j));
-					output.close();
-					continue;
+					//std::ifstream input;
+					//std::string opName = IsingModel_disorder::opName(this->op, this->site);
+					//auto data = readFromFile(input, dir + opName + name + ".dat");
+					////auto data = readFromFile(input, dir + "TimeEvolution" + name + ".dat");
+					//if(data.empty()) continue;
+					//arma::vec exponent = non_uniform_derivative(arma::log(data[0]), arma::log(data[1]));
+					//std::ofstream output;
+					//openFile(output, dir2 + opName + name + ".dat", std::ios::out);
+					//for(int j = 0; j < exponent.size(); j++)
+					//	printSeparated(output, "\t", 16, true, data[0](j+1), data[1](j+1) * exponent(j));
+					//output.close();
+					//continue;
 
-					std::string _dir = this->saving_dir + "SpectralFormFactor" + kPSep;
-					smoothen_data(_dir, name);
-					continue;
+					//std::string _dir = this->saving_dir + "SpectralFormFactor" + kPSep;
+					//smoothen_data(_dir, name);
+					//continue;
 					stout << "\t\t	--> start diagonalizing for " << alfa->get_info()
 							  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 					alfa->diagonalization();
@@ -99,13 +99,13 @@ void isingUI::ui::make_sim()
 						auto range3 = arma::regspace(3 * this->dt / 10.,  this->dt / 10.,  this->dt);
 						auto times = this->scale ? arma::join_cols(exctract_vector(init_log, 0.0, 10.0), rest_lin)
 						 							: arma::join_cols(range1, range2, range3, arma::regspace(this->dt, this->dt, 5 * tH) );
-						times = arma::logspace(-2, t_max, 500);
+						times = arma::logspace(-1, t_max, 300);
 							alfa->reset_random();
 							stout << "\t\t	-->set random generators for " << name
 								  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 							arma::vec entropy(times.size(), arma::fill::zeros);
 							arma::vec entropy_lanczos(times.size(), arma::fill::zeros);
-
+							this->mu = this->L <= 12? N : (this->L <= 14? 0.5 * N : 0.25 * N);
 							lanczosParams params(this->mu, 1, true, false);
 							lanczos::Lanczos lancz(alfa->get_hamiltonian(), std::move(params));
 							//lancz.diagonalization();
