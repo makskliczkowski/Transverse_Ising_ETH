@@ -19,26 +19,27 @@ else
 fi
 echo $h, $fun, $operator, $site, $name, "${@:6}"
 
+sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=20 --mem=2G --time=168:00:00 --array=0-23%4 Ising_g_scaling.sh 16 $h 0.05 $fun $operator $site 20 "${@:6}"
+sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=20 --mem=2G --time=168:00:00 --array=0-23%4 Ising_g_scaling.sh 17 $h 0.05 $fun $operator $site 20 "${@:6}"
+sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=20 --mem=4G --time=168:00:00 --array=0-23%4 Ising_g_scaling.sh 18 $h 0.05 $fun $operator $site 20 "${@:6}"
+sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=20 --mem=6G --time=168:00:00 --array=0-23%4 Ising_g_scaling.sh 19 $h 0.05 $fun $operator $site 20 "${@:6}"
+sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=20 --mem=10G --time=168:00:00 --array=0-23%4 Ising_g_scaling.sh 20 $h 0.05 $fun $operator $site 20 "${@:6}"
+sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=32 --mem=20G --time=168:00:00 --array=0-23%4 Ising_g_scaling.sh 21 $h 0.05 $fun $operator $site 32 "${@:6}"
+sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=32 --mem=40G --time=168:00:00 --array=0-23%4 Ising_g_scaling.sh 22 $h 0.05 $fun $operator $site 32 "${@:6}"
+sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=32 --mem=60G --time=168:00:00 --array=0-23%6 Ising_g_scaling.sh 23 $h 0.05 $fun $operator $site 32 "${@:6}"
+sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=32 --mem=120G --time=168:00:00 --array=0-23%6 Ising_g_scaling.sh 24 $h 0.05 $fun $operator $site 32 "${@:6}"
+exit;
 
-#sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=20 --mem=2G --time=168:00:00 --array=0-23%4 Ising_g_scaling.sh 17 $h 0.05 $fun $operator $site 20 "${@:6}"
-#sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=20 --mem=4G --time=168:00:00 --array=0-23%4 Ising_g_scaling.sh 18 $h 0.05 $fun $operator $site 20 "${@:6}"
-#sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=20 --mem=6G --time=168:00:00 --array=0-23%4 Ising_g_scaling.sh 19 $h 0.05 $fun $operator $site 20 "${@:6}"
-#sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=20 --mem=10G --time=168:00:00 --array=0-23%4 Ising_g_scaling.sh 20 $h 0.05 $fun $operator $site 20 "${@:6}"
-#sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=32 --mem=20G --time=168:00:00 --array=0-23%4 Ising_g_scaling.sh 21 $h 0.05 $fun $operator $site 32 "${@:6}"
-#sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=32 --mem=40G --time=168:00:00 --array=0-23%4 Ising_g_scaling.sh 22 $h 0.05 $fun $operator $site 32 "${@:6}"
-#sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=32 --mem=60G --time=168:00:00 --array=0-23%6 Ising_g_scaling.sh 23 $h 0.05 $fun $operator $site 32 "${@:6}"
-#sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=32 --mem=120G --time=168:00:00 --array=0-23%6 Ising_g_scaling.sh 24 $h 0.05 $fun $operator $site 32 "${@:6}"
-#exit;
-#SBATCH --output=logs/g_scale_log-%j-%a.out
+# #SBATCH --output=logs/g_scale_log-%j-%a.out
 sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=1 --mem=1G --time=3:00:00 --array=0-23%12 Ising_g_scaling.sh 8 $h 0.05 $fun $operator $site 1 "${@:6}"
 sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=1 --mem=1G --time=3:00:00 --array=0-23%12 Ising_g_scaling.sh 9 $h 0.05 $fun $operator $site 1 "${@:6}"
 sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=4 --mem=2G --time=3:00:00 --array=0-23%12 Ising_g_scaling.sh 10 $h 0.05 $fun $operator $site 4 "${@:6}"
-sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=8 --mem=4G --time=3:00:00 --array=0-23%12 Ising_g_scaling.sh 11 $h 0.05 $fun $operator $site 8 "${@:6}"
-sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=16 --mem=8G --time=3:00:00 --array=0-23%12 Ising_g_scaling.sh 12 $h 0.05 $fun $operator $site 16 "${@:6}"
-sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=16 --mem=10G --time=96:00:00 --array=0-23%12 Ising_g_scaling.sh 13 $h 0.05 $fun $operator $site 16 "${@:6}"
-sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=16 --mem=20G --time=96:00:00 --array=0-23%8 Ising_g_scaling.sh 14 $h 0.05 $fun $operator $site 16 "${@:6}"
-sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=24 --mem=70G --time=168:00:00 --array=0-23%8 Ising_g_scaling.sh 15 $h 0.05 $fun $operator $site 24 "${@:6}"
-sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=32 --mem=100G --time=200:00:00 --array=0-23%8 Ising_g_scaling.sh 16 $h 0.05 $fun $operator $site 32 "${@:6}"
+sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=8 --mem=4G --time=24:00:00 --array=0-23%12 Ising_g_scaling.sh 11 $h 0.05 $fun $operator $site 8 "${@:6}"
+sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=16 --mem=6G --time=24:00:00 --array=0-23%12 Ising_g_scaling.sh 12 $h 0.05 $fun $operator $site 16 "${@:6}"
+sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=16 --mem=8G --time=96:00:00 --array=0-23%12 Ising_g_scaling.sh 13 $h 0.05 $fun $operator $site 16 "${@:6}"
+sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=16 --mem=12G --time=168:00:00 --array=0-23%12 Ising_g_scaling.sh 14 $h 0.05 $fun $operator $site 16 "${@:6}"
+sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=24 --mem=50G --time=168:00:00 --array=0-23%8 Ising_g_scaling.sh 15 $h 0.05 $fun $operator $site 24 "${@:6}"
+sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=32 --mem=80G --time=200:00:00 --array=0-23%8 Ising_g_scaling.sh 16 $h 0.05 $fun $operator $site 32 "${@:6}"
 
 #sbatch --mem=8G --time=3:00:00 --array=0-29%15 Ising_g_scaling.sh 10 $h 0.05 $fun
 #sbatch --mem=16G --time=24:00:00 --array=0-29%15 Ising_g_scaling.sh 11 $h 0.05 $fun
