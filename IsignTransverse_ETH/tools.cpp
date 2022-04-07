@@ -92,6 +92,13 @@ arma::vec non_uniform_derivative(const arma::vec& x, const arma::vec& y) {
 		output(j - 1) = (y(j) - y(j - 1)) / (x(j) - x(j - 1));
 	return output;
 }
+arma::vec log_derivative(const arma::vec& x, const arma::vec& y){
+	const int size = y.size();
+	arma::vec output(size - 1, arma::fill::zeros);
+	for (int j = 1; j < size; j++) 
+		output(j - 1) = log( y(j) / y(j - 1) ) / log( x(j) / x(j - 1) );
+	return output;
+}
 
 double simpson_rule(const arma::vec& x, const arma::vec& f) {
 	const int N = (int)f.size() - 1;

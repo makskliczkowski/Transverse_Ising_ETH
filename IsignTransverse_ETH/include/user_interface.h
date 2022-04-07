@@ -137,6 +137,8 @@ namespace isingUI
 		
 		//-------------------------------------------------------------------------- GENERAL ROUTINES
 		void diagonalize();
+		//void diag_sparse(int num, bool get_eigenvectors = false, const char* form = "sa");	// diagonalize for limited number (set as num) of eigevals using form as choosing subset
+		void diag_sparse(int num, bool get_eigenvectors = false, double sigma = 0.0);		// diagonalize for limited number (set as num) of eigevals starting at sigma and higher eigvals
 
 		template <typename _type> [[nodiscard]]
 		auto get_eigenvalues(IsingModel<_type>& alfa) -> arma::vec;

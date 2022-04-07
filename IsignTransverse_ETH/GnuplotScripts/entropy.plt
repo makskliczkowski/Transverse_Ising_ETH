@@ -6,7 +6,6 @@ reset
 
 #------------------------------------ PREAMBLE
 set autoscale
-set term qt size 900, 900 font "Helvetica,14"
 set mxtics
 set mytics
 
@@ -18,7 +17,9 @@ set xtics mirror;\
 set ytics mirror;"
 @FORMAT
 LOG_LOG="set logscale xy; set format x '10^{%L}'; set format y '10^{%L}'";
-LIN_LOG="unset logscale xy; set logscale x; set format x '10^{%L}'";
+LIN_LOG="unset logscale xy; set logscale x; set format x '10^{%L}'; set format y '%g';";
+LOG_LIN="unset logscale xy; set logscale y; set format x '10^{%L}'; set format y '%g';";
+LIN_LIN="unset logscale xy; set format x '%g'; set format y '%g';";
 UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset border;"
 
 set style line 1 dt (3,5,10,5) lc rgb "black" lw 2.5
@@ -26,33 +27,29 @@ set style line 2 dt (3,3) lc rgb "red" lw 2.5
 set style line 3 dt (8,8) lc rgb "blue" lw 2.5
 set style line 4 dt (1,1) lc rgb "green" lw 2.5
 set fit quiet
-#------------------------------------ Margins for each row resp. column
-TMARGIN = "set tmargin at screen 0.91; set bmargin at screen 0.56"
-BMARGIN = "set tmargin at screen 0.46; set bmargin at screen 0.11"
-# TICS
-NOYTICS = "set format y '';"
-YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 11; 
-g = 0.9
+L = 15; 
+g = 0.65
 g2 = 0.9 
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
 
 subsystem_size=3		# subsystem size
-scaling = 1				# size scaling=1 or h-scaling=0 or 	g-scaling=2 or subsystem_size=3
+scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2 or subsystem_size=3
 what_to_plot = 1   		# subsystem size=0, time evolution=1  or  eigenstates parabola=2
 rescale_x_axis = 0		# rescale x ax0s?
 rescale_by_page=0		# rescale byu Page value
-compare_scales = 0		# plot 4 panels, 2g's anf log-log and lin-log for each
+compare_scales = 1		# plot 4 panels, 2g's anf log-log and lin-log for each
 compare_to_lanczos = 0	# compare all results to lanczos eovlution (if available)
-plot_exponent = 0
-if(scaling == 2) compare_scales = 0;
+plot_exponent = 1
+
+if(plot_exponent == 0 && scaling == 2) compare_scales = 0;
 	h0 = 20;	hend = 300;		dh = 20;
-	g0 = 40;	gend = 90;		dg = 10;
-	L0 = 10;	Lend = 15; 		dL = 1;
+	g0 = 50;	gend = 120;		dg = 10;
+	L0 = 12;	Lend = 15; 		dL = 1;
+
 plot_only_lanczos = 0
 if(plot_exponent) plot_only_lanczos = 0;
 str_name = (what_to_plot==1? "TimeEvolution" : (what_to_plot==0? "SubsystemSize" : "Eigenstates"));
@@ -67,41 +64,39 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 
 	#------------------------------------ DATA, FIT AND PLOT
 	if(plot_only_lanczos){ dir = dir.'Lanczos/';}
-	if(plot_exponent){ dir = dir.'exponent/'; str_name = "";}
+	
+	page(x) = scaling == 1? (x * log(2.0) - 0.5) / 2. : (L * log(2.0) - 0.5) / 2.
+	rescale(x,i) = rescale_by_page? x / page(i) : x;
 
 	#dir = '../results/disorder/PBC/TimeEvolution/j=0/exponent/'
 	#str_name="SigmaZ_j=0"
 	name(x) = 0; key_title(x) = 0; rescale_X(x,y) = x;
-	name2(x) = 0;
-	name_lancz(x) = 0;
+	name2(x) = 0; 		name_lancz(x) = 0;		name_exp(x) = 0;
 	i0 = 0; iend = 0; di = 1;
 		if(scaling == 0){
-			name(x) = dir.str_name.sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, 0.01*x, w);	key_title(x) = sprintf("h=%.2f", x/100.)
-			name_lancz(x) = dir.'Lanczos/'.str_name.sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, 0.01*x, w);
+			base(x) = sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, 0.01*x, w); 		key_title(x) = sprintf("h=%.2f", x/100.)
+			name(x) = dir.str_name.base(x);		name_lancz(x) = dir.'Lanczos/'.str_name.base(x); 	name_exp(x) = dir.'exponent/'.base(x);
 			i0 = h0; iend = hend; di = dh;
 		} else{
 			if(scaling == 1){
-				name(x) = dir.str_name.sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", x, J0, g, g_knot, h, w);	key_title(x) = sprintf("L=%d",x);
-				name2(x) = dir.str_name.sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", x, J0, g2, g_knot, h, w);
-				name_lancz(x) = dir.'Lanczos/'.str_name.sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", x, J0, g, g_knot, h, w);
+				base(x, gx) = sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", x, J0, gx, g_knot, h, w);		key_title(x) = sprintf("L=%d",x);
+				name(x) = dir.str_name.base(x, g);		name2(x) = dir.str_name.base(x, g2)
+				name_lancz(x) = dir.'Lanczos/'.str_name.base(x, g);		name_exp(x) = dir.'exponent/'.base(x, g);
 				i0 = L0; iend = Lend; di = dL;
 			} else{
 				if(scaling == 2){
 					rescale_X(x,y) = rescale_x_axis? x * (1e-2*y)**2 : x;
-					name(x) = dir.str_name.sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, 0.01*x, g_knot, h, w); 
-					name_lancz(x) = dir.'Lanczos/'.str_name.sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, 0.01*x, g_knot, h, w); 
-					key_title(x) = sprintf("g=%.2f",0.01*x)
+					base(x) = sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, 0.01*x, g_knot, h, w);		key_title(x) = sprintf("g=%.2f",0.01*x)
+					name(x) = dir.str_name.base(x);		name_lancz(x) = dir.'Lanczos/'.str_name.base(x);	name_exp(x) = dir.'exponent/'.base(x);
 					i0 = g0; iend = gend; di = dg;
 				} else{
 					if(scaling == 3){
-						name(x) = dir.str_name.sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w); 
-						name_lancz(x) = dir.'Lanczos/'.str_name.sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w); 
-						key_title(x) = sprintf("L_A=%d", L / 2. + x);
+						base = sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);  		key_title(x) = sprintf("L_A=%d", L / 2. + x);
+						name(x) = dir.str_name.base;		name_lancz(x) = dir.'Lanczos/'.str_name.base;		name_exp(x) = dir.'exponent/'.base;
 						i0 = -1; iend = 1; di = 1;
 					} else {
-						name(x) = dir.str_name.sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w); 
-						name_lancz(x) = dir.'Lanczos/'.str_name.sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w); 
-						key_title(x) = sprintf("L=%d, g=%.2f,h=%.2f", L, g, h);
+						base = sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);  		key_title(x) = sprintf("L=%d, g=%.2f,h=%.2f", L, g, h);
+						name(x) = dir.str_name.base;		name_lancz(x) = dir.'Lanczos/'.str_name.base;		name_exp(x) = dir.'exponent/'.base;
 						i0 = 0; iend = 0; di = 1;
 					}
 				}
@@ -112,10 +107,8 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 		array S2[(iend-i0)/di+1]; array S2_page[(iend-i0)/di+1];
 		array S3[(iend-i0)/di+1]; array S3_page[(iend-i0)/di+1];
 		array a_list[(iend-i0)/di+1]; array b_list[(iend-i0)/di+1]; array t0_list[(iend-i0)/di+1];
-		print "g=", g, "\npar\tpage analytical values: L/2-1, L/2, L/2+1"
 		
-		page(x) = scaling == 1? (x * log(2.0) - 0.5) / 2. : (L * log(2.0) - 0.5) / 2.
-		rescale(x,i) = rescale_by_page? x / page(i) : x;
+		if(what_to_plot == 0){ print "g=", g, "\npar\tpage analytical values: L/2-1, L/2, L/2+1" };
 
 		do for[i=i0:iend:di]{
 			name = name(i)
@@ -124,16 +117,16 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 					fit[x_min:x_max][*:*] f(x) name u 1:(rescale($2,i)) via a, b, t0
 					a_list[(i-i0)/di+1] = a; b_list[(i-i0)/di+1] = b; t0_list[(i-i0)/di+1] = t0;
 				}
-				stats name every ::0::0 using 2 nooutput; S1[(i-i0)/di+1] = rescale(STATS_min,i);
-				stats name every ::1::1 using 2 nooutput; S2[(i-i0)/di+1] = rescale(STATS_min,i);
-				stats name every ::2::2 using 2 nooutput; S3[(i-i0)/di+1] = rescale(STATS_min,i);
-				if(what_to_plot==0){
-					stats name every ::0::0 using 3 nooutput;	S1_page[(i-i0)/di+1] = rescale(STATS_min,i);
-					stats name every ::1::1 using 3 nooutput; 	S2_page[(i-i0)/di+1] = rescale(STATS_min,i);
-					stats name every ::2::2 using 3 nooutput; 	S3_page[(i-i0)/di+1] = rescale(STATS_min,i);
-					xVal[(i-i0)/di+1] = scaling == 1? 1.0 / (i**3) : 0.01*i;
+				if(what_to_plot == 0){
+						stats name every ::0::0 using 2 nooutput; S1[(i-i0)/di+1] = rescale(STATS_min,i);
+						stats name every ::1::1 using 2 nooutput; S2[(i-i0)/di+1] = rescale(STATS_min,i);
+						stats name every ::2::2 using 2 nooutput; S3[(i-i0)/di+1] = rescale(STATS_min,i);
+						stats name every ::0::0 using 3 nooutput;	S1_page[(i-i0)/di+1] = rescale(STATS_min,i);
+						stats name every ::1::1 using 3 nooutput; 	S2_page[(i-i0)/di+1] = rescale(STATS_min,i);
+						stats name every ::2::2 using 3 nooutput; 	S3_page[(i-i0)/di+1] = rescale(STATS_min,i);
+						xVal[(i-i0)/di+1] = scaling == 1? 1.0 / (i**3) : 0.01*i;
+					print key_title(i),"  ", S1_page[(i-i0)/di+1], S2_page[(i-i0)/di+1], S3_page[(i-i0)/di+1], "\t\t", xVal[(i-i0)/di+1], S1[(i-i0)/di+1], S2[(i-i0)/di+1], S3[(i-i0)/di+1]
 				}
-				print key_title(i),"  ", S1_page[(i-i0)/di+1], S2_page[(i-i0)/di+1], S3_page[(i-i0)/di+1], "\t\t", xVal[(i-i0)/di+1], S1[(i-i0)/di+1], S2[(i-i0)/di+1], S3[(i-i0)/di+1]
 			}
 			else{
 				print key_title(i)," -----------------------------------------------------------------------------"
@@ -148,36 +141,50 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 	#	dir.sprintf("compare_to_disorder_L=%d,g=%.2f,h=0.80,k=0,p=1,x=1.dat", L, g) u ($1 / (L+0.0)):($5 / page($1)) w p ps 2 t 'k=0,p=1',\
 	#	dir.sprintf("compare_to_disorder_L=%d,g=%.2f,h=0.80,k=0,p=1,x=1.dat", L, g) u ($1 / (L+0.0)):($6 / page($1)) w p ps 2 t 'k=1', 1-abs(1-2*x) w l ls 1 notitle
 	#exit;
-	RANGE =plot_exponent? "set xrange[2e-2:1000]; set yrange[0:2e-0];" : "set xrange[2e-1:100]; set yrange[3e-1:6];"
+	RANGE = "set xrange[6e-3:100]; set yrange[3e-2:6];"
 	RANGE2="set xrange[2e-1:10]; set yrange[3e-1:6];"
 	MARGIN = compare_scales? "set lmargin at screen 0.10; set rmargin at screen 0.54; set bmargin at screen 0.10; set tmargin at screen 0.54;"\
 					: "set lmargin at screen 0.10; set rmargin at screen 0.98; set bmargin at screen 0.10; set tmargin at screen 0.98;"
+	
+	if(plot_exponent && compare_scales) { set term qt size 1500, 750 font "Helvetica,18"; }
+	else { set term qt size 900, 900 font "Helvetica,18"; }
 	if(what_to_plot==1){
 		if(compare_scales){
-			MARGIN2 = "set lmargin at screen 0.54; set rmargin at screen 0.98; set bmargin at screen 0.10; set tmargin at screen 0.54;";
-			MARGIN3 = "set lmargin at screen 0.10; set rmargin at screen 0.54; set bmargin at screen 0.54; set tmargin at screen 0.98;";
+			MARGIN2 = plot_exponent == 0? "set lmargin at screen 0.54; set rmargin at screen 0.98; set bmargin at screen 0.10; set tmargin at screen 0.54;"\
+							: "set lmargin at screen 0.06; set rmargin at screen 0.48; set bmargin at screen 0.10; set tmargin at screen 0.98;";
+			MARGIN3 = plot_exponent == 0? "set lmargin at screen 0.10; set rmargin at screen 0.54; set bmargin at screen 0.54; set tmargin at screen 0.98;"\
+							: "set lmargin at screen 0.56; set rmargin at screen 0.98; set bmargin at screen 0.10; set tmargin at screen 0.98;";
 			MARGIN4 = "set lmargin at screen 0.54; set rmargin at screen 0.98; set bmargin at screen 0.54; set tmargin at screen 0.98;";
 			LABEL1="unset label 2; set label 1 at 0.03,2.0 sprintf('g=%.2f',g) front"
 			LABEL2="unset label 1; set label 2 at 0.4,2.0 sprintf('g=%.2f',g2) front"
 			
-			set key left top
-			f_lin_left(x) = 0.3*(x**0.8+0); 	name_lin_left = '0.3*x^{0.8}'
-			f_log_left(x) = 1.8*log(x)-2.2; 	name_log_left = '1.75*log(x)-2.5'
-			f_lin_right(x) = 1.05*x-0.1; 		name_lin_right = '1.05*x-0.1'
-			f_log_right(x) = 2.5*log(x)+0.4; 	name_log_right = '2.5*log(x)+0.4'
-			set multiplot
-			@LOG_LOG; @MARGIN; @RANGE;  @LABEL1; # LEFT - BOTTOM
-				set ylabel 'S(t)'; set xlabel 't'; plot for[i=i0:iend:di] name(i) u 1:2 w lp ps 0.75 pt 5 lw 2 notitle, f_lin_left(x) w l ls 1 notitle, f_log_left(x) w l ls 2 notitle
-			@LOG_LOG; @MARGIN2; @RANGE2; @LABEL2; # RIGHT - BOTTOM
-				unset ylabel; set format y ''; plot for[i=i0:iend:di] name2(i) u 1:2 w lp ps 0.75 pt 5 lw 2 notitle, f_lin_right(x) w l ls 1 notitle, f_log_right(x) w l ls 2 notitle
-			@LIN_LOG; @MARGIN3; @RANGE; @LABEL1;# LEFT - TOP
-				unset xlabel; set format x ''; set format y '%g';  plot for[i=i0:iend:di] name(i) u 1:2 w lp ps 0.75 pt 5 lw 2 title key_title(i), f_lin_left(x) w l ls 1 t name_lin_left, f_log_left(x) w l ls 2 t name_log_left
-				#if(scaling==1){ @UNSET; @MARGIN3; @RANGE; plot for[L=L0:Lend:dL] ( x > 30? (L * log(2.0) - 0.5)/2. : NaN) w l ls 4 notitle; }; @FORMAT; set border;
-			@LIN_LOG; @MARGIN4; @RANGE2; @LABEL2; # RIGHT - TOP
-				set key right bottom
-				unset xlabel; unset ylabel; set format x ''; set format y '';  plot for[i=i0:iend:di] name2(i) u 1:2 w lp ps 0.75 pt 5 lw 2 notitle, f_lin_right(x) w l ls 1 t name_lin_right, f_log_right(x) w l ls 2 t name_log_right
-				#if(scaling==1){ @UNSET; @MARGIN4; @RANGE; plot for[L=L0:Lend:dL] ( x > 30? (L * log(2.0) - 0.5)/2. : NaN) w l ls 4 notitle; }; @FORMAT; set border;
-			unset multiplot
+			if(plot_exponent == 0){
+				set key left top
+				f_lin_left(x) = 0.3*(x**0.8+0); 	name_lin_left = '0.3*x^{0.8}'
+				f_log_left(x) = 1.8*log(x)-2.2; 	name_log_left = '1.75*log(x)-2.5'
+				f_lin_right(x) = 1.05*x-0.1; 		name_lin_right = '1.05*x-0.1'
+				f_log_right(x) = 2.5*log(x)+0.4; 	name_log_right = '2.5*log(x)+0.4'
+				set multiplot
+				@LOG_LOG; @MARGIN; @RANGE;  @LABEL1; # LEFT - BOTTOM
+					set ylabel 'S(t)'; set xlabel 't'; plot for[i=i0:iend:di] name(i) u 1:2 w lp ps 0.75 pt 5 lw 2 notitle, f_lin_left(x) w l ls 1 notitle, f_log_left(x) w l ls 2 notitle
+				@LOG_LOG; @MARGIN2; @RANGE2; @LABEL2; # RIGHT - BOTTOM
+					unset ylabel; set format y ''; plot for[i=i0:iend:di] name2(i) u 1:2 w lp ps 0.75 pt 5 lw 2 notitle, f_lin_right(x) w l ls 1 notitle, f_log_right(x) w l ls 2 notitle
+				@LIN_LOG; @MARGIN3; @RANGE; @LABEL1;# LEFT - TOP
+					unset xlabel; set format x ''; set format y '%g';  plot for[i=i0:iend:di] name(i) u 1:2 w lp ps 0.75 pt 5 lw 2 title key_title(i), f_lin_left(x) w l ls 1 t name_lin_left, f_log_left(x) w l ls 2 t name_log_left
+					#if(scaling==1){ @UNSET; @MARGIN3; @RANGE; plot for[L=L0:Lend:dL] ( x > 30? (L * log(2.0) - 0.5)/2. : NaN) w l ls 4 notitle; }; @FORMAT; set border;
+				@LIN_LOG; @MARGIN4; @RANGE2; @LABEL2; # RIGHT - TOP
+					set key right bottom
+					unset xlabel; unset ylabel; set format x ''; set format y '';  plot for[i=i0:iend:di] name2(i) u 1:2 w lp ps 0.75 pt 5 lw 2 notitle, f_lin_right(x) w l ls 1 t name_lin_right, f_log_right(x) w l ls 2 t name_log_right
+					#if(scaling==1){ @UNSET; @MARGIN4; @RANGE; plot for[L=L0:Lend:dL] ( x > 30? (L * log(2.0) - 0.5)/2. : NaN) w l ls 4 notitle; }; @FORMAT; set border;
+				unset multiplot
+			} else {				
+				set multiplot
+				@LOG_LOG; @MARGIN2; @RANGE; 
+					set key left top; set ylabel 'S(t)'; set xlabel 't'; plot for[i=i0:iend:di] name(i) u 1:2 w lp ps 0.75 pt 5 lw 2 t key_title(i)
+				@LIN_LOG; @MARGIN3; set xrange[6e-1:2e1]; set yrange[1e-3:2e0];
+					set ylabel '{/Symbol g}(t)'; set xlabel 't'; plot for[i=i0:iend:di] name_exp(i) u 1:2 w lp ps 0.75 pt 5 lw 2 t key_title(i)
+				unset multiplot
+			}
 		} else{
 			fbase(x,a,b) = a*log(x) - b
 			f(x,a,b) = (fbase(x,a,b) < 0.1 || fbase(x,a,b) > 4)? NaN : fbase(x,a,b);
@@ -186,7 +193,7 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 			set xlabel 't'
 			set ylabel 'S(t)'
 			set key left top font ",16"
-			@LOG_LOG
+			@LIN_LOG
 			if(plot_exponent == 0){
 				set multiplot
 				@MARGIN; @RANGE;
@@ -205,8 +212,8 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 				#plot for[i=i0:iend:di] name(i) u 1:($1 < 10 ? NaN : L/2.*log(2) - 0.5) w l ls 2 notitle 
 				unset multiplot
 			} else{
-				@MARGIN; @RANGE;
-				plot for[i=i0:iend:di] name(i) u (rescale_X($1,i)):2 w lp ps 0.75 pt 5 lw 2 title key_title(i), 1/x w l ls 0 lw 2 notitle
+				@MARGIN; set xrange[6e-1:100]; set yrange[0:2e-0];
+				plot for[i=i0:iend:di] name_exp(i) u (rescale_X($1,i)):(abs($2)) w lp ps 0.75 pt 5 lw 2 title key_title(i)#, 1/x w l ls 0 lw 2 notitle
 			}
 		}
 	} else {

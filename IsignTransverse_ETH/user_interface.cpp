@@ -50,7 +50,6 @@ void isingUI::ui::make_sim()
 					this->g = gx;
 					this->h = hx;
 					//spectral_form_factor(); continue;
-					
 					std::string dir = this->saving_dir + "Entropy" + kPSep;
 					//std::string str = (this->op < 3) ? "j" : "q";
 					//if(this->op == 6) str = "n";
@@ -64,18 +63,19 @@ void isingUI::ui::make_sim()
 					const size_t N = alfa->get_hilbert_size();
 					stout << "\n\t\t--> finished creating model for " << name << " - in time : " << tim_s(start) << "s" << std::endl;
 
-					//std::ifstream input;
-					//std::string opName = IsingModel_disorder::opName(this->op, this->site);
-					//auto data = readFromFile(input, dir + opName + name + ".dat");
-					////auto data = readFromFile(input, dir + "TimeEvolution" + name + ".dat");
-					//if(data.empty()) continue;
+					std::ifstream input;
+					std::string opName = IsingModel_disorder::opName(this->op, this->site);
+					auto data = readFromFile(input, dir + "TimeEvolution" + name + ".dat");
+					//auto data = readFromFile(input, dir + "TimeEvolution" + name + ".dat");
+					if(data.empty()) continue;
 					//arma::vec exponent = non_uniform_derivative(arma::log(data[0]), arma::log(data[1]));
-					//std::ofstream output;
-					//openFile(output, dir2 + opName + name + ".dat", std::ios::out);
-					//for(int j = 0; j < exponent.size(); j++)
-					//	printSeparated(output, "\t", 16, true, data[0](j+1), data[1](j+1) * exponent(j));
-					//output.close();
-					//continue;
+					arma::vec exponent = log_derivative(data[0], data[1]);
+					std::ofstream output;
+					openFile(output, dir2 + name + ".dat", std::ios::out);
+					for(int j = 0; j < exponent.size(); j++)
+						printSeparated(output, "\t", 16, true, data[0](j+1), exponent(j));
+					output.close();
+					continue;
 
 					//std::string _dir = this->saving_dir + "SpectralFormFactor" + kPSep;
 					//smoothen_data(_dir, name);
@@ -83,18 +83,7 @@ void isingUI::ui::make_sim()
 					stout << "\t\t	--> start diagonalizing for " << alfa->get_info()
 							  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 					alfa->diagonalization();
-					arma::eigs_opts opts;
-					opts.maxiter =  10000;
-					opts.tol=1e-16;
-					arma::vec E;
-					arma::eigs_sym(E, alfa->get_hamiltonian(), 500, alfa->get_eigenEnergy(0.4 * N), opts);
-					int con = 0;
-					for(int k = 0.4 * N - 250; k < 0.4 * N + 250; k++){
-						if(con < E.size())
-							printSeparated(std::cout, "\t", 16, true, alfa->get_eigenEnergy(k), E(con), abs(alfa->get_eigenEnergy(k) - E(con)));
-						con++;
-					}
-					continue;	
+						
 					stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
 						  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 					
@@ -164,6 +153,52 @@ void isingUI::ui::make_sim()
 
 // ----------------------------------------------------------------------------- SIMULATIONS -----------------------------------------------------------------------------
 //-------------------------------------------------------------------------- GENERAL ROUTINES
+void isingUI::ui::diag_sparse(int num, bool get_eigenvectors, double sigma)
+{
+	auto start_up = std::chrono::system_clock::now();
+	auto save_eigs = [this](
+		const auto& eigenvalues,	//<! eigenvalues to save
+		std::string info 			//<! info about model parameters
+		){
+		std::string dir = this->saving_dir + "EIGENVALUES" + kPSep;
+		createDirs(dir);
+		std::string name = dir + kPSep + info;
+		eigenvalues.save(arma::hdf5_name(name + ".h5", "eigenvalues"));
+	};
+	if(this->m){
+		clk::time_point start = std::chrono::system_clock::now();
+		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
+								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+		std::string name = alfa->get_info();
+		stout << "\n\t\t--> finished creating model for " << name << " - in time : " << tim_s(start) << "s" << std::endl; 
+		start = std::chrono::system_clock::now();
+		arma::eigs_opts opts;
+		opts.maxiter = 5000;
+		opts.tol = 1e-16;
+		arma::sp_cx_mat H = alfa->get_hamiltonian();
+		//arma::cx_vec E = arma::eigs_gen(H, num, sigma, opts);
+		//save_eigs(E, name);
+		stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
+			  << " - in time : " << tim_s(start) << "\t\nTotal time : " << tim_s(start_up) << "s" << std::endl;
+	} else{
+		for(int r = 0; r < this->realisations; r++){
+			auto start = std::chrono::system_clock::now();
+			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+			std::string name = alfa->get_info();
+			stout << "\n\t\t--> finished creating model for " << name << " - in time : " << tim_s(start) << "s" << std::endl;
+			start = std::chrono::system_clock::now();
+			arma::eigs_opts opts;
+			//opts.maxiter = 1000;
+			opts.tol = 1e-12;
+			arma::sp_mat H = alfa->get_hamiltonian();
+			arma::vec E = arma::eigs_sym(H, num, sigma, opts);
+			save_eigs(E, name + ((r == 0)? "" : "_real=" + std::to_string(r)));
+			stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
+				  << " - in time : " << tim_s(start) << "\t\nTotal time : " << tim_s(start_up) << "s" << std::endl;
+		}
+	}
+}
+
 void isingUI::ui::diagonalize(){
 	auto kernel = [this](
 		auto& alfa, 				//<! model
