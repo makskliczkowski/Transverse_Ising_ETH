@@ -40,7 +40,7 @@ scaling = 2		# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 o
 y_ax = 2		# =0 - ||O_diag||; =1 - ||O_off||; =2 - <r>
 model = 0
 
-choose = 2		# 0 - qpt / 1 - magnetization quench / 2 - ssf / 3 - 
+choose = 3		# 0 - qpt / 1 - magnetization quench / 2 - ssf / 3 - commutators
 #-- GRAPHICS
 
 #set y2tics 0.37, 0.05
@@ -150,22 +150,29 @@ if(choose == 0){
 			plot for[i=i0:iend:di] ssf_name(i) u 1:2 w l lw 1.5 t key_title(i), (x < 1? 2 * x - x*log(1+2*x) : 2-x*log( (2*x+1) / (2*x-1))) t 'GOE'
 
 		} else{
-			#set logscale x; set xrange[*:150]
-			dir = dir_base.'Entropy/'
-			set ylabel 'S(t)'
-			set xlabel 't'
-			ssf_name(gx,Lx,x,M) = dir.sprintf("TimeEvolution_L=%d,J0=0.00,g=%.2f,g0=0.00,h=0.80,w=0.01,x=%.4f,M=%d.dat", Lx, gx, x, M)
-			M=6
-			dt=0.16
-			L=10
-			M_list = '2 3 4 5 6 7 8 9'
-			dt_list = '1e-2 2e-2 4e-2 8e-2 16e-2 64e-2 128e-2 256e-2 512e-2'
-			MARGIN = "set lmargin at screen 0.10; set rmargin at screen 0.99; set bmargin at screen 0.10; set tmargin at screen 0.99;"
-			set xrange[1e-3:1e2]; set yrange[1e-6:4.0]
-			set key right bottom
-			#plot for[Mx in M_list] ssf_name(0.6, L, dt, 1.*Mx) u 1:3 w lp pt 6 ps 0.5 t sprintf("x=%.3f, M=%d", dt, 1.*Mx), ssf_name(0.6, L, dt, M) u 1:2 w lp ls 1 title 'ED'
-			plot for[dt in dt_list] ssf_name(0.6, L, 1.*dt, M) u 1:3 w lp pt 6 ps 1.5 t sprintf("x*{/Symbol w}_{max}=%.3f, M=%d", 1.*dt, M), ssf_name(0.6, L, 1e-2, M) u 1:2 w lp ls 1 title 'ED'
-
+			if(choose = 3) {
+				set logscale xy;
+				load './gnuplot-colorbrewer-master/diverging/RdYlGn.plt'
+				name = dir_base."commutator_tfim_lioms_L=12,J0=0.00,g=0.90,g0=0.00,w=0.01.dat"
+				plot for[i=2:13:2] name u 1:i w lp ls i title sprintf("n=%d", i-2)
+				
+			} else {
+				#set logscale x; set xrange[*:150]
+				dir = dir_base.'Entropy/'
+				set ylabel 'S(t)'
+				set xlabel 't'
+				ssf_name(gx,Lx,x,M) = dir.sprintf("TimeEvolution_L=%d,J0=0.00,g=%.2f,g0=0.00,h=0.80,w=0.01,x=%.4f,M=%d.dat", Lx, gx, x, M)
+				M=6
+				dt=0.16
+				L=10
+				M_list = '2 3 4 5 6 7 8 9'
+				dt_list = '1e-2 2e-2 4e-2 8e-2 16e-2 64e-2 128e-2 256e-2 512e-2'
+				MARGIN = "set lmargin at screen 0.10; set rmargin at screen 0.99; set bmargin at screen 0.10; set tmargin at screen 0.99;"
+				set xrange[1e-3:1e2]; set yrange[1e-6:4.0]
+				set key right bottom
+				#plot for[Mx in M_list] ssf_name(0.6, L, dt, 1.*Mx) u 1:3 w lp pt 6 ps 0.5 t sprintf("x=%.3f, M=%d", dt, 1.*Mx), ssf_name(0.6, L, dt, M) u 1:2 w lp ls 1 title 'ED'
+				plot for[dt in dt_list] ssf_name(0.6, L, 1.*dt, M) u 1:3 w lp pt 6 ps 1.5 t sprintf("x*{/Symbol w}_{max}=%.3f, M=%d", 1.*dt, M), ssf_name(0.6, L, 1e-2, M) u 1:2 w lp ls 1 title 'ED'
+			}
 		}
 	}
 }

@@ -316,57 +316,66 @@ arma::vec IsingModel<T>::operator_av_in_eigenstates_return(double (IsingModel<T>
 //-------------------------------------------------------------------------------------------------LIOMs
 template <typename _type>
 arma::sp_cx_mat IsingModel<_type>::create_tfim_liom_plus(int n) const {
-	//if(n == 0) return this->H; 
+	if(n == 0) return cast_cx_sparse(this->H);
 	const u64 size = ULLPOW(this->L);
 	arma::sp_cx_mat tfim_liom(size, size);
 	std::vector<int> sites;
 	for(u64 kk = 0; kk < size; kk++){
 		u64 k = map(kk);
 		for(int j = 0; j < this->L; j++){
-			cpx outer_value = 0.0;
+
 			// S^zz_{j, j+n+1}
-			outer_value = std::get<0>(IsingModel::sigma_z(
+			auto [right_value, idx0] = IsingModel::sigma_z(
 				k, this->L, 
-						this->properSite( std::vector<int>({j, j + n + 1}) )
-						)); // outer is okay cause inner flips dont affect outer spins
+						{ this->properSite(j + n + 1) }); 
 			sites = std::vector<int>(n); iota(sites.begin(), sites.end(), j + 1);
-			u64 idx = std::get<1>(IsingModel::sigma_x(k, this->L, this->properSite(sites)));
-			tfim_liom(idx, k) += this->J * outer_value;
+			auto [middle_value, idx1] = IsingModel::sigma_x(idx0, this->L, this->properSite(sites));
+			auto [left_value, idx] = IsingModel::sigma_z(idx1, this->L, { this->properSite(j) } );
+			tfim_liom(idx, k) += this->J * left_value * middle_value * right_value;
 
 			// S^yy_{j,j+n-1}
 			if(n > 1){
-				auto [right_value, idx_y] = IsingModel::sigma_y(k, this->L, { this->properSite(j + n - 1) });
+				std::tie(right_value, idx0) = IsingModel::sigma_y(k, this->L, { this->properSite(j + n - 1) });
+				middle_value = 1.0;
+				idx1 = idx0;
 				if(n > 2){
 					sites = std::vector<int>(n - 2); iota(sites.begin(), sites.end(), j + 1);
-					idx_y = std::get<1>(IsingModel::sigma_x(idx_y, this->L, this->properSite(sites)));
+					std::tie(middle_value, idx1) = IsingModel::sigma_x(idx0, this->L, this->properSite(sites));
 				}
-				auto [left_value, idx] = IsingModel::sigma_y(idx_y, this->L, { this->properSite(j) });
-				tfim_liom(idx, k) += this->J * left_value * right_value;
+				std::tie(left_value, idx) = IsingModel::sigma_y(idx1, this->L, { this->properSite(j) });
+				tfim_liom(idx, k) += this->J * left_value * middle_value * right_value;
 			} else {
-				auto [nope, idx] = IsingModel::sigma_x(k, this->L, { this->properSite(j) });
-				tfim_liom(idx, k) -= this->J; 
+				std::tie(middle_value, idx) = IsingModel::sigma_x(k, this->L, { this->properSite(j) });
+				tfim_liom(idx, k) -= this->J * middle_value;
 			}
 
 			// S^zz_{j, j+n}
-			outer_value = std::get<0>(IsingModel::sigma_z(
+			std::tie(right_value, idx0) = IsingModel::sigma_z(
 				k, this->L, 
-						this->properSite( std::vector<int>({j, j + n}) )
-						)); // outer is okay cause inner flips dont affect outer spins
+						{ this->properSite(j + n) });
+			idx1 = idx0;
 			if(n > 1){
 				sites = std::vector<int>(n - 1); iota(sites.begin(), sites.end(), j + 1);
-				u64 idx = std::get<1>(IsingModel::sigma_x(k, this->L, this->properSite(sites)));
-				tfim_liom(idx, k) -= this->g * outer_value;
-			} else
-				tfim_liom(k, k) -= this->g * outer_value;
+				std::tie(middle_value, idx1) = IsingModel::sigma_x(idx0, this->L, this->properSite(sites));
+			}
+			std::tie(left_value, idx) = IsingModel::sigma_z(
+						idx1, this->L, 
+						{ this->properSite(j) });
+			tfim_liom(idx, k) -= this->g * left_value * middle_value * right_value;
 
 			// S^yy_{j, j+n}
-			auto [right_value, idx_y] = IsingModel::sigma_y(k, this->L, { this->properSite(j + n) });
+			std::tie(right_value, idx0) = IsingModel::sigma_y(
+				k, this->L, 
+						{ this->properSite(j + n) });
+			idx1 = idx0;
 			if(n > 1){
-				sites = std::vector<int>(n - 2); iota(sites.begin(), sites.end(), j + 1);
-				idx_y = std::get<1>(IsingModel::sigma_x(idx_y, this->L, this->properSite(sites)));
+				sites = std::vector<int>(n - 1); iota(sites.begin(), sites.end(), j + 1);
+				std::tie(middle_value, idx1) = IsingModel::sigma_x(idx0, this->L, this->properSite(sites));
 			}
-			auto [left_value, idx_new] = IsingModel::sigma_y(idx_y, this->L, { this->properSite(j) });
-			tfim_liom(idx_new, k) -= this->g * left_value * right_value;
+			std::tie(left_value, idx) = IsingModel::sigma_y(
+						idx1, this->L, 
+						{ this->properSite(j) });
+			tfim_liom(idx, k) -= this->g * left_value * middle_value * right_value;
 		}
 	}
 	return tfim_liom;
@@ -384,7 +393,7 @@ arma::sp_cx_mat IsingModel<_type>::create_tfim_liom_minus(int n) const {
 			auto [right_value, idx0] = IsingModel::sigma_z(
 				k, this->L, 
 						{ this->properSite(j + n + 1) }
-						); // outer is okay cause inner flips dont affect outer spins
+						);
 			cpx middle_value = 1.0;
 			if(n > 0){
 				sites = std::vector<int>(n); iota(sites.begin(), sites.end(), j + 1);
@@ -397,7 +406,7 @@ arma::sp_cx_mat IsingModel<_type>::create_tfim_liom_minus(int n) const {
 			std::tie(right_value, idx0) = IsingModel::sigma_y(
 				k, this->L, 
 						{ this->properSite(j + n + 1) }
-						); // outer is okay cause inner flips dont affect outer spins
+						);
 			if(n > 0){
 				sites = std::vector<int>(n); iota(sites.begin(), sites.end(), j + 1);
 			 	std::tie(middle_value, idx0) = IsingModel::sigma_x(idx0, this->L, this->properSite(sites));

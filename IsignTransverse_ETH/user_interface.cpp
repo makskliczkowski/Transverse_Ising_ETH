@@ -11,7 +11,34 @@ void isingUI::ui::make_sim()
 	const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
 	const double gmin = this->g, gmax = this->g + this->gn * this->gs;
 	const double hmin = this->h, hmax = this->h + this->hn * this->hs;
-	
+	/*
+	auto h_scale = arma::logspace(-5, 0, 200); arma::vec zeros(1, arma::fill::zeros);
+	h_scale = arma::join_cols(zeros, h_scale);
+	std::string info =IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, {"h"});
+	std::ofstream file; 
+	openFile(file, this->saving_dir + "commutator_tfim_lioms" + info + ".dat", std::ios::out);
+	for(double hx : h_scale){
+		this->h = hx;
+		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+		auto H = alfa->get_hamiltonian();
+		printSeparated(file, "\t", 12, false, this->h);
+		printSeparated(std::cout, "\t", 12, false, this->h);
+		for(this->site = 0; this->site < this->L; this->site++){
+			arma::sp_cx_mat op = alfa->chooseOperator(this->op, this->site);
+			arma::sp_cx_mat comm = H * op - op * H;
+			double norm = 0;
+			for(const cpx& x : comm)
+				norm += abs(x);
+			norm /= double(comm.n_nonzero == 0? 1.0 : comm.n_nonzero);
+			printSeparated(file, "\t", 12, false, norm);
+			printSeparated(std::cout, "\t", 12, false, norm);
+			file.flush();
+		}
+		file << std::endl;
+		std::cout << std::endl;
+	}
+	exit(123);
+ */
 	switch (this->fun)
 	{
 	case 0: 

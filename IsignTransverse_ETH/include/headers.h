@@ -897,6 +897,21 @@ inline arma::Col<_ty> exctract_vector(
 	}
 	return output;
 }
+
+template <typename _type>
+inline
+arma::sp_cx_mat cast_cx_sparse(const arma::SpMat<_type>& mat);
+
+template <>
+inline arma::sp_cx_mat cast_cx_sparse(const arma::sp_mat& mat)
+{
+	arma::sp_cx_mat ret(mat.n_rows, mat.n_cols);
+	ret.set_real(mat);
+	return ret;
+}
+template <>
+inline arma::sp_cx_mat cast_cx_sparse(const arma::sp_cx_mat& mat)
+	{ return mat; }
 //general_dot_prod(arma::Col,			arma::Col		 );
 //general_dot_prod(arma::subview_col, arma::Col		 );
 //general_dot_prod(arma::Col,			arma::subview_col);
