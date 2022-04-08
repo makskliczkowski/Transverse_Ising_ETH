@@ -1,74 +1,75 @@
 #!/bin/bash
-#SBATCH --job-name=timeEvol
-#SBATCH --output=logs/log-%j-%a.out
-#SBATCH --error=errors/log-%j-%a.err
-#SBATCH --time=24:00:00
-#SBATCH --mem=90G
-#SBATCH --cpus-per-task=20
+#SBATCH --output=logs/g_scale_log-%j-%a.out
 
-export MKL_SERIAL=yes
-export CPATH="/usr/include/hdf5/serial"
-export LD_LIBRARY_PATH="${MKLROOT}/lib/intel64"
 
-module purge
-module load Armadillo/9.900.1-foss-2020a
-module load intel/2021b
-module load imkl/2021.4.0
-module load OpenBLAS/0.3.18-GCC-11.2.0
+# to avoid illegal instructions
+#--constraint=rack-6
 
-#INPUTS TO SCRIPT ARE: L,  h,  operator, dg
+#INPUTS TO SCRIPT ARE: L,  h,  dh, fun, operator , site, thread_num
 
-num=4
-if [ $# != $num ]; then   
+#set boolean value
+ch=0
+
+
+operator=$5; site=$6; thread_num=$7;
+num=4	 #minimum number of required input
+suffix="_op=${5}_site=${6}";
+if [[ $# -lt 4 ]]; then   
   echo "Too few input parameters! Required ${num}"
-  echo "INPUTS TO SCRIPT ARE: L,  h,  operator, dg"
+  echo "INPUTS TO SCRIPT ARE: L,  g, dh, fun"
   exit 1
 fi
+module purge
+export OMP_NUM_THREADS=$thread_num
+
+module load OpenBLAS/0.3.18-GCC-11.2.0
+module load HDF5/1.12.0-gompi-2021a
+module load intel/2022.00
+
 # set number of realisations, array from L=8 to L=16
-	R_ARR=(10 10 10 10 10 10 10 1 1)
+	R_ARR=(20 20 20 20 20 10 10 10 10 10 10)
+	#R_ARR=(600 600 400 400 300 200 200 100 100)										# ch = 0
+	#R_ARR=(600 600 400 400 300 300 200 100 100 100 100 100 50 50 50 50 50) 	# ch = 1
 	r=${R_ARR[`expr ${1}-8`]}
 
-# set helper vars 
-s_max=0;
-if [ $3 -gt 1 ]
-then	
-	echo "chose k-space operators"
-	s_max=$(echo $1 | awk '{printf "%d",  $1 / 2. + $1 % 2}')
-else
-	echo $3
-	s_max=$1
-	echo "chose local operators"
-fi
-echo "smax=${s_max}"
 # set input parameters: to multiply use \*, cause * means 'all files'
 # also to have floating-point use =$echo("scale=num_of_digits; {expresion}" | bc)
-	site=`expr $1 / 2`
-	step=`expr $SLURM_ARRAY_TASK_ID`
-	g=$(echo $4 $step | awk '{printf "%.3f", $1 + $1 * $2}')
+	h=$(echo $3 $SLURM_ARRAY_TASK_ID | awk '{printf "%.3f", $1 + $1 * $2}')
 
 # output filename
-opName=0
-if [ $3 == 0 ]; then
-	opName="SigmaZ_j=${site}_spectral"
-elif [ $3 == 1 ]; then
-	opName="SigmaX_j=${site}_spectral"
-elif [ $3 == 2 ]; then
-	opName="SigmaZ_q=${site}_spectral"
-elif [ $3 == 3 ]; then
-	opName="SigmaX_q=${site}_spectral"
+funName=""
+if [[ $4 -eq 0 ]]; then
+	funName="Diagonalize"
+elif [[ $4 -eq 1 ]]; then
+	funName="Spectrals"
+elif [[ $4 -eq 2 ]]; then
+	funName="EntropyEvolution"
+	if [[ $ch == 1 ]]; then
+		funName="${funName}_lanczos";
+	fi
+elif [[ $4 -eq 3 ]]; then
+	funName="SFF"
+elif [[ $4 -eq 4 ]]; then
+	funName="RelaxationTimes"
+elif [[ $4 -eq 5 ]]; then
+	funName="Benchmark"
+elif [[ $4 -eq 6 ]]; then
+	funName="AGP"
 else
-	opName="H_q=${site}_spectral"
+	funName="Other"
 fi
-
-	filename="${opName}_L=${1}_h=${2}_g=${g}"
+filename="run_logs/${funName}_L=${1}_h=${h}_g=${2}${suffix}"
 
 #print all variables to see if all correct
 	echo "L=${1}"
-	echo "h=${2}"
-	echo "g=${g}"
+	echo "h=${h}"
+	echo "g=${2}"
 	echo "site=${site}"
-	echo "operator=${3}"
+	echo "operator=${operator}"
 	echo "name=${filename}"
 	echo "realisations=${r}"
-
-./Ising.o -L $1 -g $g -h $2 -w 0.01 -th 20 -m 0 -r $r -op $3 -fun 0 -s $site -b 0 >& ${filename}.log
+#g++ -std=c++2a main.cpp IsingModel.cpp IsingModel_disorder.cpp IsingModel_sym.cpp tools.cpp user_interface.cpp -o Ising_${funName}_L=${1}_h=${2}_g=${g}${suffix}.o\
+# -DARMA_DONT_USE_WRAPPER -I/home/rswietek/LIBRARIES_CPP/armadillo-10.8.2/include -llapack -lopenblas -fopenmp -lpthread -lm -lstdc++fs -fomit-frame-pointer -Ofast >& compile_${funName}_L=${1}_h=${2}_g=${g}${suffix}.log
+ 
+./Ising.o -L $1 -g $2 -h $h -th $thread_num -m 0 -w 0.01 -r $r\
+ -op $operator -fun $4 -s $site -b 0 -ch $ch "${@:8}" >& ${filename}.log

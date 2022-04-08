@@ -607,7 +607,7 @@ void isingUI::ui::calculate_spectrals()
 		double norm = 0;
 		for(cpx x : comm)
 			norm += abs(x);
-		stout << "\t\t--> commutator with hamiltonian: " << norm / double(N) << std::endl;
+		stout << "\t\t--> commutator with hamiltonian: " << norm / double(N * N) << std::endl;
 		// normaliseOp(op);
 		//  use normaliseMat as below, some operators have zero norm
 		if (this->realisations > 1 && !this->m)
