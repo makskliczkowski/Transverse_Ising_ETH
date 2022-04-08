@@ -208,6 +208,35 @@ namespace isingUI
 			return init_state;
 		};
 
+		//<! generate initial state given by -op flag: random, FM, AFM, ...
+		arma::cx_vec set_init_state(size_t N)
+		{
+			arma::cx_vec init_state(N, arma::fill::zeros);
+			switch (this->op) {
+			case 0: // random product state
+			{
+				init_state = this->random_product_state(this->L); 
+				break;
+			}
+			case 1: // ferromagnetically polarised
+			{
+				u64 idx = (ULLPOW(this->L)) - 1;
+				init_state(idx) = cpx(1.0, 0.0); // 1111111
+				break;
+			}
+			case 2: // anti-ferromagnetically polarised: 1010 + 0101
+			{
+				u64 idx = ((ULLPOW(this->L)) - 1) / 3;
+				init_state(						idx) = cpx(1.0, 0.0); // 10101010
+				init_state((ULLPOW(this->L)) -	idx) = cpx(1.0, 0.0); // 01010101
+				break;
+			}
+			default:
+				init_state = random_product_state(this->L); 
+			}
+			return arma::normalise(init_state);
+		}
+
 		//<! loop over all symmetry sectors
 		template <typename... _types> void loopSymmetrySectors(
 			std::function<void(int,int,int,_types...args)> lambda, //!< callable function

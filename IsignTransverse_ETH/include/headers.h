@@ -476,7 +476,7 @@ inline std::vector<int> get_neigh_vector(int _BC, int L, int corr_len) {
 		std::rotate(neis.begin(), neis.begin() + corr_len, neis.end());
 	}
 	else if (_BC == 1) {
-		NO_OVERFLOW(iota(neis.begin(), neis.begin() + (L - int32_t(corr_len)), corr_len);)
+		iota(neis.begin(), neis.begin() + (L - int32_t(corr_len)), corr_len);
 	} else
 		throw "Not enough cases for me\n";
 	return neis;

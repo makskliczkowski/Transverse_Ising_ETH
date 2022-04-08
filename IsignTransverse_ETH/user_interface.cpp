@@ -64,7 +64,7 @@ void isingUI::ui::make_sim()
 					stout << "\n\t\t--> finished creating model for " << name << " - in time : " << tim_s(start) << "s" << std::endl;
 
 					std::ifstream input;
-					std::string opName = IsingModel_disorder::opName(this->op, this->site);
+					auto [opName, dir_suffix] = IsingModel_disorder::opName(this->op, this->site);
 					auto data = readFromFile(input, dir + "TimeEvolution" + name + ".dat");
 					//auto data = readFromFile(input, dir + "TimeEvolution" + name + ".dat");
 					if(data.empty()) continue;
@@ -73,7 +73,7 @@ void isingUI::ui::make_sim()
 					std::ofstream output;
 					openFile(output, dir2 + name + ".dat", std::ios::out);
 					for(int j = 0; j < exponent.size(); j++)
-						printSeparated(output, "\t", 16, true, data[0](j+1), exponent(j));
+						printSeparated(output, "\t", 16, true, data[0](j), exponent(j));
 					output.close();
 					continue;
 
@@ -109,7 +109,7 @@ void isingUI::ui::make_sim()
 							std::function to_ave_time = [&]()
 							{
 								const auto start_real = std::chrono::system_clock::now();
-								const arma::cx_vec init_state = random_product_state(this->L);
+								const arma::cx_vec init_state = this->set_init_state(N);
 								arma::cx_vec state2 = init_state;
 								alfa->set_coefficients(init_state);
 								if(this->scale) 
@@ -585,27 +585,31 @@ void isingUI::ui::benchmark()
 void isingUI::ui::calculate_spectrals()
 {
 	auto kernel = [this](auto& alfa){
-		std::string str = (this->op < 3) ? "j" : "q";
-		if(this->op == 6) str = "n";
+		const u64 N = alfa.get_hilbert_size();
+		const double tH = 1. / alfa.mean_level_spacing_analytical();
+		int t_max = (int)std::ceil(std::log10(tH));
+		t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
+		auto times = arma::logspace(-2, t_max, 300);
+		auto omegas = arma::logspace(std::floor(log10(1. / tH)) - 1, 2, 300);
+		clk::time_point start = std::chrono::system_clock::now();
+		
+		arma::sp_cx_mat op = alfa.chooseOperator(this->op, this->site);
+		auto [opName, str] = IsingModel_disorder::opName(this->op, this->site);
 		std::string timeDir = this->saving_dir + "timeEvolution" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
 		std::string specDir = this->saving_dir + "ResponseFunction" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
 		std::string intDir = this->saving_dir + "IntegratedResponseFunction" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
 		std::string ssfDir = this->saving_dir + "SpectralFormFactor" + kPSep;
 		createDirs(timeDir, specDir, intDir, ssfDir);
 
-		const double tH = 1. / alfa.mean_level_spacing_analytical();
-		int t_max = (int)std::ceil(std::log10(tH));
-		t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
-		auto times = arma::logspace(-2, t_max, 300);
-		auto omegas = arma::logspace(std::floor(log10(1. / tH)) - 1, 2, 300);
-
-		clk::time_point start = std::chrono::system_clock::now();
-		auto op = alfa.chooseOperator(this->op, this->site);
-		std::string opName = IsingModel_disorder::opName(this->op, this->site);
-		stout << "\n\t\t--> finished generating operator for " << alfa.get_info() << " - in time : " << tim_s(start) << "s\n";
+		stout << "\n\t\t--> finished generating operator for " << alfa.get_info() << " - in time : " << tim_s(start) << "s" << std::endl;;
+		auto H = alfa.get_hamiltonian();
+		arma::sp_cx_mat comm = H * op - op * H;
+		double norm = 0;
+		for(cpx x : comm)
+			norm += abs(x);
+		stout << "\t\t--> commutator with hamiltonian: " << norm / double(N) << std::endl;
 		// normaliseOp(op);
 		//  use normaliseMat as below, some operators have zero norm
-
 		if (this->realisations > 1 && !this->m)
 		{
 			arma::vec opEvol(times.size(), arma::fill::zeros);
@@ -706,40 +710,11 @@ void isingUI::ui::entropy_evolution(){
 		t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
 
 		// ----------- predefinitions
-		arma::vec times, entropy;
+		arma::vec times, entropy, entropy_stddev;
 		double dt_new = 1e-2;
 		std::string dir = this->saving_dir + "Entropy" + kPSep;
 		std::function<void()> to_ave_time;
 		alfa.reset_random();
-
-		auto set_init_state = [&, this]() mutable
-			-> arma::cx_vec 
-		{
-			arma::cx_vec init_state(N, arma::fill::zeros);
-			switch (this->op) {
-			case 0: // random product state
-			{
-				init_state = this->random_product_state(this->L); 
-				break;
-			}
-			case 1: // ferromagnetically polarised
-			{
-				u64 idx = (ULLPOW(this->L)) - 1;
-				init_state(idx) = cpx(1.0, 1.0); // 1111111
-				break;
-			}
-			case 2: // anti-ferromagnetically polarised: 1010 + 0101
-			{
-				u64 idx = ((ULLPOW(this->L)) - 1) / 3;
-				init_state(						idx) = cpx(1.0, 1.0); // 10101010
-				init_state((ULLPOW(this->L)) -	idx) = cpx(1.0, 1.0); // 01010101
-				break;
-			}
-			default:
-				init_state = random_product_state(this->L); 
-			}
-			return arma::normalise(init_state);
-		};
 
 		// ----------- diagonalize
 		stout << "\t\t	--> start diagonalizing for " << alfa.get_info()
@@ -753,12 +728,12 @@ void isingUI::ui::entropy_evolution(){
 			auto range1 = arma::regspace(0.01 * this->dt, 0.01 * this->dt, 0.3 * this->dt);
 			auto range2 = arma::regspace(0.4 * this->dt, 0.10 * this->dt, 10.0 * this->dt);
 			times = this->scale ? arma::logspace(-2, t_max, 500) : arma::join_cols(range1, range2, arma::regspace(11.0 * this->dt, this->dt, 2e2));
-			entropy = arma::vec(times.size(), arma::fill::zeros);
+			entropy = arma::vec(times.size(), arma::fill::zeros); entropy_stddev = entropy;
 
 			to_ave_time = [&, this, lancz]() mutable 
 				{	// capture lancz by value to access it outsied the if-else scope, i.e. when the lambda is called
 					// entropy and times are declared outside the if-else scope so they can be passed by reference
-					arma::cx_vec init_state = set_init_state();
+					arma::cx_vec init_state = this->set_init_state(N);
 					stout << "\t\t	-->set initial state for " << alfa.get_info()
 						<< " - in time : " << tim_s(start) << "s" << std::endl;
 					arma::cx_vec state = init_state;
@@ -771,8 +746,9 @@ void isingUI::ui::entropy_evolution(){
 							state = lancz.time_evolution_stationary(init_state, t);
 						else
 							lancz.time_evolution_non_stationary(state, t - (i == 0 ? 0.0 : times(i - 1)), this->mu);
-						
-						entropy(i) += alfa.entaglement_entropy(state, this->site == 0? this->L / 2 : this->site);
+						double ent = alfa.entaglement_entropy(state, this->site == 0? this->L / 2 : this->site);
+						entropy(i) += ent;
+						entropy_stddev(i) += ent * ent;
 					}
 					stout << "realisation: " << ++realisation << " - in time : " << tim_s(start) << "s" << std::endl;
 				};
@@ -780,17 +756,19 @@ void isingUI::ui::entropy_evolution(){
 			alfa.diagonalization();
 			double omega_max = alfa.get_eigenvalues()(N - 1) - alfa.get_eigenvalues()(0);
 			dt_new = 10 * this->dt / omega_max;
-			times = this->scale ? arma::logspace(-3, t_max, 500) : arma::regspace(dt_new, dt_new, tH);
-			entropy = arma::vec(times.size(), arma::fill::zeros);
+			times = this->scale ? arma::logspace(-2, t_max, 200) : arma::regspace(dt_new, dt_new, tH);
+			entropy = arma::vec(times.size(), arma::fill::zeros); entropy_stddev = entropy;
 			to_ave_time = [&]()
 				{
-					arma::cx_vec init_state = set_init_state();
+					arma::cx_vec init_state = this->set_init_state(N);
 					alfa.set_coefficients(init_state);
 					for (int i = 0; i < times.size(); i++)
 					{
 						auto t = times(i);
 						arma::cx_vec state = alfa.time_evolve_state(init_state, t);
-						entropy(i) += alfa.entaglement_entropy(state, this->site == 0? this->L / 2 : this->site);
+						double ent = alfa.entaglement_entropy(state, this->site == 0? this->L / 2 : this->site);
+						entropy(i) += ent;
+						entropy_stddev(i) += ent * ent;
 					}
 					stout << "realisation: " << ++realisation << " - in time : " << tim_s(start) << "s" << std::endl;
 				};
@@ -800,11 +778,13 @@ void isingUI::ui::entropy_evolution(){
 		createDirs(dir);
 		average_over_realisations<>(alfa, false, to_ave_time);
 		entropy /= double(this->realisations);
+		entropy_stddev = arma::sqrt(entropy_stddev / double(this->realisations) - arma::square(entropy));
 		std::ofstream file;
 		openFile(file, dir + "TimeEvolution" + alfa.get_info({}) + ".dat");
-		for (int j = 0; j < times.size(); j++)
-			printSeparated(file, "\t", 16, true, times(j), entropy(j));
-		
+		for (int j = 0; j < times.size(); j++){
+			printSeparated(file, "\t", 16, true, times(j), entropy(j), entropy_stddev(j));
+			printSeparated(std::cout, "\t", 16, true, times(j), entropy(j), entropy_stddev(j));
+		}
 		file.close();
 	};
 	// ----------- choose model and run kernel
@@ -828,7 +808,7 @@ void isingUI::ui::relaxationTimesFromFiles()
 	auto hx_list = arma::linspace(this->h, this->h + this->hs * (this->hn - 1), this->hn);
 	auto kernel = [this](
 		int Lx, double gx, double hx, 
-		std::ofstream& map, const std::string& s, int _site,
+		std::ofstream& map, int _site,
 		auto... prints
 		){
 		if(_site < 0) _site = Lx / 2.;
@@ -836,7 +816,8 @@ void isingUI::ui::relaxationTimesFromFiles()
 		std::ifstream file;
 		std::string info = this->m? IsingModel_sym::set_info(this->L, this->J,gx, hx, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
 						: IsingModel_disorder::set_info(this->L, this->J, this->J0, gx, this->g0, hx, this->w);
-		std::string name = IsingModel_disorder::opName(this->op, _site) + info + ".dat";
+		auto [opname, s] = IsingModel_disorder::opName(this->op, _site);
+		std::string name = opname + info + ".dat";
 		std::string filename = this->saving_dir + "IntegratedResponseFunction" + kPSep + s + "=" + std::to_string(_site) + kPSep + name;
 		std::string filename_time = this->saving_dir + "TimeEvolution" + kPSep + s + "=" + std::to_string(_site) + kPSep + name;
 		std::string dir_out = this->saving_dir + "IntegratedResponseFunction" + kPSep + "DERIVATIVE" + kPSep + s + "=" + std::to_string(_site) + kPSep;
@@ -875,26 +856,24 @@ void isingUI::ui::relaxationTimesFromFiles()
 	};
 	std::string dir = this->saving_dir + "RelaxationTimes" + kPSep;
 	createDirs(dir);
-	std::string s = (this->op < 3) ? "j" : "q";
-	if(this->op == 6) s = "n";
 
 	for (this->L = Lmin; this->L < Lmax; this->L += this->Ls){
 		for (int si = 0; si <= this->L / 2; si++){
 				
-			std::string op = IsingModel_disorder::opName(this->op, si);
+			std::string op = std::get<0>(IsingModel_disorder::opName(this->op, si));
 			std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"h", "g"}) 
 						: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, {"h", "g"});
 			std::ofstream map_g, map_h;
 			openFile(map_g, dir + "_g" + op + info + ".dat", ios::out);
 			for (auto &hx : hx_list)
 				for (auto &gx : gx_list)
-					kernel(this->L, gx, hx, map_g, s, si, hx, gx);
+					kernel(this->L, gx, hx, map_g, si, hx, gx);
 			map_g.close();
 
 			openFile(map_h, dir + "_h" + op + info + ".dat", ios::out);
 			for (auto &gx : gx_list)
 				for (auto &hx : hx_list)
-					kernel(this->L, gx, hx, map_h, s, si, hx, gx);
+					kernel(this->L, gx, hx, map_h, si, hx, gx);
 			map_h.close();
 			
 		}
@@ -903,12 +882,12 @@ void isingUI::ui::relaxationTimesFromFiles()
 		for (auto &hx : hx_list){
 			for (int si = -1; si <= 2; si++){
 				std::ofstream map_L;
-				std::string op = IsingModel_disorder::opName(this->op, si);
+				std::string op = std::get<0>(IsingModel_disorder::opName(this->op, si));
 				std::string info = this->m? IsingModel_sym::set_info(this->L, this->J,gx, hx, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"L"}, ",") 
 						: IsingModel_disorder::set_info(this->L, this->J, this->J0, gx, this->g0, hx, this->w, {"L"}, ",");
 				openFile(map_L, dir + "_L" + op + info + ".dat", ios::out);
 				for (this->L = Lmin; this->L < Lmax; this->L += this->Ls)
-					kernel(this->L, gx, hx, map_L, s, si, this->L);
+					kernel(this->L, gx, hx, map_L, si, this->L);
 				map_L.close();	
 			}
 		}
@@ -1006,7 +985,7 @@ void isingUI::ui::adiabaticGaugePotential_dis()
 	std::string dir = this->saving_dir + "AGP" + kPSep;
 	createDirs(dir);
 	std::ofstream farante;
-	openFile(farante, dir + IsingModel_disorder::opName(this->op, this->site) + info + "_" + s + ".dat");
+	openFile(farante, dir + std::get<0>(IsingModel_disorder::opName(this->op, this->site)) + info + "_" + s + ".dat");
 	farante << std::setprecision(6) << std::scientific;
 	// std::ofstream scaling(this->saving_dir + "AGPsize_DELETE" + info + ".dat");
 	// scaling << std::setprecision(6) << std::scientific;
@@ -1095,7 +1074,7 @@ void isingUI::ui::adiabaticGaugePotential_sym(bool SigmaZ, bool avSymSectors)
 	std::string info = (avSymSectors ? IsingModel_sym::set_info(L, J, g, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"L", "h", "k", "p", "x"}) : IsingModel_sym::set_info(L, J, g, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"L", "h"}));
 	std::string dir = this->saving_dir + "AGP" + kPSep;
 	createDirs(dir);
-	std::ofstream farante(dir + IsingModel_sym::opName(this->op, this->site) + info + ".dat");
+	std::ofstream farante(dir + std::get<0>(IsingModel_sym::opName(this->op, this->site)) + info + ".dat");
 	farante << std::setprecision(6) << std::scientific;
 	// std::ofstream scaling(this->saving_dir + "AGPsize_DELETE" + info + ".dat");
 	// scaling << std::setprecision(6) << std::scientific;
@@ -1736,7 +1715,7 @@ void user_interface::set_default_msg(T &value, string option, string message, co
 void isingUI::ui::printAllOptions() const
 {
 	stout << "------------------------------CHOSEN OPTIONS:" << std::endl;
-	std::string opName = IsingModel_disorder::opName(this->op, this->site);
+	std::string opName = std::get<0>(IsingModel_disorder::opName(this->op, this->site));
 	stout << "DIR = " << this->saving_dir << std::endl
 		  << "model = " << (this->m ? "symmetric" : "disordered") << std::endl
 		  << "BC = " << (this->boundary_conditions ? "OBC" : "PBC") << std::endl

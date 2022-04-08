@@ -63,7 +63,7 @@ void IsingModel_sym::createSymmetryGroup() {
 /// <summary>
 /// Takes the state from the index in mapping
 /// </summary>
-u64 IsingModel_sym::map(u64 index) {
+u64 IsingModel_sym::map(u64 index) const {
 	if (index >= this->N) throw "Element out of range\n No such index in map\n";
 	return this->mapping[index];
 }

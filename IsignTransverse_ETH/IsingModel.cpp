@@ -314,58 +314,100 @@ arma::vec IsingModel<T>::operator_av_in_eigenstates_return(double (IsingModel<T>
 }
 
 //-------------------------------------------------------------------------------------------------LIOMs
-
 template <typename _type>
-arma::sp_cx_mat IsingModel<_type>::create_StringOperator(coordinate alfa, coordinate beta, int j, int ell) const {
-	if (ell < 0) assert(false && "last argument is positive, duh");
-	op_type op_alfa, op_beta;
-	switch (alfa) {
-	case coordinate::x: op_alfa = IsingModel::sigma_x; break;
-	case coordinate::y: op_alfa = IsingModel::sigma_y; break;
-	case coordinate::z: op_alfa = IsingModel::sigma_z; break;
+arma::sp_cx_mat IsingModel<_type>::create_tfim_liom_plus(int n) const {
+	//if(n == 0) return this->H; 
+	const u64 size = ULLPOW(this->L);
+	arma::sp_cx_mat tfim_liom(size, size);
+	std::vector<int> sites;
+	for(u64 kk = 0; kk < size; kk++){
+		u64 k = map(kk);
+		for(int j = 0; j < this->L; j++){
+			cpx outer_value = 0.0;
+			// S^zz_{j, j+n+1}
+			outer_value = std::get<0>(IsingModel::sigma_z(
+				k, this->L, 
+						this->properSite( std::vector<int>({j, j + n + 1}) )
+						)); // outer is okay cause inner flips dont affect outer spins
+			sites = std::vector<int>(n); iota(sites.begin(), sites.end(), j + 1);
+			u64 idx = std::get<1>(IsingModel::sigma_x(k, this->L, this->properSite(sites)));
+			tfim_liom(idx, k) += this->J * outer_value;
+
+			// S^yy_{j,j+n-1}
+			if(n > 1){
+				auto [right_value, idx_y] = IsingModel::sigma_y(k, this->L, { this->properSite(j + n - 1) });
+				if(n > 2){
+					sites = std::vector<int>(n - 2); iota(sites.begin(), sites.end(), j + 1);
+					idx_y = std::get<1>(IsingModel::sigma_x(idx_y, this->L, this->properSite(sites)));
+				}
+				auto [left_value, idx] = IsingModel::sigma_y(idx_y, this->L, { this->properSite(j) });
+				tfim_liom(idx, k) += this->J * left_value * right_value;
+			} else {
+				auto [nope, idx] = IsingModel::sigma_x(k, this->L, { this->properSite(j) });
+				tfim_liom(idx, k) -= this->J; 
+			}
+
+			// S^zz_{j, j+n}
+			outer_value = std::get<0>(IsingModel::sigma_z(
+				k, this->L, 
+						this->properSite( std::vector<int>({j, j + n}) )
+						)); // outer is okay cause inner flips dont affect outer spins
+			if(n > 1){
+				sites = std::vector<int>(n - 1); iota(sites.begin(), sites.end(), j + 1);
+				u64 idx = std::get<1>(IsingModel::sigma_x(k, this->L, this->properSite(sites)));
+				tfim_liom(idx, k) -= this->g * outer_value;
+			} else
+				tfim_liom(k, k) -= this->g * outer_value;
+
+			// S^yy_{j, j+n}
+			auto [right_value, idx_y] = IsingModel::sigma_y(k, this->L, { this->properSite(j + n) });
+			if(n > 1){
+				sites = std::vector<int>(n - 2); iota(sites.begin(), sites.end(), j + 1);
+				idx_y = std::get<1>(IsingModel::sigma_x(idx_y, this->L, this->properSite(sites)));
+			}
+			auto [left_value, idx_new] = IsingModel::sigma_y(idx_y, this->L, { this->properSite(j) });
+			tfim_liom(idx_new, k) -= this->g * left_value * right_value;
+		}
 	}
-	switch (beta) {
-	case coordinate::x: op_beta = IsingModel::sigma_x; break;
-	case coordinate::y: op_beta = IsingModel::sigma_y; break;
-	case coordinate::z: op_beta = IsingModel::sigma_z; break;
-	}
-	arma::sp_cx_mat SigmaAlfa = create_operator({ op_alfa }, { properSite(j) });
-	arma::sp_cx_mat SigmaBeta = create_operator({ op_beta }, { properSite(j + ell) });
-	arma::sp_cx_mat SigmaZstring;
-	if (ell == 0) {
-		if (alfa == beta && alfa == coordinate::y) return -create_operator({ IsingModel_sym::sigma_z });
-		else assert(false && "Don't know what this could possibly be, check again if you need this");
-	}
-	else if (ell == 1) {
-		SigmaZstring = arma::eye<arma::sp_cx_mat>(this->N, this->N);
-	}
-	else {
-		std::vector<int> sites;
-		for (int k = 1; k <= ell - 1; k++)
-			sites.push_back(properSite(j + k));
-		SigmaZstring = create_operator({ IsingModel_sym::sigma_z }, sites);
-	}
-	return SigmaAlfa * SigmaZstring * SigmaBeta;
+	return tfim_liom;
 }
 
 template <typename _type>
-arma::sp_cx_mat IsingModel<_type>::create_LIOMoperator_densities(int n, int j) const {
-	if (n < 0) assert(false && "Only positive integers for LIOMs");
-	auto S = [this](coordinate alfa, coordinate beta, int j, int ell) {
-		return create_StringOperator(alfa, beta, j, ell);
-	};
-	if (n % 2 == 0) {
-		//if (n == 0)
-		//	return SpMat<cpx>(arma::real(this->H), arma::imag(this->H));
-		//else
-			return this->J * (S(coordinate::x, coordinate::x, j, j + n) + S(coordinate::y, coordinate::y, j, j + n - 2))
-			+ this->g * (S(coordinate::x, coordinate::x, j, j + n - 1) + S(coordinate::y, coordinate::y, j, j + n - 1));
-	}
-	else {
-		return S(coordinate::x, coordinate::y, j, j + n) - S(coordinate::y, coordinate::x, j, j + n);
-	}
-}
+arma::sp_cx_mat IsingModel<_type>::create_tfim_liom_minus(int n) const {
+	const u64 size = ULLPOW(this->L);
+	arma::sp_cx_mat tfim_liom(size, size);
+	std::vector<int> sites;
+	for(u64 k = 0; k < size; k++){
+		for(int j = 0; j < this->L; j++){
+			
+			// S^yz_{j, j+n+1}
+			auto [right_value, idx0] = IsingModel::sigma_z(
+				k, this->L, 
+						{ this->properSite(j + n + 1) }
+						); // outer is okay cause inner flips dont affect outer spins
+			cpx middle_value = 1.0;
+			if(n > 0){
+				sites = std::vector<int>(n); iota(sites.begin(), sites.end(), j + 1);
+			 	std::tie(middle_value, idx0) = IsingModel::sigma_x(k, this->L, this->properSite(sites));
+			}
+			auto [left_value, idx] = IsingModel::sigma_y(idx0, this->L, { this->properSite(j) } );
+			tfim_liom(idx, k) += this->J * left_value * middle_value * right_value;
 
+			// S^zy_{j, j+n+1}
+			std::tie(right_value, idx0) = IsingModel::sigma_y(
+				k, this->L, 
+						{ this->properSite(j + n + 1) }
+						); // outer is okay cause inner flips dont affect outer spins
+			if(n > 0){
+				sites = std::vector<int>(n); iota(sites.begin(), sites.end(), j + 1);
+			 	std::tie(middle_value, idx0) = IsingModel::sigma_x(idx0, this->L, this->properSite(sites));
+			}
+			std::tie(left_value, idx) = IsingModel::sigma_z(idx0, this->L, { this->properSite(j) } );
+			tfim_liom(idx, k) -= this->J * left_value * middle_value * right_value;
+		}
+	}
+	return tfim_liom;
+}
 // ------------------------------------------------------------------------------------------------ STATISTICS AND PROBABILITIES ------------------------------------------------------------------------------------------------
 
 /// <summary>
@@ -541,10 +583,10 @@ template double overlap(const IsingModel<double>&, const IsingModel<double>&, in
 template double IsingModel<cpx>::total_spin(const arma::mat&);
 template double IsingModel<double>::total_spin(const arma::mat&);
 
-template arma::sp_cx_mat IsingModel<cpx>::create_StringOperator(coordinate, coordinate, int,int) const;
-template arma::sp_cx_mat IsingModel<double>::create_StringOperator(coordinate, coordinate, int, int) const;
-template arma::sp_cx_mat IsingModel<cpx>::create_LIOMoperator_densities(int, int) const;
-template arma::sp_cx_mat IsingModel<double>::create_LIOMoperator_densities(int, int) const;
+template arma::sp_cx_mat IsingModel<cpx>::create_tfim_liom_plus(int) const;
+template arma::sp_cx_mat IsingModel<double>::create_tfim_liom_plus(int) const;
+template arma::sp_cx_mat IsingModel<cpx>::create_tfim_liom_minus(int) const;
+template arma::sp_cx_mat IsingModel<double>::create_tfim_liom_minus(int) const;
 template arma::cx_vec IsingModel<double>::time_evolve_state(const arma::cx_vec&, double);
 template arma::cx_vec IsingModel<cpx>::time_evolve_state(const arma::cx_vec&, double);
 template void IsingModel<double>::time_evolve_state_ns(arma::cx_vec&, double, int);

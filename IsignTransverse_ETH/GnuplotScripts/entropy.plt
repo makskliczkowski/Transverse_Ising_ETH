@@ -30,7 +30,7 @@ set fit quiet
 
 #------------------------------------ PARAMETERS
 L = 15; 
-g = 0.65
+g = 0.9
 g2 = 0.9 
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
@@ -47,7 +47,7 @@ plot_exponent = 1
 
 if(plot_exponent == 0 && scaling == 2) compare_scales = 0;
 	h0 = 20;	hend = 300;		dh = 20;
-	g0 = 50;	gend = 120;		dg = 10;
+	g0 = 60;	gend = 90;		dg = 10;
 	L0 = 12;	Lend = 15; 		dL = 1;
 
 plot_only_lanczos = 0
@@ -181,8 +181,8 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 				set multiplot
 				@LOG_LOG; @MARGIN2; @RANGE; 
 					set key left top; set ylabel 'S(t)'; set xlabel 't'; plot for[i=i0:iend:di] name(i) u 1:2 w lp ps 0.75 pt 5 lw 2 t key_title(i)
-				@LIN_LOG; @MARGIN3; set xrange[6e-1:2e1]; set yrange[1e-3:2e0];
-					set ylabel '{/Symbol g}(t)'; set xlabel 't'; plot for[i=i0:iend:di] name_exp(i) u 1:2 w lp ps 0.75 pt 5 lw 2 t key_title(i)
+				@LIN_LIN; @MARGIN3; set xrange[6e-1:0.5e1]; set yrange[1e-3:2e0];
+					set ylabel '{/Symbol g}(t)'; set xlabel 't'; plot for[i=i0:iend:di] name_exp(i) u 1:($2) w lp ps 0.75 pt 5 lw 2 t key_title(i)
 				unset multiplot
 			}
 		} else{

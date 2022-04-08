@@ -38,7 +38,7 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 /// </summary>
 /// <param name="index"> index to take</param>
 /// <returns>index</returns>
-u64 IsingModel_disorder::map(u64 index) {
+u64 IsingModel_disorder::map(u64 index) const {
 	if (index < 0 || index >= std::pow(2, L)) throw "Element out of range\n No such index in map\n";
 	#ifndef USE_HEISENBERG
 		return (this->g == 0? mapping[index] : index);

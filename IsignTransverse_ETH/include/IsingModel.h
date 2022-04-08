@@ -36,9 +36,9 @@ protected:
 	std::string info;									// information about the model
 	randomGen ran;										// consistent quick random number generator
 
-	arma::SpMat<_type> H;										// the Hamiltonian
-	arma::Mat<_type> eigenvectors;							// matrix of the eigenvectors in increasing order
-	arma::vec eigenvalues;									// eigenvalues vector
+	arma::SpMat<_type> H;								// the Hamiltonian
+	arma::Mat<_type> eigenvectors;						// matrix of the eigenvectors in increasing order
+	arma::vec eigenvalues;								// eigenvalues vector
 
 	arma::cx_vec coeff;									// coefficients of state in eigenbasis
 
@@ -50,7 +50,7 @@ protected:
 	std::vector<u64> mapping;							// mapping for the reduced Hilbert space
 	std::vector<cpx> normalisation;						// used for normalization in the symmetry case
 
-	virtual u64 map(u64 index) = 0;						// function returning either the mapping(symmetries) or the input index (no-symmetry: 1to1 correspondance)
+	virtual u64 map(u64 index) const = 0;					// function returning either the mapping(symmetries) or the input index (no-symmetry: 1to1 correspondance)
 
 public:
 	u64 E_av_idx = -1;										// average energy
@@ -116,19 +116,25 @@ public:
 	int properSite(int site) const {
 		if (_BC == 0) {
 			if (site < 0)
-				return L - (abs(site) % L);
+				return L - (abs(site) % (L));
 			if (site >= L)
 				return site % L;
-			return site;
+			return site % L;
 		}
 		else {
 			if (site < 0 || site >= L)
 				assert(false && "exceeding chain with open boundary conditions!\n Please choos PBC or go to hell!");
 			return site;
 		}
+		stout << "RETURNING INT_MAX, which should not be possible" << std::endl;
 		return INT_MAX;
 	}
-
+	std::vector<int> properSite(std::vector<int> sites) const {
+		std::vector<int> proper;
+		for(auto& s : sites)
+			proper.push_back(this->properSite(s));
+		return proper;
+	}
 	// ---------------------------------- VIRTUALS ----------------------------------
 	virtual arma::mat correlation_matrix(u64 state_id) const = 0;											// create the spin correlation matrix at a given state
 	static double total_spin(const arma::mat& corr_mat);												// the diagonal part of a spin correlation matrix
@@ -158,7 +164,7 @@ public:
 		for (auto& site : sites) {
 			//site = properSite(site);
 			val *= checkBit(tmp, L - 1 - site) ? im : -im;
-			NO_OVERFLOW(tmp = flip(tmp, BinaryPowers[L - 1 - site], L - 1 - site));
+			tmp = flip(tmp, BinaryPowers[L - 1 - site], L - 1 - site);
 		}
 		return std::make_pair(val, tmp);
 	};
@@ -219,14 +225,10 @@ public:
 	virtual arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) const = 0;
 	virtual arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const = 0;
 	// transverse-field Ising LIOMs operator densities
-	arma::sp_cx_mat create_StringOperator(coordinate alfa, coordinate beta, int j, int k) const;
-	arma::sp_cx_mat create_LIOMoperator_densities(int n, int ell) const;
-	arma::sp_cx_mat create_LIOMoperator(int n) const {
-		arma::sp_cx_mat LIOM = create_LIOMoperator_densities(n, 0);
-		for (int i = 1; i < this->L; i++)
-			LIOM += create_LIOMoperator_densities(n, i);
-		return LIOM;
-	}
+	//arma::sp_cx_mat create_StringOperator(coordinate alfa, coordinate beta, int j, int k) [[expects: k > 0]];
+	//arma::sp_cx_mat create_LIOMoperator_densities(int n, int ell) const;
+	arma::sp_cx_mat create_tfim_liom_plus(int n) const;
+	arma::sp_cx_mat create_tfim_liom_minus(int n) const;
 	
 	virtual arma::sp_cx_mat createHq(int k) const = 0;
 	virtual arma::sp_cx_mat createHlocal(int k) const = 0;
@@ -234,6 +236,7 @@ public:
 	//template <typename op>
 	//virtual sp_cx_mat fourierTransform(int q, op&& opGen) const = 0; // with lambda input to create local operator and perform sum 
 
+	const std::vector<std::string> space_str = { "j", "j", "j", "q", "q", "q", "n", "n" };
 	arma::sp_cx_mat chooseOperator(int choose, int site) {
 		arma::sp_cx_mat op;
 		switch (choose) {
@@ -243,27 +246,34 @@ public:
 			case 3: op = this->fourierTransform(IsingModel::sigma_z, site); break;
 			case 4: op = this->fourierTransform(IsingModel::sigma_x, site); break;
 			case 5: op = this->createHq(site); break;
-			case 6: op = this->create_LIOMoperator(site); break;
+			case 6: op = this->create_tfim_liom_plus(site); break;
+			case 7: op = this->create_tfim_liom_minus(site); break;
 			default:
 				stout << "No operator chosen!\nReturning empty matrix\n\n";
 		}
 		return op;
 	}
-	static std::string opName(int choose, int site) {
-		std::string name;
+	static auto opName(int choose, int site) 
+		-> std::pair<std::string, std::string>
+	{
+		std::string name, dir_suffix;
 		switch (choose) {
-		case 0: name = "SigmaZ_j=" 	  + std::to_string(site);	break;
-		case 1: name = "SigmaX_j=" 	  + std::to_string(site);	break;
-		case 2: name = "H_j="	   	  + std::to_string(site);	break;
-		case 3: name = "SigmaZ_q=" 	  + std::to_string(site);	break;
-		case 4: name = "SigmaX_q=" 	  + std::to_string(site);	break;
-		case 5: name = "H_q="	   	  + std::to_string(site);	break;
-		case 6: name = "TFIM_LIOM_n=" + std::to_string(site);	break;
+		case 0: name = "SigmaZ_j=" 	  		+ std::to_string(site);	break;
+		case 1: name = "SigmaX_j=" 	  		+ std::to_string(site);	break;
+		case 2: name = "H_j="	   	  		+ std::to_string(site);	break;
+		case 3: name = "SigmaZ_q=" 	  		+ std::to_string(site);	break;
+		case 4: name = "SigmaX_q=" 	  		+ std::to_string(site);	break;
+		case 5: name = "H_q="	   	  		+ std::to_string(site);	break;
+		case 6: name = "TFIM_LIOM_plus_n="  + std::to_string(site);	break;
+		case 7: name = "TFIM_LIOM_minus_n=" + std::to_string(site);	break;
 		default:
-			stout << "Bad input! Operator -op 0-6 only";
+			stout << "Bad input! Operator -op 0-7 only";
 			exit(1);
 		}
-		return name;
+		if(choose < 3) 						dir_suffix = "j";
+		else if(choose >=3 && choose < 6) 	dir_suffix = "q";
+		else 								dir_suffix = "n";
+		return std::make_pair(name, dir_suffix);
 	}
 
 
@@ -330,7 +340,7 @@ private:
 	void mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id);							// multithreaded mapping
 	void generate_mapping();																													// utilizes the mapping kernel
 
-	u64 map(u64 index) override;																												// finds a map corresponding to index (for inheritance purpose)
+	u64 map(u64 index) const override;																												// finds a map corresponding to index (for inheritance purpose)
 public:
 	bool get_k_sector() const { return this->k_sector; }
 	v_1d<cpx> get_k_exponents() const { return this->k_exponents; }
@@ -432,7 +442,7 @@ public:
 
 private:
 	void generate_mapping();
-	u64 map(u64 index) override;
+	u64 map(u64 index) const override;
 
 public:
 	// METHODS
