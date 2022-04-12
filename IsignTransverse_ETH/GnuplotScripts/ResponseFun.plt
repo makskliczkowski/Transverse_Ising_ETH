@@ -3,8 +3,8 @@ reset
 #------------------------------------ PREAMBLE
 set autoscale
 use_png = 0		# 1 if use png output, and 0 for qt output
-if(use_png) { set term pngcairo size 1200, 1200 font sprintf("Helvetica,%d",16); }
-else {set term qt size 900, 900 font sprintf("Helvetica,%d",14); }
+if(use_png) { set term pngcairo size 1200, 1200 font sprintf("Helvetica,%d",20); }
+else {set term qt size 900, 900 font sprintf("Helvetica,%d",20); }
 
 set mxtics
 set mytics
@@ -34,9 +34,9 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 15; 
-g = 0.6; 
-h = 0.8;
+L = 14; 
+g = 0.7; 
+h = 0.1;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
 
@@ -44,10 +44,10 @@ SigX_or_SigZ = 1	 	# 0-SigX , 1-SigZ :local
 operator_sum = 0		# is the operator a sum
 site = 1				# site at which the operator acts
 cor = 0					# correlations
-scaling = 1				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or 4-realisations or 5-M scaling or 6-compare
-q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
-operator = 1	 		# 1-SigmaZ , 0-Hq :local
-compare = 1
+scaling = 3				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or 4-realisations or 5-M scaling or 6-compare
+q_vs_j = 0				# =1 - evolution of Sz_q, else ecol of Sz_j
+operator = 2	 		# 1-SigmaZ , 0-Hq :local
+compare = 0
 use_derivative = 0		# use derivative of integrated spectral function
 if(use_derivative){ compare = 0};
 
@@ -57,14 +57,21 @@ local = 0
 rescale=0				# rescale S_A by power law to find const region
 add_line=0				# draw power-law: a/omega^n
 a0=8e-5					# value of power-law plot at x=1
-	h0 = 20;	hend = 120;		dh = 20;
+	h0 = 5;	hend = 20;		dh = 5;
 	g0 = 5;	gend = 40;		dg = 5;
 	L0 = 11;	Lend = 14; 		dL = 1;
 
 
 
-op = operator? "SigmaZ" : "H";
+
+op = ""
+if(operator == 0) {op = "H"; }
+if(operator == 1) {op = "SigmaZ";}
+if(operator == 2) {op = "TFIM_LIOM_plus";}
+if(operator == 3) {op = "TFIM_LIOM_minus";}
+
 str(x) = (q_vs_j? "q" : "j").sprintf("=%d",x);
+if(operator > 1){ str(x) = "n".sprintf("=%d",x); }
 
 x_min = 1e-2;
 x_max = 1e-1;
@@ -94,7 +101,7 @@ out_dir = 'Spectral_Function/'
 	i0 = 0; iend = 0; di = 1;
 		if(scaling == 0){
 			dir = dir.str(site).'/';
-			name(x) = dir.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, 0.01*x, w);	key_title(x) = sprintf("h=%.2f", x/100.)
+			name(x) = dir.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f_M=8000.dat", L, J0, g, g_knot, 0.01*x, w);	key_title(x) = sprintf("h=%.2f", x/100.)
 			name2(x) = dir_base.'IntegratedResponseFunction/DERIVATIVE/'.str(site).'/'.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, 0.01*x, w);
 			i0 = h0; iend = hend; di = dh; 	out_dir = out_dir."h_scaling/";
 			output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,w=%.2f", L, J0, g, g_knot, w);
@@ -115,10 +122,12 @@ out_dir = 'Spectral_Function/'
 					output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J0, g_knot, h, w);
 				} else{
 					if(scaling == 3){
-						name(x) = dir.str(x).'/'.op."_".str(x).sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);
+						name(x) = dir.str(x).'/'.op."_".str(x).sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f_M=8000.dat", L, J0, g, g_knot, h, w);
 						name2(x) = dir_base.'IntegratedResponseFunction/DERIVATIVE/'.str(x).'/'.op.sprintf("_".str(x)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);
-						key_title(x) = (q_vs_j? sprintf("q/{/Symbol p}=%.2f", 2*x/(L+0.0)): sprintf("j=%d", x) )
-						i0 = 0; iend = q_vs_j? L / 2 : L-1; di=1; 	out_dir = out_dir.(q_vs_j? "q" : "j")."_scaling/"
+						key_title(x) = q_vs_j && operator < 2? sprintf("q/{/Symbol p}=%.2f", 2*x/(L+0.0))\
+								: (operator > 1? sprintf("n=%d", x) :  sprintf("j=%d", x) ) 
+						i0 = 0; iend = q_vs_j? L / 2 : L-1; di=1; if(operator > 1){ iend = 6;} 
+						out_dir = out_dir.(q_vs_j? "q" : "j")."_scaling/"
 						output_name = output_name.op.sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J0, g, g_knot, h, w);
 					} else{
 							if(scaling == 4){
@@ -155,7 +164,7 @@ out_dir = 'Spectral_Function/'
 	}
 	a = 1
 	b = 0.1
-	
+	set key left bottom
 	#------------------------------------------ Controling output
 	if(use_png){
 		if(compare){ out_dir = out_dir.'compare/'};
@@ -165,7 +174,6 @@ out_dir = 'Spectral_Function/'
 		set encoding utf8; 
 		set output output_name.".png";
 	}
-	if(!LIOM){
 		MARGIN = "set lmargin at screen 0.10; set rmargin at screen 0.99; set bmargin at screen 0.10; set tmargin at screen 0.99;"
 		MARGIN_INSET = "set lmargin at screen 0.20; set rmargin at screen 0.55; set bmargin at screen 0.15; set tmargin at screen 0.65;"
 		set multiplot
@@ -188,46 +196,6 @@ out_dir = 'Spectral_Function/'
 			#plot sample [i=1:(iend-i0)/di + 1] '+' using (wH[i]):(2*val[i]) w l ls 3 notitle
 		}
 		unset multiplot
-	}
-	else{
-	
-	
-	
-	
-	
-	
-	
-	
-		set logscale y
-		_which = 0 #0-orders, 1-sites
-		n = 2
-		set key outside right vertical maxcols(1)
-		plotname = "timeEvolutionLIOM"
-		tail = sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, h)
-		if(local){
-			set title "TFIM LIOMS-densities \n\
-				I_j^n = J(S^{xx}_{j,j+n}+S^{yy}_{j,j+n-2})+g(S^{xx}_{j,j+n-1}+S^{yy}_{j,j+n-1}) - n-even\n\n\
-				I_j^n = S^{xy}_{j,j+n}-S^{yx}_{j,j+n} - n-odd,\n\n\
-				where S^{{/Symbol a}{/Symbol b}}_{j,j+n}={/Symbol s}^{{/Symbol a}}_{j}{/Symbol P}_{k=1}^{n-1}{/Symbol s}^z_{j+k}{/Symbol s}^{{/Symbol b}}_{j+n}"
-			s = ''
-			do for [i=1:L-1] {s = s.(_which? sprintf(' %d,%d', n, i) : sprintf(' %d,%d', i, site)) } 
-			plot for[w in s] plotname.w.tail w l title "n,j=".w
-		}
-		else{
-			set title "TFIM LIOMS A=\n\
-				I^n = {/Symbol S}_j J(S^{xx}_{j,j+n}+S^{yy}_{j,j+n-2}) + g(S^{xx}_{j,j+n-1}+S^{yy}_{j,j+n-1}) - n-even\n\n\
-				I^n = {/Symbol S}_j S^{xy}_{j,j+n} - S^{yx}_{j,j+n} - n-odd,\n\n\
-				where S^{{/Symbol a}{/Symbol b}}_{j,j+n}={/Symbol s}^{{/Symbol a}}_{j}{/Symbol P}_{k=1}^{n-1}{/Symbol s}^z_{j+k}{/Symbol s}^{{/Symbol b}}_{j+n}"
-			array norm_arr[L];
-			i_end = 10
-			do for [i=0:i_end] {
-				stats plotname.sprintf("%d", i).tail every ::1::2 using 2 nooutput
-				norm_arr[i+1] = (norm ? STATS_min : 1.0) 
-			}
-			plot for[i=0:i_end] plotname.sprintf("%d", i).tail u 1:($2 / norm_arr[i+1])w l title sprintf("n=%d",i)
-		}
-	}
-	
-	
+
 	
 	

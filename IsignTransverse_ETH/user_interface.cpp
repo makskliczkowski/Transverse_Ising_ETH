@@ -77,30 +77,36 @@ void isingUI::ui::make_sim()
 					this->g = gx;
 					this->h = hx;
 					//spectral_form_factor(); continue;
-					std::string dir = this->saving_dir + "Entropy" + kPSep;
+					std::string dir = this->saving_dir + "Entropy" + kPSep;// + "Lanczos" + kPSep;
 					//std::string str = (this->op < 3) ? "j" : "q";
 					//if(this->op == 6) str = "n";
 					//std::string dir = this->saving_dir + "timeEvolution" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
-					std::string dir2 = dir + + "exponent" + kPSep;
+					std::string dir2 = dir + + "PowerSpectrum" + kPSep;
+					//std::string dir2 = this->saving_dir + "TimeEvolution" + kPSep + "Quench" + kPSep;
 					createDirs(dir, dir2);
+					
 					auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-					//auto alfa = std::make_unique<IsingModel_sym>(this->L, -this->J, -this->g, -this->h,
-					//			 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+					////auto alfa = std::make_unique<IsingModel_sym>(this->L, -this->J, -this->g, -this->h,
+					////			 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 					const std::string name = alfa->get_info();
 					const size_t N = alfa->get_hilbert_size();
 					stout << "\n\t\t--> finished creating model for " << name << " - in time : " << tim_s(start) << "s" << std::endl;
-
+//
 					std::ifstream input;
 					auto [opName, dir_suffix] = IsingModel_disorder::opName(this->op, this->site);
 					auto data = readFromFile(input, dir + "TimeEvolution" + name + ".dat");
 					//auto data = readFromFile(input, dir + "TimeEvolution" + name + ".dat");
 					if(data.empty()) continue;
-					//arma::vec exponent = non_uniform_derivative(arma::log(data[0]), arma::log(data[1]));
-					arma::vec exponent = log_derivative(data[0], data[1]);
+					//arma::vec exponent = non_uniform_derivative(data[0], data[1]);
+					//arma::vec exponent = log_derivative(data[0], data[1]);
+					arma::cx_vec exponent(data[0].size());
+					arma::vec omegas = arma::logspace(-3, 2, data[0].size());
+					for(int j=0; j < exponent.size(); j++)
+						exponent(j) += simpson_rule<cpx>(data[0], arma::exp(im * data[0] * omegas(j)) % data[1]);
 					std::ofstream output;
 					openFile(output, dir2 + name + ".dat", std::ios::out);
 					for(int j = 0; j < exponent.size(); j++)
-						printSeparated(output, "\t", 16, true, data[0](j), exponent(j));
+						printSeparated(output, "\t", 16, true, data[0](j), abs(exponent(j)));//data[0](j) / data[1](j) * exponent(j));
 					output.close();
 					continue;
 
@@ -110,9 +116,7 @@ void isingUI::ui::make_sim()
 					stout << "\t\t	--> start diagonalizing for " << alfa->get_info()
 							  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 					alfa->diagonalization();
-						
-					stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
-						  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
+					
 					
 					const double tH = 1. / alfa->mean_level_spacing_analytical();
 					int t_max = (int)std::ceil(std::log10(tH));
@@ -1217,8 +1221,8 @@ void isingUI::ui::level_spacing_from_distribution(){
 							   : IsingModel_disorder::set_info(Lx, this->J, this->J0, gx, this->g0, hx, this->w);
 		auto data = readFromFile(lvl, dir + info + ".dat");
 		if(data.empty()) return;
-		double r 	 = simpson_rule(data[0],			  data[0]  % data[1])		   ;
-		double r_var = simpson_rule(data[0], arma::square(data[0]) % data[1]) - r * r;
+		double r 	 = simpson_rule<double>(data[0],			  data[0]  % data[1])		   ;
+		double r_var = simpson_rule<double>(data[0], arma::square(data[0]) % data[1]) - r * r;
 		printSeparated(file, "\t", 12, true, par, r);
 	};
 	std::ofstream file;

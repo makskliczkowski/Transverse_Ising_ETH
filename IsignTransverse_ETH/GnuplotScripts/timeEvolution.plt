@@ -20,7 +20,7 @@ set xtics mirror;\
 set ytics mirror;"
 @FORMAT
 x_log = 1; 
-y_log = 1;
+y_log = 0;
 SCALE = x_log? "unset logscale xy; set logscale x;" : ""
 SCALE = SCALE.(y_log? "set logscale y;" : "")
 @SCALE
@@ -42,16 +42,16 @@ YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
 L = 14; 
-g = 0.4;
-h = 0.8;
+g = 0.7;
+h = 0.1;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
 rescale = 0				# rescale the spectral function by f(w, L)?
 power = 0.5				# power in scaling with omega
-operator = 1	 		# 1-SigmaZ , 0-Hq :local
-site = 0				# site at which the operator acts
+operator = 2	 		# 1-SigmaZ , 0-Hq :local
+site = 1				# site at which the operator acts
 cor = 0					# correlations
-scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
+scaling = 0				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
 q_vs_j = 0				# =1 - evolution of Sz_q, else ecol of Sz_j
 compare = 0
 
@@ -65,19 +65,19 @@ nu = 3		# power on L
 LIOM = 0				# plot LIOMs?
 local = 0
 
-	h0 = 30;	hend = 90;		dh = 10;
-	g0 = 30;	gend = 70;		dg = 10;
+	h0 = 5;	hend = 20;		dh = 5;
+	g0 = 60;	gend = 90;		dg = 10;
 	L0 = 10;	Lend = 15; 		dL = 1;
 
 use_fit = 0
-which_fit = 1		# =1 -power-law || =0 -exp || =2-log
+which_fit = 2		# =1 -power-law || =0 -exp || =2-log
 
-x_min = 1e2; x_max =1e4;  
+x_min = 6e1; x_max =1e3;  
 # fit/rescale range
 SHOW_FT_LABEL=0
 if(use_fit==0) SHOW_FT_LABEL=0;
 
-rescale_x(x, i) = 0
+rescale_x(x, i) = x
 if(scaling == 1){ rescale_x(x, i) = x / (rescale? (i**nu) : 1.0); }
 if(scaling == 2){ rescale_x(x, i) = x * (rescale? ((0.01*i)**nu) : 1.0); }
 #------------------------------------ GRAPHICS
@@ -86,7 +86,14 @@ if(compare){ set key inside bottom left}
 set xlabel (rescale? sprintf("t*L^{%.2f}",nu) : 't')
 set ylabel '<A(t)A>' rotate by 0 offset 4, 2
 
-op = operator? "SigmaZ" : "H";
+op = ""
+if(operator == 0) {op = "H"; }
+if(operator == 1) {op = "SigmaZ";}
+if(operator == 2) {op = "TFIM_LIOM_plus";}
+if(operator == 3) {op = "TFIM_LIOM_minus";}
+
+str(x) = (q_vs_j? "q" : "j").sprintf("=%d",x);
+if(operator > 1){ str(x) = "n".sprintf("=%d",x); }
 #------------------------------------ DATA, FIT AND PLOT
 #set yrange[0:1]
 #plot dir.sprintf("q=1/SigmaZ_q=1_L=12,J0=0.00,g=%.2f,g0=0.00,h=0.80,w=0.01.dat", 0.0) u 1:2 notitle w lp ls 1,\
@@ -95,7 +102,6 @@ op = operator? "SigmaZ" : "H";
 #
 #exit;
 output_name = ""
-str(x) = (q_vs_j? "q" : "j").sprintf("=%d",x);
 _name(x) = 0; _key_title(x) = 0;
 i0 = 0; iend = 0; di = 1;
 		if(scaling == 0){
@@ -117,15 +123,17 @@ i0 = 0; iend = 0; di = 1;
 				} else{
 					if(scaling == 3){
 						_name(x) = dir.str(x).'/'.op."_".str(x).sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);
-						_key_title(x) = (q_vs_j? sprintf("q/{/Symbol p}=%.2f", 2*x/(L+0.0)): sprintf("j=%d", x) )
-						i0 = 0; iend = q_vs_j? L / 2 : L-1; di=1; 	out_dir = out_dir.(q_vs_j? "q" : "j")."_scaling/"
+						_key_title(x) = q_vs_j && operator < 2? sprintf("q/{/Symbol p}=%.2f", 2*x/(L+0.0))\
+								: (operator > 1? sprintf("n=%d", x) :  sprintf("j=%d", x) ) 
+						i0 = 0; iend = q_vs_j? L / 2 : L-1; di=1; if(operator > 1){ iend = 6;} 
+						out_dir = out_dir.(q_vs_j? "q" : "j")."_scaling/"
 						output_name = output_name.op.sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J0, g, g_knot, h, w);
 					} else{
 						if(scaling == 4){
 							_dir(x) = dir.str(site).'/realisation='.sprintf("%d",x).'/';
 							_name(x) = _dir(x).op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);
 							_key_title(x) = sprintf("r=%d",x);
-							i0 = 0; iend = 19; di=1; 	out_dir = out_dir."realisation_scaling/"
+							i0 = 0; iend = 9; di=1; 	out_dir = out_dir."realisation_scaling/"
 							output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J0, g, g_knot, h, w);
 						} else{
 							_name(x) = x==i0? dir.str(site).'/'.op.sprintf("_q=%d_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", site, L, J0, g, g_knot, h, w)\
@@ -163,7 +171,7 @@ a = 0.01
 b = 1
 alfa = -0.1
 size = (iend - i0) / di+1
-if(!LIOM){
+
 	array tH[size]
 	array LTA[size]
 	array val[size]
@@ -172,7 +180,7 @@ if(!LIOM){
 	print "par\tQ(t=0),   tH,    LTA,\t\t a\t b\t alfa"
 	do for[i=i0:iend:di]{
 		idx = (i-i0)/di+1
-		name = _name(i)	
+		name = _name(i)
 		if(fileexist(name)){
 			stats name every ::0::1 using 2 nooutput;	val[idx] = STATS_min
 			stats name every ::0::1 using 3 nooutput; 	tH[idx]  = STATS_min;
@@ -236,7 +244,8 @@ if(!LIOM){
 	set multiplot
 		if(compare){ set logscale xy;}
 		else{ @SCALE; }
-		@MARGIN; @RANGE; plot for[i=i0:iend:di] _name(i) u (rescale_x($1, i)):(abs($2-sub(i,i0,di))) w l lw 1.5 title _key_title(i)#, (var+exp(-x/85.7258+2))/(1+var) w l ls 4 t "e^{-t/{/Symbol t}}"
+		@MARGIN; @RANGE; 
+		plot for[i=i0:iend:di] _name(i) u (rescale_x($1, i)):(abs($2-sub(i,i0,di))) w l lw 1.5 title _key_title(i)#, (var+exp(-x/85.7258+2))/(1+var) w l ls 4 t "e^{-t/{/Symbol t}}"
 		if(compare){
 			unset label 1;
 			unset logscale x; set format x '%g'; set logscale y; unset ylabel; @MARGIN2; @RANGE; plot for[i=i0:iend:di] _name(i) u (rescale_x($1, i)):($2-sub(i,i0,di)) w l lw 1.5 notitle
@@ -268,34 +277,3 @@ if(!LIOM){
 		}
 	unset multiplot
 	
-}
-else{
-	set logscale y
-	_which = 0 #0-orders, 1-sites
-	n = 2
-	set key outside right vertical maxcols(1)
-	plotname = dir."timeEvolutionLIOM"
-	tail = sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, h)
-	if(local){
-		set title "TFIM LIOMS-densities \n\
-			I_j^n = J(S^{xx}_{j,j+n}+S^{yy}_{j,j+n-2})+g(S^{xx}_{j,j+n-1}+S^{yy}_{j,j+n-1}) - n-even\n\n\
-			I_j^n = S^{xy}_{j,j+n}-S^{yx}_{j,j+n} - n-odd,\n\n\
-			where S^{{/Symbol a}{/Symbol b}}_{j,j+n}={/Symbol s}^{{/Symbol a}}_{j}{/Symbol P}_{k=1}^{n-1}{/Symbol s}^z_{j+k}{/Symbol s}^{{/Symbol b}}_{j+n}"
-		s = ''
-		do for [i=1:L-1] {s = s.(_which? sprintf(' %d,%d', n, i) : sprintf(' %d,%d', i, site)) } 
-		plot for[w in s] plotname.w.tail w l title "n,j=".w
-	}
-	else{
-		set title "TFIM LIOMS A=\n\
-			I^n = {/Symbol S}_j J(S^{xx}_{j,j+n}+S^{yy}_{j,j+n-2}) + g(S^{xx}_{j,j+n-1}+S^{yy}_{j,j+n-1}) - n-even\n\n\
-			I^n = {/Symbol S}_j S^{xy}_{j,j+n} - S^{yx}_{j,j+n} - n-odd,\n\n\
-			where S^{{/Symbol a}{/Symbol b}}_{j,j+n}={/Symbol s}^{{/Symbol a}}_{j}{/Symbol P}_{k=1}^{n-1}{/Symbol s}^z_{j+k}{/Symbol s}^{{/Symbol b}}_{j+n}"
-		array norm_arr[L];
-		i_end = 10
-		do for [i=0:i_end] {
-			stats plotname.sprintf("%d", i).tail every ::1::2 using 2 nooutput
-			norm_arr[i+1] = (norm ? STATS_min : 1.0) 
-		}
-		plot for[i=0:i_end] plotname.sprintf("%d", i).tail u 1:($2 / norm_arr[i+1])w l title sprintf("n=%d",i)
-	}
-}

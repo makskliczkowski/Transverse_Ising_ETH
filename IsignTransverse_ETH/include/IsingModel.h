@@ -236,7 +236,6 @@ public:
 	//template <typename op>
 	//virtual sp_cx_mat fourierTransform(int q, op&& opGen) const = 0; // with lambda input to create local operator and perform sum 
 
-	const std::vector<std::string> space_str = { "j", "j", "j", "q", "q", "q", "n", "n" };
 	arma::sp_cx_mat chooseOperator(int choose, int site) {
 		arma::sp_cx_mat op;
 		switch (choose) {

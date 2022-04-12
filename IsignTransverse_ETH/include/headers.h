@@ -690,7 +690,8 @@ inline void checkRandom(unsigned int seed) {
 arma::vec non_uniform_derivative(const arma::vec& x, const arma::vec& y);
 arma::vec log_derivative(const arma::vec& x, const arma::vec& y);
 double simpson_rule(double a, double b, int n, const arma::vec& f);
-double simpson_rule(const arma::vec& x, const arma::vec& f);
+template<typename _type>
+_type simpson_rule(const arma::vec& x, const arma::Col<_type>& f);
 double binder_cumulant(const arma::vec& arr_in);														// calculate binder cumulant of dataset
 arma::vec get_NonDegenerated_Elements(const arma::vec& arr_in);											// compute non-unique values in dataset
 // ------------------------------------- inlines

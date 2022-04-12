@@ -19,7 +19,7 @@ set size square;\
 set xtics mirror;\
 set ytics mirror;"
 @FORMAT
-set logscale xy
+set logscale x
 set format x "10^{%L}"
 
 fileexist(name)=1#"[ -f name ] && echo 1 || echo 0"
@@ -40,9 +40,9 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 15; 
-g = 0.4
-h = 0.8;
+L = 14; 
+g = 0.6
+h = 0.05;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
 
@@ -51,10 +51,10 @@ x_range_min=1e-5
 integrated_by_hand = 0 #integrated time evolution?
 if(integrated_by_hand) cd '.\integrated'
 rescale = 0				# rescale the spectral function by f(w, L)?
-site = 0				# site at which the operator acts
-scaling = 3				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
+site = 2				# site at which the operator acts
+scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
 q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
-operator = 1	 		# 1-SigmaZ , 0-Hq :local
+operator = 2	 		# 1-SigmaZ , 0-Hq :local
 two_panels = 0
 
 rescale = 0
@@ -63,16 +63,21 @@ if(scaling != 1) rescale = 0;
 LIOM = 0				# plot LIOMs?
 local = 0
 
-	h0 = 20;	hend = 160;		dh = 20;
-	g0 = 20;	gend = 90;		dg = 10;
+	h0 = 5;	hend = 20;		dh = 5;
+	g0 = 60;	gend = 90;		dg = 10;
 	L0 = 10;	Lend = 15; 		dL = 1;
 
 fit = 0
 which_fit = 1						#=0 - a*exp(-t/b); =1 - a-b*log(t)
-x_min = 1e-5; x_max = 1e-1;
+x_min = 1e-5; x_max = 3e-2;
 
-op = operator? "SigmaZ" : "H";
+op = ""
+if(operator == 0) {op = "H"; }
+if(operator == 1) {op = "SigmaZ";}
+if(operator == 2) {op = "TFIM_LIOM_plus";}
+if(operator == 3) {op = "TFIM_LIOM_minus";}
 str(x) = (q_vs_j? "q" : "j").sprintf("=%d",x);
+if(operator > 1){ str(x) = "n".sprintf("=%d",x); }
 
 plot_dir = dir_base.'graph/IntegratedSpectralFunction/'
 
@@ -99,8 +104,10 @@ plot_dir = dir_base.'graph/IntegratedSpectralFunction/'
 				} else{
 					if(scaling == 3){
 						_name(x) = str(x).'/'.op."_".str(x).sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);
-						_key_title(x) = (q_vs_j? sprintf("q/{/Symbol p}=%.2f", 2*x/(L+0.0)): sprintf("j=%d", x) )
-						i0 = 0; iend = q_vs_j? L / 2 : L-1; di=1; 	out_dir = out_dir.(q_vs_j? "q" : "j")."_scaling/"
+						_key_title(x) = q_vs_j && operator < 2? sprintf("q/{/Symbol p}=%.2f", 2*x/(L+0.0))\
+								: (operator > 1? sprintf("n=%d", x) :  sprintf("j=%d", x) ) 
+						i0 = 0; iend = q_vs_j? L / 2 : L-1; di=1; if(operator > 1){ iend = 6;} 	
+						out_dir = out_dir.(q_vs_j? "q" : "j")."_scaling/"
 						output_name = output_name.op.sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J0, g, g_knot, h, w);
 					} else{
 						if(scaling == 4){
@@ -161,7 +168,7 @@ plot_dir = dir_base.'graph/IntegratedSpectralFunction/'
 			a = 1/pi; 	b = 0.0001;	alfa = 200;	w0 = 0.01; w01 = -1e-4; w02=-1e-1
 			C = 1/pi;	D = 1/pi;	gamma=100; delta=100;
 			name = name(i)
-			print name
+			#print name
 			if(fileexist(name)){
 				if(fit){
 					if(!two_panels){

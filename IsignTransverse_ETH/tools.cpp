@@ -100,29 +100,33 @@ arma::vec log_derivative(const arma::vec& x, const arma::vec& y){
 	return output;
 }
 
-double simpson_rule(const arma::vec& x, const arma::vec& f) {
+template<typename _type>
+_type simpson_rule(const arma::vec& x, const arma::Col<_type>& f) {
 	const int N = (int)f.size() - 1;
 	arma::vec h(N);
 	for (int i = 0; i < N; i++)
 		h(i) = x(i + 1) - x(i);
 	
-	double sum = 0.0;
+	_type sum = _type(0.0);
 #pragma omp parallel for reduction(+: sum)
 	for (int i = 0; i <= N / 2 - 1; i++) {
-		double a = 2 - h(2 * i + 1) / h(2 * i);
-		double b = (h(2 * i) + h(2 * i + 1)) * (h(2 * i) + h(2 * i + 1)) / (h(2 * i) * h(2 * i + 1));
-		double c = 2 - h(2 * i) / h(2 * i + 1);
+		_type a = 2 - h(2 * i + 1) / h(2 * i);
+		_type b = (h(2 * i) + h(2 * i + 1)) * (h(2 * i) + h(2 * i + 1)) / (h(2 * i) * h(2 * i + 1));
+		_type c = 2 - h(2 * i) / h(2 * i + 1);
 		sum += (h(2 * i) + h(2 * i + 1)) / 6.0 * (a * f(2 * i) + b * f(2 * i + 1) + c * f(2 * i + 2));
 	}
 
 	if (N % 2 == 0) {
-		double a = (2 * h(N - 1) * h(N - 1) + 3 * h(N - 1) * h(N - 2)) / (6 * (h(N - 2) + h(N - 1)));
-		double b = (	h(N - 1) * h(N - 1) + 3 * h(N - 1) * h(N - 2)) / (6 *  h(N - 2));
-		double c = (	h(N - 1) * h(N - 1) * h(N - 1)				 ) / (6 *  h(N - 2) * (h(N - 2) + h(N - 1)));
+		_type a = (2 * h(N - 1) * h(N - 1)  + 3 * h(N - 1) * h(N - 2)) / (6 * (h(N - 2) + h(N - 1)));
+		_type b = (	h(N - 1) * h(N - 1) 	+ 3 * h(N - 1) * h(N - 2)) / (6 *  h(N - 2));
+		_type c = (	h(N - 1) * h(N - 1) * h(N - 1)				 	 ) / (6 *  h(N - 2) * (h(N - 2) + h(N - 1)));
 	}
 	return sum;
 }
 DISABLE_WARNING_POP
+template cpx simpson_rule<cpx>(const arma::vec&, const arma::Col<cpx>&);
+template double simpson_rule<double>(const arma::vec&, const arma::Col<double>&);
+
 
 /// <summary>
 /// find non-unique elements in input array and store only elemetns, which did not have duplicates

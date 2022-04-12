@@ -1,1 +1,1 @@
--L 12 -Ln 1 -Ls 1 -g 0.9 -gs 0.05 -gn 24 -h 0.02 -hs 0.05 -hn 1 -w 0.01 -th 10 -m 0 -r 1 -op 6 -fun 1 -s 1 -mu 8 -dt 0.1 -ch 0 -scale 1
+-L 10 -Ln 9 -Ls 1 -g 0.05 -gs 0.05 -gn 24 -h 0.8 -hs 0.01 -hn 1 -w 0.01 -th 10 -m 0 -r 1 -op 6 -fun 100 -s 1 -mu 8 -dt 0.1 -ch 0 -scale 1

@@ -28,7 +28,7 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 #-- PARAMETERS
 w = 0.01
 g = 0.4
-L = 10
+L = 12
 h = 1.0
 h0 = 80
 hend = 400
@@ -150,11 +150,30 @@ if(choose == 0){
 			plot for[i=i0:iend:di] ssf_name(i) u 1:2 w l lw 1.5 t key_title(i), (x < 1? 2 * x - x*log(1+2*x) : 2-x*log( (2*x+1) / (2*x-1))) t 'GOE'
 
 		} else{
-			if(choose = 3) {
-				set logscale xy;
+			if(choose == 3) {
 				load './gnuplot-colorbrewer-master/diverging/RdYlGn.plt'
-				name = dir_base."commutator_tfim_lioms_L=12,J0=0.00,g=0.90,g0=0.00,w=0.01.dat"
-				plot for[i=2:13:2] name u 1:i w lp ls i title sprintf("n=%d", i-2)
+				set logscale y; set xrange[0:20];
+				
+				dir = dir_base.'TimeEvolution/Quench/'
+				nejm = 'Magnetization'; set yrange[0.5:1.0]; set format y '%g'
+				#nejm = 'Exponent'
+				plot dir.nejm."_Calabrese2021_L=12,J0=0.00,g=-0.80,g0=0.00,h=-0.04,w=0.01.dat" u 1:(abs($2)) w lp ls 1 t 'h=0.04',\
+						dir.nejm."_Calabrese2021_L=12,J0=0.00,g=-0.80,g0=0.00,h=-0.05,w=0.01.dat" u 1:(abs($2)) w lp ls 2 t 'h=0.05',\
+						dir.nejm."_Calabrese2021_L=12,J0=0.00,g=-0.80,g0=0.00,h=-0.06,w=0.01.dat" u 1:(abs($2)) w lp ls 3 t 'h=0.06',\
+						dir.nejm."_Calabrese2021_L=12,J0=0.00,g=-0.80,g0=0.00,h=-0.07,w=0.01.dat" u 1:(abs($2)) w lp ls 4 t 'h=0.07'
+				plot dir.nejm."_Calabrese2021_L=10,J0=0.00,g=-0.80,g0=0.00,h=-0.07,w=0.01.dat" u 1:(abs($2)) w lp ls 1 t 'L=10',\
+					dir.nejm."_Calabrese2021_L=11,J0=0.00,g=-0.80,g0=0.00,h=-0.07,w=0.01.dat" u 1:(abs($2)) w lp ls 2 t 'L=11',\
+					dir.nejm."_Calabrese2021_L=12,J0=0.00,g=-0.80,g0=0.00,h=-0.07,w=0.01.dat" u 1:(abs($2)) w lp ls 3 t 'L=12',\
+					dir.nejm."_Calabrese2021_L=13,g=-0.80,h=-0.07,k=0,p=1,x=1.dat" u 1:(abs($2)) w lp ls 4 t 'L=13',\
+					dir.nejm."_Calabrese2021_L=14,g=-0.80,h=-0.07,k=0,p=1,x=1.dat" u 1:(abs($2)) w lp ls 5 t 'L=14',\
+					dir.nejm."_Calabrese2021_L=15,g=-0.80,h=-0.07,k=0,p=1,x=1.dat" u 1:(abs($2)) w lp ls 6 t 'L=15',\
+					dir.nejm."_Calabrese2021_L=16,g=-0.80,h=-0.07,k=0,p=1,x=1.dat" u 1:(abs($2)) w lp ls 7 t 'L=16',\
+					dir.nejm."_Calabrese2021_L=17,g=-0.80,h=-0.07,k=0,p=1,x=1.dat" u 1:(abs($2)) w lp ls 7 t 'L=17'
+				#_name(Lx, x)=dir.sprintf("Magnetization_Calebrese2021_L=%d,J0=0.00,g=-0.80,g0=0.00,h=%.2f,w=0.01.dat", Lx, -x)
+				#plot[i=2:7] _name(L, 0.01 * i) u 1:2 w lp ls (i-2) title sprintf("h=%.2f", 0.01 * i)
+
+				#name = dir_base."commutator_tfim_lioms_L=12,J0=0.00,g=0.90,g0=0.00,w=0.01.dat"
+				#plot for[i=2:13:2] name u 1:i w lp ls i title sprintf("n=%d", i-2)
 				
 			} else {
 				#set logscale x; set xrange[*:150]
