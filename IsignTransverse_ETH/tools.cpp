@@ -108,7 +108,7 @@ _type simpson_rule(const arma::vec& x, const arma::Col<_type>& f) {
 		h(i) = x(i + 1) - x(i);
 	
 	_type sum = _type(0.0);
-#pragma omp parallel for reduction(+: sum)
+//#pragma omp parallel for reduction(+: sum)
 	for (int i = 0; i <= N / 2 - 1; i++) {
 		_type a = 2 - h(2 * i + 1) / h(2 * i);
 		_type b = (h(2 * i) + h(2 * i + 1)) * (h(2 * i) + h(2 * i + 1)) / (h(2 * i) * h(2 * i + 1));

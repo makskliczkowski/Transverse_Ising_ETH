@@ -102,7 +102,7 @@ void isingUI::ui::make_sim()
 					arma::cx_vec exponent(data[0].size());
 					arma::vec omegas = arma::logspace(-3, 2, data[0].size());
 					for(int j=0; j < exponent.size(); j++)
-						exponent(j) += simpson_rule<cpx>(data[0], arma::exp(im * data[0] * omegas(j)) % data[1]);
+						exponent(j) = simpson_rule<cpx>(data[0], arma::exp(im * data[0] * omegas(j)) % data[1]);
 					std::ofstream output;
 					openFile(output, dir2 + name + ".dat", std::ios::out);
 					for(int j = 0; j < exponent.size(); j++)
