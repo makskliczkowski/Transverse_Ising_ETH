@@ -143,21 +143,22 @@ arma::vec eigenlevel_statistics_return(const arma::vec& energies)
 inline
 arma::vec unfolding(const arma::vec& eigenvalues){
     const size_t N = eigenvalues.size();
-    const int num = 2000;
+    const int num = 2 * eigenvalues.size();
 
     // calcuklate cummulative distribution function (cdf)
-    arma::vec E = arma::linspace(eigenvalues(0) - 0.1, eigenvalues(N - 1) + 0.1, num);
+    arma::vec E = arma::linspace(eigenvalues(2), eigenvalues(N - 3), num);
     arma::vec cdf(num, arma::fill::zeros);
+#pragma omp parallel for
     for(int ii = 0; ii < num; ii++){
         int counter = 0;
-        for(int k = 0; k < N; k++)
+        for(int k = 10; k < N - 10; k++)
             if(E(ii) > eigenvalues(k))
                 counter++;
         cdf(ii) = counter;
     }
     
     // fit polynomial order 10 to cdf
-    auto p = arma::polyfit(E, cdf, 10);
+    auto p = arma::polyfit(E, cdf, 3);
 
     // evaluate fit at each energy: result is the unfolded energy
     return arma::polyval(p, eigenvalues);

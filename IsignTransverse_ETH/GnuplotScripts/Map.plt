@@ -11,7 +11,7 @@ set xtics mirror;\
 set ytics mirror; set border;"
 @FORMAT
 set autoscale
-set logscale xy
+set logscale y
 set format y "10^{%L}"
 set size square
 #set xrange[0.05:5]
@@ -27,7 +27,7 @@ h_vs_g = 0;			# ==0 --> as function of g
 relax_vs_th = 1		# pick relaxation-time=1 ot thouless-time=0
 idx = relax_vs_th? 3 : 5 
 scaling = 1			# = 0 q/j-scaling, =1-size scaling, =2-h/g
-user_defined = 1
+user_defined = 0
 
 q_vs_j = 1
 site = 1
@@ -100,7 +100,7 @@ if(!user_defined){
 		}
 	} else{
 		set xrange[0:1];
-		RANGE="set yrange[1e-1:1e4]; set xrange[0.1:1.5];"
+		RANGE="set yrange[1e-1:1e5]; set xrange[0.1:1.5];"
 		set xlabel "{/*1.5g/J}"
 		if(scaling == 2){
 			plot for[i=h0:hend:dh] name u (100*$1 == i? $2 : NaN):($3/$4) w lp ls ((i-h0)/dh) pt 6 ps 1.5 title sprintf("h=%.2f", 0.01*i)
@@ -115,7 +115,7 @@ if(!user_defined){
 				@UNSET; @MARGIN; @RANGE; plot dir._name(L,1).".dat" u ($1 == h? $2 : NaN):4 w l ls 0 lw 3 notitle
 			} else{
 				L_list = '10 11 12 13 15'; #set logscale x
-				plot for[i in L_list] dir._name(1.0*i,site<0? i / 2 : site).".dat" u ($1 == h? $2 : NaN):(rescale((column(idx)),1.0*i)) w lp ls ((1.0*i-7)) pt (2*(1.0*i-10)+5) ps 1 title sprintf("L=%d", 1.0*i) #, 1e2*x**(-2) notitle
+				plot for[i in L_list] dir._name(1.0*i,site<0? i / 2 : site).".dat" u ($1 == h? $2 : NaN):(rescale(($3),1.0*i)) w lp ls ((1.0*i-7)) pt (2*(1.0*i-10)+5) ps 1 title sprintf("L=%d", 1.0*i) #, 1e2*x**(-2) notitle
 				if(0&&!rescale_times){
 					@UNSET; @MARGIN;
 					plot for[i in L_list] dir._name(1.0*i,site<0? i / 2 : site).".dat" u ($1 == h? $2 : NaN):4 w lp ls 0 lw 2 pt (2*(1.0*i-10)+4) ps 1.5 notitle

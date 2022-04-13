@@ -28,13 +28,13 @@ RMARGIN = "set lmargin at screen 0.46; set rmargin at screen 0.82"
 RANGE = "set xrange[0:1]; set yrange[0:2.0]"
 UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset border;"
 #-- PARAMETERS
-model = 0       # 1=symmetries and 0=disorder
+model = 1       # 1=symmetries and 0=disorder
 w = 0.01
-g = 0.7
-L = 14
-h = 1.6
+g = 0.5
+L = 19
+h = 1.8
 scaling = 2		# 0 - h scaling / 1 - L scaling / 2 - g scaling
-function = 1    # 1 - gap ratio / 0 - prob distribution
+function = 0    # 1 - gap ratio / 0 - prob distribution
 h_vs_g = 1      # 1 - as function of h / 0 - as function of g
 heatmap = 1
 interpolate = 1
@@ -43,7 +43,7 @@ if(!heatmap){
     if(scaling == 0) { h_vs_g = 0; }
     if(scaling == 2) { h_vs_g = 1; }
 }
-	h0 = 20;	hend = 380;		dh = 60;
+	h0 = 40;	hend = 380;		dh = 40;
 	g0 = 10;	gend = 100;		dg = 10;
 	L0 = 14;	Lend = 19; 		dL = 1;
 

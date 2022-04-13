@@ -1,7 +1,7 @@
 reset 
 ##--PREAMBLE
 set autoscale
-set term qt size 1050, 900 font "Helvetica,18"
+set term qt size 1050, 900 font "Helvetica,20"
 set mxtics
 set mytics
 set style line 12 lc rgb '#ddccdd' lt 1 lw 1.5
@@ -28,8 +28,8 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 #-- PARAMETERS
 w = 0.01
 g = 0.4
-L = 12
-h = 1.0
+L = 14
+h = 0.5
 h0 = 80
 hend = 400
 dh = 40
@@ -40,7 +40,7 @@ scaling = 2		# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 o
 y_ax = 2		# =0 - ||O_diag||; =1 - ||O_off||; =2 - <r>
 model = 0
 
-choose = 3		# 0 - qpt / 1 - magnetization quench / 2 - ssf / 3 - commutators
+choose = 2		# 0 - qpt / 1 - magnetization quench / 2 - ssf / 3 - commutators
 #-- GRAPHICS
 
 #set y2tics 0.37, 0.05
@@ -109,15 +109,15 @@ if(choose == 0){
 	} else{
 		if(choose == 2){
 			set xlabel 't / t_H'
-			set logscale xy
+			set logscale x
 			set format x '10^{%L}'
-			set format y '10^{%L}'
+			#set format y '10^{%L}'
 			dir = dir_base.'SpectralFormFactor/'
 			if(smoothen){ dir = dir.'smoothed/';}
 			i0=0; iend=1; di=1;
 			ssf_name(x) = ""; key_title(x) = "";
 			if(scaling == 0){	# h - sclaing
-				i0=20; iend=120; di=10;
+				i0=20; iend=120; di=20;
 				ssf_name(x) = dir.sprintf("_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=0.01.dat", L, g, 0.01 * x);
 				key_title(x) = sprintf("h = %.2f", 0.01 * x);
 			} else {	
@@ -126,7 +126,7 @@ if(choose == 0){
 					ssf_name(x) = dir.sprintf("_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=0.01.dat", x, g, h);
 					key_title(x) = sprintf("L = %d", x);
 				} else {	#	g - scaling
-					i0=10; iend=110; di=20;
+					i0=35; iend=85; di=20;
 					ssf_name(x) = dir.sprintf("_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=0.01.dat", L, 0.01 * x, h);
 					key_title(x) = sprintf("g = %.2f", 0.01 * x);
 				}
@@ -147,7 +147,8 @@ if(choose == 0){
 						print key_title(i)," -----------------------------------------------------------------------------"
 					}
 			}
-			plot for[i=i0:iend:di] ssf_name(i) u 1:2 w l lw 1.5 t key_title(i), (x < 1? 2 * x - x*log(1+2*x) : 2-x*log( (2*x+1) / (2*x-1))) t 'GOE'
+			set yrange[2e-3:4e0]
+			plot for[i=i0:iend:di] ssf_name(i) u 1:2 w l lw 1.5 t key_title(i), (x < 1? 2 * x - x*log(1+2*x) : 2-x*log( (2*x+1) / (2*x-1))) w l ls 1 lw 2 t 'GOE'
 
 		} else{
 			if(choose == 3) {

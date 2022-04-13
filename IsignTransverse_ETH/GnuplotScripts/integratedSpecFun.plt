@@ -40,9 +40,9 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 14; 
+L = 15; 
 g = 0.6
-h = 0.05;
+h = 0.8;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
 
@@ -51,10 +51,10 @@ x_range_min=1e-5
 integrated_by_hand = 0 #integrated time evolution?
 if(integrated_by_hand) cd '.\integrated'
 rescale = 0				# rescale the spectral function by f(w, L)?
-site = 2				# site at which the operator acts
-scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
+site = 1				# site at which the operator acts
+scaling = 5				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
 q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
-operator = 2	 		# 1-SigmaZ , 0-Hq :local
+operator = 1	 		# 1-SigmaZ , 0-Hq :local
 two_panels = 0
 
 rescale = 0
@@ -64,12 +64,12 @@ LIOM = 0				# plot LIOMs?
 local = 0
 
 	h0 = 5;	hend = 20;		dh = 5;
-	g0 = 60;	gend = 90;		dg = 10;
-	L0 = 10;	Lend = 15; 		dL = 1;
+	g0 = 50;	gend = 80;		dg = 10;
+	L0 = 12;	Lend = 15; 		dL = 1;
 
-fit = 0
+fit = 1
 which_fit = 1						#=0 - a*exp(-t/b); =1 - a-b*log(t)
-x_min = 1e-5; x_max = 3e-2;
+x_min = 1e-5; x_max = 2e-1;
 
 op = ""
 if(operator == 0) {op = "H"; }
@@ -198,6 +198,7 @@ plot_dir = dir_base.'graph/IntegratedSpectralFunction/'
 		}
 		set ytics add(0.5);
 		if(y_min > 0.1){ set ytics add(sprintf("%.4f",y_min) y_min);}
+		y_min=1e-2
 		XRANGE = (rescale? "set xrange[15**nu*x_range_min:15**nu*1e2];" : "set xrange[x_range_min:1e2];" );
 		YRANGE = "set yrange[0.9*y_min:1e0];"
 		#if(fit) {set label 1 at 0.02,(y_log? 0.6:0.6) sprintf("%s",label_fit) front }
@@ -235,7 +236,7 @@ plot_dir = dir_base.'graph/IntegratedSpectralFunction/'
 		if(fit){
 			if(scaling == 5){ set key at 1e-2,0.84 font ",23";}
 			else{ set key left top font ",25";}
-			@MARGIN; @UNSET;@XRANGE; @YRANGE; plot for[i=1:(iend-i0)/di + 1] f_plot(a_list[i], b_list[i], alfa_list[i], w0_list[i], x) w l ls 1 lw 2.5 notitle# "atan({/Symbol w}) fit"
+			@MARGIN; @UNSET;@XRANGE; @YRANGE; plot for[i=1:(iend-i0)/di + 1] f_plot(a_list[i], b_list[i], alfa_list[i], w0_list[i], x) w l ls 1 lw 2.5 t "atan({/Symbol w}) fit"
 			#@MARGIN; @UNSET;@XRANGE; plot for[i=iend+1:new_end:di] D_list[(i-i0)/di+1] / norm*0.01 * ( atan( (x - w02_list[(i-i0)/di+1]) * delta_list[(i-i0)/di+1]) + atan( (x + w02_list[(i-i0)/di+1]) * delta_list[(i-i0)/di+1])) w l ls 4 lw 2.5 notitle
 			if(two_panels){
 				norm = 3.5e-4; 

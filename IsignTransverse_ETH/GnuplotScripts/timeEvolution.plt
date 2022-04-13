@@ -20,7 +20,7 @@ set xtics mirror;\
 set ytics mirror;"
 @FORMAT
 x_log = 1; 
-y_log = 0;
+y_log = 1;
 SCALE = x_log? "unset logscale xy; set logscale x;" : ""
 SCALE = SCALE.(y_log? "set logscale y;" : "")
 @SCALE
@@ -43,15 +43,15 @@ YTICS = "set format y '%g';"
 #------------------------------------ PARAMETERS
 L = 14; 
 g = 0.7;
-h = 0.1;
+h = 0.8;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
 rescale = 0				# rescale the spectral function by f(w, L)?
 power = 0.5				# power in scaling with omega
-operator = 2	 		# 1-SigmaZ , 0-Hq :local
-site = 1				# site at which the operator acts
+operator = 1	 		# 1-SigmaZ , 0-Hq :local
+site = 0				# site at which the operator acts
 cor = 0					# correlations
-scaling = 0				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
+scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
 q_vs_j = 0				# =1 - evolution of Sz_q, else ecol of Sz_j
 compare = 0
 
@@ -66,15 +66,15 @@ LIOM = 0				# plot LIOMs?
 local = 0
 
 	h0 = 5;	hend = 20;		dh = 5;
-	g0 = 60;	gend = 90;		dg = 10;
+	g0 = 20;	gend = 90;		dg = 10;
 	L0 = 10;	Lend = 15; 		dL = 1;
 
-use_fit = 0
-which_fit = 2		# =1 -power-law || =0 -exp || =2-log
+use_fit = 1
+which_fit = 1		# =1 -power-law || =0 -exp || =2-log
 
-x_min = 6e1; x_max =1e3;  
+x_min = 1e1; x_max =2e2;  
 # fit/rescale range
-SHOW_FT_LABEL=0
+SHOW_FT_LABEL=1
 if(use_fit==0) SHOW_FT_LABEL=0;
 
 rescale_x(x, i) = x
@@ -186,7 +186,6 @@ size = (iend - i0) / di+1
 			stats name every ::0::1 using 3 nooutput; 	tH[idx]  = STATS_min;
 			stats name every ::0::1 using 4 nooutput; 	LTA[idx] = STATS_min
 			print _key_title(i),"  ", val[idx], tH[idx], LTA[idx], "\tfit:  ".sprintf("%.5f,  %.5f,  %.5f", a, b, alfa)
-			label_fit = label_fit."\t"._key_title(i).":\t".fstr(a,b,alfa)."\n\n"
 		}
 		else{
 			val[idx] = NaN; tH[idx] = NaN; LTA[idx] = NaN;

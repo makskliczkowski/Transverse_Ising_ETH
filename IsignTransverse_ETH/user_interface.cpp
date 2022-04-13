@@ -72,10 +72,13 @@ void isingUI::ui::make_sim()
 			{
 				for (double hx = hmin; hx < hmax; hx += this->hs)
 				{
-					const auto start_loop = std::chrono::system_clock::now();
 					this->L = system_size;
 					this->g = gx;
 					this->h = hx;
+					printSeparated(std::cout, "\t", 16, true, this->L, this->g, this->h);
+					// ----------------------
+					const auto start_loop = std::chrono::system_clock::now();
+					this->diagonalize(); continue;
 					//spectral_form_factor(); continue;
 					std::string dir = this->saving_dir + "Entropy" + kPSep;// + "Lanczos" + kPSep;
 					//std::string str = (this->op < 3) ? "j" : "q";
@@ -91,7 +94,8 @@ void isingUI::ui::make_sim()
 					const std::string name = alfa->get_info();
 					const size_t N = alfa->get_hilbert_size();
 					stout << "\n\t\t--> finished creating model for " << name << " - in time : " << tim_s(start) << "s" << std::endl;
-//
+					smoothen_data(this->saving_dir + "SpectralFormFactor" + kPSep, alfa->get_info() + ".dat"); continue;
+
 					std::ifstream input;
 					auto [opName, dir_suffix] = IsingModel_disorder::opName(this->op, this->site);
 					auto data = readFromFile(input, dir + "TimeEvolution" + name + ".dat");
@@ -172,7 +176,6 @@ void isingUI::ui::make_sim()
 									printSeparated(std::cout, "\t", 16, true, times(j), entropy(j), entropy_lanczos(j), diff);
 							}
 							file.close();
-					printSeparated(std::cout, "\t", 16, true, this->L, this->g, this->h);
 				}
 			}
 		}
@@ -1001,8 +1004,8 @@ void isingUI::ui::spectral_form_factor(){
 		statistics::unfolding(eigenvalues);
 	int t_max = (int)std::ceil(std::log10(tH));
 	t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
-	auto times = this->ch? arma::logspace(-6, 2, 4000) : arma::logspace(-4, t_max, 2000);
-	arma::vec sff = statistics::spectral_form_factor(eigenvalues, times, 0.3);
+	auto times = this->ch? arma::logspace(-5, 2, 1000) : arma::logspace(-3, t_max, 1000);
+	arma::vec sff = statistics::spectral_form_factor(eigenvalues, times, 0.5);
 	save_to_file(this->saving_dir + "SpectralFormFactor" + kPSep + info + ".dat", times, sff, tH);
 }
 

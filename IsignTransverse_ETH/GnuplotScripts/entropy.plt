@@ -29,8 +29,8 @@ set style line 4 dt (1,1) lc rgb "green" lw 2.5
 set fit quiet
 
 #------------------------------------ PARAMETERS
-L = 16
-g = 0.5
+L = 17
+g = 0.40
 g2 = 0.9 
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
@@ -43,17 +43,17 @@ what_to_plot = 1   		# subsystem size=0, time evolution=1  or  eigenstates parab
 nu=-0.4
 fX(x) = exp(nu / x**2.0)
 #fX(x) = x**2.3
-rescale_x_axis = 1		# rescale x ax0s?
+rescale_x_axis = 0		# rescale x ax0s?
 rescale_by_page=0		# rescale byu Page value
 
 compare_scales = 0		# plot 4 panels, 2g's anf log-log and lin-log for each
 compare_to_lanczos = 0	# compare all results to lanczos eovlution (if available)
-plot_exponent = 0
+plot_exponent = 1
 
 if(plot_exponent == 0 && scaling == 2) compare_scales = 0;
 	h0 = 20;	hend = 300;		dh = 20;
-	g0 = 20;	gend = 90;		dg = 10;
-	L0 = 12;	Lend = 18; 		dL = 1;
+	g0 = 30;	gend = 90;		dg = 5;
+	L0 = 12;	Lend = 17; 		dL = 1;
 
 plot_only_lanczos = 0
 #if(plot_exponent) plot_only_lanczos = 0;
@@ -147,8 +147,8 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 	#	dir.sprintf("compare_to_disorder_L=%d,g=%.2f,h=0.80,k=0,p=1,x=1.dat", L, g) u ($1 / (L+0.0)):($5 / page($1)) w p ps 2 t 'k=0,p=1',\
 	#	dir.sprintf("compare_to_disorder_L=%d,g=%.2f,h=0.80,k=0,p=1,x=1.dat", L, g) u ($1 / (L+0.0)):($6 / page($1)) w p ps 2 t 'k=1', 1-abs(1-2*x) w l ls 1 notitle
 	#exit;
-	RANGE = rescale_x_axis? "set xrange[1e-1:2e1]; set yrange[3e-1:6];" : "set xrange[1e-1:200]; set yrange[3e-2:6];"
-	RANGE2="set xrange[2e-1:10]; set yrange[3e-1:6];"
+	RANGE = rescale_x_axis? "set xrange[1e-1:2e2]; set yrange[3e-2:6];" : "set xrange[1e-1:200]; set yrange[3e-1:6];"
+	RANGE2="set xrange[3e-1:10]; set yrange[1e-1:6];"
 	MARGIN = compare_scales? "set lmargin at screen 0.10; set rmargin at screen 0.54; set bmargin at screen 0.10; set tmargin at screen 0.54;"\
 					: "set lmargin at screen 0.10; set rmargin at screen 0.98; set bmargin at screen 0.10; set tmargin at screen 0.98;"
 	
@@ -161,15 +161,15 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 			MARGIN3 = plot_exponent == 0? "set lmargin at screen 0.10; set rmargin at screen 0.54; set bmargin at screen 0.54; set tmargin at screen 0.98;"\
 							: "set lmargin at screen 0.56; set rmargin at screen 0.98; set bmargin at screen 0.10; set tmargin at screen 0.98;";
 			MARGIN4 = "set lmargin at screen 0.54; set rmargin at screen 0.98; set bmargin at screen 0.54; set tmargin at screen 0.98;";
-			LABEL1="unset label 2; set label 1 at 0.03,2.0 sprintf('g=%.2f',g) front"
+			LABEL1="unset label 2; set label 1 at 0.3,2.0 sprintf('g=%.2f',g) front"
 			LABEL2="unset label 1; set label 2 at 0.4,2.0 sprintf('g=%.2f',g2) front"
 			
 			if(plot_exponent == 0){
 				set key left top
-				f_lin_left(x) = 0.3*(x**0.8+0); 	name_lin_left = '0.3*x^{0.8}'
-				f_log_left(x) = 1.8*log(x)-2.2; 	name_log_left = '1.75*log(x)-2.5'
+				f_lin_left(x) = 0.3*(x**0.8+0); 	name_lin_left = "\n0.3*x^{0.8}"
+				f_log_left(x) = 1.8*log(x)-2.2; 	name_log_left = "\n1.75*log(x)-2.5"
 				f_lin_right(x) = 1.05*x-0.1; 		name_lin_right = '1.05*x-0.1'
-				f_log_right(x) = 2.5*log(x)+0.4; 	name_log_right = '2.5*log(x)+0.4'
+				f_log_right(x) = 2.8*log(x)+0.0; 	name_log_right = '2.8*log(x)'
 				set multiplot
 				@LOG_LOG; @MARGIN; @RANGE;  @LABEL1; # LEFT - BOTTOM
 					set ylabel 'S(t)'; set xlabel 't'; plot for[i=i0:iend:di] name(i) u 1:2 w lp ps 0.75 pt 5 lw 2 notitle, f_lin_left(x) w l ls 1 notitle, f_log_left(x) w l ls 2 notitle
