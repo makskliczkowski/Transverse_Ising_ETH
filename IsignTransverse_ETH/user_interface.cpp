@@ -268,19 +268,20 @@ void isingUI::ui::diagonalize(){
 	}
 }
 template <typename _type>
-auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa) 
+auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix) 
 	-> arma::vec
 {
 	arma::vec eigenvalues;
 	std::ifstream energies;
 	std::string E_dir = this->saving_dir + "EIGENVALUES" + kPSep;
 	createDirs(E_dir);
-	std::string name = E_dir + alfa.get_info({});
+	std::string name = E_dir + alfa.get_info({}) + _suffix;
 	bool loaded = eigenvalues.load(arma::hdf5_name(name + ".h5", "eigenvalues"));
 	if(!loaded){
 		auto E = readFromFile(energies, name + ".dat");
 		if(E.empty()){
 			alfa.diagonalization(false);
+			stout << "No energies found, diagonalizing matrix now!";
 			eigenvalues = alfa.get_eigenvalues();
 			// save eigenvalues (yet unsaved)
 			eigenvalues.save(arma::hdf5_name(name + ".h5", "eigenvalues"));
@@ -623,8 +624,8 @@ void isingUI::ui::calculate_spectrals()
 		const double tH = 1. / alfa.mean_level_spacing_analytical();
 		int t_max = (int)std::ceil(std::log10(tH));
 		t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
-		auto times = arma::logspace(-2, t_max, 300);
-		auto omegas = arma::logspace(std::floor(log10(1. / tH)) - 1, 2, 300);
+		auto times = arma::logspace(-2, t_max, 1000);
+		auto omegas = arma::logspace(std::floor(log10(1. / tH)) - 1, 2, 1000);
 		clk::time_point start = std::chrono::system_clock::now();
 		
 		arma::sp_cx_mat op = alfa.chooseOperator(this->op, this->site);
@@ -632,8 +633,7 @@ void isingUI::ui::calculate_spectrals()
 		std::string timeDir = this->saving_dir + "timeEvolution" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
 		std::string specDir = this->saving_dir + "ResponseFunction" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
 		std::string intDir = this->saving_dir + "IntegratedResponseFunction" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
-		std::string ssfDir = this->saving_dir + "SpectralFormFactor" + kPSep;
-		createDirs(timeDir, specDir, intDir, ssfDir);
+		createDirs(timeDir, specDir, intDir);
 
 		stout << "\n\t\t--> finished generating operator for " << alfa.get_info() << " - in time : " << tim_s(start) << "s" << std::endl;;
 		auto H = alfa.get_hamiltonian();
@@ -648,7 +648,7 @@ void isingUI::ui::calculate_spectrals()
 		{
 			arma::vec opEvol(times.size(), arma::fill::zeros);
 			arma::vec opIntSpec(times.size(), arma::fill::zeros);
-			arma::vec ssf(times.size(), arma::fill::zeros);
+			double Z = 0.0;
 			double LTA = 0;
 			alfa.reset_random();
 			for (int r = 0; r < this->realisations; r++)
@@ -657,8 +657,7 @@ void isingUI::ui::calculate_spectrals()
 				std::string tdir_realisation = timeDir + "realisation=" + std::to_string(r) + kPSep;
 				std::string intdir_realisation = intDir + "realisation=" + std::to_string(r) + kPSep;
 				std::string specdir_realisation = specDir + "realisation=" + std::to_string(r) + kPSep;
-				std::string ssfdir_realisation = ssfDir + "realisation=" + std::to_string(r) + kPSep;
-				createDirs(tdir_realisation, intdir_realisation, specdir_realisation, ssfdir_realisation);
+				createDirs(tdir_realisation, intdir_realisation, specdir_realisation);
 
 				stout << "\t\t	--> start diagonalizing for " << alfa.get_info() << " - in time : " << tim_s(start_loop) << " s" << std::endl;
 				alfa.diagonalization();
@@ -679,11 +678,6 @@ void isingUI::ui::calculate_spectrals()
 				stout << "\t\t	--> finished integrated spectral function for " << alfa.get_info()
 					  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n\tNEXT: spectral function" << std::endl;
 
-				auto ssf_temp = statistics::spectral_form_factor(alfa.get_eigenvalues(), times);
-				save_to_file(ssfdir_realisation + alfa.get_info({}) + ".dat", times, ssf_temp, tH, LTA_tmp);
-				spectrals::spectralFunction(alfa, mat_elem, specdir_realisation + opName);
-
-				ssf += ssf_temp;
 				LTA += LTA_tmp;
 				opEvol += op_tmp;
 				opIntSpec += res;
@@ -692,10 +686,8 @@ void isingUI::ui::calculate_spectrals()
 			opEvol /= double(this->realisations);
 			LTA /= double(this->realisations);
 			opIntSpec /= double(this->realisations);
-			ssf /= double(this->realisations);
 			save_to_file(timeDir + opName + alfa.get_info({}) + ".dat", times, opEvol, tH, LTA);
 			save_to_file(intDir + opName + alfa.get_info({}) + ".dat", omegas, opIntSpec, 1. / tH, LTA);
-			save_to_file(ssfDir + alfa.get_info({}) + ".dat", times, ssf, tH);
 		}
 		else
 		{
@@ -712,9 +704,6 @@ void isingUI::ui::calculate_spectrals()
 			auto res = spectrals::integratedSpectralFunction(alfa, mat_elem, omegas);
 			save_to_file(intDir + opName + alfa.get_info({}) + ".dat", omegas, res, 1. / tH, LTA);
 			stout << "\t\t	--> finished integrated spectral function for " << alfa.get_info() << " - in time : " << tim_s(start) << "s\n\tNEXT: spectral function" << std::endl;
-			spectrals::spectralFunction(alfa, mat_elem, specDir + opName);
-			auto ssf = statistics::spectral_form_factor(alfa.get_eigenvalues(), times);
-			save_to_file(ssfDir + alfa.get_info({}) + ".dat", times, ssf, tH);
 		}
 		stout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - \n"
 			  << std::endl; // simulation end
@@ -984,29 +973,40 @@ void isingUI::ui::intSpecFun_from_timeEvol()
 void isingUI::ui::spectral_form_factor(){
     // values to be set
 	double tH = 0;
-	arma::vec eigenvalues;
 	std::string info;
-
+	int num_times = 1000;
+	arma::vec sff(num_times, arma::fill::zeros);
+	arma::vec times(num_times, arma::fill::zeros);
+	double Z = 0.0;
 	// ----------- choose model and run kernel
-	if(this->m){
-		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
-								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-		eigenvalues = this->get_eigenvalues(*alfa);
-		tH = 1. / alfa->mean_level_spacing_analytical();
-		info = alfa->get_info({});
-	} else{
-		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-		eigenvalues = this->get_eigenvalues(*alfa);
-		tH = 1. / alfa->mean_level_spacing_analytical();
-		info = alfa->get_info({});
+	int realis = this->m? 1 : this->realisations;
+	for(int r = 0; r < realis; r++){
+		arma::vec eigenvalues;
+		std::string suffix = (this->m || r == 0)? "" : "_real=" + std::to_string(r);
+		
+		if(this->m){
+			auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
+									 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+			eigenvalues = this->get_eigenvalues(*alfa, suffix);
+			tH = 1. / alfa->mean_level_spacing_analytical();
+			info = alfa->get_info({});
+		} else{
+			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+			eigenvalues = this->get_eigenvalues(*alfa, suffix);
+			tH = 1. / alfa->mean_level_spacing_analytical();
+			info = alfa->get_info({});
+		}
+		if(this->ch)
+			statistics::unfolding(eigenvalues);
+		
+		int t_max = (int)std::ceil(std::log10(tH));
+		t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
+		times = this->ch? arma::logspace(-5, 2, num_times) : arma::logspace(-3, t_max, num_times);
+		auto [sff_r, Z_r] = statistics::spectral_form_factor(eigenvalues, times, 0.5);
+		sff += sff_r;
+		Z += Z_r;
 	}
-	if(this->ch)
-		statistics::unfolding(eigenvalues);
-	int t_max = (int)std::ceil(std::log10(tH));
-	t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
-	auto times = this->ch? arma::logspace(-5, 2, 1000) : arma::logspace(-3, t_max, 1000);
-	arma::vec sff = statistics::spectral_form_factor(eigenvalues, times, 0.5);
-	save_to_file(this->saving_dir + "SpectralFormFactor" + kPSep + info + ".dat", times, sff, tH);
+	save_to_file(this->saving_dir + "SpectralFormFactor" + kPSep + info + ".dat", times, sff / Z, tH);
 }
 
 
@@ -1262,35 +1262,52 @@ void isingUI::ui::level_spacing(){
 		std::ofstream& file, double par1, double par2,
 		int Lx, double gx, double hx)
 	{
-		arma::vec eigenvalues;
 		std::string info;
-		if(this->m){
-			auto alfa = std::make_unique<IsingModel_sym>(Lx, this->J, gx, hx,
-									 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-			eigenvalues = this->get_eigenvalues(*alfa);
-			info = alfa->get_info({});
-		} else{
-			auto alfa = std::make_unique<IsingModel_disorder>(Lx, this->J, this->J0, gx, this->g0, hx, this->w, this->boundary_conditions);
-			eigenvalues = this->get_eigenvalues(*alfa);
-			info = alfa->get_info({});
+		double r1 = 0, r2 = 0;
+		double _min = 0, _max = 0;
+		int realis = this->m? 1 : this->realisations;
+
+		arma::vec lvl_prob_dist(1, arma::fill::zeros);
+		for(int r = 0; r < realis; r++){
+			arma::vec eigenvalues;
+			std::string suffix = (this->m || r == 0)? "" : "_real=" + std::to_string(r);
+			if(this->m){
+				auto alfa = std::make_unique<IsingModel_sym>(Lx, this->J, gx, hx,
+										 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+				eigenvalues = this->get_eigenvalues(*alfa, suffix);
+				info = alfa->get_info({});
+			} else{
+				auto alfa = std::make_unique<IsingModel_disorder>(Lx, this->J, this->J0, gx, this->g0, hx, this->w, this->boundary_conditions);
+				eigenvalues = this->get_eigenvalues(*alfa, suffix);
+				info = alfa->get_info({});
+			};
+
+			const u64 N = eigenvalues.size();
+			double E_av = arma::trace(eigenvalues) / double(N);
+			const u64 num = 0.25 * N;
+			const u64 num2 = (this->L < 10? 50 : 200);
+
+			auto i = min_element(begin(eigenvalues), end(eigenvalues), [=](int x, int y) {
+				return abs(x - E_av) < abs(y - E_av);
+				});
+			u64 E_av_idx = i - eigenvalues.begin();
+
+			r1 += statistics::eigenlevel_statistics((E_av_idx - num) + eigenvalues.begin(), (E_av_idx + num) + eigenvalues.begin());
+			r2 += statistics::eigenlevel_statistics((E_av_idx - num2) + eigenvalues.begin(), (E_av_idx + num2) + eigenvalues.begin());
+			auto lvl_spacing = statistics::eigenlevel_statistics_return(eigenvalues);
+			long n_bins = 1 + long(3.322 * log(lvl_prob_dist.size()));
+			if(r == 0) lvl_spacing.resize(n_bins); //resize once (no loss of data!)
+			lvl_prob_dist += statistics::probability_distribution(lvl_spacing, n_bins);
+			_min = arma::min(lvl_spacing);
+			_max = arma::max(lvl_spacing);
 		}
-		const u64 N = eigenvalues.size();
-		double E_av = arma::trace(eigenvalues) / double(N);
-
-		auto i = min_element(begin(eigenvalues), end(eigenvalues), [=](int x, int y) {
-			return abs(x - E_av) < abs(y - E_av);
-			});
-		u64 E_av_idx = i - eigenvalues.begin();
-
-		u64 num = 0.25 * N;
-		double r1 = statistics::eigenlevel_statistics((E_av_idx - num) + eigenvalues.begin(), (E_av_idx + num) + eigenvalues.begin());
-		double r2 = statistics::eigenlevel_statistics((E_av_idx - 200) + eigenvalues.begin(), (E_av_idx + 200) + eigenvalues.begin());
-		printSeparated(file, "\t", 14, true, par1, par2, r1, r2);
+		printSeparated(file, "\t", 14, true, par1, par2, r1 / double(realis), r2 / double(realis));
 
 		// save distribution of level spacing
-		auto lvl_spacing = statistics::eigenlevel_statistics_return(eigenvalues);
+		lvl_prob_dist /= double(realis);
 		std::string dir = this->saving_dir + "LevelSpacing" + kPSep + "distribution" + kPSep;
-		statistics::probability_distribution(dir, info, lvl_spacing);
+		auto x = arma::linspace(_min, _max, lvl_prob_dist.size());
+		save_to_file(dir + info, x, lvl_prob_dist, r1 / double(realis));
 	};
 	std::ofstream file;
 	std::string dir_out = this->saving_dir + "LevelSpacing" + kPSep + "ratio" + kPSep;
@@ -1311,33 +1328,6 @@ void isingUI::ui::level_spacing(){
 				kernel(file, hx, gx, system_size, gx, hx);
 		file.close();	
 	}
-}
-
-template <typename _type>
-void isingUI::ui::LevelSpacingDist(IsingModel<_type> &alfa)
-{
-	auto r = alfa.eigenlevel_statistics_with_return();
-	auto probDist = probability_distribution_with_return(r);
-	double _min = arma::min(r);
-	double _max = arma::max(r);
-	for (int i = 0; i < 20; i++)
-	{
-		double dg = alfa.getRandomValue(-alfa.g / 100., alfa.g / 100.);
-		auto beta = std::make_shared<IsingModel<_type>>(alfa);
-		beta->g = beta->g + dg;
-		beta->hamiltonian();
-		beta->diagonalization(false);
-		auto level_spacing = beta->eigenlevel_statistics_with_return();
-		probDist += probability_distribution_with_return(level_spacing);
-		_min += arma::min(level_spacing);
-		_max += arma::max(level_spacing);
-	}
-	_min /= 21.;
-	_max /= 21.;
-	probDist /= 21.;
-	fs::create_directory(this->saving_dir + "LevelSpacing" + kPSep);
-	save_to_file(this->saving_dir + "LevelSpacing" + kPSep, "LevelSpacing" + alfa->get_info({}),
-				 arma::linspace(_min, _max, probDist.size()), probDist);
 }
 
 

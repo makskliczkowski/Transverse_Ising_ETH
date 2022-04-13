@@ -141,7 +141,7 @@ namespace isingUI
 		void diag_sparse(int num, bool get_eigenvectors = false, double sigma = 0.0);		// diagonalize for limited number (set as num) of eigevals starting at sigma and higher eigvals
 
 		template <typename _type> [[nodiscard]]
-		auto get_eigenvalues(IsingModel<_type>& alfa) -> arma::vec;
+		auto get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix = "") -> arma::vec;
 
 		// --------------- COMPARISONS
 		void compare_energies();
@@ -169,7 +169,6 @@ namespace isingUI
 		
 		
 		//-------------------------------------------------------------------------- ADIABATIC GAUGE POTENTIALS
-		template <typename _type> void LevelSpacingDist(IsingModel<_type>& alfa);
 		void adiabaticGaugePotential_sym(bool SigmaZ = 0, bool avSymSectors = 0);
 		void adiabaticGaugePotential_dis();
 		void combineAGPfiles();

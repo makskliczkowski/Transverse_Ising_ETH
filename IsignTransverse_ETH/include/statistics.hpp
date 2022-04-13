@@ -212,7 +212,7 @@ mean_level_spacing(const arma::vec& eigenvalues)
 //<! ssf at time-point
 [[nodiscard]]
 inline 
-double 
+std::pair<double, double> 
 spectral_form_factor(
     const arma::vec& eigenvalues,   //<! eigenvalues to generate SFF
     double t                        //<! time point at which SFF calculated
@@ -226,12 +226,12 @@ spectral_form_factor(
 	}
 	double ssf = abs(cpx(ssf_re, ssf_im));
 	ssf *= ssf;
-	return ssf / double(N);
+	return std::make_pair(ssf, double(N));
 }
 //<! ssf at time-point with gaussian filter
 [[nodiscard]]
 inline 
-double 
+std::pair<double, double>
 spectral_form_factor_filter(
     const arma::vec& eigenvalues,   //<! eigenvalues to generate SFF
     double t,                       //<! time point at which SFF calculated
@@ -252,27 +252,30 @@ spectral_form_factor_filter(
 	}
 	double ssf = abs(cpx(ssf_re, ssf_im));
 	ssf *= ssf;
-	return ssf / Z;
+	return std::make_pair(ssf, Z);
 }
 
 //<! ssf for time range
 [[nodiscard]]
 inline
-arma::vec
+std::pair<arma::vec, double>
 spectral_form_factor(
     const arma::vec& eigenvalues,   //<! eigenvalues to generate SFF
     const arma::vec& times,         //<! time range to calculate within
     double eta = 0.5                //<! filter parameter
     ){
+    double Z = 0;
 	arma::vec ssf(times.size(), arma::fill::zeros);
 #pragma omp parallel for
 	for (long i = 0; i < ssf.size(); i++){
+        double ssf_temp = 0;
 		if(eta < 0.0 || eta > 1.0)
-            ssf(i) = spectral_form_factor(eigenvalues, times(i));
+            std::tie(ssf_temp, Z) = spectral_form_factor(eigenvalues, times(i));
         else
-            ssf(i) = spectral_form_factor_filter(eigenvalues, times(i), eta);
+            std::tie(ssf_temp, Z) = spectral_form_factor_filter(eigenvalues, times(i), eta);
+        ssf(i) = ssf_temp;
     }
-	return ssf;
+	return std::make_pair(ssf, Z);
 }
 
 
