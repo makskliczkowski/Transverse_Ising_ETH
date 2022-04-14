@@ -8,7 +8,7 @@
 #INPUTS TO SCRIPT ARE: L,  h,  dg, fun, operator , site, thread_num
 
 #set boolean value
-ch=1
+ch=0
 
 
 operator=$5; site=$6; thread_num=$7;
@@ -28,7 +28,8 @@ module load intel/2022.00
 
 # set number of realisations, array from L=8 to L=16
 	#R_ARR=(600 600 400 400 300 200 200 100 100)										# ch = 0
-	R_ARR=(600 600 400 400 300 300 200 100 100 100 100 100 50 50 50 50 50) 	# ch = 1
+	#R_ARR=(600 600 400 400 300 300 200 100 100 100 100 100 50 50 50 50 50) 	# ch = 1
+	R_ARR=(20 20 20 20 20 20 20 10 10) # diagonalizaiton
 	r=${R_ARR[`expr ${1}-8`]}
 
 # set input parameters: to multiply use \*, cause * means 'all files'
@@ -70,5 +71,5 @@ filename="run_logs/${funName}_L=${1}_h=${2}_g=${g}${suffix}"
 #g++ -std=c++2a main.cpp IsingModel.cpp IsingModel_disorder.cpp IsingModel_sym.cpp tools.cpp user_interface.cpp -o Ising_${funName}_L=${1}_h=${2}_g=${g}${suffix}.o\
 # -DARMA_DONT_USE_WRAPPER -I/home/rswietek/LIBRARIES_CPP/armadillo-10.8.2/include -llapack -lopenblas -fopenmp -lpthread -lm -lstdc++fs -fomit-frame-pointer -Ofast >& compile_${funName}_L=${1}_h=${2}_g=${g}${suffix}.log
  
-./Ising.o -L $1 -g $g -h $2 -th $thread_num -m 0 -w 0.01 -r $r\
+./Ising.o -L $1 -g $g -h $2 -th $thread_num -m 0 -w 0.1 -r $r\
  -op $operator -fun $4 -s $site -b 0 -ch $ch "${@:8}" >& ${filename}.log

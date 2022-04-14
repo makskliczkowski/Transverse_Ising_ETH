@@ -1,8 +1,8 @@
 #!/bin/bash
-sbatch --cpus-per-task=24 --mem=20G --time=24:00:00 --array=0-319%10 Ising_spectrals.sh 14 $1 6 0.05 24
-sbatch --cpus-per-task=24 --mem=20G --time=24:00:00 --array=0-319%10 Ising_spectrals.sh 14 $1 6 0.05 24
-sbatch --cpus-per-task=24 --mem=20G --time=24:00:00 --array=0-319%10 Ising_spectrals.sh 14 $1 7 0.05 24
-sbatch --cpus-per-task=24 --mem=20G --time=24:00:00 --array=0-319%10 Ising_spectrals.sh 14 $1 7 0.05 24
+sbatch --cpus-per-task=8 --mem=20G --time=24:00:00 --array=0-209%30 Ising_spectrals.sh 14 $1 6 0.1 8
+sbatch --cpus-per-task=8 --mem=20G --time=24:00:00 --array=0-209%20 Ising_spectrals.sh 14 $1 7 0.1 8
+#sbatch --cpus-per-task=20 --mem=20G --time=96:00:00 --array=0-319%10 Ising_spectrals.sh 15 $1 6 0.05 20
+#sbatch --cpus-per-task=20 --mem=20G --time=96:00:00 --array=0-319%10 Ising_spectrals.sh 15 $1 7 0.05 20
 exit;
 
 #SIGMA^Z_j=..
