@@ -29,7 +29,7 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 w = 0.01
 g = 0.4
 L = 14
-h = 0.5
+h = 0.8
 h0 = 80
 hend = 400
 dh = 40
@@ -109,9 +109,9 @@ if(choose == 0){
 	} else{
 		if(choose == 2){
 			set xlabel 't / t_H'
-			set logscale x
+			set logscale xy
 			set format x '10^{%L}'
-			#set format y '10^{%L}'
+			set format y '10^{%L}'
 			dir = dir_base.'SpectralFormFactor/'
 			if(smoothen){ dir = dir.'smoothed/';}
 			i0=0; iend=1; di=1;
@@ -122,11 +122,11 @@ if(choose == 0){
 				key_title(x) = sprintf("h = %.2f", 0.01 * x);
 			} else {	
 				if(scaling == 1){	# L - scaling
-					i0=10; iend=14; di=1;
+					i0=8; iend=14; di=1;
 					ssf_name(x) = dir.sprintf("_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=0.01.dat", x, g, h);
 					key_title(x) = sprintf("L = %d", x);
 				} else {	#	g - scaling
-					i0=35; iend=85; di=20;
+					i0=15; iend=85; di=20;
 					ssf_name(x) = dir.sprintf("_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=0.01.dat", L, 0.01 * x, h);
 					key_title(x) = sprintf("g = %.2f", 0.01 * x);
 				}
@@ -147,7 +147,7 @@ if(choose == 0){
 						print key_title(i)," -----------------------------------------------------------------------------"
 					}
 			}
-			set yrange[2e-3:4e0]
+			#set yrange[2e-3:4e0]
 			plot for[i=i0:iend:di] ssf_name(i) u 1:2 w l lw 1.5 t key_title(i), (x < 1? 2 * x - x*log(1+2*x) : 2-x*log( (2*x+1) / (2*x-1))) w l ls 1 lw 2 t 'GOE'
 
 		} else{

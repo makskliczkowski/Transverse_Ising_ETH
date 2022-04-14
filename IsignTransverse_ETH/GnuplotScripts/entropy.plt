@@ -29,7 +29,7 @@ set style line 4 dt (1,1) lc rgb "green" lw 2.5
 set fit quiet
 
 #------------------------------------ PARAMETERS
-L = 17
+L = 18
 g = 0.40
 g2 = 0.9 
 h = 0.8;
@@ -48,12 +48,14 @@ rescale_by_page=0		# rescale byu Page value
 
 compare_scales = 0		# plot 4 panels, 2g's anf log-log and lin-log for each
 compare_to_lanczos = 0	# compare all results to lanczos eovlution (if available)
-plot_exponent = 1
+plot_exponent = 0
+plot_error = 1
 
+if(plot_exponent == 1) plot_error = 0;
 if(plot_exponent == 0 && scaling == 2) compare_scales = 0;
 	h0 = 20;	hend = 300;		dh = 20;
-	g0 = 30;	gend = 90;		dg = 5;
-	L0 = 12;	Lend = 17; 		dL = 1;
+	g0 = 5;	gend = 70;		dg = 5;
+	L0 = 12;	Lend = 18; 		dL = 1;
 
 plot_only_lanczos = 0
 #if(plot_exponent) plot_only_lanczos = 0;
@@ -147,7 +149,7 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 	#	dir.sprintf("compare_to_disorder_L=%d,g=%.2f,h=0.80,k=0,p=1,x=1.dat", L, g) u ($1 / (L+0.0)):($5 / page($1)) w p ps 2 t 'k=0,p=1',\
 	#	dir.sprintf("compare_to_disorder_L=%d,g=%.2f,h=0.80,k=0,p=1,x=1.dat", L, g) u ($1 / (L+0.0)):($6 / page($1)) w p ps 2 t 'k=1', 1-abs(1-2*x) w l ls 1 notitle
 	#exit;
-	RANGE = rescale_x_axis? "set xrange[1e-1:2e2]; set yrange[3e-2:6];" : "set xrange[1e-1:200]; set yrange[3e-1:6];"
+	RANGE = rescale_x_axis? "set xrange[1e-1:2e2]; set yrange[3e-2:6];" : "set xrange[1e-2:200]; set yrange[3e-3:6];"
 	RANGE2="set xrange[3e-1:10]; set yrange[1e-1:6];"
 	MARGIN = compare_scales? "set lmargin at screen 0.10; set rmargin at screen 0.54; set bmargin at screen 0.10; set tmargin at screen 0.54;"\
 					: "set lmargin at screen 0.10; set rmargin at screen 0.98; set bmargin at screen 0.10; set tmargin at screen 0.98;"
@@ -217,10 +219,19 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 					plot for[i=i0:iend:di] name_lancz(i) u (rescale_X($1,i)):(rescale($2,i)) w p ps 0.75 pt 5 notitle
 					#plot for[i=i0:iend:di] name(i) u (rescale_X($1,i)):(rescale($3,i)) w p ps 0.75 pt 5 notitle
 				}
+				if(plot_error){
+					@MARGIN; @UNSET; @RANGE;
+					set style fill transparent solid 0.25 # partial transparency
+					set style fill noborder # no separate top/bottom lines
+					plot for[i=i0:iend:di] name(i) u (rescale_X($1,i)):(rescale($2,i)-rescale($3,i)):(rescale($2,i)+rescale($3,i)) w filledcurves lc ((i-i0)/di+1) notitle
+				}
 				#plot for[i=i0:iend:di] name(i) u 1:($1 < 10 ? NaN : L/2.*log(2) - 0.5) w l ls 2 notitle 
 				unset multiplot
 			} else{
 				@MARGIN; set xrange[6e-1:100]; set yrange[0:2e0];
+					set style fill transparent solid 0.25 # partial transparency
+					set style fill noborder # no separate top/bottom lines
+					plot for[i=i0:iend:di] name(i) u (rescale_X($1,i)):(rescale($2,i)-rescale($3,i)):(rescale($2,i)+rescale($3,i)) w filledcurves ls 1 notitle
 				plot for[i=i0:iend:di] name_exp(i) u (rescale_X($1,i)):($2) w lp ps 0.75 pt 5 lw 2 title key_title(i)#, 1/x w l ls 0 lw 2 notitle
 			}
 		}

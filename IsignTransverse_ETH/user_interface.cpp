@@ -78,8 +78,8 @@ void isingUI::ui::make_sim()
 					printSeparated(std::cout, "\t", 16, true, this->L, this->g, this->h);
 					// ----------------------
 					const auto start_loop = std::chrono::system_clock::now();
-					this->diagonalize(); continue;
-					//spectral_form_factor(); continue;
+					//this->diagonalize(); continue;
+					spectral_form_factor(); continue;
 					std::string dir = this->saving_dir + "Entropy" + kPSep;// + "Lanczos" + kPSep;
 					//std::string str = (this->op < 3) ? "j" : "q";
 					//if(this->op == 6) str = "n";
