@@ -31,7 +31,7 @@ echo $h, $fun, $operator, $site, $name, "${@:6}"
 #exit;
 
 # #SBATCH --output=logs/g_scale_log-%j-%a.out
-sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=1 --mem=1G --time=3:00:00 --array=0-29%1 Ising_g_scaling.sh 8 $h 0.05 $fun $operator $site 1 "${@:6}"
+#sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=1 --mem=1G --time=3:00:00 --array=0-29%1 Ising_g_scaling.sh 8 $h 0.05 $fun $operator $site 1 "${@:6}"
 sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=1 --mem=1G --time=3:00:00 --array=0-29%1 Ising_g_scaling.sh 9 $h 0.05 $fun $operator $site 1 "${@:6}"
 sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=1 --mem=2G --time=3:00:00 --array=0-29%1 Ising_g_scaling.sh 10 $h 0.05 $fun $operator $site 1 "${@:6}"
 sbatch --job-name=$name --output=logs/${name}_log-%A-%a.out --cpus-per-task=1 --mem=4G --time=3:00:00 --array=0-29%1 Ising_g_scaling.sh 11 $h 0.05 $fun $operator $site 1 "${@:6}"
