@@ -117,10 +117,10 @@ void isingUI::ui::make_sim()
 					//std::string _dir = this->saving_dir + "SpectralFormFactor" + kPSep;
 					//smoothen_data(_dir, name);
 					//continue;
-					stout << "\t\t	--> start diagonalizing for " << alfa->get_info()
-							  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 					alfa->diagonalization();
 					
+					stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
+							  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 					
 					const double tH = 1. / alfa->mean_level_spacing_analytical();
 					int t_max = (int)std::ceil(std::log10(tH));
@@ -234,24 +234,30 @@ void isingUI::ui::diag_sparse(int num, bool get_eigenvectors, double sigma)
 }
 
 void isingUI::ui::diagonalize(){
-	auto kernel = [this](
+	clk::time_point start = std::chrono::system_clock::now();
+	auto kernel = [this, &start](
 		auto& alfa, 				//<! model
 		std::string _suffix = ""	//<! suffix, like realisation etc
 		){
 		std::string info = alfa.get_info({});
+		stout << "\n\t\t--> finished creating model for " << info << " - in time : " << tim_s(start) << "s" << std::endl;
+
 		alfa.diagonalization(this->ch);
 		auto eigenvalues = alfa.get_eigenvalues();
+		stout << "\t\t	--> finished diagonalizing for " << info << " - in time : " << tim_s(start) << "s" << std::endl;
 
 		std::string dir = this->saving_dir + "EIGENVALUES" + kPSep;
 		createDirs(dir);
 		std::string name = dir + kPSep + info + _suffix;
 		eigenvalues.save(arma::hdf5_name(name + ".h5", "eigenvalues"));
+		stout << "\t\t	--> finished saving eigenvalues for " << info << " - in time : " << tim_s(start) << "s" << std::endl;
 		if(this->ch){
 			dir = this->saving_dir + "EIGENVECTORS" + kPSep;
 			name = dir + kPSep + info;
 			createDirs(dir);
 			auto V = alfa.get_eigenvectors();
 			V.save(arma::hdf5_name(name + ".h5", "eigenvectors"));
+			stout << "\t\t	--> finished saving eigenvectors for " << info << " - in time : " << tim_s(start) << "s" << std::endl;
 		}
 	};
 	// ----------- choose model and run kernel
@@ -1660,6 +1666,7 @@ void print_help(){
 		"-ts time step for evolution (default: 0.1)\n"
 		"-scale choose scale for data: either linear-0, log-1 or custom-2 (default: linear)\n"
 		"-h quit with help\n");
+		std::cout << std::endl;
 }
 
 /// <summary>
