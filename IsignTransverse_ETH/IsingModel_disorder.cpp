@@ -11,6 +11,7 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 	this->reset_random();
 	//change info
 	this->info = "_L=" + std::to_string(this->L) + \
+		",J=" + to_string_prec(this->J, 2) + \
 		",J0=" + to_string_prec(this->J0, 2) + \
 		",g=" + to_string_prec(this->g, 2) + \
 		",g0=" + to_string_prec(this->g0, 2) + \
@@ -93,7 +94,7 @@ void IsingModel_disorder::hamiltonian() {
 		for (int j = 0; j <= L - 1; j++) {
 			s_i = checkBit(k, L - 1 - j) ? 1.0 : -1.0;;							 // true - spin up, false - spin down
 
-			NO_OVERFLOW(u64 new_idx = flip(k, BinaryPowers[this->L - 1 - j], this->L - 1 - j);)
+			u64 new_idx = flip(k, BinaryPowers[this->L - 1 - j], this->L - 1 - j);
 			setHamiltonianElem(k, this->g + this->dg(j), new_idx);
 
 			/* disorder */

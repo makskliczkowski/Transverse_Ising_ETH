@@ -21,10 +21,9 @@ set ytics mirror;"
 @FORMAT
 x_log = 1; 
 y_log = 1;
-SCALE = x_log? "unset logscale xy; set logscale x;" : ""
-SCALE = SCALE.(y_log? "set logscale y;" : "")
+SCALE = x_log? "unset logscale xy; set logscale x; set format x '10^{%L}'; " : "set format x '%g'"
+SCALE = SCALE.(y_log? "set logscale y; set format y '10^{%L}'" : "set format y '%g'")
 @SCALE
-set format x "10^{%L}"
 
 UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset border;"
 
@@ -41,22 +40,25 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 14; 
-g = 0.7;
+L = 15; 
+g = 0.2;
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
 rescale = 0				# rescale the spectral function by f(w, L)?
 power = 0.5				# power in scaling with omega
 operator = 1	 		# 1-SigmaZ , 0-Hq :local
-site = 0				# site at which the operator acts
+site = 2				# site at which the operator acts
 cor = 0					# correlations
-scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
-q_vs_j = 0				# =1 - evolution of Sz_q, else ecol of Sz_j
+scaling = 3				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
+q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
 compare = 0
+smoothed_data = 1		# plot smoothed data?
+plot_exponent = 1		# plot exponent to find relaxation time
 
+if(plot_exponent) smoothed_data = 0;
 substract_LTA = 0
-
+if(scaling == 4){ plot_exponent =0; smoothed_data = 0;}
 rescale = 0
 nu = 3		# power on L
 #if(scaling != 1) rescale = 0;
@@ -69,7 +71,7 @@ local = 0
 	g0 = 20;	gend = 90;		dg = 10;
 	L0 = 10;	Lend = 15; 		dL = 1;
 
-use_fit = 1
+use_fit = 0
 which_fit = 1		# =1 -power-law || =0 -exp || =2-log
 
 x_min = 1e1; x_max =2e2;  
@@ -91,6 +93,8 @@ if(operator == 0) {op = "H"; }
 if(operator == 1) {op = "SigmaZ";}
 if(operator == 2) {op = "TFIM_LIOM_plus";}
 if(operator == 3) {op = "TFIM_LIOM_minus";}
+if(smoothed_data) {op = 'smoothed/'.op;}
+if(plot_exponent) {op = 'Exponent/'.op;}
 
 str(x) = (q_vs_j? "q" : "j").sprintf("=%d",x);
 if(operator > 1){ str(x) = "n".sprintf("=%d",x); }
@@ -181,7 +185,7 @@ size = (iend - i0) / di+1
 	do for[i=i0:iend:di]{
 		idx = (i-i0)/di+1
 		name = _name(i)
-		if(fileexist(name)){
+		if(fileexist(name) && !plot_exponent){
 			stats name every ::0::1 using 2 nooutput;	val[idx] = STATS_min
 			stats name every ::0::1 using 3 nooutput; 	tH[idx]  = STATS_min;
 			stats name every ::0::1 using 4 nooutput; 	LTA[idx] = STATS_min
@@ -192,7 +196,7 @@ size = (iend - i0) / di+1
 			if(use_fit){
 				a_list[idx] = 0; b_list[idx] = 0; alfa_list[idx] = 0; #x0_list[idx] = 0;
 			}
-			print key_title(i)," -----------------------------------------------------------------------------"
+			print _key_title(i)," -----------------------------------------------------------------------------"
 		}
 	}
 	sub(i,i0,di) = substract_LTA? LTA[(i-i0)/di+1] : 0.0;
@@ -243,7 +247,8 @@ size = (iend - i0) / di+1
 	set multiplot
 		if(compare){ set logscale xy;}
 		else{ @SCALE; }
-		@MARGIN; @RANGE; 
+		@MARGIN; @RANGE;
+		#set yrange[1e-1:1e6] 
 		plot for[i=i0:iend:di] _name(i) u (rescale_x($1, i)):(abs($2-sub(i,i0,di))) w l lw 1.5 title _key_title(i)#, (var+exp(-x/85.7258+2))/(1+var) w l ls 4 t "e^{-t/{/Symbol t}}"
 		if(compare){
 			unset label 1;

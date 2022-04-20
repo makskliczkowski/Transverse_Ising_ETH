@@ -26,10 +26,10 @@ RMARGIN = "set lmargin at screen 0.46; set rmargin at screen 0.82"
 RANGE = "set xrange[0:1]; set yrange[0:2.0]"
 UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset border;"
 #-- PARAMETERS
-w = 0.01
+w = 0.1
 g = 0.4
-L = 14
-h = 0.8
+L = 11
+h = 0.2
 h0 = 80
 hend = 400
 dh = 40
@@ -118,21 +118,22 @@ if(choose == 0){
 			ssf_name(x) = ""; key_title(x) = "";
 			if(scaling == 0){	# h - sclaing
 				i0=20; iend=120; di=20;
-				ssf_name(x) = dir.sprintf("_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=0.01.dat", L, g, 0.01 * x);
+				ssf_name(x) = dir.sprintf("_L=%d,J=1.00,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", L, g, 0.01 * x, w);
 				key_title(x) = sprintf("h = %.2f", 0.01 * x);
 			} else {	
 				if(scaling == 1){	# L - scaling
 					i0=8; iend=14; di=1;
-					ssf_name(x) = dir.sprintf("_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=0.01.dat", x, g, h);
+					ssf_name(x) = dir.sprintf("_L=%d,J=1.00,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", x, g, h, w);
 					key_title(x) = sprintf("L = %d", x);
 				} else {	#	g - scaling
 					i0=15; iend=85; di=20;
-					ssf_name(x) = dir.sprintf("_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=0.01.dat", L, 0.01 * x, h);
+					ssf_name(x) = dir.sprintf("_L=%d,J=1.00,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", L, 0.01 * x, h, w);
 					key_title(x) = sprintf("g = %.2f", 0.01 * x);
 				}
 			}
 			set key right top
-			set xrange[1e-5:8];
+			x_min = scaling == 1? 1./2**iend : 1. / 2**L
+			set xrange[x_min:8];
 			set yrange[2e-3:4e4]
 				array tH[(iend-i0)/di+1]
 				array val[(iend-i0)/di+1]

@@ -29,7 +29,7 @@ set style line 4 dt (1,1) lc rgb "green" lw 2.5
 set fit quiet
 
 #------------------------------------ PARAMETERS
-L = 18
+L = 19
 g = 0.40
 g2 = 0.9 
 h = 0.8;
@@ -37,7 +37,7 @@ J0 = 0.; g_knot = 0.;
 w = 0.01;
 
 subsystem_size=3		# subsystem size
-scaling = 2		# size scaling=1 or h-scaling=0 or 	g-scaling=2 or subsystem_size=3
+scaling = 1		# size scaling=1 or h-scaling=0 or 	g-scaling=2 or subsystem_size=3
 what_to_plot = 1   		# subsystem size=0, time evolution=1  or  eigenstates parabola=2
 
 nu=-0.4
@@ -49,13 +49,13 @@ rescale_by_page=0		# rescale byu Page value
 compare_scales = 0		# plot 4 panels, 2g's anf log-log and lin-log for each
 compare_to_lanczos = 0	# compare all results to lanczos eovlution (if available)
 plot_exponent = 0
-plot_error = 1
+plot_error = 0
 
 if(plot_exponent == 1) plot_error = 0;
 if(plot_exponent == 0 && scaling == 2) compare_scales = 0;
 	h0 = 20;	hend = 300;		dh = 20;
 	g0 = 5;	gend = 70;		dg = 5;
-	L0 = 12;	Lend = 18; 		dL = 1;
+	L0 = 12;	Lend = 19; 		dL = 1;
 
 plot_only_lanczos = 0
 #if(plot_exponent) plot_only_lanczos = 0;
@@ -149,7 +149,7 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 	#	dir.sprintf("compare_to_disorder_L=%d,g=%.2f,h=0.80,k=0,p=1,x=1.dat", L, g) u ($1 / (L+0.0)):($5 / page($1)) w p ps 2 t 'k=0,p=1',\
 	#	dir.sprintf("compare_to_disorder_L=%d,g=%.2f,h=0.80,k=0,p=1,x=1.dat", L, g) u ($1 / (L+0.0)):($6 / page($1)) w p ps 2 t 'k=1', 1-abs(1-2*x) w l ls 1 notitle
 	#exit;
-	RANGE = rescale_x_axis? "set xrange[1e-1:2e2]; set yrange[3e-2:6];" : "set xrange[1e-2:200]; set yrange[3e-3:6];"
+	RANGE = rescale_x_axis? "set xrange[1e-1:2e2]; set yrange[3e-2:6];" : "set xrange[2e-1:200]; set yrange[1e-1:6];"
 	RANGE2="set xrange[3e-1:10]; set yrange[1e-1:6];"
 	MARGIN = compare_scales? "set lmargin at screen 0.10; set rmargin at screen 0.54; set bmargin at screen 0.10; set tmargin at screen 0.54;"\
 					: "set lmargin at screen 0.10; set rmargin at screen 0.98; set bmargin at screen 0.10; set tmargin at screen 0.98;"
@@ -201,7 +201,7 @@ f_plot(a,b, t0,t) = (t < x_min || t > x_max)? NaN : a*log((t-t0)) + b
 			set xlabel 't'
 			set ylabel 'S(t)'
 			set key left top font ",16"
-			@LIN_LOG
+			@LOG_LOG
 			if(plot_exponent == 0){
 				set multiplot
 				@MARGIN; @RANGE;

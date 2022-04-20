@@ -15,6 +15,7 @@ IsingModel_sym::IsingModel_sym(int L, double J, double g, double h, int k_sym, b
 	this->createSymmetryGroup();
 
 	this->info = "_L=" + std::to_string(this->L) + \
+		",J=" + to_string_prec(this->J, 2) + \
 		",g=" + to_string_prec(this->g, 2) + \
 		",h=" + to_string_prec(this->h, 2) + \
 		",k=" + std::to_string(k_sym) + \

@@ -36,7 +36,7 @@ namespace spectrals{
 		v_1d<int> Mx = v_1d<int>({100, 400, 700, 1200, 2000, 5000, 8000, 12000, 15000, 6000, 8000, 10000, 12000, 14000, 16000});
 		NO_OVERFLOW(int M = Mx[alfa.L - 8];);
 		std::ofstream reponse_fun;
-		openFile(reponse_fun, name + alfa.get_info({}) + "_M=" + std::to_string(M) + ".dat", ios::out);
+		openFile(reponse_fun, name + alfa.get_info({}) + ".dat", ios::out);
 		// long int M = std::pow(N, 0.75);
 		long int bucket_num = int(size / (double)M);
 		for (int k = 0; k < bucket_num; k++)

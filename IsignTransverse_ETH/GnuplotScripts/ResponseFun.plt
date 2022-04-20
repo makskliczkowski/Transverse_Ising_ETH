@@ -34,9 +34,9 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 14; 
-g = 0.7; 
-h = 0.1;
+L = 15; 
+g = 0.9; 
+h = 0.8;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
 
@@ -44,11 +44,11 @@ SigX_or_SigZ = 1	 	# 0-SigX , 1-SigZ :local
 operator_sum = 0		# is the operator a sum
 site = 1				# site at which the operator acts
 cor = 0					# correlations
-scaling = 3				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or 4-realisations or 5-M scaling or 6-compare
-q_vs_j = 0				# =1 - evolution of Sz_q, else ecol of Sz_j
-operator = 2	 		# 1-SigmaZ , 0-Hq :local
+scaling = 1				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or 4-realisations or 5-M scaling or 6-compare
+q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
+operator = 0	 		# 1-SigmaZ , 0-Hq :local
 compare = 0
-use_derivative = 0		# use derivative of integrated spectral function
+use_derivative = 1		# use derivative of integrated spectral function
 if(use_derivative){ compare = 0};
 
 LIOM = 0				# plot LIOMs?
@@ -58,8 +58,8 @@ rescale=0				# rescale S_A by power law to find const region
 add_line=0				# draw power-law: a/omega^n
 a0=8e-5					# value of power-law plot at x=1
 	h0 = 5;	hend = 20;		dh = 5;
-	g0 = 5;	gend = 40;		dg = 5;
-	L0 = 11;	Lend = 14; 		dL = 1;
+	g0 = 30;	gend = 70;		dg = 10;
+	L0 = 12;	Lend = 15; 		dL = 1;
 
 
 
@@ -78,7 +78,7 @@ x_max = 1e-1;
 y_min = 1e-1
 y_max = 2e0
 RANGE2 = "set xrange[x_min:x_max]; set yrange[y_min:y_max];"
-RANGE = (use_derivative? "set xrange[1e-3:3e1]; set yrange[1e-4:1e2];" : "set xrange[1e-3:3e1]; set yrange[1e-10:0.05];")
+RANGE = (use_derivative? "set xrange[1e-4:3e1]; set yrange[1e-4:1e3];" : "set xrange[1e-3:3e1]; set yrange[1e-10:0.05];")
 if(use_derivative){ a0 = 1e-3}
 #rescale function
 nu=2.0
@@ -101,7 +101,7 @@ out_dir = 'Spectral_Function/'
 	i0 = 0; iend = 0; di = 1;
 		if(scaling == 0){
 			dir = dir.str(site).'/';
-			name(x) = dir.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f_M=8000.dat", L, J0, g, g_knot, 0.01*x, w);	key_title(x) = sprintf("h=%.2f", x/100.)
+			name(x) = dir.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, 0.01*x, w);	key_title(x) = sprintf("h=%.2f", x/100.)
 			name2(x) = dir_base.'IntegratedResponseFunction/DERIVATIVE/'.str(site).'/'.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, 0.01*x, w);
 			i0 = h0; iend = hend; di = dh; 	out_dir = out_dir."h_scaling/";
 			output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,w=%.2f", L, J0, g, g_knot, w);
@@ -122,7 +122,7 @@ out_dir = 'Spectral_Function/'
 					output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J0, g_knot, h, w);
 				} else{
 					if(scaling == 3){
-						name(x) = dir.str(x).'/'.op."_".str(x).sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f_M=8000.dat", L, J0, g, g_knot, h, w);
+						name(x) = dir.str(x).'/'.op."_".str(x).sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);
 						name2(x) = dir_base.'IntegratedResponseFunction/DERIVATIVE/'.str(x).'/'.op.sprintf("_".str(x)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);
 						key_title(x) = q_vs_j && operator < 2? sprintf("q/{/Symbol p}=%.2f", 2*x/(L+0.0))\
 								: (operator > 1? sprintf("n=%d", x) :  sprintf("j=%d", x) ) 

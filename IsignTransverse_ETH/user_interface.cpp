@@ -5,6 +5,67 @@ std::uniform_real_distribution<> fi		= std::uniform_real_distribution<>(0.0, pi)
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
 {
+	/*
+	double W = 5.5;
+	arma::mat energies;
+	std::string base = "/Users/rafal.swietek/Downloads/rafal_test_sff/jan_data_3D_Anderson/";
+	energies.load(arma::hdf5_name(base + "eigvals_L_16_dim_3_pbc_True_disorder_uniform_ham_type_anderson_t_-1.0_W_0.0_dW_" + to_string_prec(W, 2) + ".hdf5", "Eigenvalues"));
+	std::cout << energies.n_cols << "\t" << energies.n_rows << std::endl;
+	arma::mat sff_jan1, sff_jan2, sff_jan3;
+	bool state1 = sff_jan1.load(arma::hdf5_name(base + "eigvals_L_16_dim_3_pbc_True_disorder_uniform_ham_type_anderson_t_-1.0_W_0.0_dW_" + to_string_prec(W, 2) + ".hdf5", "SFF_spectra_eta_0.1000_filter_gaussian"));
+	bool state2 = sff_jan2.load(arma::hdf5_name(base + "eigvals_L_16_dim_3_pbc_True_disorder_uniform_ham_type_anderson_t_-1.0_W_0.0_dW_" + to_string_prec(W, 2) + ".hdf5", "SFF_spectra_eta_0.3000_filter_gaussian"));
+	bool state3 = sff_jan3.load(arma::hdf5_name(base + "eigvals_L_16_dim_3_pbc_True_disorder_uniform_ham_type_anderson_t_-1.0_W_0.0_dW_" + to_string_prec(W, 2) + ".hdf5", "SFF_spectra_eta_0.5000_filter_gaussian"));
+	stout << state1 << "\t" << state2 << "\t" << state3 << std::endl;
+	printSeparated(std::cout, "\t", 12, true, sff_jan1.n_cols, sff_jan1.n_rows, sff_jan2.n_cols, sff_jan2.n_rows, sff_jan3.n_cols, sff_jan3.n_rows);
+	std::cout << "Data loaded" << std::endl;
+
+	auto times = arma::logspace(log10(1.0 / 4096.0), log10(5*two_pi), 2000);
+	arma::vec sff1(times.size(), arma::fill::zeros);
+	arma::vec sff2 = sff1, sff3 = sff1;
+	double Z1 = 0, Z2 = 0, Z3 = 0;
+	int n_bins = 1 + long(3.322 * log(energies.n_rows));
+	arma::vec histE(n_bins, arma::fill::zeros);
+	arma::vec histE_unfolded(n_bins, arma::fill::zeros);
+	
+	for(int r = 0; r < energies.n_cols; r++){
+		arma::vec eigenvalues = energies.col(r);
+		histE = normalise_dist(arma::conv_to<arma::vec>::from(
+            arma::hist(eigenvalues, n_bins)
+            ), arma::min(eigenvalues), arma::max(eigenvalues));
+		
+		statistics::unfolding(eigenvalues);
+		histE_unfolded = normalise_dist(arma::conv_to<arma::vec>::from(
+            arma::hist(eigenvalues, n_bins)
+            ), arma::min(eigenvalues), arma::max(eigenvalues));
+		
+		auto [sff_r1, Z_r1] = statistics::spectral_form_factor(eigenvalues, times, 0.1);
+		auto [sff_r2, Z_r2] = statistics::spectral_form_factor(eigenvalues, times, 0.3);
+		auto [sff_r3, Z_r3] = statistics::spectral_form_factor(eigenvalues, times, 0.5);
+		sff1 += sff_r1; Z1 += Z_r1;
+		sff2 += sff_r2; Z2 += Z_r2;
+		sff3 += sff_r3; Z3 += Z_r3;
+	}
+	//histE_unfolded /= double(energies.n_cols);
+	//histE		   /= double(energies.n_cols);
+	sff1 /= Z1;
+	sff2 /= Z2;
+	sff3 /= Z3;
+
+	std::string out_dir = this->saving_dir + "SFF_TESTS" + kPSep;
+	createDirs(out_dir);
+	std::ofstream sff_file, hist_file;
+	openFile(sff_file, out_dir + "sff.dat", std::ios::out);
+	openFile(hist_file, out_dir + "hist.dat", std::ios::out);
+	arma::vec xvals = arma::linspace(0.0, 1.0, n_bins);
+	for(int i = 0; i < n_bins; i++)
+		printSeparated(hist_file, "\t", 16, true, xvals(i), histE(i), histE_unfolded(i));
+	hist_file.close();
+	for(int j = 0; j<times.size(); j++)
+		printSeparated(sff_file, "\t", 16, true, times(j), sff1(j), sff2(j), sff3(j));//, sff_jan1(j), sff_jan2(j), sff_jan3(j));
+	sff_file.close();
+
+	exit(1);
+	*/
 	printAllOptions();
 	seed = static_cast<long unsigned int>(time(0));
 	clk::time_point start = std::chrono::system_clock::now();
@@ -50,7 +111,7 @@ void isingUI::ui::make_sim()
 	case 2:
 		entropy_evolution();
 		break;
-	case 3:
+	case 3: 
 		spectral_form_factor();
 		break;
 	case 4:		
@@ -79,39 +140,38 @@ void isingUI::ui::make_sim()
 					// ----------------------
 					const auto start_loop = std::chrono::system_clock::now();
 					//this->diagonalize(); continue;
-					spectral_form_factor(); continue;
+					//spectral_form_factor(); continue;
 					std::string dir = this->saving_dir + "Entropy" + kPSep;// + "Lanczos" + kPSep;
-					//std::string str = (this->op < 3) ? "j" : "q";
-					//if(this->op == 6) str = "n";
-					//std::string dir = this->saving_dir + "timeEvolution" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
-					std::string dir2 = dir + + "PowerSpectrum" + kPSep;
-					//std::string dir2 = this->saving_dir + "TimeEvolution" + kPSep + "Quench" + kPSep;
-					createDirs(dir, dir2);
-					
+
 					auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 					////auto alfa = std::make_unique<IsingModel_sym>(this->L, -this->J, -this->g, -this->h,
 					////			 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 					const std::string name = alfa->get_info();
 					const size_t N = alfa->get_hilbert_size();
 					stout << "\n\t\t--> finished creating model for " << name << " - in time : " << tim_s(start) << "s" << std::endl;
-					smoothen_data(this->saving_dir + "SpectralFormFactor" + kPSep, alfa->get_info() + ".dat"); continue;
 
-					std::ifstream input;
+					for(this->site = 0; this->site <= this->L / 2.; this->site++){
+
 					auto [opName, dir_suffix] = IsingModel_disorder::opName(this->op, this->site);
-					auto data = readFromFile(input, dir + "TimeEvolution" + name + ".dat");
-					//auto data = readFromFile(input, dir + "TimeEvolution" + name + ".dat");
+					dir = this->saving_dir + "timeEvolution" + kPSep + dir_suffix + "=" + std::to_string(this->site) + kPSep;
+					std::string dir2 = dir + "Exponent" + kPSep;
+					//std::string dir2 = this->saving_dir + "TimeEvolution" + kPSep + "Quench" + kPSep;
+					createDirs(dir, dir2);
+					
+					smoothen_data(this->saving_dir + "SpectralFormFactor" + kPSep, alfa->get_info() + ".dat"); continue;
+					smoothen_data(dir, opName + name + ".dat");
+					std::ifstream input;
+					auto data = readFromFile(input, dir + "smoothed" + kPSep + opName + name + ".dat");
 					if(data.empty()) continue;
-					//arma::vec exponent = non_uniform_derivative(data[0], data[1]);
-					//arma::vec exponent = log_derivative(data[0], data[1]);
-					arma::cx_vec exponent(data[0].size());
-					arma::vec omegas = arma::logspace(-3, 2, data[0].size());
-					for(int j=0; j < exponent.size(); j++)
-						exponent(j) = simpson_rule<cpx>(data[0], arma::exp(im * data[0] * omegas(j)) % data[1]);
+					arma::vec exponent_exp 		 = non_uniform_derivative(data[0], data[1]);
+					arma::vec exponent_power_law = log_derivative(data[0], data[1]);
 					std::ofstream output;
-					openFile(output, dir2 + name + ".dat", std::ios::out);
-					for(int j = 0; j < exponent.size(); j++)
-						printSeparated(output, "\t", 16, true, data[0](j), abs(exponent(j)));//data[0](j) / data[1](j) * exponent(j));
+					openFile(output, dir2 + opName + name + ".dat", std::ios::out);
+					for(int j = 0; j < exponent_exp.size(); j++)
+						printSeparated(output, "\t", 16, true, data[0](j), (data[1](j) - data[3](0)) / exponent_exp(j), exponent_power_law(j));
 					output.close();
+					
+					}
 					continue;
 
 					//std::string _dir = this->saving_dir + "SpectralFormFactor" + kPSep;
@@ -235,41 +295,41 @@ void isingUI::ui::diag_sparse(int num, bool get_eigenvectors, double sigma)
 
 void isingUI::ui::diagonalize(){
 	clk::time_point start = std::chrono::system_clock::now();
-	auto kernel = [this, &start](
+	std::string dir = this->saving_dir + "DIAGONALIZATION" + kPSep;
+	createDirs(dir);
+
+	auto kernel = [this, &start, &dir](
 		auto& alfa, 				//<! model
 		std::string _suffix = ""	//<! suffix, like realisation etc
 		){
 		std::string info = alfa.get_info({});
-		stout << "\n\t\t--> finished creating model for " << info << " - in time : " << tim_s(start) << "s" << std::endl;
+		stout << "\n\t\t--> finished creating model for " << info + _suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 
 		alfa.diagonalization(this->ch);
 		auto eigenvalues = alfa.get_eigenvalues();
-		stout << "\t\t	--> finished diagonalizing for " << info << " - in time : " << tim_s(start) << "s" << std::endl;
+		stout << "\t\t	--> finished diagonalizing for " << info + _suffix<< " - in time : " << tim_s(start) << "s" << std::endl;
 
-		std::string dir = this->saving_dir + "EIGENVALUES" + kPSep;
-		createDirs(dir);
-		std::string name = dir + kPSep + info + _suffix;
-		eigenvalues.save(arma::hdf5_name(name + ".h5", "eigenvalues"));
-		stout << "\t\t	--> finished saving eigenvalues for " << info << " - in time : " << tim_s(start) << "s" << std::endl;
+		std::string name = dir + kPSep + info + ".hdf5";
+		eigenvalues.save(arma::hdf5_name(name, "/eigenvalues/" + _suffix, arma::hdf5_opts::append));
+		stout << "\t\t	--> finished saving eigenvalues for " << info + _suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 		if(this->ch){
-			dir = this->saving_dir + "EIGENVECTORS" + kPSep;
-			name = dir + kPSep + info;
-			createDirs(dir);
 			auto V = alfa.get_eigenvectors();
-			V.save(arma::hdf5_name(name + ".h5", "eigenvectors"));
+			V.save(arma::hdf5_name(name, "/eigenvectors/" + _suffix, arma::hdf5_opts::append));
 			stout << "\t\t	--> finished saving eigenvectors for " << info << " - in time : " << tim_s(start) << "s" << std::endl;
 		}
 	};
+	herr_t status;
 	// ----------- choose model and run kernel
 	if(this->m){
 		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 		kernel(*alfa);
 	} else{
+		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+		std::string info = alfa->get_info({});
 		for(int r = 0; r < this->realisations; r++){
-			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-			std::string suffix = (r == 0)? "" : "_real=" + std::to_string(r);
-			kernel(*alfa, suffix);
+			alfa->hamiltonian();
+			kernel(*alfa, "_real=" + std::to_string(r));
 		}
 	}
 }
@@ -980,7 +1040,7 @@ void isingUI::ui::spectral_form_factor(){
     // values to be set
 	double tH = 0;
 	std::string info;
-	int num_times = 1000;
+	int num_times = 5000;
 	arma::vec sff(num_times, arma::fill::zeros);
 	arma::vec times(num_times, arma::fill::zeros);
 	double Z = 0.0;
@@ -989,25 +1049,27 @@ void isingUI::ui::spectral_form_factor(){
 	for(int r = 0; r < realis; r++){
 		arma::vec eigenvalues;
 		std::string suffix = (this->m || r == 0)? "" : "_real=" + std::to_string(r);
-		
+		double dim = 0.0;
 		if(this->m){
 			auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 									 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 			eigenvalues = this->get_eigenvalues(*alfa, suffix);
 			tH = 1. / alfa->mean_level_spacing_analytical();
 			info = alfa->get_info({});
+			dim = alfa->get_hilbert_size();
 		} else{
 			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 			eigenvalues = this->get_eigenvalues(*alfa, suffix);
 			tH = 1. / alfa->mean_level_spacing_analytical();
 			info = alfa->get_info({});
+			dim = alfa->get_hilbert_size();
 		}
 		if(this->ch)
 			statistics::unfolding(eigenvalues);
 		
 		int t_max = (int)std::ceil(std::log10(tH));
 		t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
-		times = this->ch? arma::logspace(-5, 2, num_times) : arma::logspace(-3, t_max, num_times);
+		times = this->ch? arma::logspace(log10(1.0 / dim), 1, num_times) : arma::logspace(-3, t_max, num_times);
 		auto [sff_r, Z_r] = statistics::spectral_form_factor(eigenvalues, times, 0.5);
 		sff += sff_r;
 		Z += Z_r;
@@ -1301,8 +1363,9 @@ void isingUI::ui::level_spacing(){
 			r1 += statistics::eigenlevel_statistics((E_av_idx - num) + eigenvalues.begin(), (E_av_idx + num) + eigenvalues.begin());
 			r2 += statistics::eigenlevel_statistics((E_av_idx - num2) + eigenvalues.begin(), (E_av_idx + num2) + eigenvalues.begin());
 			auto lvl_spacing = statistics::eigenlevel_statistics_return(eigenvalues);
-			long n_bins = 1 + long(3.322 * log(lvl_prob_dist.size()));
-			if(r == 0) lvl_spacing.resize(n_bins); //resize once (no loss of data!)
+			long n_bins = 1 + long(3.322 * log(lvl_spacing.size()));
+			if(r == 0) 
+				lvl_prob_dist.resize(n_bins); //resize once (no loss of data!)
 			lvl_prob_dist += statistics::probability_distribution(lvl_spacing, n_bins);
 			_min = arma::min(lvl_spacing);
 			_max = arma::max(lvl_spacing);
@@ -1312,8 +1375,9 @@ void isingUI::ui::level_spacing(){
 		// save distribution of level spacing
 		lvl_prob_dist /= double(realis);
 		std::string dir = this->saving_dir + "LevelSpacing" + kPSep + "distribution" + kPSep;
+		createDirs(dir);
 		auto x = arma::linspace(_min, _max, lvl_prob_dist.size());
-		save_to_file(dir + info, x, lvl_prob_dist, r1 / double(realis));
+		save_to_file(dir + info + ".dat", x, lvl_prob_dist, r1 / double(realis));
 	};
 	std::ofstream file;
 	std::string dir_out = this->saving_dir + "LevelSpacing" + kPSep + "ratio" + kPSep;
