@@ -100,6 +100,7 @@ void isingUI::ui::make_sim()
 	}
 	exit(123);
  */
+	printSeparated(std::cout, "\t", 16, true, "J", "L", "g", "h");
 	switch (this->fun)
 	{
 	case 0: 
@@ -136,11 +137,12 @@ void isingUI::ui::make_sim()
 					this->L = system_size;
 					this->g = gx;
 					this->h = hx;
-					printSeparated(std::cout, "\t", 16, true, this->L, this->g, this->h);
+for(this->J = 0.1; this->J <= 1.0; this->J += 0.1){
+					printSeparated(std::cout, "\t", 16, true, this->J, this->L, this->g, this->h);
 					// ----------------------
 					const auto start_loop = std::chrono::system_clock::now();
 					//this->diagonalize(); continue;
-					//spectral_form_factor(); continue;
+					spectral_form_factor(); continue;
 					std::string dir = this->saving_dir + "Entropy" + kPSep;// + "Lanczos" + kPSep;
 
 					auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
@@ -240,7 +242,7 @@ void isingUI::ui::make_sim()
 			}
 		}
 	}
-
+	}
 	stout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - " << std::endl; // simulation end
 }
 
@@ -343,8 +345,6 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 	createDirs(dir);
 	std::string name = dir + alfa.get_info({}) + ".hdf5";
 	bool loaded = eigenvalues.load(arma::hdf5_name(name, "eigenvalues/" + _suffix));
-	stout << name << std::endl;
-	stout << eigenvalues.t() << std::endl;
 	if(!loaded){
 		std::cout << "Failed to load energies, returning empty array" << std::endl;
 		//alfa.diagonalization(false);

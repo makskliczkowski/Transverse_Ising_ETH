@@ -27,16 +27,17 @@ RANGE = "set xrange[0:1]; set yrange[0:2.0]"
 UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset border;"
 #-- PARAMETERS
 w = 0.1
-g = 0.4
-L = 11
-h = 0.2
+g = 0.7
+L = 8
+h = 0.8
+
 h0 = 80
 hend = 400
 dh = 40
 E_or_O = 0  	#energies(0) or operator(1)
 var = 1			# variance?
-smoothen = 1	# smooth data?
-scaling = 2		# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
+smoothen = 0	# smooth data?
+scaling = 1		# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
 y_ax = 2		# =0 - ||O_diag||; =1 - ||O_off||; =2 - <r>
 model = 0
 
@@ -118,12 +119,12 @@ if(choose == 0){
 			ssf_name(x) = ""; key_title(x) = "";
 			if(scaling == 0){	# h - sclaing
 				i0=20; iend=120; di=20;
-				ssf_name(x) = dir.sprintf("_L=%d,J=1.00,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", L, g, 0.01 * x, w);
+				ssf_name(x) = dir.sprintf("_L=%d,J=0.10,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", L, g, 0.01 * x, w);
 				key_title(x) = sprintf("h = %.2f", 0.01 * x);
 			} else {	
 				if(scaling == 1){	# L - scaling
-					i0=8; iend=14; di=1;
-					ssf_name(x) = dir.sprintf("_L=%d,J=1.00,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", x, g, h, w);
+					i0=8; iend=8; di=1;
+					ssf_name(x) = dir.sprintf("_L=%d,J=0.10,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", x, g, h, w);
 					key_title(x) = sprintf("L = %d", x);
 				} else {	#	g - scaling
 					i0=15; iend=85; di=20;
