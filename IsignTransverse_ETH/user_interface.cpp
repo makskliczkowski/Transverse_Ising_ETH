@@ -1039,7 +1039,7 @@ void isingUI::ui::spectral_form_factor(){
     // values to be set
 	double tH = 0;
 	std::string info;
-	int num_times = 5000;
+	int num_times = 3000;
 	arma::vec sff(num_times, arma::fill::zeros);
 	arma::vec times(num_times, arma::fill::zeros);
 	double Z = 0.0;

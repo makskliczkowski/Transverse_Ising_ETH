@@ -151,17 +151,12 @@ arma::vec unfolding(const arma::vec& eigenvalues){
     std::iota(cdf.begin(), cdf.end(), 0);
     
     // fit polynomial order 10 to cdf
-    int n = 8;
+    int n = 6;
     auto p = arma::polyfit(eigenvalues, cdf, n);
 
     // evaluate fit at each energy: result is the unfolded energy
     arma::vec res = arma::polyval(p, eigenvalues);
-    std::ofstream file;
-    std::string dir = "TESTS" + kPSep; createDirs(dir);
-    openFile(file, dir + "_unfolding_check_n=" + std::to_string(n) + ".dat", std::ios::out);
-    for(int k = 0; k < eigenvalues.size(); k++)
-        printSeparated(file, "\t", 16, true, eigenvalues(k), cdf(k), res(k));
-    file.close();
+    
     return res;
 }
 
