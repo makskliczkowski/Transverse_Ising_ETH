@@ -9,7 +9,7 @@ ch=1
 
 operator=$5; site=$6; thread_num=$7;
 num=4	 #minimum number of required input
-suffix="_op=${5}_site=${6}";
+suffix="_op=${5}_site=${6}_id=${SLURM_JOB_ID}";
 if [[ $# -lt 4 ]]; then   
   echo "Too few input parameters! Required ${num}"
   echo "INPUTS TO SCRIPT ARE: L,  dh, dg, fun"
@@ -60,7 +60,6 @@ else
 	funName="Other"
 fi
 filename="run_logs/${funName}_L=${1}_h=${h}_g=${g}${suffix}"
-
 #print all variables to see if all correct
 	echo "L=${1}"
 	echo "h=${h}"
