@@ -1077,7 +1077,9 @@ void isingUI::ui::spectral_form_factor(){
 		Z += Z_r;
 		stout << "\t\t	--> finished realisation for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 	}
-	save_to_file(this->saving_dir + "SpectralFormFactor" + kPSep + info + ".dat", times, sff / Z, tH);
+	std::string dir = this->saving_dir + "SpectralFormFactor" + kPSep;
+	createDirs(dir);
+	save_to_file(dir + info + ".dat", times, sff / Z, tH);
 }
 
 
