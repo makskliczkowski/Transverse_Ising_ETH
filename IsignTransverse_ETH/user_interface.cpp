@@ -342,18 +342,16 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 	std::string dir = this->saving_dir + "DIAGONALIZATION" + kPSep;
 	createDirs(dir);
 	std::string name = dir + alfa.get_info({}) + ".hdf5";
-	bool loaded = eigenvalues.load(arma::hdf5_name(name, "/eigenvalues/" + _suffix));
+	bool loaded = eigenvalues.load(arma::hdf5_name(name, "eigenvalues/" + _suffix));
+	stout << name << std::endl;
+	stout << eigenvalues.t() << std::endl;
 	if(!loaded){
-		auto E = readFromFile(energies, name + ".dat");
-		if(E.empty()){
-			//alfa.diagonalization(false);
-			//stout << "No energies found, diagonalizing matrix now!";
-			//eigenvalues = alfa.get_eigenvalues();
-			//// save eigenvalues (yet unsaved)
-			//eigenvalues.save(arma::hdf5_name(name + ".h5", "eigenvalues"));
-		} else{
-			eigenvalues = E[0];
-		}
+		std::cout << "Failed to load energies, returning empty array" << std::endl;
+		//alfa.diagonalization(false);
+		//stout << "No energies found, diagonalizing matrix now!";
+		//eigenvalues = alfa.get_eigenvalues();
+		//// save eigenvalues (yet unsaved)
+		//eigenvalues.save(arma::hdf5_name(name + ".h5", "eigenvalues"));
 	}
 	return eigenvalues;
 }
@@ -1049,7 +1047,7 @@ void isingUI::ui::spectral_form_factor(){
 	int realis = this->m? 1 : this->realisations;
 	for(int r = 0; r < realis; r++){
 		arma::vec eigenvalues;
-		std::string suffix = (this->m || r == 0)? "" : "_real=" + std::to_string(r);
+		std::string suffix = (this->m)? "" : "_real=" + std::to_string(r);
 		double dim = 0.0;
 		if(this->m){
 			auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
