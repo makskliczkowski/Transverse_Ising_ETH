@@ -18,9 +18,9 @@ thread_num=$5
 
 # set helper vars 
 s_max=0;
-if [[ $3 -gt 2 ]]; then	
+if [ [ $3 -gt 2 ] && [ $3 -lt 6] ]; then	
 	echo "chose k-space operators"
-	s_max=$(echo $1 | awk '{printf "%d",  $1 / 2. + $1 % 2}')
+	s_max=$(echo $1 | awk '{printf "%d",  $1 / 2. + $1 % 2 + 1}')
 else
 	echo $3
 	s_max=$1
