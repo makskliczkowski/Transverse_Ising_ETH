@@ -341,7 +341,7 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 	std::ifstream energies;
 	std::string dir = this->saving_dir + "DIAGONALIZATION" + kPSep;
 	createDirs(dir);
-	std::string name = dir + alfa.get_info({}) + ".hdf5"
+	std::string name = dir + alfa.get_info({}) + ".hdf5";
 	bool loaded = eigenvalues.load(arma::hdf5_name(name, "/eigenvalues/" + _suffix));
 	if(!loaded){
 		auto E = readFromFile(energies, name + ".dat");
@@ -1037,6 +1037,7 @@ void isingUI::ui::intSpecFun_from_timeEvol()
 
 //<! spectral form factor calculated from eigenvalues in file or diagonalize matrix
 void isingUI::ui::spectral_form_factor(){
+	clk::time_point start = std::chrono::system_clock::now();
     // values to be set
 	double tH = 0;
 	std::string info;
@@ -1064,16 +1065,19 @@ void isingUI::ui::spectral_form_factor(){
 			info = alfa->get_info({});
 			dim = alfa->get_hilbert_size();
 		}
+		stout << "\t\t	--> finished loading eigenvalues for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 		if(eigenvalues.empty()) continue;
 		if(this->ch)
 			statistics::unfolding(eigenvalues);
+		stout << "\t\t	--> finished unfolding for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 		
-		int t_max = (int)std::ceil(std::log10(tH));
+		int t_max = (int)std::ceil(std::log10(5 * tH));
 		t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
 		times = this->ch? arma::logspace(log10(1.0 / dim), 1, num_times) : arma::logspace(-3, t_max, num_times);
 		auto [sff_r, Z_r] = statistics::spectral_form_factor(eigenvalues, times, 0.5);
 		sff += sff_r;
 		Z += Z_r;
+		stout << "\t\t	--> finished realisation for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 	}
 	save_to_file(this->saving_dir + "SpectralFormFactor" + kPSep + info + ".dat", times, sff / Z, tH);
 }

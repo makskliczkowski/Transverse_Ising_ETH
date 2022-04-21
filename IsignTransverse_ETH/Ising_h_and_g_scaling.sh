@@ -4,7 +4,7 @@
 #INPUTS TO SCRIPT ARE: L,  dh,  dg, fun, operator , site, thread_num
 
 #set boolean value
-ch=0
+ch=1
 
 
 operator=$5; site=$6; thread_num=$7;
