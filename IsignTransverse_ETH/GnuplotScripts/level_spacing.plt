@@ -31,12 +31,12 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 model = 0       # 1=symmetries and 0=disorder
 w = 0.1
 g = 0.5
-L = 14
+L = 10
 h = 1.0
 scaling = 1		# 0 - h scaling / 1 - L scaling / 2 - g scaling
-function = 0    # 1 - gap ratio / 0 - prob distribution
+function = 1    # 1 - gap ratio / 0 - prob distribution
 h_vs_g = 1      # 1 - as function of h / 0 - as function of g
-heatmap = 0
+heatmap = 1
 interpolate = 1
 
 if(!heatmap){

@@ -309,7 +309,7 @@ void isingUI::ui::diagonalize(){
 		auto eigenvalues = alfa.get_eigenvalues();
 		stout << "\t\t	--> finished diagonalizing for " << info + _suffix<< " - in time : " << tim_s(start) << "s" << std::endl;
 
-		std::string name = dir + kPSep + info + ".hdf5";
+		std::string name = dir + info + ".hdf5";
 		eigenvalues.save(arma::hdf5_name(name, "/eigenvalues/" + _suffix, arma::hdf5_opts::append));
 		stout << "\t\t	--> finished saving eigenvalues for " << info + _suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 		if(this->ch){
@@ -339,18 +339,18 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 {
 	arma::vec eigenvalues;
 	std::ifstream energies;
-	std::string E_dir = this->saving_dir + "EIGENVALUES" + kPSep;
-	createDirs(E_dir);
-	std::string name = E_dir + alfa.get_info({}) + _suffix;
-	bool loaded = eigenvalues.load(arma::hdf5_name(name + ".h5", "eigenvalues"));
+	std::string dir = this->saving_dir + "DIAGONALIZATION" + kPSep;
+	createDirs(dir);
+	std::string name = dir + alfa.get_info({}) + ".hdf5"
+	bool loaded = eigenvalues.load(arma::hdf5_name(name, "/eigenvalues/" + _suffix));
 	if(!loaded){
 		auto E = readFromFile(energies, name + ".dat");
 		if(E.empty()){
-			alfa.diagonalization(false);
-			stout << "No energies found, diagonalizing matrix now!";
-			eigenvalues = alfa.get_eigenvalues();
-			// save eigenvalues (yet unsaved)
-			eigenvalues.save(arma::hdf5_name(name + ".h5", "eigenvalues"));
+			//alfa.diagonalization(false);
+			//stout << "No energies found, diagonalizing matrix now!";
+			//eigenvalues = alfa.get_eigenvalues();
+			//// save eigenvalues (yet unsaved)
+			//eigenvalues.save(arma::hdf5_name(name + ".h5", "eigenvalues"));
 		} else{
 			eigenvalues = E[0];
 		}
@@ -1064,6 +1064,7 @@ void isingUI::ui::spectral_form_factor(){
 			info = alfa->get_info({});
 			dim = alfa->get_hilbert_size();
 		}
+		if(eigenvalues.empty()) continue;
 		if(this->ch)
 			statistics::unfolding(eigenvalues);
 		
