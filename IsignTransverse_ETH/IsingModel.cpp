@@ -60,7 +60,7 @@ template <typename T> void IsingModel<T>::diagonalization(bool get_eigenvectors,
 	//	this->eigenvectors.col(i) = arma::normalise(this->eigenvectors.col(i));
 
 	double E_av = arma::trace(eigenvalues) / double(N);
-	auto i = min_element(begin(eigenvalues), end(eigenvalues), [=](int x, int y) {
+	auto i = min_element(begin(eigenvalues), end(eigenvalues), [=](double x, double y) {
 		return abs(x - E_av) < abs(y - E_av);
 		});
 	this->E_av_idx = i - begin(eigenvalues);

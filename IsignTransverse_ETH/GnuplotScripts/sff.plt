@@ -30,23 +30,29 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 #-- PARAMETERS
 model = 0       # 1=symmetries and 0=disorder
 w = 0.1
-g = 0.10
-L = 8
-h = 0.05
-J=0.2
-scaling = 0		# 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling
+g = 0.05
+L = 14
+h = 0.1
+J=0.1
+scaling = 0		     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling
+smoothed = 1         # smoothed ?
+plot_der_GOE = 0     # plot deriviation from GOE value
 
-	h0 = 5;     hend = 50;		dh = 10;
-	g0 = 5;    gend = 30;		dg = 5;
-    J0 = 10;    Jend = 100;     dJ = 20
-	L0 = 9;	    Lend = 14; 		dL = 1;
+	h0 = 10;     hend = 40;		dh = 5;
+	g0 = 5;    gend = 50;		dg = 5;
+    J0 = 10;    Jend = 100;     dJ = 10
+	L0 = 8;	    Lend = 14; 		dL = 1;
 
     h_list = '0.20 0.60 1.20 1.40 1.60 1.80 2.40 3.00 3.60'
-    g_list = '0.20 0.30 0.70 0.80 1.10 1.40'; g00=0.20
+    g_list = '0.20 0.30 0.70 0.80 1.10 1.40';
 
 GOE(x) = (x < 1? 2 * x - x*log(1+2*x) : 2-x*log( (2*x+1) / (2*x-1)))
-ADD="GOE(x) w l ls 1 lw 2 t 'GOE'"
+eps = 5e-2
+ADD=plot_der_GOE? sprintf("%f w l ls 1 dt (3,5,10,5) lc rgb 'black' lw 2 notitle", eps)\
+         : "GOE(x) w l ls 1 dt (3,5,10,5) lc rgb 'black' lw 2 t 'GOE'"
 dir_base = '../results/'.(model? 'symmetries' : 'disorder').'/PBC/SpectralFormFactor/'
+if(smoothed){ dir_base = dir_base.'smoothed/';}
+
 set key top right
 load './gnuplot-colorbrewer-master/diverging/RdYlGn.plt'
 
@@ -54,15 +60,18 @@ _name(Lx, Jx, hx, gx) = model? dir_base.sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1
                         dir_base.sprintf("_L=%d,J=%.2f,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", Lx, Jx, gx, hx, w);
 
 set logscale xy;
+if(plot_der_GOE){ set xrange[1e-3:5]; }
+else { set xrange[*:5]; }
 set ylabel 'K({/Symbol t})' rotate by 0 offset 2,0;
 set xlabel '{/Symbol t}'
-if(scaling == 0){ plot for[hx=h0:hend:dh] _name(L, J, 0.01 * hx, g) u 1:2 w l ls ((hx-h0)/dh+1) lw 2 title sprintf("h=%.2f", 0.01*hx), @ADD
+data(x, y) = plot_der_GOE? abs(log10( y / GOE(x) )) : y
+if(scaling == 0){ plot for[hx=h0:hend:dh] _name(L, J, 0.01 * hx, g) u 1:(data($1, $2)) w l ls ((hx-h0)/dh+1) lw 2 title sprintf("h=%.2f", 0.01*hx), @ADD
 } else {
-if(scaling == 1){ plot for[Lx=L0:Lend:dL] _name(Lx, J, h, g) u 1:2 w l ls ((Lx-L0)/dL+1) lw 2 title sprintf("L=%d", Lx), @ADD
+if(scaling == 1){ plot for[Lx=L0:Lend:dL] _name(1.00 * Lx, J, h, g) u 1:(data($1, $2)) w l ls ((Lx-L0)/dL+1) lw 2 title sprintf("L=%d", Lx), @ADD
 } else {
-if(scaling == 2){ plot for[gx=g0:gend:dg] _name(L, J, h, 0.01*gx) u 1:2 w l ls ((gx-g00)/dg+1) lw 2 title sprintf("g=%.2f", 0.01*gx), @ADD
+if(scaling == 2){ plot for[gx=g0:gend:dg] _name(L, J, h, 0.01 * gx) u 1:(data($1, $2)) w l ls ((gx-g0)/dg+1) lw 2 title sprintf("g=%.2f", 0.01*gx), @ADD
 } else {
-if(scaling == 3){ plot for[Jx=J0:Jend:dJ] _name(L, 0.01*Jx, h, g) u 1:2 w l ls ((Jx-J0)/dJ+1) lw 2 title sprintf("J=%.2f", 0.01*Jx), @ADD
+if(scaling == 3){ plot for[Jx=J0:Jend:dJ] _name(L, 0.01 * Jx, h, g) u 1:(data($1, $2)) w l ls ((Jx-J0)/dJ+1) lw 2 title sprintf("J=%.2f", 0.01*Jx), @ADD
 } else{
 
 }}}}  

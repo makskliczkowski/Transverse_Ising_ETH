@@ -262,7 +262,7 @@ spectral_form_factor(
     ){
     double Z = 0;
 	arma::vec ssf(times.size(), arma::fill::zeros);
-#pragma omp parallel for
+//#pragma omp parallel for
 	for (long i = 0; i < ssf.size(); i++){
         double ssf_temp = 0;
 		if(eta < 0.0 || eta > 1.0)

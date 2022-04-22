@@ -40,8 +40,8 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 15; 
-g = 0.6
+L = 14; 
+g = 0.8
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
@@ -52,9 +52,9 @@ integrated_by_hand = 0 #integrated time evolution?
 if(integrated_by_hand) cd '.\integrated'
 rescale = 0				# rescale the spectral function by f(w, L)?
 site = 1				# site at which the operator acts
-scaling = 5				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
+scaling = 0				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
 q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
-operator = 1	 		# 1-SigmaZ , 0-Hq :local
+operator = 2	 		# 1-SigmaZ , 0-Hq :local
 two_panels = 0
 
 rescale = 0
@@ -63,11 +63,11 @@ if(scaling != 1) rescale = 0;
 LIOM = 0				# plot LIOMs?
 local = 0
 
-	h0 = 5;	hend = 20;		dh = 5;
+	h0 = 10;	hend = 150;		dh = 10;
 	g0 = 50;	gend = 80;		dg = 10;
 	L0 = 12;	Lend = 15; 		dL = 1;
 
-fit = 1
+fit = 0
 which_fit = 1						#=0 - a*exp(-t/b); =1 - a-b*log(t)
 x_min = 1e-5; x_max = 2e-1;
 
