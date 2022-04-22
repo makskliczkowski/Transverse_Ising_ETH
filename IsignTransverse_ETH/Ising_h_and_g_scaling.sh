@@ -25,13 +25,15 @@ module load intel/2022.00
 # set number of realisations, array from L=8 to L=16
 	#R_ARR=(600 600 400 400 300 200 200 100 100)										# ch = 0
 	#R_ARR=(600 600 400 400 300 300 200 100 100 100 100 100 50 50 50 50 50) 	# ch = 1
-	R_ARR=(200 200 200 200 200 100 100 50 50) # diagonalizaiton
+	R_ARR=(200 200 200 200 500 400 400 200 50) # diagonalizaiton
 	r=${R_ARR[`expr ${1}-8`]}
 
 # set input parameters: to multiply use \*, cause * means 'all files'
 # also to have floating-point use =$echo("scale=num_of_digits; {expresion}" | bc)
+	
 	_max=30 # max number of points on g-axis (and h-axis)
-    g_step=`expr $SLURM_ARRAY_TASK_ID / $_max`
+    
+	g_step=`expr $SLURM_ARRAY_TASK_ID / $_max`
     g=$(echo $2 $g_step | awk '{printf "%.3f", $1 + $1 * $2}')
 
     h_step=`expr $SLURM_ARRAY_TASK_ID % $_max`
@@ -71,5 +73,5 @@ filename="run_logs/${funName}_L=${1}_h=${h}_g=${g}${suffix}"
 #g++ -std=c++2a main.cpp IsingModel.cpp IsingModel_disorder.cpp IsingModel_sym.cpp tools.cpp user_interface.cpp -o Ising_${funName}_L=${1}_h=${2}_g=${g}${suffix}.o\
 # -DARMA_DONT_USE_WRAPPER -I/home/rswietek/LIBRARIES_CPP/armadillo-10.8.2/include -llapack -lopenblas -fopenmp -lpthread -lm -lstdc++fs -fomit-frame-pointer -Ofast >& compile_${funName}_L=${1}_h=${2}_g=${g}${suffix}.log
  
-./Ising.o -L $1 -g $g -h $h -th $thread_num -m 0 -w 0.1 -r $r\
- -op $operator -fun $4 -s $site -b 0 -ch $ch "${@:8}" >& ${filename}.log
+./Ising.o "${@:8}" -L $1 -g $g -h $h -th $thread_num -m 0 -w 0.1 -r $r\
+ -op $operator -fun $4 -s $site -b 0 -ch $ch >& ${filename}.log
