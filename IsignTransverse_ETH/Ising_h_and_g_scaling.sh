@@ -25,7 +25,7 @@ module load intel/2022.00
 # set number of realisations, array from L=8 to L=16
 	#R_ARR=(600 600 400 400 300 200 200 100 100)										# ch = 0
 	#R_ARR=(600 600 400 400 300 300 200 100 100 100 100 100 50 50 50 50 50) 	# ch = 1
-	R_ARR=(200 200 200 200 500 400 400 200 50) # diagonalizaiton
+	R_ARR=(1000 1000 1000 600 300 200 400 100 50) # diagonalization
 	r=${R_ARR[`expr ${1}-8`]}
 
 # set input parameters: to multiply use \*, cause * means 'all files'

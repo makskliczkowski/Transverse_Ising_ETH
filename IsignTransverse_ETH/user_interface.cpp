@@ -360,7 +360,7 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 			stout << "No energies found, diagonalizing matrix now!" << std::endl;
 			eigenvalues = alfa.get_eigenvalues();
 			// save eigenvalues (yet unsaved)
-			eigenvalues.save(arma::hdf5_name(name + ".h5", "eigenvalues/" + _suffix));
+			//eigenvalues.save(arma::hdf5_name(name + ".h5", "eigenvalues/" + _suffix));
 		#endif
 	}
 	return eigenvalues;
