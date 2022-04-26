@@ -8,6 +8,7 @@ set autoscale
 use_png = 0		# 1 if use png output, and 0 for qt output
 if(use_png) { set term pngcairo size 1200, 1200 font sprintf("Helvetica,%d",20); }
 else {set term qt size 900, 900 font sprintf("Helvetica,%d",20); }
+load './gnuplot-colorbrewer-master/diverging/RdYlGn.plt'
 
 set mxtics
 set mytics
@@ -19,18 +20,16 @@ set size square;\
 set xtics mirror;\
 set ytics mirror;"
 @FORMAT
-set logscale x
-set format x "10^{%L}"
+x_log = 1; 
+y_log = 0;
+SCALE = x_log? "unset logscale xy; set logscale x; set format x '10^{%L}'; " : "set format x '%g'"
+SCALE = SCALE.(y_log? "set logscale y; set format y '10^{%L}'" : "set format y '%g'")
+@SCALE
 
 fileexist(name)=1#"[ -f name ] && echo 1 || echo 0"
 #int(system("if exist \"".name."\" ( echo 1) else (echo 0)"))
 	
 UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset border;"
-
-set style line 1 dt (3,5,10,5) lc rgb "black" lw 1.5
-set style line 2 dt (3,3) lc rgb "red" lw 1.5
-set style line 3 dt (8,8) lc rgb "blue" lw 1.5
-set style line 4 dt (1,1) lc rgb "green" lw 1.5
 set fit quiet
 #------------------------------------ Margins for each row resp. column
 TMARGIN = "set tmargin at screen 0.91; set bmargin at screen 0.56"
@@ -40,7 +39,7 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 14; 
+L = 15; 
 g = 0.8
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
@@ -52,10 +51,13 @@ integrated_by_hand = 0 #integrated time evolution?
 if(integrated_by_hand) cd '.\integrated'
 rescale = 0				# rescale the spectral function by f(w, L)?
 site = 1				# site at which the operator acts
-scaling = 0				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
+scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
 q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
-operator = 2	 		# 1-SigmaZ , 0-Hq :local
-two_panels = 0
+operator = 1	 		# 1-SigmaZ , 0-Hq :local
+two_panels = 1			# plot integrated spectral function next to respons function
+plot_derivative = 0		# use derivative as integrated spectal function
+substract_LTA = 0
+plot_normalized = 0		# plot renormalized to 1st peak
 
 rescale = 0
 nu = 2		# power on L
@@ -64,13 +66,14 @@ LIOM = 0				# plot LIOMs?
 local = 0
 
 	h0 = 10;	hend = 150;		dh = 10;
-	g0 = 50;	gend = 80;		dg = 10;
+	g0 = 20;	gend = 80;		dg = 10;
 	L0 = 12;	Lend = 15; 		dL = 1;
 
 fit = 0
 which_fit = 1						#=0 - a*exp(-t/b); =1 - a-b*log(t)
 x_min = 1e-5; x_max = 2e-1;
 
+#------------------------------------------ SET OPERATOR
 op = ""
 if(operator == 0) {op = "H"; }
 if(operator == 1) {op = "SigmaZ";}
@@ -79,9 +82,9 @@ if(operator == 3) {op = "TFIM_LIOM_minus";}
 str(x) = (q_vs_j? "q" : "j").sprintf("=%d",x);
 if(operator > 1){ str(x) = "n".sprintf("=%d",x); }
 
-plot_dir = dir_base.'graph/IntegratedSpectralFunction/'
+if(plot_normalized) {dir = dir.'NORMALIZED/'; }
 
-	#------------------------------------ DATA, FIT AND PLOT
+	#------------------------------------ DATA
 	output_name = ""
 	_name(x) = 0; _key_title(x) = 0;
 	i0 = 0; iend = 0; di = 1;
@@ -126,14 +129,16 @@ plot_dir = dir_base.'graph/IntegratedSpectralFunction/'
 				}
 			}
 		}
-		
-	__size=(iend - i0) / di + 1; _tmp = (iend - i0) + di
+	
+	#------------------------------------ FIT
+	__size=(iend - i0) / di + 1; 
+	_tmp = (iend - i0) + di
 	new_end = 0;
 	name(x)=0; key_title(x)=0;
 	if(two_panels){
 		__size = 2*__size;
 		new_end = iend + _tmp;
-		name(x) = x <= iend? dir._name(x) : dir_base.'ResponseFunction/'._name(x - _tmp);
+		name(x) = x <= iend? dir._name(x) : (plot_derivative? dir.'DERIVATIVE/' : dir_base.'ResponseFunction/')._name(x - _tmp);
 		key_title(x) = scaling == 5? (x<=iend? "I_A({/Symbol w})" : "S_A({/Symbol w})") : (x<=iend? _key_title(x) : _key_title(x - _tmp));
 		if(use_png){set term pngcairo size 1900, 900	}
 		else{ set term qt size 1500, 700;}
@@ -153,18 +158,22 @@ plot_dir = dir_base.'graph/IntegratedSpectralFunction/'
 	integrated_fun_plot2(aa, tau, w, w00)	= aa * ( atan( (w - w00) * tau) + atan( (w + w00) * tau));
 	der_f_plot(a, alfa, w0, w) = a * alfa / ( alfa**2 * (w-w0)**2 + 1)
 	
-	y_min = 1e5;
-	if(!LIOM){
+	#------------------------------------ STATS
 		array wH[__size]; 
 		array LTA[__size];
+		array val_at_wH[__size];
 		array val[__size];
 		array a_list[__size]; array b_list[__size]; array alfa_list[__size]; array w0_list[__size]; array w01_list[__size]; array w02_list[__size];
 		array C_list[__size]; array gamma_list[__size]; array D_list[__size]; array delta_list[__size]; 
-		print "par\tI(w=0),   \twH,	\tLTA,\t\t a\t b\t alfa\t w0"
+		
+		sub(x, i) = substract_LTA? x - LTA[(i-i0)/di+1] : x;
+		y_min = 1e5;
+		print "par\tI(w=0), \twH, \tLTA, \t I(w=wH)"
 		do for[i=i0:new_end:di]{
-					val[(i-i0)/di+1] = 0; wH[(i-i0)/di+1] = 0;
-					a_list[(i-i0)/di+1] = 0; b_list[(i-i0)/di+1] = 0; alfa_list[(i-i0)/di+1] = 0; w0_list[(i-i0)/di+1] = 0; w01_list[(i-i0)/di+1] = 0; w02_list[(i-i0)/di+1] = 0;
-					C_list[(i-i0)/di+1] = 0; gamma_list[(i-i0)/di+1] = 0; D_list[(i-i0)/di+1] = 0; delta_list[(i-i0)/di+1] = 0;
+			idx = (i - i0) / di + 1
+					val[idx] = 0; wH[idx] = 0;
+					a_list[idx] = 0; b_list[idx] = 0; alfa_list[idx] = 0; w0_list[idx] = 0; w01_list[idx] = 0; w02_list[idx] = 0;
+					C_list[idx] = 0; gamma_list[idx] = 0; D_list[idx] = 0; delta_list[idx] = 0;
 			a = 1/pi; 	b = 0.0001;	alfa = 200;	w0 = 0.01; w01 = -1e-4; w02=-1e-1
 			C = 1/pi;	D = 1/pi;	gamma=100; delta=100;
 			name = name(i)
@@ -172,39 +181,43 @@ plot_dir = dir_base.'graph/IntegratedSpectralFunction/'
 			if(fileexist(name)){
 				if(fit){
 					if(!two_panels){
-						fit[x_min:x_max][*:*] f(x) name u 1:2 via a, b, alfa, w0; a_list[(i-i0)/di+1] = a; b_list[(i-i0)/di+1] = b; alfa_list[(i-i0)/di+1] = alfa; w0_list[(i-i0)/di+1] = w0;
+						fit[x_min:x_max][*:*] f(x) name u 1:2 via a, b, alfa, w0; a_list[idx] = a; b_list[idx] = b; alfa_list[idx] = alfa; w0_list[idx] = w0;
 					}else {
 						if(i <= iend){
-							fit[1e-5:0.2][*:*] f(x) name u 1:2 via a, b, alfa, w0; a_list[(i-i0)/di+1] = a; b_list[(i-i0)/di+1] = b; alfa_list[(i-i0)/di+1] = alfa; w0_list[(i-i0)/di+1] = w0;
+							fit[1e-5:0.2][*:*] f(x) name u 1:2 via a, b, alfa, w0; a_list[idx] = a; b_list[idx] = b; alfa_list[idx] = alfa; w0_list[idx] = w0;
 						}else{
-							fit[x_min:x_max][*:*] fun1(x) name u 1:2 via C, gamma, w01; C_list[(i-i0)/di+1] = C; gamma_list[(i-i0)/di+1] = gamma; w01_list[(i-i0)/di+1] = w01;
-							fit[x_min:x_max][*:*] fun2(x) name u 1:2 via D, delta, w02; D_list[(i-i0)/di+1] = D; delta_list[(i-i0)/di+1] = delta; w02_list[(i-i0)/di+1] = w02;
+							fit[x_min:x_max][*:*] fun1(x) name u 1:2 via C, gamma, w01; C_list[idx] = C; gamma_list[idx] = gamma; w01_list[idx] = w01;
+							fit[x_min:x_max][*:*] fun2(x) name u 1:2 via D, delta, w02; D_list[idx] = D; delta_list[idx] = delta; w02_list[idx] = w02;
 							print C,D,gamma,delta,w01,w02
 						}
 					}
 				}
-				stats name nooutput; n_cols = STATS_columns;
-				stats name every ::0::1 using 2 nooutput prefix "s1";	val[(i-i0)/di+1] = s1_min; if(two_panels? (s1_min <= y_min && i <= iend) : (s1_min <= y_min)){ y_min = s1_min;}
-				if(n_cols >= 3) {stats name every ::0::1 using 3 nooutput prefix "s2"; 	wH[(i-i0)/di+1] = s2_min} 
-				else{ wH[(i-i0)/di+1]=0;}
-				if(n_cols >= 4) {stats name every ::0::1 using 4 nooutput prefix "s3"; 	LTA[(i-i0)/di+1] = s3_min}
-				else {LTA[(i-i0)/di+1] = 0};
-				print key_title(i),"  ", val[(i-i0)/di+1], wH[(i-i0)/di+1], "  ", LTA[(i-i0)/di+1], "\tfit:  ".sprintf("%.5f,  %.5f,  %.5f,  %.5f", a, b, alfa, w0)
+				stats name every ::0::1 using 2 nooutput prefix "s1";	val[idx] = s1_min; if(two_panels? (s1_min <= y_min && i <= iend) : (s1_min <= y_min)){ y_min = s1_min;}
+				if(i <= iend || plot_derivative){
+					stats name every ::0::1 using 3 nooutput prefix "s2"; 	wH[idx] = s2_min
+					stats name every ::0::1 using 4 nooutput prefix "s3"; 	LTA[idx] = s3_min
+					stats name using (abs($1 - s2_min)) nooutput prefix "s4"; 	idx_wH = s4_index_min
+					stats name every ::idx_wH::(idx_wH+1) using 2 nooutput prefix "s5";	val_at_wH[idx] = sub(s5_min, i);
+				} else {
+					wH[idx] = wH[idx - __size / 2];	wH[idx] = LTA[idx - __size / 2];	LTA[idx] = wH[idx - __size / 2]; val_at_wH[idx] = val_at_wH[idx - __size / 2]	
+				}
+				print key_title(i),"  ", val[idx], wH[idx], "  ", LTA[idx], "  ", val_at_wH[idx]
+				if(fit) {print "\t\tfit:  ".sprintf("%.5f,  %.5f,  %.5f,  %.5f", a, b, alfa, w0)}
 				#label_fit = label_fit.key_title(i).":\t".fstr(a,b,alfa)."\n\n"	  
 			}
 			else{
 				print key_title(i)," -----------------------------------------------------------------------------"
 			}		
 		}
-		set ytics add(0.5);
+		if(!two_panel){ set ytics add(0.5); }
 		if(y_min > 0.1){ set ytics add(sprintf("%.4f",y_min) y_min);}
-		y_min=1e-2
+		y_min = sub(y_min, iend)
 		XRANGE = (rescale? "set xrange[15**nu*x_range_min:15**nu*1e2];" : "set xrange[x_range_min:1e2];" );
 		YRANGE = "set yrange[0.9*y_min:1e0];"
 		#if(fit) {set label 1 at 0.02,(y_log? 0.6:0.6) sprintf("%s",label_fit) front }
 		
 
-	#------------------------------------------ Controling output
+	#------------------------------------ PLOT
 	if(use_png){
 		if(two_panels){ out_dir = out_dir.'compare/'; };
 		output_name = out_dir.output_name; 
@@ -219,84 +232,50 @@ plot_dir = dir_base.'graph/IntegratedSpectralFunction/'
 		set ylabel 'I_A({/Symbol w})' offset 4,2 rotate by 0
 		
 		MARGIN = !two_panels? "set lmargin at screen 0.10; set rmargin at screen 0.95; set bmargin at screen 0.10; set tmargin at screen 0.95;"\
-			: "set lmargin at screen 0.10; set rmargin at screen 0.5; set bmargin at screen 0.12; set tmargin at screen 0.99;"
-		MARGIN2= "set lmargin at screen 0.55; set rmargin at screen 0.99; set bmargin at screen 0.12; set tmargin at screen 0.99;"
-		XRANGE2="set xrange[1e-3:1e1];"; YRANGE2="set yrange[1e-6:1e-1];";
+			: "set lmargin at screen 0.10; set rmargin at screen 0.5; set bmargin at screen 0.12; set tmargin at screen 0.97;"
+		MARGIN2= "set lmargin at screen 0.55; set rmargin at screen 0.97; set bmargin at screen 0.12; set tmargin at screen 0.97;"
+		XRANGE2 = plot_derivative? "set xrange[1e-4:2e1];" : "set xrange[1e-4:2e1];"; 
+		YRANGE2 = plot_derivative? "set yrange[1e-5:1e3];" : "set yrange[1e-12:1e-1];";
 		
 		set multiplot
 		@MARGIN; @XRANGE; @YRANGE;
 		if(scaling == 5){ set key at 1e-2,0.92 font ",23";}
-		plot for[i=i0:iend:di] name(i) u ($1*(rescale? i**nu : 1.0)):2 w l lw 2.5 title key_title(i)
+		plot for[i=i0:iend:di] name(i) u ($1*(rescale? i**nu : 1.0)):(sub($2, i)) w l ls ((i-i0)/di+1) lw 1.5 title key_title(i),\
+			name(iend) using 1:(0.5) w l dt (3,3) lc rgb "red" lw 1.5 notitle
 		
 		if(two_panels){
+			set logscale y;
 			set format y '10^{%L}'; @MARGIN2; @XRANGE2; @YRANGE2; unset ylabel; set key left bottom
-			plot for[i=iend+di:new_end:di] name(i) every 10 u ($1*(rescale? i**nu : 1.0)):2 w l lw 2.5 title key_title(i)
+			plot for[i=iend+di:new_end:di] name(i) u 1:2 w l ls ((i-i0-iend)/di+2) lw 1.5 title key_title(i)
 		}
 		set format y '%g'
 		if(fit){
 			if(scaling == 5){ set key at 1e-2,0.84 font ",23";}
 			else{ set key left top font ",25";}
-			@MARGIN; @UNSET;@XRANGE; @YRANGE; plot for[i=1:(iend-i0)/di + 1] f_plot(a_list[i], b_list[i], alfa_list[i], w0_list[i], x) w l ls 1 lw 2.5 t "atan({/Symbol w}) fit"
+			@MARGIN; @UNSET;@XRANGE; @YRANGE; plot for[i=1:(iend-i0)/di + 1] f_plot(a_list[i], b_list[i], alfa_list[i], w0_list[i], x) w l dt (3,5,10,5) lc rgb "black" lw 2.5 t "atan({/Symbol w}) fit"
 			#@MARGIN; @UNSET;@XRANGE; plot for[i=iend+1:new_end:di] D_list[(i-i0)/di+1] / norm*0.01 * ( atan( (x - w02_list[(i-i0)/di+1]) * delta_list[(i-i0)/di+1]) + atan( (x + w02_list[(i-i0)/di+1]) * delta_list[(i-i0)/di+1])) w l ls 4 lw 2.5 notitle
 			if(two_panels){
 				norm = 3.5e-4; 
 		@MARGIN2; @UNSET;@XRANGE2; @YRANGE2; set key right top
-			plot for[i=iend+di:new_end:di] fun_plot(C_list[(i-i0)/di+1], gamma_list[(i-i0)/di+1], w01_list[(i-i0)/di+1], x, 1) w l ls 3 lw 2.5 title "1/{/Symbol w} fit"
+			plot for[i=iend+di:new_end:di] fun_plot(C_list[(i-i0)/di+1], gamma_list[(i-i0)/di+1], w01_list[(i-i0)/di+1], x, 1) w l dt (8,8) lc rgb "blue" lw 2.5 title "1/{/Symbol w} fit"
 		@MARGIN2; @UNSET;@XRANGE2; @YRANGE2; set key at graph 1,0.9
-			plot for[i=iend+di:new_end:di] fun_plot(D_list[(i-i0)/di+1], delta_list[(i-i0)/di+1], w02_list[(i-i0)/di+1], x, 2) w l ls 4 lw 2.5 title "1/{/Symbol w}^2 fit"
+			plot for[i=iend+di:new_end:di] fun_plot(D_list[(i-i0)/di+1], delta_list[(i-i0)/di+1], w02_list[(i-i0)/di+1], x, 2) w l dt (1,1) lc rgb "green" lw 2.5 title "1/{/Symbol w}^2 fit"
 		@MARGIN2; @UNSET;@XRANGE2; @YRANGE2; 
-			plot for[i=1:(iend-i0)/di + 1] norm * der_f_plot(a_list[i], alfa_list[i], w0_list[i], x) w l ls 1 lw 2.5 notitle
+			plot for[i=1:(iend-i0)/di + 1] norm * der_f_plot(a_list[i], alfa_list[i], w0_list[i], x) w l dt (3,5,10,5) lc rgb "black" lw 1.5 lw 2.5 notitle
 		@MARGIN; @UNSET; @XRANGE; @YRANGE; plot for[i=iend+1:new_end:di] integrated_fun_plot1(C_list[(i-i0)/di+1] / norm, gamma_list[(i-i0)/di+1], w01_list[(i-i0)/di+1], x) w l ls 3 lw 2.5 notitle
 		@MARGIN; @UNSET; @XRANGE; @YRANGE; plot for[i=iend+1:new_end:di] integrated_fun_plot2(D_list[(i-i0)/di+1] / norm*0.1, delta_list[(i-i0)/di+1], w02_list[(i-i0)/di+1], x) w l ls 4 lw 2.5 notitle
 			}
 		}									
 		
 		if(!two_panels && !rescale){
+			if(!substract_LTA){
+				@MARGIN; @UNSET;@XRANGE; @YRANGE;
+				plot for[i=i0:iend:di] name(i) u ($1 > wH[(i-i0)/di + 1]? NaN : $1):(LTA[(i-i0)/di + 1]) w l dt (1,1) lc rgb "green" lw 1.5 notitle
+			}
 			@MARGIN; @UNSET;@XRANGE; @YRANGE;
-			plot for[i=i0:iend:di] name(i) u ($1 > wH[(i-i0)/di + 1]? NaN : $1):(LTA[(i-i0)/di + 1]) w l ls 4 lw 1.5 notitle
-		
-			@MARGIN; @UNSET;@XRANGE; @YRANGE;
-			plot wH using (wH[$1]):(LTA[$1]) w p ls 3 pt 4 ps 1.25 notitle
+			#plot for[i=i0:iend:di] name(i) using (wH[(i-i0)/di + 1]):(val_at_wH[(i-i0)/di + 1]) w p dt (8,8) lc rgb "blue" lw 1.5 pt 4 ps 1.25 notitle
+			plot wH using (wH[$1]):(val_at_wH[$1]) w lp dt (8,8) lc rgb "blue" lw 1.5 pt 4 ps 1.25 notitle
 		}
-		@MARGIN; @UNSET;@XRANGE; @YRANGE;
-		plot name(iend) using 1:(0.5) w l ls 2 notitle
 		unset multiplot
 		if(!two_panels) {set term qt size 900, 800 font "Helvetica,12"}
-	}
-	else{
-
-
-
-
-
-
-		set logscale y
-		_which = 0 #0-orders, 1-sites
-		n = 2
-		set key outside right vertical maxcols(1)
-		plotname = "timeEvolutionLIOM"
-		tail = sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, h)
-		if(local){
-			set title "TFIM LIOMS-densities \n\
-				I_j^n = J(S^{xx}_{j,j+n}+S^{yy}_{j,j+n-2})+g(S^{xx}_{j,j+n-1}+S^{yy}_{j,j+n-1}) - n-even\n\n\
-				I_j^n = S^{xy}_{j,j+n}-S^{yx}_{j,j+n} - n-odd,\n\n\
-				where S^{{/Symbol a}{/Symbol b}}_{j,j+n}={/Symbol s}^{{/Symbol a}}_{j}{/Symbol P}_{k=1}^{n-1}{/Symbol s}^z_{j+k}{/Symbol s}^{{/Symbol b}}_{j+n}"
-			s = ''
-			do for [i=1:L-1] {s = s.(_which? sprintf(' %d,%d', n, i) : sprintf(' %d,%d', i, site)) } 
-			plot for[w in s] plotname.w.tail w l title "n,j=".w
-		}
-		else{
-			set title "TFIM LIOMS A=\n\
-				I^n = {/Symbol S}_j J(S^{xx}_{j,j+n}+S^{yy}_{j,j+n-2}) + g(S^{xx}_{j,j+n-1}+S^{yy}_{j,j+n-1}) - n-even\n\n\
-				I^n = {/Symbol S}_j S^{xy}_{j,j+n} - S^{yx}_{j,j+n} - n-odd,\n\n\
-				where S^{{/Symbol a}{/Symbol b}}_{j,j+n}={/Symbol s}^{{/Symbol a}}_{j}{/Symbol P}_{k=1}^{n-1}{/Symbol s}^z_{j+k}{/Symbol s}^{{/Symbol b}}_{j+n}"
-			array norm_arr[L];
-			i_end = 10
-			do for [i=0:i_end] {
-				stats plotname.sprintf("%d", i).tail every ::1::2 using 2 nooutput
-				norm_arr[i+1] = (norm ? STATS_min : 1.0) 
-			}
-			plot for[i=0:i_end] plotname.sprintf("%d", i).tail u 1:($2 / norm_arr[i+1])w l title sprintf("n=%d",i)
-		}
-	}
 

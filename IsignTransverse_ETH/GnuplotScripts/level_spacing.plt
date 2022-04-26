@@ -4,6 +4,8 @@ set autoscale
 use_png = 0		# 1 if use png output, and 0 for qt output
 if(use_png) { set term pngcairo size 1200, 1200 font sprintf("Helvetica,%d",20); }
 else {set term qt size 900, 900 font sprintf("Helvetica,%d",20); }
+load './gnuplot-colorbrewer-master/diverging/RdYlGn.plt'
+
 set mxtics
 set mytics
 set style line 12 lc rgb '#ddccdd' lt 1 lw 1.5
@@ -12,11 +14,6 @@ set grid xtics mxtics ytics mytics back ls 12, ls 13
 set size square
 set xtics nomirror
 set key inside bottom right font ",16" spacing 2
-
-set style line 1 dt (3,5,10,5) lc rgb "black" lw 1.5
-set style line 2 dt (3,3) lc rgb "red" lw 1.5
-set style line 3 dt (8,8) lc rgb "blue" lw 1.5
-set style line 4 dt (1,1) lc rgb "green" lw 1.5
 
 fileexist(name)=1#int(system("if exist \"".name."\" ( echo 1) else (echo 0)"))
 
@@ -30,31 +27,31 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 #-- PARAMETERS
 model = 0       # 1=symmetries and 0=disorder
 w = 0.1
-g = 0.5
+g = 0.8
 L = 10
 h = 1.0
-J=0.1
-scaling = 1		# 0 - h scaling / 1 - L scaling / 2 - g scaling
+J=1.0
+scaling = 0		# 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling
 function = 1    # 1 - gap ratio / 0 - prob distribution
 h_vs_g = 1      # 1 - as function of h / 0 - as function of g
 heatmap = 1
-interpolate = 1
+interpolate = 0
 
 if(!heatmap){
     if(scaling == 0) { h_vs_g = 0; }
     if(scaling == 2) { h_vs_g = 1; }
 }
 	h0 = 5;     hend = 55;		dh = 10;
-	g0 = 10;    gend = 70;		dg = 10;
-    J0 = 10;    Jend = 100;     dJ = 10
+	g0 = 5;    gend = 50;		dg = 10;
+    J0 = 10;    Jend = 60;     dJ = 10
 	L0 = 9;	    Lend = 14; 		dL = 1;
 
     h_list = '0.20 0.60 1.20 1.40 1.60 1.80 2.40 3.00 3.60'
     g_list = '0.20 0.30 0.70 0.80 1.10 1.40'; g00=0.20
 
-GOE(x) = x < 1.5? 0.5307 : NaN;
+GOE(x) = x < 1.2? 0.5307 : NaN;
 Lap(x) = x > 2.? 0.3863 : NaN;
-ADD = function?  " GOE(x) w l ls 3 lw 2 notitle, Lap(x) w l ls 3 lw 2 notitle" : " 2/(1+x)**2 w l ls 1 lw 2.5 lc rgb 'black' notitle, 27./4 * (x+x**2)/(1+x+x**2)**2.5 w l ls 3 lw 2.5 lc rgb  'blue' notitle"
+ADD = function?  " GOE(x) w l dt (8,8) lc rgb 'black' lw 2 notitle, Lap(x) w l dt (8,8) lc rgb 'blue' lw 2 notitle" : " 2/(1+x)**2 w l dt (3,5,10,5) lw 2.5 lc rgb 'black' notitle, 27./4 * (x+x**2)/(1+x+x**2)**2.5 w l dt (3,5,10,5) lw 2.5 lc rgb 'blue' notitle"
 dir_base = '../results/'.(model? 'symmetries' : 'disorder').'/PBC/LevelSpacing/'.(function? 'ratio/' : 'distribution/');
 set key top right
 load './gnuplot-colorbrewer-master/diverging/RdYlGn.plt'
@@ -67,7 +64,7 @@ if(function){
     if(heatmap){
         set xrange[0.05:1.5]
         set yrange[0.05:1.5]
-        set cbrange[0.39:0.53]
+        set cbrange[0.38:0.53]
         set ylabel (h_vs_g? "h" : "g")
         set xlabel (h_vs_g? "g" : "h")
         #set cblabel "<r>"
@@ -75,11 +72,11 @@ if(function){
             set pm3d map
             set dgrid3d 30, 30, 1
     	    set pm3d interpolate 0,0
-            splot _name_ratio(L) u 1:2:3 with pm3d
+            splot _name_ratio(J, L) u 1:2:3 with pm3d
         } else{
         	set view map
     	    set pm3d interpolate 0,0
-            splot _name_ratio(L) u 1:2:3 with image
+            splot _name_ratio(J, L) u 1:2:3 with image
         }
     } else {
         #plot for[hx in h_list] _name(1. * hx) u 1:2 w lp ls ((1.*hx-0.01*h0)/(0.01*dh)) pt 6 ps 1.5 title sprintf("h=%.2f", 1. * hx), @ADD
@@ -88,7 +85,7 @@ if(function){
         } else {
         if(scaling == 1){ plot for[Lx=L0:Lend:dL] _name_ratio(J, Lx) u ($1 == (h_vs_g? g : h)? $2 : NaN):3 w lp ls ((Lx-L0)/dL+1) pt 6 ps 1.5 title sprintf("L=%d", Lx), @ADD
         } else { 
-        if(scaling == 2){ plot for[gx=g0:gend:dg] _name_ratio(J, L) u 2:($1 == 0.01*gx? $3 : NaN) w lp pt 6 ps 1.5 title sprintf("g=%.2f", 0.01 * gx), @ADD
+        if(scaling == 2){ plot for[gx=g0:gend:dg] _name_ratio(J, L) u 2:($1 == 0.01*gx? $3 : NaN) w lp ls ((gx-g0)/dg) pt 6 ps 1.5 title sprintf("g=%.2f", 0.01 * gx), @ADD
         } else{
         if(scaling == 3){ plot for[Jx=J0:Jend:dJ] _name_ratio(0.01*Jx, L) u ($1 == (h_vs_g? g : h)? $2 : NaN):3 w lp ls ((Jx-J0)/dJ) pt 6 ps 1.5 title sprintf("J=%.2f", 0.01*Jx), @ADD
         } else {

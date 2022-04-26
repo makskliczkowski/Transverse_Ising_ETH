@@ -167,6 +167,8 @@ namespace isingUI
 		//<! spectral form factor calculated from eigenvalues in file or diagonalize matrix
 		void spectral_form_factor();
 		
+		//<! find thouless time with various method as function of h,g,J
+		void thouless_times();
 		
 		//-------------------------------------------------------------------------- ADIABATIC GAUGE POTENTIALS
 		void adiabaticGaugePotential_sym(bool SigmaZ = 0, bool avSymSectors = 0);

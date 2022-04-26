@@ -37,7 +37,7 @@ dh = 40
 E_or_O = 0  	#energies(0) or operator(1)
 var = 1			# variance?
 smoothen = 0	# smooth data?
-scaling = 1		# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
+scaling = 0		# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
 y_ax = 2		# =0 - ||O_diag||; =1 - ||O_off||; =2 - <r>
 model = 0
 
