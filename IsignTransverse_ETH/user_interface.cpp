@@ -1074,16 +1074,16 @@ void isingUI::ui::spectral_form_factor(){
 			if(r == 0){
 				tH = 1. / alfa->mean_level_spacing_analytical();
 				info = alfa->get_info({});
-				dim = alfa->get_hilbert_size();
 			}
+			dim = alfa->get_hilbert_size();
 		} else{
 			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 			eigenvalues = this->get_eigenvalues(*alfa, suffix);
 			if(r == 0){
 				tH = 1. / alfa->mean_level_spacing_analytical();
 				info = alfa->get_info({});
-				dim = alfa->get_hilbert_size();
 			}
+			dim = alfa->get_hilbert_size();
 		}
 		if(this->fun == 3) stout << "\t\t	--> finished loading eigenvalues for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 		if(eigenvalues.empty()) continue;
@@ -1110,12 +1110,19 @@ void isingUI::ui::spectral_form_factor(){
 			Z += Z_r;
 		if(this->fun == 3) stout << "\t\t	--> finished realisation for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 	}
-
 	if(sff.is_empty()) return;
 	if(sff.is_zero()) return;
-	std::string dir = this->saving_dir + "SpectralFormFactor" + kPSep;
-	createDirs(dir);
+	r1 /= double(realis);
+	r2 /= double(realis);
 	sff = sff / Z;
+
+	std::string dir = this->saving_dir + "SpectralFormFactor" + kPSep;
+	std::string dir2 = this->saving_dir + "LevelSpacing" + kPSep + "raw_data" + kPSep;
+	createDirs(dir, dir2);
+	std::ofstream lvl;
+	openFile(lvl, dir2 + info + ".dat", std::ios::out);
+	lvl.close();
+	printSeparated(lvl, "\t", 16, true, r1, r2);
 	// ---------- find Thouless time
 	double eps = 5e-2;
 	auto K_GOE = [](double t){
