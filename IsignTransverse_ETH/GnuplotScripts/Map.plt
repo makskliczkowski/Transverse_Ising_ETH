@@ -27,17 +27,17 @@ heatmap = 1 		# ==1 plot 2D heatmap, else plot cuts at specific values
 h_vs_g = 0;			# ==0 --> as function of h on x-axis
 relax_vs_th = 1		# pick relaxation-time=1 ot thouless-time=0
 scaling = 3		# = 0 q/j-scaling, =1-size scaling, =2-h/g, =3-compare_operators
-user_defined = 1
+user_defined = 0
 
 q_vs_j = 1
 site = 1
 q = 6
-operator = 0	 		# 1-SigmaZ , 0-Hq :local
+operator = 1	 		# 1-SigmaZ , 0-Hq :local
 rescale_times = 0
 L = 13
 g = 0.8
 h=0.8
-J=0.1
+J=1.0
 w=0.01
 
 fileexist(name)=system("[ -f '".name."' ] && echo '1' || echo '0'") + 0
@@ -47,7 +47,7 @@ set bmargin at screen 0.15
 set tmargin at screen 0.9
 
 dir_base='../results/disorder/PBC/'
-dir = dir_base.(relax_vs_th? 'RelaxationTimes/' : 'ThoulessTime/')
+dir = dir_base.'RelaxationTimes/'
 
 str = (h_vs_g? "_h" : "_g")
 op = ""
@@ -58,23 +58,16 @@ if(operator == 3) {op = "TFIM_LIOM_minus";}
 _str(x) = (q_vs_j? "q" : "j").sprintf("=%d",x);
 if(operator > 1){ _str(x) = "n".sprintf("=%d",x); }
 
-_base(Jx, Lx) = relax_vs_th? sprintf("_L=%d,J0=0.00,g0=0.00,w=%.2f.dat", Lx, w)\
-				: sprintf("_L=%d,J=%.2f,J0=0.00,g0=0.00,w=%.2f.dat", Lx, Jx, w)
-_name(Jx, Lx, s) = str.(relax_vs_th? op."_"._str(s) : "")._base(Jx, Lx);
+_base(Jx, Lx, dis) = sprintf("_L=%d,J=%.2f,J0=0.00,g0=0.00,w=%.2f.dat", Lx, Jx, dis)
+_name(Jx, Lx, s) = str.(relax_vs_th? op."_"._str(s) : "")._base(Jx, Lx, w);
+_name_th(Jx, Lx) = dir_base.'ThoulessTime/'.str._base(Jx, Lx, 0.1);
 
 nu=2
 rescale(t,L) = rescale_times? t/L**nu : t
 use_fit = 0
-#do for[gx in glist]{
-#	g = 1. * gx
-#do for[site=-1:7]{
-#do for[L=10:15]{
-#do for[hx=h0:hend:dh]{
-#h = 0.01*hx
 
 set encoding utf8
-if(user_defined == 0)
-{
+if(user_defined == 0){
 	if(use_png){
 		out_dir = (relax_vs_th? 'Relaxation_Times/' : 'Thouless_Times/').(h_vs_g? "vs_h/" : "vs_g/")
 		command = "mkdir ".out_dir; 
@@ -99,7 +92,7 @@ if(user_defined == 0)
 	f(x) = 7e5 * (x/0.1)**(alfa)
 	if(h_vs_g){
 		set xrange[0.01:1.5]
-		set logscale x
+		#set logscale x
 		#set yrange[0.01:1000]
 		set xlabel "{/*1.5h/J}"
 		if(scaling == 0){ 	plot for[i=0:(q_vs_j? L/2 : L-1)] dir._name(J, L,i) u ($2 == g? $1 : NaN):((abs($3)) w lp ls (i+1) pt (i+3) ps 1.5 title _str(i)
@@ -109,19 +102,20 @@ if(user_defined == 0)
 		if(scaling == 2){ plot for[gx in glist] name u ($2 == gx + 0.0? $1 : NaN):($3) w lp ls ((1.*gx - 0.05)/0.05) pt 6 ps 1.5 title "g=".gx
 		} else {
 		if(scaling == 3){ 
-			plot dir."_hSigmaZ_j=".sprintf("%d", site)._base(J, L) u ($2 == g? $1 : NaN):($3) w lp pt 6 ps 1.5 title sprintf("{/Symbol s}_{j=%d}}", site),\
-				dir."_hSigmaZ_q=".sprintf("%d", 1)._base(J, L) u ($2 == g? $1 : NaN):($3) w lp pt 6 ps 1.5 title sprintf("{/Symbol s}_{q=%d}}", 1),\
-				dir."_hSigmaZ_q=".sprintf("%d", L / 2.)._base(J, L) u ($2 == g? $1 : NaN):($3) w lp pt 6 ps 1.5 title sprintf("{/Symbol s}_{q=%d}}", L / 2.),\
-				dir."_hH_j=".sprintf("%d", site)._base(J, L) u ($2 == g? $1 : NaN):($3) w lp pt 4 ps 1.5 title sprintf("H_{j=%d}}", site),\
-				dir."_hH_q=".sprintf("%d", 1)._base(J, L) u ($2 == g? $1 : NaN):($3) w lp pt 4 ps 1.5 title sprintf("H_{q=%d}}", 1),\
-				dir."_hH_q=".sprintf("%d", L / 2.)._base(J, L) u ($2 == g? $1 : NaN):($3) w lp pt 4 ps 1.5 title sprintf("H_{q=%d}}", L / 2.)
+			plot dir."_hSigmaZ_j=".sprintf("%d", site)._base(J, L, w) u ($2 == g? $1 : NaN):($3/$4) w lp pt 6 ps 1.5 title sprintf("{/Symbol s}_{j=%d}}", site),\
+				dir."_hSigmaZ_q=".sprintf("%d", 1)._base(J, L, w) u ($2 == g? $1 : NaN):($3/$4) w lp pt 6 ps 1.5 title sprintf("{/Symbol s}_{q=%d}}", 1),\
+				dir."_hSigmaZ_q=".sprintf("%d", L / 2.)._base(J, L, w) u ($2 == g? $1 : NaN):($3/$4) w lp pt 6 ps 1.5 title sprintf("{/Symbol s}_{q=%d}}", L / 2.),\
+				dir."_hH_j=".sprintf("%d", site)._base(J, L, w) u ($2 == g? $1 : NaN):($3/$4) w lp pt 4 ps 1.5 title sprintf("H_{j=%d}}", site),\
+				dir."_hH_q=".sprintf("%d", 1)._base(J, L, w) u ($2 == g? $1 : NaN):($3/$4) w lp pt 4 ps 1.5 title sprintf("H_{q=%d}}", 1),\
+				dir."_hH_q=".sprintf("%d", L / 2.)._base(J, L, w) u ($2 == g? $1 : NaN):($3/$4) w lp pt 4 ps 1.5 title sprintf("H_{q=%d}}", L / 2.),\
+				_name_th(J, L) u ($2 == g? $1 : NaN):($3) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
 		} else{ 
 			plot name u ($2 == g? $1 : NaN):($3/$4) w lp pt 6 ps 1.5 title sprintf("L=%d,g=%.2f,h=%.2f",L,g,h)
 		}}}}
 	} else{
 		set xrange[0:1.5];
 		set xlabel "{/*1.5g/J}"
-		set logscale x
+		#set logscale x
 		#unset logscale y; set format y '%g'
 		#set yrange[-3:10];
 		if(scaling == 0){	plot for[i=0:(q_vs_j? L/2 : L-1)] dir._name(J, L,i) u ($1 == h? $2 : NaN):(abs(($3))) w lp ls (i+1) pt (i+4) ps 1.5 title _str(i),\
@@ -133,13 +127,13 @@ if(user_defined == 0)
 		} else {
 		if(scaling == 3){ 
 			set key spacing 2
-			plot dir."_gSigmaZ_j=".sprintf("%d", site)._base(J, L) u ($1 == h? $2 : NaN):($3) w lp pt 6 ps 1.5 title sprintf("{/Symbol s}_{j=%d}", site),\
-				dir."_gSigmaZ_q=".sprintf("%d", 1)._base(J, L) u ($1 == h? $2 : NaN):($3) w lp pt 6 ps 1.5 title sprintf("{/Symbol s}_{q=%d}", 1),\
-				dir."_gSigmaZ_q=".sprintf("%d", L / 2.)._base(J, L) u ($1 == h? $2 : NaN):($3) w lp pt 6 ps 1.5 title sprintf("{/Symbol s}_{q=%d}", L / 2.),\
-				dir."_gH_j=".sprintf("%d", site)._base(J, L) u ($1 == h? $2 : NaN):($3) w lp pt 4 ps 1.5 title sprintf("H_{j=%d}", site),\
-				dir."_gH_q=".sprintf("%d", 1)._base(J, L) u ($1 == h? $2 : NaN):($3) w lp pt 4 ps 1.5 title sprintf("H_{q=%d}", 1),\
-				dir."_gH_q=".sprintf("%d", L / 2.)._base(J, L) u ($1 == h? $2 : NaN):($3) w lp pt 4 ps 1.5 title sprintf("H_{q=%d}", L / 2.),\
-				dir_base.'ThoulessTime/'."_g"._base(J, L) u ($1 == h? $2 : NaN):($3) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
+			plot dir."_gSigmaZ_j=".sprintf("%d", site)._base(J, L, w) u ($1 == h? $2 : NaN):($3/$4) w lp pt 6 ps 1.5 title sprintf("{/Symbol s}_{j=%d}", site),\
+				dir."_gSigmaZ_q=".sprintf("%d", 1)._base(J, L, w) u ($1 == h? $2 : NaN):($3/$4) w lp pt 6 ps 1.5 title sprintf("{/Symbol s}_{q=%d}", 1),\
+				dir."_gSigmaZ_q=".sprintf("%d", L / 2.)._base(J, L, w) u ($1 == h? $2 : NaN):($3/$4) w lp pt 6 ps 1.5 title sprintf("{/Symbol s}_{q=%d}", L / 2.),\
+				dir."_gH_j=".sprintf("%d", site)._base(J, L, w) u ($1 == h? $2 : NaN):($3/$4) w lp pt 4 ps 1.5 title sprintf("H_{j=%d}", site),\
+				dir."_gH_q=".sprintf("%d", 1)._base(J, L, w) u ($1 == h? $2 : NaN):($3/$4) w lp pt 4 ps 1.5 title sprintf("H_{q=%d}", 1),\
+				dir."_gH_q=".sprintf("%d", L / 2.)._base(J, L, w) u ($1 == h? $2 : NaN):($3/$4) w lp pt 4 ps 1.5 title sprintf("H_{q=%d}", L / 2.),\
+				_name_th(J, L) u ($1 == h? $2 : NaN):($3) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
 			} else{ 
 				plot name u ($1 == h? $2 : NaN):($3/$4) w lp pt 6 ps 1.5 title sprintf("L=%d,g=%.2f,h=%.2f",L,g,h)
 		}}}}}
@@ -205,4 +199,3 @@ set style line 10 dt (8,8)
 		}
 	}
 }	
-#}

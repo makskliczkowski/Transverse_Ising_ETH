@@ -181,7 +181,7 @@ namespace isingUI
 		void level_spacing_from_distribution();
 		void level_spacing();
 
-		void smoothen_data(const std::string& dir, const std::string& name);
+		void smoothen_data(const std::string& dir, const std::string& name, int mu = -1);
 
 		//-------------------------------------------------------------------------- FUNCTIONS TO CALL IN FUN-DEFAULT MODE
 		/// <summary>

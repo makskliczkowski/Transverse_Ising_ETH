@@ -521,7 +521,7 @@ template <typename T>
 inline bool openFile(T& file, std::string filename, std::ios_base::openmode mode = std::ios::out) {
 	file.open(filename, mode);
 	if (!file.is_open()) {
-		stout << "couldn't open a file: " + filename + "\n";
+		stout << "couldn't open a file: " + filename << std::endl;
 		return false;
 	}
 	return true;
@@ -604,7 +604,10 @@ inline void createDirs(const std::string& dir, const _Ty&... dirs) {
 
 template <typename ... _ty>
 inline void save_to_file(std::string name, const arma::vec& x, const arma::vec& y, _ty... args) {
-	assert(x.size() == y.size() && "Incompatible dimensions");
+	if(x.size() != y.size()){
+		std::cout << "Incompatible dimensions: " << x.size() << "vs.\t" << y.size() << std::endl;
+		assert(false);
+	}
 	std::ofstream file;
 	openFile(file, name, ios::out);
 	for (int i = 0; i < x.size(); i++) {
@@ -883,7 +886,7 @@ std::complex<_ty> dot_prod(const _COLVEC1<std::complex<_ty>> & left, const _COLV
 }															
 											
 template <typename _ty>
-inline arma::Col<_ty> exctract_vector(
+inline arma::Col<_ty> exctract_vector_between_values(
 	const arma::Col<_ty>& input_vec,	//<! input vector to exctract data from (assumed sorted)
 	_ty start, 							//<! first value of new vector (if lower than lowest in input_vec than taking from beggining)
 	_ty end								//<! last element to copy data
@@ -896,6 +899,17 @@ inline arma::Col<_ty> exctract_vector(
 			output(size) = it;
 		}
 	}
+	return output;
+}
+inline arma::vec exctract_vector(
+	const arma::vec& input_vec,	//<! input vector to exctract data from (assumed sorted)
+	u64 start, 	//<! first value of new vector (if lower than lowest in input_vec than taking from beggining)
+	u64 end		//<! last element to copy data
+) {
+	arma::vec output(end - start);
+#pragma omp parallel for
+	for (int k = start; k < end; k++) 
+		output(k - start) = input_vec(k);
 	return output;
 }
 

@@ -34,8 +34,8 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 15; 
-g = 0.8; 
+L = 13; 
+g = 0.15; 
 h = 0.8;
 J=1.0
 J0 = 0.; g_knot = 0.; 
@@ -43,14 +43,15 @@ w = 0.01;
 
 SigX_or_SigZ = 1	 	# 0-SigX , 1-SigZ :local
 operator_sum = 0		# is the operator a sum
-site = 1				# site at which the operator acts
+site = 0				# site at which the operator acts
 cor = 0					# correlations
 scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or 4-realisations or 5-M scaling or 6-compare
 q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
 operator = 1	 		# 1-SigmaZ , 0-Hq :local
-compare = 1
-use_derivative = 1		# use derivative of integrated spectral function
+compare = 0
+use_derivative = 0		# use derivative of integrated spectral function
 if(use_derivative){ compare = 0};
+add_thouless_time = 1	# add thouless time from sff
 
 LIOM = 0				# plot LIOMs?
 local = 0
@@ -59,7 +60,7 @@ rescale=0				# rescale S_A by power law to find const region
 add_line=0				# draw power-law: a/omega^n
 a0=8e-4			# value of power-law plot at x=1
 	h0 = 10;	hend = 90;		dh = 10;
-	g0 = 30;	gend = 100;		dg = 10;
+	g0 = 30;	gend = 80;		dg = 10;
 	L0 = 10;	Lend = 15; 		dL = 1;
 
 
@@ -79,7 +80,7 @@ x_max = 1e-1;
 y_min = 1e-1
 y_max = 2e0
 RANGE2 = "set xrange[x_min:x_max]; set yrange[y_min:y_max];"
-RANGE = (use_derivative? "set xrange[1e-4:3e2]; set yrange[1e-5:1e3];" : "set xrange[1e-4:2e1]; set yrange[1e-16:1e0];")
+RANGE = (use_derivative? "set xrange[1e-5:3e2]; set yrange[1e-5:1e3];" : "set xrange[1e-4:2e1]; set yrange[1e-10:1e0];")
 if(use_derivative){ a0 = 1e-3}
 #rescale function
 nu=2.0
@@ -97,6 +98,8 @@ out_dir = 'Spectral_Function/'
 	#------------------------------------ DATA, FIT AND PLOT
 	output_name = ""
 	name(x) = 0; key_title(x) = 0;
+	_base(x, dis) = sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, dis);
+	name_th(x) = dir_base.'SpectralFormFactor/smoothed/'.sprintf("_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, 1.0, J0, g, g_knot, h, 0.1);
 	name2(x)=0
 	array Mx[9];
 	wH_fun(x) = 0;
@@ -105,7 +108,9 @@ out_dir = 'Spectral_Function/'
 		if(scaling == 0){
 			wH_fun(x) = sqrt(L) / (0.341345 * 2**L) * sqrt(J*J + 1e-4*x*x + g*g + w*w / 3.)
 			dir = dir.str(site).'/';
-			name(x) = dir.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f".(use_derivative || 1? "" : "_M=8000").".dat", L, J0, g, g_knot, 0.01*x, w);	key_title(x) = sprintf("h=%.2f", x/100.)
+			_base(x, dis) = sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, 0.01*x, dis);
+			name_th(x) = dir_base.'SpectralFormFactor/smoothed/'.sprintf("_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, 1.0, J0, g, g_knot, 0.01*x, 0.1);
+			name(x) = dir.op."_".str(site)._base(x, w);	key_title(x) = sprintf("h=%.2f", x/100.)
 			name2(x) = dir_base.'IntegratedResponseFunction/DERIVATIVE/'.str(site).'/'.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, 0.01*x, w);
 			i0 = h0; iend = hend; di = dh; 	out_dir = out_dir."h_scaling/";
 			output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,w=%.2f", L, J0, g, g_knot, w);
@@ -113,7 +118,9 @@ out_dir = 'Spectral_Function/'
 			if(scaling == 1){
 				wH_fun(x) = sqrt(x) / (0.341345 * 2**x) * sqrt(J*J + h*h + g*g + w*w / 3.)
 				__str(x) = site == -1 ? str(x/2) : str(site)
-				name(x) = dir.__str(x).'/'.op.sprintf("_".__str(x)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f".(use_derivative || 1? "" : "_M=8000").".dat", x, J0, g, g_knot, h, w);	key_title(x) = sprintf("L=%d",x);
+				_base(x, dis) = sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", x, J0, g, g_knot, h, dis);
+				name_th(x) = dir_base.'SpectralFormFactor/smoothed/'.sprintf("_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", x, 1.0, J0, g, g_knot, h, 0.1);
+				name(x) = dir.__str(x).'/'.op."_".__str(x)._base(x, w);	key_title(x) = sprintf("L=%d",x);
 				name2(x) = dir_base.'IntegratedResponseFunction/DERIVATIVE/'.__str(x).'/'.op.sprintf("_".__str(x)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", x, J0, g, g_knot, h, w);
 				i0 = L0; iend = Lend; di = dL; 	out_dir = out_dir."size_scaling/"
 				output_name = output_name.op.sprintf("_".str(site)."_J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", J0, g, g_knot, h, w)
@@ -121,7 +128,9 @@ out_dir = 'Spectral_Function/'
 				if(scaling == 2){
 					wH_fun(x) = sqrt(L) / (0.341345 * 2**L) * sqrt(J*J + 1e-4*x*x + h*h + w*w / 3.)
 					dir = dir.str(site).'/'
-					name(x) = dir.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f".(use_derivative || 1? "" : "_M=8000").".dat", L, J0, 0.01*x, g_knot, h, w);
+					_base(x, dis) = sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, 0.01*x, g_knot, h, dis);
+					name_th(x) = dir_base.'SpectralFormFactor/smoothed/'.sprintf("_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, 1.0, J0, 0.01*x, g_knot, h, 0.1);
+					name(x) = dir.op."_".str(site)._base(x, w);
 					name2(x) = dir_base.'IntegratedResponseFunction/DERIVATIVE/'.str(site).'/'.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, 0.01*x, g_knot, h, w);
 					key_title(x) = sprintf("g=%.2f",0.01*x)
 					i0 = g0; iend = gend; di = dg;	out_dir = out_dir."g_scaling/"
@@ -129,7 +138,7 @@ out_dir = 'Spectral_Function/'
 				} else{
 					if(scaling == 3){
 						wH_fun(x) = sqrt(L) / (0.341345 * 2**L) * sqrt(J*J + h*h + g*g + w*w / 3.)
-						name(x) = dir.str(x).'/'.op."_".str(x).sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f".(use_derivative || 1? "" : "_M=8000").".dat", L, J0, g, g_knot, h, w);
+						name(x) = dir.str(x).'/'.op."_".str(x)._base(x, w);
 						name2(x) = dir_base.'IntegratedResponseFunction/DERIVATIVE/'.str(x).'/'.op.sprintf("_".str(x)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);
 						key_title(x) = q_vs_j && operator < 2? sprintf("q/{/Symbol p}=%.2f", 2*x/(L+0.0))\
 								: (operator > 1? sprintf("n=%d", x) :  sprintf("j=%d", x) ) 
@@ -140,7 +149,7 @@ out_dir = 'Spectral_Function/'
 							if(scaling == 4){
 							wH_fun(x) = sqrt(L) / (0.341345 * 2**L) * sqrt(J*J + h*h + g*g + w*w / 3.)
 							_dir(x) = dir.str(site).'/realisation='.sprintf("%d",x).'/';
-							name(x) = _dir(x).op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f".(use_derivative? "" : "_M=8000").".dat", L, J0, g, g_knot, h, w);
+							name(x) = _dir(x).op."_".str(site)._base(x, w);
 							key_title(x) = sprintf("r=%d",x);
 							i0 = 0; iend = 9; di=1; 	out_dir = out_dir."realisation_scaling/"
 							output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J0, g, g_knot, h, w);
@@ -162,8 +171,9 @@ out_dir = 'Spectral_Function/'
 	__size = (iend-i0)/di+1
 	array val1[__size];
 	array val2[__size];
-	array wH[__size];
-	array val_at_wH[__size];
+	array wH[__size];	array val_at_wH[__size];
+	array w_tau[__size];	array val_at_tau[__size];
+	
 	do for[i=i0:iend:di]{
 		idx = (i-i0)/di + 1
 		wH[idx] = wH_fun(i);
@@ -174,13 +184,23 @@ out_dir = 'Spectral_Function/'
 			stats name(i) using (abs($1 - wH[idx])) nooutput prefix "X"; 	idx_wH = X_index_min;
 			stats name(i) every ::idx_wH::(idx_wH+1) using 2 nooutput prefix "Y";	val_at_wH[idx] = Y_min
 		}
+		if(add_thouless_time && fileexist(name(i))){ 
+			GOE(x) = (x < 1? 2 * x - x*log(1+2*x) : 2-x*log( (2*x+1) / (2*x-1)))
+			#stats name_th every ::0::1 using 3:4 nooutput;   w_tau[idx] = 1.0 / ( STATS_min_x * STATS_min_y );
+			stats name_th(i) using ($1 > 2.5? NaN : ((log10( $2 / GOE($1) )) - 9e-2)**2) nooutput prefix "Y";       y_min = Y_index_min;
+            stats name_th(i) using 1 every ::y_min::(y_min+1) nooutput;   w_tau[idx] = wH[idx] / STATS_min; 
+			stats name(i) using (abs($1 - w_tau[idx])) nooutput prefix "X"; 	idx_tau = X_index_min;
+			stats name(i) every ::idx_tau::(idx_tau+1) using 2 nooutput prefix "Y";	val_at_tau[idx] = Y_min
+		} else { 
+			w_tau[idx] = NaN ; val_at_tau[idx] = NaN;
+		}
 		if(compare){
 			if(fileexist(name(i)) && fileexist(name2(i))){ 
 				stats name2(i) using (f($1, $2)) nooutput prefix "stat2"; val2[idx] = stat2_max; 
 				print val1[idx], val2[idx], val2[idx] / val1[idx], wH[idx]
 			} 
 		} else {
-			print val1[idx], wH[idx]
+			print val1[idx], wH[idx], val_at_tau[idx], w_tau[idx]
 		}
 	}
 	a = 1
@@ -213,7 +233,11 @@ out_dir = 'Spectral_Function/'
 				plot name(iend) u 1:( ($1>x_min && $1 < x_max)? 10**(1-nu)* a0 /$1**nu : NaN) w l dt (3,5,10,5) lc rgb "black" lw 1.5 notitle
 				set label 1 at 0.5*(x_max - x_min), 0.5*(y_max-y_min) sprintf("{/Symbol w}^{%.2f}",nu) front
 			}
+			@MARGIN; @UNSET; @RANGE; @SET_LOG
 			plot wH using (wH[$1]):(val_at_wH[$1]) w lp dt (8,8) lc rgb "blue" lw 1.5 pt 4 ps 1.25 notitle
+			if(add_thouless_time){
+				plot w_tau using (w_tau[$1]):(val_at_tau[$1]) w lp dt (8,8) lc rgb "black" lw 1.5 pt 4 ps 1.25 notitle
+			}
 		}
 		unset multiplot
 
