@@ -2,7 +2,7 @@
 // set externs
 std::uniform_real_distribution<> theta	= std::uniform_real_distribution<>(0.0, pi);
 std::uniform_real_distribution<> fi		= std::uniform_real_distribution<>(0.0, pi);
-int outer_threads = 8;
+int outer_threads = 4;
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
 {
