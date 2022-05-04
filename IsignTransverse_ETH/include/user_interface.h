@@ -261,20 +261,55 @@ namespace isingUI
 		}
 
 		//<! loop over disorder realisations and call lambda each time
-		template <typename _ty, typename... _types> 
+		template <typename _ty, typename callable, typename... _types> 
 		void average_over_realisations(
-			IsingModel<_ty>& model,				   	   //!< input model (symmetric model has to have average over external random stuff)
-			bool with_diagonalization,				   //!< checked if each realisation should diagonalize a new matrix
-			std::function<void(_types...args)> lambda, //!< callable function
-			_types... args							   //!< arguments passed to callable interface lambda
+			IsingModel<_ty>& model,		//!< input model (symmetric model has to have average over external random stuff)
+			bool with_diagonalization,	//!< checked if each realisation should diagonalize a new matrix
+			callable lambda, 			//!< callable function
+			_types... args				//!< arguments passed to callable interface lambda
 		) {
 			model.reset_random();
-			for (int r = 0; r < this->realisations; r++) {
-				if (with_diagonalization) {
-					model.hamiltonian();
-					model.diagonalization();
+			if(this->m){
+				arma::vec g_vec = model.g + create_random_vec(this->realisations, model.g / 50.);
+			#pragma omp parallel for num_threads(outer_threads)
+				for(int r = 0; r < g_vec.size(); r++){
+					if(this->realisations > 1) model.g = g_vec(r);
+					if (with_diagonalization) {
+						model.hamiltonian();
+						model.diagonalization();
+					}
+					lambda(model, r, std::forward<_types>(args)...);
 				}
-				lambda(std::forward<_types>(args)...);
+			} else{
+			#pragma omp parallel for num_threads(outer_threads)
+				for (int r = 0; r < this->realisations; r++) {
+					if (with_diagonalization) {
+						model.hamiltonian();
+						model.diagonalization();
+					}
+					lambda(model, r, std::forward<_types>(args)...);
+				}
+			}
+		};
+		template <typename callable, typename... _types> 
+		void average_over_realisations(
+			bool with_diagonalization,	//!< checked if each realisation should diagonalize a new matrix
+			callable lambda, 			//!< callable function
+			_types... args				//!< arguments passed to callable interface lambda
+		) {
+			gen = std::mt19937_64(seed);
+			if(this->m){
+				arma::vec g_vec = this->g + create_random_vec(this->realisations, this->g / 50.);
+			#pragma omp parallel for num_threads(outer_threads)
+				for(int r = 0; r < g_vec.size(); r++){
+					if(this->realisations > 1) this->g = g_vec(r);
+					lambda(r, std::forward<_types>(args)...);
+				}
+			} else{
+			#pragma omp parallel for num_threads(outer_threads)
+				for (int r = 0; r < this->realisations; r++) {
+					lambda(r, std::forward<_types>(args)...);
+				}
 			}
 		};
 	};

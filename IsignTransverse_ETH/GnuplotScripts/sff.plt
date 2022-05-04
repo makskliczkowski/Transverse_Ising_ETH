@@ -24,20 +24,20 @@ fileexist(name)=system("[ -f '".name."' ] && echo '1' || echo '0'") + 0#int(syst
 UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset border;"
 
 #---------------------------- PARAMETERS
-model = 0       # 1=symmetries and 0=disorder
+model = 1       # 1=symmetries and 0=disorder
 w = 0.1
-g = 0.05
-L = 9
+g = 0.9
+L = 14
 h = 0.8
 J = 1.0
 J_knot = 0.; g_knot = 0.; 
 scaling = 2		     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling
-smoothed = 0         # smoothed ?
-plot_der_GOE = 1     # plot deriviation from GOE value
+smoothed = 1         # smoothed ?
+plot_der_GOE = 0     # plot deriviation from GOE value
 zoom_in = 0          # zoom in to collapse on GOE
 find_Thouless = 1    # find thouless time?
 	h0 = 10;     hend = 50;		dh = 5;
-	g0 = 10;    gend = 90;		dg = 20;
+	g0 = 30;    gend = 90;		dg = 20;
     J0 = 10;    Jend = 100;     dJ = 20
 	L0 = 8;	    Lend = 12; 		dL = 1;
 
@@ -54,7 +54,7 @@ if(smoothed){ dir_base = dir_base.'smoothed/';}
 #---------------------------- SET PLOT DATA
 load './gnuplot-colorbrewer-master/diverging/RdYlGn.plt'
 out_dir = 'SpectralFormFactor/'
-_name_long(Lx, Jx, hx, gx) = model? dir_base.sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", Lx, Jx, gx, hx) :\
+_name_long(Lx, Jx, hx, gx) = model? dir_base.sprintf("_L=%d,J=%.2f,g=%.2f,h=%.2f.dat", Lx, Jx, gx, hx) :\
                         dir_base.sprintf("_L=%d,J=%.2f,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", Lx, Jx, gx, hx, w);
 
 _name(x) = 0; _key_title(x) = 0;
@@ -79,6 +79,9 @@ i0 = 0; iend = 0; di = 1;
 						i0 = J0; iend = Jend; di = dJ; out_dir = out_dir."J_scaling/"
 						output_name = sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J_knot, g, g_knot, h, w);
 					} else{
+						_name(x) = _name_long(L, J, h, g);    _key_title(x) = sprintf("L=%d,J=%.2f,g=%.2f,h=%.2f", L, J, g, h)
+						i0 = 0; iend = 0; di = 1; out_dir = out_dir."single_plots/"
+						output_name = sprintf("_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J, J_knot, g, g_knot, h, w);
                     }}}}
 
 #---------------------------- EXTRACT DATA - STATS

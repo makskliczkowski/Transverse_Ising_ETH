@@ -122,28 +122,27 @@ void isingUI::ui::make_sim()
 							lanczosParams params(this->mu, 1, true, false);
 							lanczos::Lanczos lancz(alfa->get_hamiltonian(), std::move(params));
 							//lancz.diagonalization();
-							int realisation = 0;
-							std::function to_ave_time = [&]()
+							auto to_ave_time = [this, &times, &N, &lancz, &entropy, &entropy_lanczos](auto& alfa, int realis)
 							{
 								const auto start_real = std::chrono::system_clock::now();
 								const arma::cx_vec init_state = this->set_init_state(N);
 								arma::cx_vec state2 = init_state;
-								alfa->set_coefficients(init_state);
+								alfa.set_coefficients(init_state);
 								if(this->scale) 
 									lancz.diagonalization(init_state);
 								stout << "\n\t\tfinished preparing for evolutin: - in time : " << tim_s(start_real) << "s" << std::endl;
 								for (int i = 0; i < times.size(); i++)
 								{
 									auto t = times(i);
-									arma::cx_vec state = alfa->time_evolve_state(init_state, t);
+									arma::cx_vec state = alfa.time_evolve_state(init_state, t);
 									if(this->scale)
 										state2 = lancz.time_evolution_stationary(init_state, t);
 									else
 										lancz.time_evolution_non_stationary(state2, t - (i == 0 ? 0.0 : times(i - 1)), this->mu);
-									entropy(i) += alfa->entaglement_entropy(state, this->L / 2);
-									entropy_lanczos(i) += alfa->entaglement_entropy(state2, this->L / 2);
+									entropy(i) += alfa.entaglement_entropy(state, this->L / 2);
+									entropy_lanczos(i) += alfa.entaglement_entropy(state2, this->L / 2);
 								}
-								stout << "\t\tfinished realisation realisation: " << ++realisation << " - in time : " << tim_s(start_real) << "s" << std::endl;
+								stout << "\t\tfinished realisation realisation: " << realis << " - in time : " << tim_s(start_real) << "s" << std::endl;
 							};
 							average_over_realisations(*alfa, false, to_ave_time);
 							entropy /= double(this->realisations);
@@ -722,15 +721,15 @@ void isingUI::ui::entropy_evolution(){
 		arma::vec times, entropy, entropy_stddev;
 		double dt_new = 1e-2;
 		std::string dir = this->saving_dir + "Entropy" + kPSep;
-		std::function<void()> to_ave_time;
+		createDirs(dir);
 		alfa.reset_random();
 
 		// ----------- diagonalize
 		stout << "\t\t	--> start diagonalizing for " << alfa.get_info()
 				<< " - in time : " << tim_s(start) << "s" << std::endl;
-		int realisation = 0;
 		if(this->ch){
 			dir += "Lanczos" + kPSep;
+			createDirs(dir);
 			auto H = alfa.get_hamiltonian();
 			lanczos::Lanczos lancz(H, lanczosParams(this->mu, 1, true, false));
 			//lancz.diagonalization();
@@ -739,7 +738,7 @@ void isingUI::ui::entropy_evolution(){
 			times = this->scale ? arma::logspace(-2, t_max, 500) : arma::join_cols(range1, range2, arma::regspace(11.0 * this->dt, this->dt, 2e2));
 			entropy = arma::vec(times.size(), arma::fill::zeros); entropy_stddev = entropy;
 
-			to_ave_time = [&, this, lancz]() mutable 
+			auto to_ave_time = [&, this, lancz](auto& alfa, int realis) mutable 
 				{	// capture lancz by value to access it outsied the if-else scope, i.e. when the lambda is called
 					// entropy and times are declared outside the if-else scope so they can be passed by reference
 					arma::cx_vec init_state = this->set_init_state(N);
@@ -759,15 +758,16 @@ void isingUI::ui::entropy_evolution(){
 						entropy(i) += ent;
 						entropy_stddev(i) += ent * ent;
 					}
-					stout << "realisation: " << ++realisation << " - in time : " << tim_s(start) << "s" << std::endl;
+					stout << "realisation: " << realis << " - in time : " << tim_s(start) << "s" << std::endl;
 				};
+			average_over_realisations<>(alfa, false, to_ave_time);
 		} else{
 			alfa.diagonalization();
 			double omega_max = alfa.get_eigenvalues()(N - 1) - alfa.get_eigenvalues()(0);
 			dt_new = 10 * this->dt / omega_max;
 			times = this->scale ? arma::logspace(-2, t_max, 200) : arma::regspace(dt_new, dt_new, tH);
 			entropy = arma::vec(times.size(), arma::fill::zeros); entropy_stddev = entropy;
-			to_ave_time = [&]()
+			auto to_ave_time = [&](auto& alfa, int realis)
 				{
 					arma::cx_vec init_state = this->set_init_state(N);
 					alfa.set_coefficients(init_state);
@@ -779,13 +779,12 @@ void isingUI::ui::entropy_evolution(){
 						entropy(i) += ent;
 						entropy_stddev(i) += ent * ent;
 					}
-					stout << "realisation: " << ++realisation << " - in time : " << tim_s(start) << "s" << std::endl;
+					stout << "realisation: " << realis << " - in time : " << tim_s(start) << "s" << std::endl;
 				};
+			average_over_realisations<>(alfa, false, to_ave_time);
 		}
 		stout << "\t\t	--> finished diagonalizing for " << alfa.get_info()
 					<< " - in time : " << tim_s(start) << "s" << std::endl;
-		createDirs(dir);
-		average_over_realisations<>(alfa, false, to_ave_time);
 		entropy /= double(this->realisations);
 		entropy_stddev = arma::sqrt(entropy_stddev / double(this->realisations) - arma::square(entropy));
 		std::ofstream file;
@@ -1001,8 +1000,14 @@ void isingUI::ui::intSpecFun_from_timeEvol()
 
 //<! spectral form factor calculated from eigenvalues in file or diagonalize matrix
 void isingUI::ui::spectral_form_factor(){
+	// always unfolding!
+	this->ch = 1;
 	clk::time_point start = std::chrono::system_clock::now();
-    // values to be set
+
+	//------- PREAMBLE
+	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"k", "x", "p"}) 
+					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
+
 	const double chi = 0.341345;
 	size_t dim = ULLPOW(this->L);
 	if(this->m){
@@ -1013,10 +1018,7 @@ void isingUI::ui::spectral_form_factor(){
 	const double wH = sqrt(this->L) / (chi * dim) * sqrt(this->J * this->J + this->h * this->h + this->g * this->g
 												 + ( this->m? 0.0 : (this->w * this->w + this->g0 * this->g0 + this->J0 * this->J0) / 3. ));
 	double tH = 1. / wH;
-
-	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
-					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
-	
+	double r1 = 0.0, r2 = 0.0;
 	int num_times = 5000;
 	int time_end = (int)std::ceil(std::log10(5 * tH));
 	time_end = (time_end / std::log10(tH) < 1.5) ? time_end + 1 : time_end;
@@ -1024,29 +1026,24 @@ void isingUI::ui::spectral_form_factor(){
 	arma::vec times = this->ch? arma::logspace(log10(1.0 / (two_pi * dim)), 1, num_times) : arma::logspace(-2, time_end, num_times);
 	arma::vec sff(num_times, arma::fill::zeros);
 	double Z = 0.0;
-	
-	// ----------- choose model and run kernel
-	double r1 = 0.0, r2 = 0.0;
-	int realis = this->m? 1 : this->realisations;
-#pragma omp parallel for num_threads(outer_threads) reduction(+: r1, r2)
-	for(int r = 0; r < realis; r++){
+
+	// ------ SET LAMBDA
+	auto lambda_average = [this, &info, &start, &times, &sff, &Z, &r1, &r2](
+		int realis
+		)
+	{
 		arma::vec eigenvalues;
-		std::string suffix = (this->m)? "" : "_real=" + std::to_string(r);
+		std::string suffix = "_real=" + std::to_string(realis);
 		if(this->m){
 			auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
-									 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-			//eigenvalues = this->get_eigenvalues(*alfa, suffix);
-			alfa->diagonalization(false);
-			eigenvalues = alfa->get_eigenvalues();
-
+								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+			eigenvalues = this->get_eigenvalues(*alfa, suffix);
 		} else{
 			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-			//eigenvalues = this->get_eigenvalues(*alfa, suffix);
-			alfa->diagonalization(false);
-			eigenvalues = alfa->get_eigenvalues();
+			eigenvalues = this->get_eigenvalues(*alfa, suffix);
 		}
 		if(this->fun == 3) stout << "\t\t	--> finished loading eigenvalues for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
-		if(eigenvalues.empty()) continue;
+		if(eigenvalues.empty()) return;
 		const u64 N = eigenvalues.size();
 		// ------------------------------------- calculate gap ratio
 			double E_av = arma::trace(eigenvalues) / double(N);
@@ -1056,10 +1053,16 @@ void isingUI::ui::spectral_form_factor(){
 				return abs(x - E_av) < abs(y - E_av);
 				});
 			u64 E_av_idx = i - eigenvalues.begin();
-			r1 += statistics::eigenlevel_statistics((E_av_idx - num / 2) + eigenvalues.begin(), (E_av_idx + num / 2) + eigenvalues.begin());
+			#pragma omp critical
+			{
+				r1 += statistics::eigenlevel_statistics((E_av_idx - num / 2) + eigenvalues.begin(), (E_av_idx + num / 2) + eigenvalues.begin());
+			}
 			if(this->ch)
 				statistics::unfolding(eigenvalues);
-			r2 += statistics::eigenlevel_statistics((E_av_idx - num / 2) + eigenvalues.begin(), (E_av_idx + num / 2) + eigenvalues.begin());
+			#pragma omp critical
+			{
+				r2 += statistics::eigenlevel_statistics((E_av_idx - num / 2) + eigenvalues.begin(), (E_av_idx + num / 2) + eigenvalues.begin());
+			}
 		// ------------------------------------- calculate sff
 			if(this->fun == 3) stout << "\t\t	--> finished unfolding for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 			auto [sff_r, Z_r] = statistics::spectral_form_factor(eigenvalues, times, 0.5);
@@ -1069,11 +1072,27 @@ void isingUI::ui::spectral_form_factor(){
 				Z += Z_r;
 			}
 		if(this->fun == 3) stout << "\t\t	--> finished realisation for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
+	};
+	
+	// ----------- choose model and run kernel
+	double norm = 0.0;
+	if(this->m){
+		int counter = 0;
+		for(int k = 1; k < this->L; k++){
+			if(k == this->L / 2) continue;
+			this->symmetries.k_sym = k;
+			average_over_realisations<>(false, lambda_average);
+			counter++;
+		}
+		norm = this->realisations * counter;
+	} else{
+		average_over_realisations<>(false, lambda_average);
+		norm = this->realisations;
 	}
 	if(sff.is_empty()) return;
 	if(sff.is_zero()) return;
-	r1 /= double(realis);
-	r2 /= double(realis);
+	r1 /= norm;
+	r2 /= norm;
 	sff = sff / Z;
 
 	std::string dir = this->saving_dir + "SpectralFormFactor" + kPSep;
@@ -1084,7 +1103,7 @@ void isingUI::ui::spectral_form_factor(){
 	printSeparated(lvl, "\t", 16, true, r1, r2);
 	lvl.close();
 	// ---------- find Thouless time
-	double eps = 5e-2;
+	double eps = 8e-2;
 	auto K_GOE = [](double t){
 		return t < 1? 2 * t - t * log(1+2*t) : 2 - t * log( (2*t+1) / (2*t-1) );
 	};
@@ -1101,7 +1120,7 @@ void isingUI::ui::spectral_form_factor(){
 		}
 		if(times(i) >= t_max) break;
 	}
-	save_to_file(dir + info + ".dat", times, sff, tH, thouless_time, r1, r2);
+	save_to_file(dir + info + ".dat", times, sff, tH, thouless_time, r1, r2, dim);
 	smoothen_data(dir, info + ".dat");
 }
 
@@ -1223,20 +1242,19 @@ void isingUI::ui::adiabaticGaugePotential_dis()
 			stout << " \t\t--> finished creating model for " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s" << std::endl;
 			auto opMat = alfa->chooseOperator(this->op, this->site);
 			normaliseOp(opMat);
-			std::function
-				getValues = [&](double &AGP, double &typ_susc, int &counter)
+			auto getValues = [this, &opMat, &start_loop, &start](auto& alfa, int realis, double &AGP, double &typ_susc, int &counter)
 			{
-				stout << " \t\t--> next realisation " << alfa->get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s" << std::endl;
-				const u64 N = alfa->get_hilbert_size();
-				const double omegaH = alfa->mean_level_spacing_analytical();
+				stout << " \t\t--> next realisation " << alfa.get_info() << " - in time : " << tim_s(start_loop) << "\nTotal time : " << tim_s(start) << "s" << std::endl;
+				const u64 N = alfa.get_hilbert_size();
+				const double omegaH = alfa.mean_level_spacing_analytical();
 				const double rescale = (double)N * omegaH * omegaH / (double)L;
 				this->mu = long(0.5 * N);
 				const double mu2 = double(L) / double(N);
-				static long int E_min = alfa->E_av_idx - long(mu / 2);
-				static long int E_max = alfa->E_av_idx + long(mu / 2);
+				static long int E_min = alfa.E_av_idx - long(mu / 2);
+				static long int E_max = alfa.E_av_idx + long(mu / 2);
 				double typ_susc_local = 0;
 				double AGP_local = 0;
-				const auto U = alfa->get_eigenvectors();
+				const auto U = alfa.get_eigenvectors();
 				arma::cx_mat mat_elem = U.t() * opMat * U;
 #pragma omp parallel for reduction(+ \
 								   : AGP_local, typ_susc_local)
@@ -1246,7 +1264,7 @@ void isingUI::ui::adiabaticGaugePotential_dis()
 					for (long int j = 0; j < N && j != i; j++)
 					{
 						const double nominator = abs(mat_elem(i, j) * conj(mat_elem(i, j)));
-						const double omega_ij = alfa->get_eigenEnergy(j) - alfa->get_eigenEnergy(i);
+						const double omega_ij = alfa.get_eigenEnergy(j) - alfa.get_eigenEnergy(i);
 						const double denominator = omega_ij * omega_ij + mu2 * mu2;
 						AGP_local += omega_ij * omega_ij * nominator / (denominator * denominator);
 						susc += nominator / (omega_ij * omega_ij);
@@ -1262,11 +1280,11 @@ void isingUI::ui::adiabaticGaugePotential_dis()
 			double typ_susc = 0, AGP = 0;
 			int counter = 0;
 			if (this->realisations > 1)
-				average_over_realisations<cpx, double &, double &, int &>(*alfa, true, getValues, AGP, typ_susc, counter);
+				average_over_realisations<cpx, decltype(getValues), double &, double &, int &>(*alfa, true, getValues, AGP, typ_susc, counter);
 			else
 			{
 				alfa->diagonalization();
-				getValues(AGP, typ_susc, counter);
+				getValues(*alfa, 0, AGP, typ_susc, counter);
 			}
 			farante << typ_susc / double(counter) << "\t\t" << AGP / double(counter) << "\t\t";
 			farante.flush();
