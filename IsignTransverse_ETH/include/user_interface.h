@@ -12,6 +12,7 @@ const arma::vec down = { 0, 1 };
 const arma::vec up	 = { 1, 0 };
 extern std::uniform_real_distribution<> theta;
 extern std::uniform_real_distribution<> fi;
+extern int outer_threads;
 // can't be const cause operator() is for non-const only (on microsoft it can be on const)
 using namespace std;
 std::vector<std::string> change_input_to_vec_of_str(int argc, char** argv);

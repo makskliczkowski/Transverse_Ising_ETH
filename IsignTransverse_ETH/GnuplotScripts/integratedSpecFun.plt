@@ -21,7 +21,7 @@ set xtics mirror;\
 set ytics mirror;"
 @FORMAT
 x_log = 1; 
-y_log = 1;
+y_log = 0;
 SCALE = x_log? "unset logscale xy; set logscale x; set format x '10^{%L}'; " : "set format x '%g'"
 SCALE = SCALE.(y_log? "set logscale y; set format y '10^{%L}'" : "set format y '%g'")
 @SCALE
@@ -40,7 +40,7 @@ YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
 L = 15; 
-g = 0.6
+g = 0.9
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
@@ -53,13 +53,13 @@ rescale = 0				# rescale the spectral function by f(w, L)?
 site = 1				# site at which the operator acts
 scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
 q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
-operator = 1	 		# 1-SigmaZ , 0-Hq :local
+operator = 0	 		# 1-SigmaZ , 0-Hq :local
 
 two_panels = 1			# plot integrated spectral function next to respons function
 smoothed = 1			# smoothed derivative?
 #-- IntegratedSpecFun
 plot_normalized = 1		# plot renormalized to 1st peak
-plot_exponent = 1;	# plot as integrated response function
+plot_exponent = 0;	# plot as integrated response function
 #-- SpectralFun
 plot_derivative = 0		# use derivative as integrated spectal function
 substract_LTA = 0
@@ -71,7 +71,7 @@ LIOM = 0				# plot LIOMs?
 local = 0
 
 	h0 = 10;	hend = 150;		dh = 10;
-	g0 = 20;	gend = 120;		dg = 20;
+	g0 = 20;	gend = 100;		dg = 10;
 	L0 = 10;	Lend = 15; 		dL = 1;
 
 use_fit = 0
@@ -148,7 +148,7 @@ if(scaling == 3) { str(x) = _str(x) }
 		str2(x) = str(x > iend? x - _tmp : x)
 		that_dir = (plot_derivative? dir.'DERIVATIVE/' : dir_base.'ResponseFunction/')
 		
-		name(x) = x <= iend? this_dir.str2(x).'/'.(smoothed? 'smoothed/' : '')._name(x) : that_dir.str2(x).'/'.(smoothed? 'smoothed/' : '')._name(x - _tmp);
+		name(x) = x <= iend? this_dir.str2(x).'/'._name(x) : that_dir.str2(x).'/'.(smoothed? 'smoothed/' : '')._name(x - _tmp);
 		key_title(x) = scaling == 5? (x<=iend? "I_A({/Symbol w})" : "S_A({/Symbol w})") : (x<=iend? _key_title(x) : _key_title(x - _tmp));
 		
 		if(use_png){set term pngcairo size 1900, 900	}

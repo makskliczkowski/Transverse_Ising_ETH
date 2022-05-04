@@ -2,6 +2,7 @@
 // set externs
 std::uniform_real_distribution<> theta	= std::uniform_real_distribution<>(0.0, pi);
 std::uniform_real_distribution<> fi		= std::uniform_real_distribution<>(0.0, pi);
+int outer_threads = 8;
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
 {
@@ -59,7 +60,7 @@ void isingUI::ui::make_sim()
 {
 					// ----------------------
 					//this->diagonalize(); continue;
-					//spectral_form_factor(); continue;
+					spectral_form_factor(); continue;
 					std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
 					smoothen_data(this->saving_dir + "SpectralFormFactor" + kPSep, info + ".dat"); continue;
 } continue;
@@ -852,7 +853,7 @@ void isingUI::ui::relaxationTimesFromFiles()
 		smoothen_data(dir_out, name, 10);
 
 		// spectral function
-		//smoothen_data(dir_spec, name, 100);
+		smoothen_data(dir_spec, name, 100);
 		auto data_spec = readFromFile(file, dir_spec + "smoothed" + kPSep + name);
 		file.close();
 		arma::vec omega_vals;
@@ -860,30 +861,33 @@ void isingUI::ui::relaxationTimesFromFiles()
 		if(!data_spec.empty()){
 			omega_vals = data_spec[0];
 			spectral_function = data_spec[1];
-			u64 size_spec = data_spec[0].size();
-			auto deriv = log_derivative(data_spec[0], data_spec[1]);
-			double integral = simpson_rule(data_spec[0], data_spec[1]);
-			data_spec[0].shed_row(size_spec - 1);
-			save_to_file(dir_out_2nd + name, data_spec[0], deriv, wH, LTA);
-			smoothen_data(dir_out_2nd, name, 100);
+			//u64 size_spec = data_spec[0].size();
 		} else {
 			omega_vals = x;
 			spectral_function = specFun;
 		}
 			// find 1st plateau (peak) and normalize
-			double omega_cut = LTA >= 0.4 ? 0.4 : 0.5;
-			u64 j = min_element(begin(omega_vals), end(omega_vals), [=](double a, double b) {
-					return abs(a - omega_cut) < abs(b - omega_cut);
-					}) - omega_vals.begin();
+		//	double omega_cut = this->g < 0.7? 0.5 : 1.0;
+		//	u64 j = min_element(begin(omega_vals), end(omega_vals), [=](double a, double b) {
+		//			return abs(a - omega_cut) < abs(b - omega_cut);
+		//			}) - omega_vals.begin();
 			u64 i = min_element(begin(omega_vals), end(omega_vals), [=](double a, double b) {
 					return abs(a - wH) < abs(b - wH);
 					}) - omega_vals.begin();	
-
-			auto spectral_fun_cut = exctract_vector(spectral_function, i, j);
-			u64 idx_tmp = i + spectral_fun_cut.index_min();
-			if(spectral_function(idx_tmp - 1) > 0.9 * spectral_function(j))	
-				idx_tmp = spectral_function.size() - 1;
+//
+		//	auto spectral_fun_cut = exctract_vector(spectral_function, i, j);
+		//	u64 idx_tmp = i + spectral_fun_cut.index_min();
+		//	if(spectral_function(idx_tmp - 1) > 0.5 * spectral_function(i))	
+		//		idx_tmp = spectral_function.size() - 1;
 		
+		std::vector<double> w_cut_vals = this->g < 0.6? std::vector({0.2, 0.4, 0.6, 0.8, 1.1, 1.1, 1.1, 1.1})
+													  : std::vector({10.0, 0.4, 1.0, 1.2, 1.2, 1.2, 1.2, 1.2});
+		double w_cut = w_cut_vals[_site];
+		u64 idx_tmp = min_element(begin(omega_vals), end(omega_vals), [=](double a, double b) {
+				return abs(a - w_cut) < abs(b - w_cut);
+				}) - omega_vals.begin();
+		if(spectral_function(idx_tmp - 1) > 0.25 * spectral_function(i))	
+				idx_tmp = spectral_function.size() - 1;
 		u64 idx = min_element(begin(data[0]), end(data[0]), [=](double a, double b) {
 					return abs(a - omega_vals(idx_tmp)) < abs(b - omega_vals(idx_tmp));
 					}) - data[0].begin();
@@ -999,37 +1003,47 @@ void isingUI::ui::intSpecFun_from_timeEvol()
 void isingUI::ui::spectral_form_factor(){
 	clk::time_point start = std::chrono::system_clock::now();
     // values to be set
-	double tH = 0;
-	std::string info;
-	int num_times = 5000;
-	arma::vec sff(num_times, arma::fill::zeros);
-	arma::vec times(num_times, arma::fill::zeros);
-	double Z = 0.0;
+	const double chi = 0.341345;
+	size_t dim = ULLPOW(this->L);
+	if(this->m){
+		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
+								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+		dim = alfa->get_hilbert_size();
+	}
+	const double wH = sqrt(this->L) / (chi * dim) * sqrt(this->J * this->J + this->h * this->h + this->g * this->g
+												 + ( this->m? 0.0 : (this->w * this->w + this->g0 * this->g0 + this->J0 * this->J0) / 3. ));
+	double tH = 1. / wH;
 
+	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
+					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
+	
+	int num_times = 5000;
+	int time_end = (int)std::ceil(std::log10(5 * tH));
+	time_end = (time_end / std::log10(tH) < 1.5) ? time_end + 1 : time_end;
+
+	arma::vec times = this->ch? arma::logspace(log10(1.0 / (two_pi * dim)), 1, num_times) : arma::logspace(-2, time_end, num_times);
+	arma::vec sff(num_times, arma::fill::zeros);
+	double Z = 0.0;
+	
 	// ----------- choose model and run kernel
 	double r1 = 0.0, r2 = 0.0;
 	int realis = this->m? 1 : this->realisations;
+#pragma omp parallel for num_threads(outer_threads) reduction(+: r1, r2)
 	for(int r = 0; r < realis; r++){
 		arma::vec eigenvalues;
 		std::string suffix = (this->m)? "" : "_real=" + std::to_string(r);
-		double dim = 0.0;
 		if(this->m){
 			auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 									 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-			eigenvalues = this->get_eigenvalues(*alfa, suffix);
-			if(r == 0){
-				tH = 1. / alfa->mean_level_spacing_analytical();
-				info = alfa->get_info({});
-			}
-			dim = alfa->get_hilbert_size();
+			//eigenvalues = this->get_eigenvalues(*alfa, suffix);
+			alfa->diagonalization(false);
+			eigenvalues = alfa->get_eigenvalues();
+
 		} else{
 			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-			eigenvalues = this->get_eigenvalues(*alfa, suffix);
-			if(r == 0){
-				tH = 1. / alfa->mean_level_spacing_analytical();
-				info = alfa->get_info({});
-			}
-			dim = alfa->get_hilbert_size();
+			//eigenvalues = this->get_eigenvalues(*alfa, suffix);
+			alfa->diagonalization(false);
+			eigenvalues = alfa->get_eigenvalues();
 		}
 		if(this->fun == 3) stout << "\t\t	--> finished loading eigenvalues for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 		if(eigenvalues.empty()) continue;
@@ -1048,12 +1062,12 @@ void isingUI::ui::spectral_form_factor(){
 			r2 += statistics::eigenlevel_statistics((E_av_idx - num / 2) + eigenvalues.begin(), (E_av_idx + num / 2) + eigenvalues.begin());
 		// ------------------------------------- calculate sff
 			if(this->fun == 3) stout << "\t\t	--> finished unfolding for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
-			int t_max = (int)std::ceil(std::log10(5 * tH));
-			t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
-			times = this->ch? arma::logspace(log10(1.0 / (two_pi * dim)), 1, num_times) : arma::logspace(-2, t_max, num_times);
 			auto [sff_r, Z_r] = statistics::spectral_form_factor(eigenvalues, times, 0.5);
-			sff += sff_r;
-			Z += Z_r;
+			#pragma omp critical
+			{
+				sff += sff_r;
+				Z += Z_r;
+			}
 		if(this->fun == 3) stout << "\t\t	--> finished realisation for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 	}
 	if(sff.is_empty()) return;
@@ -2148,6 +2162,7 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv)
 	// thread number
 	choosen_option = "-th";
 	this->set_option(this->thread_number, argv, choosen_option);
+	this->thread_number /= outer_threads;
 	if (this->thread_number > std::thread::hardware_concurrency())
 		this->set_default_msg(this->thread_number, choosen_option.substr(1),
 							  "Wrong number of threads\n", table);

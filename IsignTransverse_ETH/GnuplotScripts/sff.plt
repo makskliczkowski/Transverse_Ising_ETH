@@ -26,26 +26,26 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 #---------------------------- PARAMETERS
 model = 0       # 1=symmetries and 0=disorder
 w = 0.1
-g = 0.2
-L = 13
+g = 0.05
+L = 9
 h = 0.8
 J = 1.0
 J_knot = 0.; g_knot = 0.; 
 scaling = 2		     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling
-smoothed = 1         # smoothed ?
-plot_der_GOE = 0     # plot deriviation from GOE value
+smoothed = 0         # smoothed ?
+plot_der_GOE = 1     # plot deriviation from GOE value
 zoom_in = 0          # zoom in to collapse on GOE
 find_Thouless = 1    # find thouless time?
 	h0 = 10;     hend = 50;		dh = 5;
-	g0 = 10;    gend = 100;		dg = 10;
+	g0 = 10;    gend = 90;		dg = 20;
     J0 = 10;    Jend = 100;     dJ = 20
-	L0 = 9;	    Lend = 13; 		dL = 1;
+	L0 = 8;	    Lend = 12; 		dL = 1;
 
     h_list = '0.20 0.60 1.20 1.40 1.60 1.80 2.40 3.00 3.60'
     g_list = '0.20 0.30 0.70 0.80 1.10 1.40';
 
 GOE(x) = (x < 1? 2 * x - x*log(1+2*x) : 2-x*log( (2*x+1) / (2*x-1)))
-eps = 2.5e-1
+eps = 5e-2
 ADD=plot_der_GOE? sprintf("%f w l ls 1 dt (3,5,10,5) lc rgb 'black' lw 2 notitle", eps)\
          : "GOE(x) w l ls 1 dt (3,5,10,5) lc rgb 'black' lw 2 t 'GOE', (x < 0.2? NaN : 1.0) w l ls 1 dt (3,5,10,5) lc rgb 'black' lw 2 notitle"
 dir_base = '../results/'.(model? 'symmetries' : 'disorder').'/PBC/SpectralFormFactor/'

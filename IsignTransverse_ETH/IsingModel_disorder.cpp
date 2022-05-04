@@ -7,8 +7,6 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 	this->N = ULLPOW(this->L);
 	this->_BC = _BC;
 
-	//this->ran.reset();
-	this->reset_random();
 	//change info
 	this->info = "_L=" + std::to_string(this->L) + \
 		",J=" + to_string_prec(this->J, 2) + \

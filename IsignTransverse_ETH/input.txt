@@ -1,1 +1,1 @@
--L 15 -Ln 1 -Ls 1 -J 1.0 -g 0.05 -gs 0.05 -gn 30 -h 0.8 -hs 0.05 -hn 1 -w 0.01 -th 10 -m 0 -r 200 -op 3 -fun 4 -s 6 -mu 100 -dt 0.1 -ch 1 -scale 1
+-L 8 -Ln 1 -Ls 1 -J 1.0 -g 0.1 -gs 0.2 -gn 5 -h 0.8 -hs 0.05 -hn 1 -w 0.1 -th 8 -m 0 -r 3000 -op 5 -fun 30 -s 6 -mu 50 -dt 0.1 -ch 1 -scale 1
