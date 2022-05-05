@@ -291,25 +291,36 @@ namespace isingUI
 				}
 			}
 		};
-		template <typename callable, typename... _types> 
+
+		enum class Ising_params{ J, h, g }; //<! choose which of these parameters
+		template <
+			Ising_params par,	//<! which parameter to average over for symmetric case
+			typename callable,	//<! callable lambda function
+			typename... _types	//<! argument-types passed to lambda
+		 > 
 		void average_over_realisations(
 			bool with_diagonalization,	//!< checked if each realisation should diagonalize a new matrix
 			callable lambda, 			//!< callable function
 			_types... args				//!< arguments passed to callable interface lambda
 		) {
 			gen = std::mt19937_64(seed);
-			if(this->m){
-				arma::vec g_vec = this->g + create_random_vec(this->realisations, this->g / 50.);
-			#pragma omp parallel for num_threads(outer_threads)
-				for(int r = 0; r < g_vec.size(); r++){
-					if(this->realisations > 1) this->g = g_vec(r);
-					lambda(r, std::forward<_types>(args)...);
+				double x = 0.0;
+				switch (par)
+				{
+					case Ising_params::J: x = this->J;	break;
+					case Ising_params::h: x = this->h;	break;
+					case Ising_params::g: x = this->g;	break;
+				default:				  x = 0.0;		break;
 				}
+			if(this->m){
+				arma::vec _vec = x + create_random_vec(this->realisations, x / 50.);
+			#pragma omp parallel for num_threads(outer_threads)
+				for(int r = 0; r < _vec.size(); r++)
+					lambda(r, _vec(r), std::forward<_types>(args)...);
 			} else{
 			#pragma omp parallel for num_threads(outer_threads)
-				for (int r = 0; r < this->realisations; r++) {
-					lambda(r, std::forward<_types>(args)...);
-				}
+				for (int r = 0; r < this->realisations; r++) 
+					lambda(r, x, std::forward<_types>(args)...);
 			}
 		};
 	};

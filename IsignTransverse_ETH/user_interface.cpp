@@ -60,7 +60,7 @@ void isingUI::ui::make_sim()
 {
 					// ----------------------
 					//this->diagonalize(); continue;
-					spectral_form_factor(); continue;
+					//spectral_form_factor(); continue;
 					std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
 					smoothen_data(this->saving_dir + "SpectralFormFactor" + kPSep, info + ".dat"); continue;
 } continue;
@@ -261,9 +261,13 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 	std::string dir = this->saving_dir + "DIAGONALIZATION" + kPSep;
 	createDirs(dir);
 	std::string name = dir + alfa.get_info({}) + ".hdf5";
-	bool loaded = eigenvalues.load(arma::hdf5_name(name, "eigenvalues/" + _suffix));
+	bool loaded;
+	#pragma omp critical
+	{
+		loaded = eigenvalues.load(arma::hdf5_name(name, "eigenvalues/" + _suffix));
+	}
 	if(!loaded){
-		#undef MY_MAC
+		//#undef MY_MAC
 		#if defined(MY_MAC)
 			std::cout << "Failed to load energies, returning empty array" << std::endl;
 		#else
@@ -852,7 +856,7 @@ void isingUI::ui::relaxationTimesFromFiles()
 		smoothen_data(dir_out, name, 10);
 
 		// spectral function
-		smoothen_data(dir_spec, name, 100);
+		smoothen_data(dir_spec, name, 100 * std::pow(this->L / 15.0, 3.0));
 		auto data_spec = readFromFile(file, dir_spec + "smoothed" + kPSep + name);
 		file.close();
 		arma::vec omega_vals;
@@ -1004,8 +1008,8 @@ void isingUI::ui::spectral_form_factor(){
 	this->ch = 1;
 	clk::time_point start = std::chrono::system_clock::now();
 
-	//------- PREAMBLE
-	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"k", "x", "p"}) 
+	//------- PREAMBLE{"k", "x", "p"}
+	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
 					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
 
 	const double chi = 0.341345;
@@ -1027,19 +1031,28 @@ void isingUI::ui::spectral_form_factor(){
 	arma::vec sff(num_times, arma::fill::zeros);
 	double Z = 0.0;
 
+	const Ising_params par = Ising_params::h;
 	// ------ SET LAMBDA
-	auto lambda_average = [this, &info, &start, &times, &sff, &Z, &r1, &r2](
-		int realis
+	auto lambda_average = [this, &info, &start, &times, &sff, &Z, &r1, &r2, &par](
+		int realis, double x
 		)
 	{
+		double Jx, gx, hx;
+		switch (par)
+		{
+			case Ising_params::J: Jx = x; 		gx = this->g; 	hx = this->h;	break;
+			case Ising_params::g: Jx = this->J; gx = x;			hx = this->h;	break;
+			case Ising_params::h: Jx = this->J; gx = this->g;	hx = x;			break;
+		default: 				  Jx = 0.0; 	gx = 0.0;		hx = 0.0;		break;
+		}
 		arma::vec eigenvalues;
 		std::string suffix = "_real=" + std::to_string(realis);
 		if(this->m){
-			auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
+			auto alfa = std::make_unique<IsingModel_sym>(this->L, Jx, gx, hx,
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 			eigenvalues = this->get_eigenvalues(*alfa, suffix);
 		} else{
-			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+			auto alfa = std::make_unique<IsingModel_disorder>(this->L, Jx, this->J0, gx, this->g0, hx, this->w, this->boundary_conditions);
 			eigenvalues = this->get_eigenvalues(*alfa, suffix);
 		}
 		if(this->fun == 3) stout << "\t\t	--> finished loading eigenvalues for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
@@ -1078,15 +1091,16 @@ void isingUI::ui::spectral_form_factor(){
 	double norm = 0.0;
 	if(this->m){
 		int counter = 0;
-		for(int k = 1; k < this->L; k++){
+		for(int k = 1; k < this->L; k++)
+		{
 			if(k == this->L / 2) continue;
 			this->symmetries.k_sym = k;
-			average_over_realisations<>(false, lambda_average);
+			average_over_realisations<par>(false, lambda_average);
 			counter++;
 		}
 		norm = this->realisations * counter;
 	} else{
-		average_over_realisations<>(false, lambda_average);
+		average_over_realisations<par>(false, lambda_average);
 		norm = this->realisations;
 	}
 	if(sff.is_empty()) return;
@@ -1136,8 +1150,8 @@ void isingUI::ui::thouless_times()
 		std::ofstream& map, auto... prints
 		){
 		std::ifstream file;
-		std::string info = this->m? IsingModel_sym::set_info(this->L, this->J,gx, hx, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
-						: IsingModel_disorder::set_info(this->L, this->J, this->J0, gx, this->g0, hx, this->w);
+		std::string info = this->m? IsingModel_sym::set_info(Lx, this->J,gx, hx, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
+						: IsingModel_disorder::set_info(Lx, this->J, this->J0, gx, this->g0, hx, this->w);
 		std::string filename = this->saving_dir + "SpectralFormFactor/smoothed" + kPSep + info + ".dat";
 		auto data = readFromFile(file, filename);
 		file.close();
@@ -1147,7 +1161,7 @@ void isingUI::ui::thouless_times()
 		double tH = data[2](0);
 
 		// find thouless time
-		double eps = 1.5e-1;
+		double eps = 5e-2;
 		auto K_GOE = [](double t){
 			return t < 1? 2 * t - t * log(1+2*t) : 2 - t * log( (2*t+1) / (2*t-1) );
 		};
@@ -1157,18 +1171,18 @@ void isingUI::ui::thouless_times()
 		for(int i = 0; i < sff.size(); i++){
 			double t = this->ch? times(i) : times(i) / tH;
 			double delta = abs( log10( sff(i) / K_GOE(t) ));
-			if(delta < eps){
-				thouless_time = t;
-				break;
-			}
-			//delta = delta - eps;
-			//delta *= delta;
-			//if(delta < delta_min){
-			//	delta_min = delta;
-			//	thouless_time = times(i); 
+			//if(delta < eps){
+			//	thouless_time = t;
+			//	break;
 			//}
-//
-			//if(times(i) >= t_max) break;
+			delta = delta - eps;
+			delta *= delta;
+			if(delta < delta_min){
+				delta_min = delta;
+				thouless_time = times(i); 
+			}
+
+			if(times(i) >= t_max) break;
 		}
 		printSeparated(std::cout, "\t", 12, false, prints...);
 		printSeparated(std::cout, "\t", 12, true, thouless_time, tH);
@@ -1185,12 +1199,12 @@ void isingUI::ui::thouless_times()
 		openFile(map_g, dir + "_g" + info + ".dat", ios::out);
 		for (auto &hx : hx_list)
 			for (auto &gx : gx_list)
-				kernel(this->L, gx, hx, map_g, hx, gx);
+				kernel(size, gx, hx, map_g, hx, gx);
 		map_g.close();
 		openFile(map_h, dir + "_h" + info + ".dat", ios::out);
 		for (auto &gx : gx_list)
 			for (auto &hx : hx_list)
-				kernel(this->L, gx, hx, map_h, hx, gx);
+				kernel(size, gx, hx, map_h, hx, gx);
 		map_h.close();
 	}
 	for (auto &gx : gx_list){
@@ -1453,75 +1467,113 @@ void isingUI::ui::level_spacing(){
 	const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
 	const double gmin = this->g, gmax = this->g + this->gn * this->gs;
 	const double hmin = this->h, hmax = this->h + this->hn * this->hs;
+
+	//std::string dir_raw = this->saving_dir + "LevelSpacing" + kPSep + "raw_data" + kPSep;
+	std::string dir_raw = this->saving_dir + "SpectralFormFactor" + kPSep;
+	std::string dir_ratio = this->saving_dir + "LevelSpacing" + kPSep + "ratio" + kPSep;
+	std::string dir_dist = this->saving_dir + "LevelSpacing" + kPSep + "distribution" + kPSep;
+	createDirs(dir_dist, dir_ratio);
 	
-	auto kernel = [this, &start](
+	//----------- SET LAMBDA
+	auto kernel = [this, &start, &dir_dist, &dir_raw](
 		std::ofstream& file, double par1, double par2,
 		int Lx, double gx, double hx)
 	{
-		std::string info;
+		std::string info = this->m? IsingModel_sym::set_info(Lx, this->J, gx, hx, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
+				: IsingModel_disorder::set_info(Lx, this->J, this->J0, gx, this->g0, hx, this->w);
+
+		size_t dim = ULLPOW(Lx);
+		if(this->m){
+			auto alfa = std::make_unique<IsingModel_sym>(Lx, this->J, gx, hx,
+									 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+			dim = alfa->get_hilbert_size();
+		}
 		double r1 = 0, r2 = 0;
 		double _min = 0, _max = 0;
-		int realis = this->m? 1 : this->realisations;
+		std::ifstream raw_file;
+		auto r_vals = readFromFile(raw_file, dir_raw + info  + ".dat");
+		raw_file.close();
+		if(!r_vals.empty()){
+			r1 = r_vals[4](0);
+			r2 = r_vals[5](0);
+		} else {
+			long n_bins = 1 + long(3.322 * log(dim - 2));
+			arma::vec lvl_prob_dist(n_bins, arma::fill::zeros);
+			auto lambda_average = [this, &lvl_prob_dist, &r1, &r2, &_min, &_max, &Lx, &gx, &hx, &n_bins](int realis, double Jx)
+			{
+				arma::vec eigenvalues;
+				std::string suffix = (this->m)? "" : "_real=" + std::to_string(realis);
+				if(this->m){
+					auto alfa = std::make_unique<IsingModel_sym>(Lx, Jx, gx, hx,
+											 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+					eigenvalues = this->get_eigenvalues(*alfa, suffix);
+				} else{
+					auto alfa = std::make_unique<IsingModel_disorder>(Lx, Jx, this->J0, gx, this->g0, hx, this->w, this->boundary_conditions);
+					eigenvalues = this->get_eigenvalues(*alfa, suffix);
+				};
+				if(eigenvalues.empty()) return;
 
-		arma::vec lvl_prob_dist(1, arma::fill::zeros);
-		for(int r = 0; r < realis; r++){
-			arma::vec eigenvalues;
-			std::string suffix = (this->m)? "" : "_real=" + std::to_string(r);
-			if(this->m){
-				auto alfa = std::make_unique<IsingModel_sym>(Lx, this->J, gx, hx,
-										 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-				eigenvalues = this->get_eigenvalues(*alfa, suffix);
-				info = alfa->get_info({});
-			} else{
-				auto alfa = std::make_unique<IsingModel_disorder>(Lx, this->J, this->J0, gx, this->g0, hx, this->w, this->boundary_conditions);
-				eigenvalues = this->get_eigenvalues(*alfa, suffix);
-				info = alfa->get_info({});
+				const u64 N = eigenvalues.size();
+				double E_av = arma::trace(eigenvalues) / double(N);
+				const u64 num = this->L <= 8? 0.1 * N : 0.25 * N;
+				const u64 num2 = (this->L < 10? (this->L <= 8? 10 : 50) : 200);
+
+				auto i = min_element(begin(eigenvalues), end(eigenvalues), [=](double x, double y) {
+					return abs(x - E_av) < abs(y - E_av);
+					});
+				u64 E_av_idx = i - eigenvalues.begin();
+				auto lvl_spacing = statistics::eigenlevel_statistics_return(eigenvalues);
+				#pragma omp critical
+				{
+					r1 += statistics::eigenlevel_statistics((E_av_idx - num) + eigenvalues.begin(), (E_av_idx + num) + eigenvalues.begin());
+					r2 += statistics::eigenlevel_statistics((E_av_idx - num2) + eigenvalues.begin(), (E_av_idx + num2) + eigenvalues.begin());
+					lvl_prob_dist += statistics::probability_distribution(lvl_spacing, n_bins);
+					_min = arma::min(lvl_spacing);
+					_max = arma::max(lvl_spacing);
+				}
 			};
-			if(eigenvalues.empty()) continue;
 
-			const u64 N = eigenvalues.size();
-			double E_av = arma::trace(eigenvalues) / double(N);
-			const u64 num = this->L <= 8? 0.1 * N : 0.25 * N;
-			const u64 num2 = (this->L < 10? (this->L <= 8? 10 : 50) : 200);
+			// ----- SET MODEL
+			double norm = 0.0;
+			if(this->m){
+				int counter = 0;
+				for(int k = 1; k < this->L; k++)
+				{
+					if(k == this->L / 2) continue;
+					this->symmetries.k_sym = k;
+					average_over_realisations<Ising_params::J>(false, lambda_average);
+					counter++;
+				}
+				norm = this->realisations * counter;
+			} else{
+				average_over_realisations<Ising_params::J>(false, lambda_average);
+				norm = this->realisations;
+			}
+			r1 /= norm;
+			r2 /= norm;
 
-			auto i = min_element(begin(eigenvalues), end(eigenvalues), [=](double x, double y) {
-				return abs(x - E_av) < abs(y - E_av);
-				});
-			u64 E_av_idx = i - eigenvalues.begin();
-			r1 += statistics::eigenlevel_statistics((E_av_idx - num) + eigenvalues.begin(), (E_av_idx + num) + eigenvalues.begin());
-			r2 += statistics::eigenlevel_statistics((E_av_idx - num2) + eigenvalues.begin(), (E_av_idx + num2) + eigenvalues.begin());
-			auto lvl_spacing = statistics::eigenlevel_statistics_return(eigenvalues);
-			long n_bins = 1 + long(3.322 * log(lvl_spacing.size()));
-			if(r == 0) 
-				lvl_prob_dist.resize(n_bins); //resize once (no loss of data!)
-			lvl_prob_dist += statistics::probability_distribution(lvl_spacing, n_bins);
-			_min = arma::min(lvl_spacing);
-			_max = arma::max(lvl_spacing);
+			// save distribution of level spacing
+			lvl_prob_dist /= norm;
+			auto x_vals = arma::linspace(_min, _max, lvl_prob_dist.size());
+			save_to_file(dir_dist + info + ".dat", x_vals, lvl_prob_dist, r1);
 		}
-		printSeparated(file, "\t", 14, true, par1, par2, r1 / double(realis), r2 / double(realis));
+		printSeparated(file, "\t", 14, true, par1, par2, r1, r2);
 		
 		stout << "\t\t	--> finished realisations for " << info << " - in time : " << tim_s(start) << "s" << std::endl;
-		// save distribution of level spacing
-		lvl_prob_dist /= double(realis);
-		std::string dir = this->saving_dir + "LevelSpacing" + kPSep + "distribution" + kPSep;
-		createDirs(dir);
-		auto x = arma::linspace(_min, _max, lvl_prob_dist.size());
-		save_to_file(dir + info + ".dat", x, lvl_prob_dist, r1 / double(realis));
 	};
+
 	std::ofstream file;
-	std::string dir_out = this->saving_dir + "LevelSpacing" + kPSep + "ratio" + kPSep;
-	createDirs(dir_out);
 	for (int system_size = Lmin; system_size < Lmax; system_size += this->Ls)
 	{
 		std::string info = this->m ? IsingModel_sym::set_info(system_size, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"g", "h"})
 						   : IsingModel_disorder::set_info(system_size, this->J, this->J0, this->g, this->g0, this->h, this->w, {"g", "h"});
-		openFile(file, dir_out + "hMap" + info + ".dat", std::ios::out);
+		openFile(file, dir_ratio + "hMap" + info + ".dat", std::ios::out);
 		for (double gx = gmin; gx < gmax; gx += this->gs)
 			for (double hx = hmin; hx < hmax; hx += this->hs)
 				kernel(file, gx, hx, system_size, gx, hx);
 		file.close();	
 
-		openFile(file, dir_out + "gMap" + info + ".dat", std::ios::out);
+		openFile(file, dir_ratio + "gMap" + info + ".dat", std::ios::out);
 		for (double hx = hmin; hx < hmax; hx += this->hs)
 			for (double gx = gmin; gx < gmax; gx += this->gs)
 				kernel(file, hx, gx, system_size, gx, hx);

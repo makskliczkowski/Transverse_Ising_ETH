@@ -186,9 +186,9 @@ size = (iend - i0) / di+1
 		idx = (i-i0)/di+1
 		name = _name(i)
 		if(fileexist(name) && !plot_exponent){
-			stats name every ::0::1 using 2 nooutput;	val[idx] = STATS_min
-			stats name every ::0::1 using 3 nooutput; 	tH[idx]  = STATS_min;
-			stats name every ::0::1 using 4 nooutput; 	LTA[idx] = STATS_min
+			stats name every ::0::0 using 2 nooutput;	val[idx] = STATS_min
+			stats name every ::0::0 using 3 nooutput; 	tH[idx]  = STATS_min;
+			stats name every ::0::0 using 4 nooutput; 	LTA[idx] = STATS_min
 			print _key_title(i),"  ", val[idx], tH[idx], LTA[idx], "\tfit:  ".sprintf("%.5f,  %.5f,  %.5f", a, b, alfa)
 		}
 		else{

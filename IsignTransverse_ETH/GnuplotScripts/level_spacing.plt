@@ -29,9 +29,9 @@ model = 0       # 1=symmetries and 0=disorder
 w = 0.1
 g = 0.8
 L = 14
-h = 1.0
+h = 0.8
 J=1.0
-scaling = 0		# 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling
+scaling = 1		# 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling
 function = 1    # 1 - gap ratio / 0 - prob distribution
 h_vs_g = 1      # 1 - as function of h / 0 - as function of g
 heatmap = 1
@@ -44,7 +44,7 @@ if(!heatmap){
 	h0 = 5;     hend = 55;		dh = 10;
 	g0 = 5;    gend = 50;		dg = 10;
     J0 = 10;    Jend = 60;     dJ = 10
-	L0 = 9;	    Lend = 14; 		dL = 1;
+	L0 = 9;	    Lend = 12; 		dL = 1;
 
     h_list = '0.20 0.60 1.20 1.40 1.60 1.80 2.40 3.00 3.60'
     g_list = '0.20 0.30 0.70 0.80 1.10 1.40'; g00=0.20

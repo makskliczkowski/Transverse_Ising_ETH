@@ -34,7 +34,7 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 13; 
+L = 12; 
 g = 0.15; 
 h = 0.8;
 J=1.0
@@ -49,8 +49,9 @@ scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3
 q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
 operator = 1	 		# 1-SigmaZ , 0-Hq :local
 compare = 0
+smoothed = 1;
 use_derivative = 0		# use derivative of integrated spectral function
-if(use_derivative){ compare = 0};
+if(use_derivative){ compare = 0; smoothed = 0;};
 add_thouless_time = 1	# add thouless time from sff
 
 LIOM = 0				# plot LIOMs?
@@ -74,7 +75,7 @@ if(operator == 3) {op = "TFIM_LIOM_minus";}
 
 str(x) = (q_vs_j? "q" : "j").sprintf("=%d",x);
 if(operator > 1){ str(x) = "n".sprintf("=%d",x); }
-
+if(smoothed == 1){ op = 'smoothed/'.op; }
 x_min = 1e-2;
 x_max = 1e-1;
 y_min = 1e-1
