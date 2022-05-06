@@ -22,6 +22,9 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset border;"
 
     glist2 = '0.025 0.05 0.075 0.10 0.125 0.2 0.3 0.35 0.4 0.45 0.50 0.55 0.60 0.65 0.70 0.75'
 	glist = '0.5 0.6 0.7 0.8 1.5'# 0.3 0.35 0.4 0.45 0.5'# 0.55 0.6 0.65 0.7 0.75 0.8 0.85 0.9 0.95 1.0'
+	w_num = 4;  array w_list[w_num];
+	w_list[1] = 0.01;	w_list[2] = 0.1;	w_list[3] = 0.3;	w_list[4] = 0.5;
+
 	h0 = 20;	hend = 180; 	dh = 20;
 	g0 = 10;	gend = 70; 	dg = 10;
 heatmap = 1 		# ==1 plot 2D heatmap, else plot cuts at specific values
@@ -33,14 +36,15 @@ user_defined = 1
 
 q_vs_j = 1
 site = 1
-q = 5
-operator = 1	 		# 1-SigmaZ , 0-Hq :local
-rescale_times = 0
-L = 12
+q = 1
+operator = 0	 		# 1-SigmaZ , 0-Hq :local
+rescale_times = 1
+L = 13
 g = 0.8
 h=0.8
 J=1.0
-w=0.1
+w = 0.01
+w2 = 0.3
 
 fileexist(name)=system("[ -f '".name."' ] && echo '1' || echo '0'") + 0
 set lmargin at screen 0.15
@@ -62,7 +66,8 @@ if(operator > 1){ _str(x) = "n".sprintf("=%d",x); }
 
 _base(Jx, Lx, dis) = sprintf("_L=%d,J=%.2f,J0=0.00,g0=0.00,w=%.2f.dat", Lx, Jx, dis)
 _name(Jx, Lx, s) = str.(!plot_thouless? op."_"._str(s) : "")._base(Jx, Lx, w);
-_name_th(Jx, Lx) = dir_base.'ThoulessTime/'.str._base(Jx, Lx, 0.3);
+
+_name_th(Jx, Lx, dis) = dir_base.'ThoulessTime/'.str._base(Jx, Lx, dis);
 _name_th_L(Jx, gx, hx, dis) = dir_base.'ThoulessTime/'.sprintf("_L,J=%.2f,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", Jx, gx, hx, dis);
 
 nu=2
@@ -100,7 +105,7 @@ if(user_defined == 0){
 		set xlabel "{/*1.5h/J}"
 		if(scaling == 0){ 	plot for[i=0:(q_vs_j? L/2 : L-1)] dir._name(J, L,i) u ($2 == g? $1 : NaN):(f($3,$5)) w lp ls (i+1) pt (i+3) ps 1.5 title _str(i)
 		} else {
-		if(scaling == 1){ plot for[i=L0:Lend:dL] dir._name(J, i, (q_vs_j? (q<0? i / 2 : q) : site)) u ($2 == g? $1 : NaN):(f($3,$5)) w lp ls ((i-7)) pt (i-5) ps 1.5 title sprintf("L=%d", i)
+		if(scaling == 1){ plot for[i=L0:15:dL] dir._name(J, i, (q_vs_j? (q<0? i / 2 : q) : site)) u ($2 == g? $1 : NaN):(f($3,$5)) w lp ls ((i-7)) pt (i-5) ps 1.5 title sprintf("L=%d", i)
 		} else {
 		if(scaling == 2){ plot for[gx in glist] name u ($2 == gx + 0.0? $1 : NaN):(f($3,$5)) w lp ls ((1.*gx - 0.05)/0.05) pt 6 ps 1.5 title "g=".gx
 		} else {
@@ -111,7 +116,7 @@ if(user_defined == 0){
 				dir."_hH_j=".sprintf("%d", site)._base(J, L, w) u ($2 == g? $1 : NaN):(f($3,$5)/$4) w lp pt 4 ps 1.5 title sprintf("H_{j=%d}}", site),\
 				dir."_hH_q=".sprintf("%d", 1)._base(J, L, w) u ($2 == g? $1 : NaN):(f($3,$5)/$4) w lp pt 4 ps 1.5 title sprintf("H_{q=%d}}", 1),\
 				dir."_hH_q=".sprintf("%d", L / 2.)._base(J, L, w) u ($2 == g? $1 : NaN):(f($3,$5)/$4) w lp pt 4 ps 1.5 title sprintf("H_{q=%d}}", L / 2.),\
-				_name_th(J, L) u ($2 == g? $1 : NaN):($3) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
+				_name_th(J, L, w2) u ($2 == g? $1 : NaN):($3) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
 		} else{ 
 			plot name u ($2 == g? $1 : NaN):(f($3,$5)/$4) w lp pt 6 ps 1.5 title sprintf("L=%d,g=%.2f,h=%.2f",L,g,h)
 		}}}}
@@ -123,13 +128,13 @@ if(user_defined == 0){
 		#set yrange[-3:10];
 		if(scaling == 0){	plot for[i=0:(q_vs_j? L/2 : L-1)] dir._name(J, L,i) u ($1 == h? $2 : NaN):(f($3,$5)) w lp ls (i+1) pt (i+4) ps 1.5 title _str(i),\
 								dir._name(J, L,1) u ($1 == h? $2 : NaN):4 w l ls 0 lw 3 notitle,\
-							_name_th(J, L) u ($1 == h? $2 : NaN):($3*$4) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
+							_name_th(J, L, w2) u ($1 == h? $2 : NaN):($3*$4) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
 		} else {
 		if(scaling == 1){ plot for[i=L0:Lend:dL] dir._name(J, i, (q_vs_j? (q<0? i / 2. : q) : site)) u ($1 == h? $2 : NaN):(rescale((f($3,$5)),i)) w lp ls ((i+3-L0)) pt ((i-L0)/dL+1) ps 1 title sprintf("L=%d", i),\
-							_name_th(J, L) u ($1 == h? $2 : NaN):($3*$4) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
+							_name_th(J, L, w2) u ($1 == h? $2 : NaN):($3*$4) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
 		} else {
 		if(scaling == 2){ plot for[i=h0:hend:dh] name u (100*$1 == i? $2 : NaN):(f($3,$5)/$4) w lp ls ((i-h0)/dh) pt 6 ps 1.5 title sprintf("h=%.2f", 0.01*i),\
-							_name_th(J, L) u ($1 == 0.01*h? $2 : NaN):($3*$4) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
+							_name_th(J, L, w2) u ($1 == 0.01*h? $2 : NaN):($3*$4) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
 		} else {
 		if(scaling == 3){ 
 			set key spacing 2
@@ -139,7 +144,7 @@ if(user_defined == 0){
 				dir."_gH_j=".sprintf("%d", site)._base(J, L, w) u ($1 == h? $2 : NaN):(f($3,$5)/$4) w lp pt 4 ps 1.5 title sprintf("H_{j=%d}", site),\
 				dir."_gH_q=".sprintf("%d", 1)._base(J, L, w) u ($1 == h? $2 : NaN):(f($3,$5)/$4) w lp pt 4 ps 1.5 title sprintf("H_{q=%d}", 1),\
 				dir."_gH_q=".sprintf("%d", L / 2.)._base(J, L, w) u ($1 == h? $2 : NaN):(f($3,$5)/$4) w lp pt 4 ps 1.5 title sprintf("H_{q=%d}", L / 2.),\
-				_name_th(J, L) u ($1 == h? $2 : NaN):($3) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
+				_name_th(J, L, w2) u ($1 == h? $2 : NaN):($3) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
 			} else{ 
 				plot name u ($1 == h? $2 : NaN):(f($3,$5)/$4) w lp pt 6 ps 1.5 title sprintf("L=%d,g=%.2f,h=%.2f",L,g,h)
 		}}}}}
@@ -148,15 +153,16 @@ if(user_defined == 0){
 
 } else {
 	set key right top
-	
-rescale_thouless = 0
-conductance = 1
-if(conductance){ set key left top; unset logscale y; set format y '%g'; set xrange[0.2:0.8];}
+	set xrange[*:1.5]
+	#set logscale x
+rescale_thouless = 1
+conductance = 0
+if(conductance){ set key left top; unset logscale y; set format y '%g'; set xrange[0.2:0.6];}
 fanc(tau, tH) = conductance? (log10(1.0 / $3)) : (rescale_thouless? $3 * $4 : $3)
 
 set xlabel 'g'
 set ylabel (conductance? "log_{10}(t_{H}/t_{Th})" : (rescale_thouless? "t_{Th}" : "{/Symbol t}_{Th}")) rotate by 0
-if(scaling == 1){ plot for[L=9:12] _name_th(J, L) u ($1 == h? $2 : NaN):(fanc($3,$4)) w lp pt 4 ps 0.75 title sprintf("L=%d", L)
+if(scaling == 1){ plot for[L=9:14] _name_th(J, L, w2) u ($1 == h? $2 : NaN):(fanc($3,$4)) w lp pt 4 ps 0.75 title sprintf("L=%d", L)#, 0.1*x**-4 w l lc rgb 'black'
 } else {
 set key left top
 	if(scaling == 2){
@@ -166,7 +172,8 @@ set key left top
 			plot for[i=g0:gend:dg] _name_th_L(J, 0.01*i, h, w) u 1:($2*$3) w lp pt 4 ps 0.75 title sprintf("g=%.2f", 0.01*i), _name_th_L(J, 0.01*gend, h, w) u 1:($3) w l ls 1 dt (3,5,10,5) lc rgb 'black' lw 2 title "t_H"
 		}
 	} else {
-		
+		set key left bottom
+		plot for[i=1:w_num] _name_th(J, L, w_list[i]) u ($1 == h? $2 : NaN):(fanc($3,$4)) w lp pt 4 ps 0.75 title sprintf("w=%.2f", w_list[i]), _name_th(J, L, w_list[w_num]) u ($1 == h? $2 : NaN):4 w l ls 1 dt (3,5,10,5) lc rgb 'black' lw 2 title "t_H"
 	}
 }
 

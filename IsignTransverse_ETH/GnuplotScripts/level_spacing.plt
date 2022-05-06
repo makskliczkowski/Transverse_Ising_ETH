@@ -18,10 +18,6 @@ set key inside bottom right font ",16" spacing 2
 fileexist(name)=1#int(system("if exist \"".name."\" ( echo 1) else (echo 0)"))
 
 # Margins for each row resp. column
-TMARGIN = "set tmargin at screen 0.99; set bmargin at screen 0.56"
-BMARGIN = "set tmargin at screen 0.46; set bmargin at screen 0.10"
-LMARGIN = "set lmargin at screen 0.10; set rmargin at screen 0.46"
-RMARGIN = "set lmargin at screen 0.46; set rmargin at screen 0.82"
 RANGE = "set xrange[0:1]; set yrange[0:2.0]"
 UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset border;"
 #-- PARAMETERS
@@ -31,7 +27,7 @@ g = 0.8
 L = 14
 h = 0.8
 J=1.0
-scaling = 1		# 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling
+scaling = 1		# 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - w scaling (k -  scaling for model==1)
 function = 1    # 1 - gap ratio / 0 - prob distribution
 h_vs_g = 1      # 1 - as function of h / 0 - as function of g
 heatmap = 1
@@ -48,16 +44,18 @@ if(!heatmap){
 
     h_list = '0.20 0.60 1.20 1.40 1.60 1.80 2.40 3.00 3.60'
     g_list = '0.20 0.30 0.70 0.80 1.10 1.40'; g00=0.20
+	w_num = 4;  array w_list[w_num];
+	w_list[1] = 0.01;	w_list[2] = 0.1;	w_list[3] = 0.3;	w_list[4] = 0.5;
 
-GOE(x) = x < 1.2? 0.5307 : NaN;
-Lap(x) = x > 2.? 0.3863 : NaN;
+GOE(x) = 0.5307;
+Lap(x) = 0.3863;
 ADD = function?  " GOE(x) w l dt (8,8) lc rgb 'black' lw 2 notitle, Lap(x) w l dt (8,8) lc rgb 'blue' lw 2 notitle" : " 2/(1+x)**2 w l dt (3,5,10,5) lw 2.5 lc rgb 'black' notitle, 27./4 * (x+x**2)/(1+x+x**2)**2.5 w l dt (3,5,10,5) lw 2.5 lc rgb 'blue' notitle"
 dir_base = '../results/'.(model? 'symmetries' : 'disorder').'/PBC/LevelSpacing/'.(function? 'ratio/' : 'distribution/');
 set key top right
 load './gnuplot-colorbrewer-master/diverging/RdYlGn.plt'
 
 name_prefix = dir_base.(function? (h_vs_g? "hMap" : "gMap") : "");
-_name_ratio(Jx, Lx) = name_prefix.sprintf("_L=%d",Lx).(model? ",k=0,p=1,x=1.dat" : sprintf(",J=%.2f,J0=0.00,g0=0.00,w=%.2f.dat", Jx, w));
+_name_ratio(Jx, Lx, dis) = name_prefix.sprintf("_L=%d",Lx).(model? ",k=0,p=1,x=1.dat" : sprintf(",J=%.2f,J0=0.00,g0=0.00,w=%.2f.dat", Jx, dis));
 _name_dist(Jx, Lx, hx, gx) = model? name_prefix.sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", Lx, gx, hx) :\
                         name_prefix.sprintf("_L=%d,J=%.2f,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", Jx, Lx, gx, hx, w);
 if(function){
@@ -72,25 +70,32 @@ if(function){
             set pm3d map
             set dgrid3d 30, 30, 1
     	    set pm3d interpolate 0,0
-            splot _name_ratio(J, L) u 1:2:3 with pm3d
+            splot _name_ratio(J, L, w) u 1:2:3 with pm3d
         } else{
         	set view map
     	    set pm3d interpolate 0,0
-            splot _name_ratio(J, L) u 1:2:3 with image
+            splot _name_ratio(J, L, w) u 1:2:3 with image
         }
     } else {
+        set key right center
+        set ylabel '<r>'
+        set xlabel (h_vs_g? "h" : "g")
+        set yrange [0.3:0.55]
         #plot for[hx in h_list] _name(1. * hx) u 1:2 w lp ls ((1.*hx-0.01*h0)/(0.01*dh)) pt 6 ps 1.5 title sprintf("h=%.2f", 1. * hx), @ADD
         #plot for[gx=g0:gend:dg] _name_ratio(L) u 2:($1 == 0.01*gx? $3 : NaN) w lp ls ((gx-g0)/dg) pt 6 ps 1.5 title sprintf("g=%.2f", 0.01*gx), @ADD
-        if(scaling == 0){ plot for[hx=h0:hend:dh] _name_ratio(J, L) u 2:($1 == 0.01*hx? $3 : NaN) w lp ls ((hx-h0)/dh) pt 6 ps 1.5 title sprintf("h=%.2f", 0.01*hx), @ADD
+        remove_zeros(x) = abs(x) < 0.1? NaN : x;
+        if(scaling == 0){ plot for[hx=h0:hend:dh] _name_ratio(J, L, w) u 2:($1 == 0.01*hx? remove_zeros($3) : NaN) w lp ls ((hx-h0)/dh) pt 6 ps 1.5 title sprintf("h=%.2f", 0.01*hx), @ADD
         } else {
-        if(scaling == 1){ plot for[Lx=L0:Lend:dL] _name_ratio(J, Lx) u ($1 == (h_vs_g? g : h)? $2 : NaN):3 w lp ls ((Lx-L0)/dL+1) pt 6 ps 1.5 title sprintf("L=%d", Lx), @ADD
+        if(scaling == 1){ plot for[Lx=L0:Lend:dL] _name_ratio(J, Lx, w) u ($1 == (h_vs_g? g : h)? $2 : NaN):(remove_zeros($3)) w lp ls ((Lx-L0)/dL+1) pt 6 ps 1.5 title sprintf("L=%d", Lx), @ADD
         } else { 
-        if(scaling == 2){ plot for[gx=g0:gend:dg] _name_ratio(J, L) u 2:($1 == 0.01*gx? $3 : NaN) w lp ls ((gx-g0)/dg) pt 6 ps 1.5 title sprintf("g=%.2f", 0.01 * gx), @ADD
-        } else{
-        if(scaling == 3){ plot for[Jx=J0:Jend:dJ] _name_ratio(0.01*Jx, L) u ($1 == (h_vs_g? g : h)? $2 : NaN):3 w lp ls ((Jx-J0)/dJ) pt 6 ps 1.5 title sprintf("J=%.2f", 0.01*Jx), @ADD
+        if(scaling == 2){ plot for[gx=g0:gend:dg] _name_ratio(J, L, w) u 2:($1 == 0.01*gx? remove_zeros($3) : NaN) w lp ls ((gx-g0)/dg) pt 6 ps 1.5 title sprintf("g=%.2f", 0.01 * gx), @ADD
         } else {
+        if(scaling == 3){ plot for[Jx=J0:Jend:dJ] _name_ratio(0.01*Jx, L, w) u ($1 == (h_vs_g? g : h)? $2 : NaN):(remove_zeros($3)) w lp ls ((Jx-J0)/dJ) pt 6 ps 1.5 title sprintf("J=%.2f", 0.01*Jx), @ADD
+        } else {
+        if(scaling == 4){ plot for[i=1:w_num] _name_ratio(J, L, w_list[i]) u ($1 == (h_vs_g? g : h)? $2 : NaN):(remove_zeros($3)) w lp ls i pt 6 ps 1.5 title sprintf("w=%.2f", w_list[i]), @ADD
+        } else { 
 
-        }}}}}
+        }}}}}}
 } else{
     #plot for[hx in h_list] _name(1. * hx) u 1:2 w lp ls ((1.*hx-0.01*h0)/(0.01*dh)) pt 6 ps 1.5 title sprintf("h=%.2f", 1. * hx), @ADD
     #plot for[gx in g_list] _name_dist(L, h, 1. * gx) u 1:2 w lp ls ((1. * gx - 0.01*g0)/ (0.01*dg)) pt 6 ps 1.5 title sprintf("g=%.2f", 1. * gx), @ADD

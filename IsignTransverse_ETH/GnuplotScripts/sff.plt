@@ -19,15 +19,15 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 
 #---------------------------- PARAMETERS
 model = 0       # 1=symmetries and 0=disorder
-w = 0.1
-g = 0.3
-L = 12
+w = 0.3
+g = 0.6
+L = 13
 h = 0.8
 J = 1.0
 k=1
 J_knot = 0.; g_knot = 0.; 
-scaling = 1		     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
-smoothed = 0        # smoothed ?
+scaling = 2		     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
+smoothed = 1        # smoothed ?
 plot_der_GOE = 0     # plot deriviation from GOE value
 zoom_in = 0          # zoom in to collapse on GOE
 find_Thouless = 1    # find thouless time?
@@ -36,7 +36,7 @@ if(scaling < 0 || scaling > 4 || zoom_in == 1) add_gap_ratio = 0;
 if(plot_der_GOE){ zoom_in = 0;}
 
 	h0 = 10;     hend = 50;		dh = 5;
-	g0 = 80;    gend = 150;		dg = 10;
+	g0 = 10;    gend = 50;		dg = 5;
     J0 = 10;    Jend = 100;     dJ = 20
 	L0 = 9;	    Lend = 12; 		dL = 1;
 	w_num = 4
