@@ -265,29 +265,35 @@ namespace isingUI
 		void average_over_realisations(
 			IsingModel<_ty>& model,		//!< input model (symmetric model has to have average over external random stuff)
 			bool with_diagonalization,	//!< checked if each realisation should diagonalize a new matrix
-			callable lambda, 			//!< callable function
+			callable& lambda, 			//!< callable function
 			_types... args				//!< arguments passed to callable interface lambda
 		) {
 			model.reset_random();
 			if(this->m){
 				arma::vec g_vec = model.g + create_random_vec(this->realisations, model.g / 50.);
-			#pragma omp parallel for num_threads(outer_threads)
+			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 				for(int r = 0; r < g_vec.size(); r++){
 					if(this->realisations > 1) model.g = g_vec(r);
 					if (with_diagonalization) {
 						model.hamiltonian();
 						model.diagonalization();
 					}
-					lambda(model, r, std::forward<_types>(args)...);
+					auto dummy_lambda = [&lambda](IsingModel<_ty>& modello, int real, auto... args){
+						lambda(modello, real, std::forward<_types>(args)...);
+					};
+					dummy_lambda(model, r, std::forward<_types>(args)...);
 				}
 			} else{
-			#pragma omp parallel for num_threads(outer_threads)
+			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 				for (int r = 0; r < this->realisations; r++) {
 					if (with_diagonalization) {
 						model.hamiltonian();
 						model.diagonalization();
 					}
-					lambda(model, r, std::forward<_types>(args)...);
+					auto dummy_lambda = [&lambda](IsingModel<_ty>& modello, int real, auto... args){
+						lambda(modello, real, std::forward<_types>(args)...);
+					};
+					dummy_lambda(model, r, std::forward<_types>(args)...);
 				}
 			}
 		};
@@ -300,7 +306,7 @@ namespace isingUI
 		 > 
 		void average_over_realisations(
 			bool with_diagonalization,	//!< checked if each realisation should diagonalize a new matrix
-			callable lambda, 			//!< callable function
+			callable& lambda, 			//!< callable function
 			_types... args				//!< arguments passed to callable interface lambda
 		) {
 			gen = std::mt19937_64(seed);
@@ -314,13 +320,21 @@ namespace isingUI
 				}
 			if(this->m){
 				arma::vec _vec = x + create_random_vec(this->realisations, x / 50.);
-			#pragma omp parallel for num_threads(outer_threads)
-				for(int r = 0; r < _vec.size(); r++)
-					lambda(r, _vec(r), std::forward<_types>(args)...);
+			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
+				for(int r = 0; r < _vec.size(); r++){
+					auto dummy_lambda = [&lambda](int real, double x, auto... args){
+						lambda(real, x, std::forward<_types>(args)...);
+					};
+					dummy_lambda(r, _vec(r), std::forward<_types>(args)...);
+				}
 			} else{
-			#pragma omp parallel for num_threads(outer_threads)
-				for (int r = 0; r < this->realisations; r++) 
-					lambda(r, x, std::forward<_types>(args)...);
+			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
+				for (int r = 0; r < this->realisations; r++) {
+					auto dummy_lambda = [&lambda](int real, double x, auto... args){
+						lambda(real, x, std::forward<_types>(args)...);
+					};
+					dummy_lambda(r, x, std::forward<_types>(args)...);
+				}
 			}
 		};
 	};
