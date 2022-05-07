@@ -22,15 +22,15 @@ RANGE = "set xrange[0:1]; set yrange[0:2.0]"
 UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset border;"
 #-- PARAMETERS
 model = 0       # 1=symmetries and 0=disorder
-w = 0.1
+w = 0.05
 g = 0.8
-L = 14
+L = 12
 h = 0.8
 J=1.0
 scaling = 1		# 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - w scaling (k -  scaling for model==1)
 function = 1    # 1 - gap ratio / 0 - prob distribution
-h_vs_g = 1      # 1 - as function of h / 0 - as function of g
-heatmap = 1
+h_vs_g = 0      # 1 - as function of h / 0 - as function of g
+heatmap = 0
 interpolate = 1
 
 if(!heatmap){
@@ -44,8 +44,8 @@ if(!heatmap){
 
     h_list = '0.20 0.60 1.20 1.40 1.60 1.80 2.40 3.00 3.60'
     g_list = '0.20 0.30 0.70 0.80 1.10 1.40'; g00=0.20
-	w_num = 4;  array w_list[w_num];
-	w_list[1] = 0.01;	w_list[2] = 0.1;	w_list[3] = 0.3;	w_list[4] = 0.5;
+	w_num = 5;	array w_list[w_num];
+	w_list[1] = 0.01;	w_list[2] = 0.05;	w_list[3] = 0.1;	w_list[4] = 0.3;	w_list[5] = 0.5;
 
 GOE(x) = 0.5307;
 Lap(x) = 0.3863;

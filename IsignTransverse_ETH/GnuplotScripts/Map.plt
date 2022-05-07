@@ -22,8 +22,8 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset border;"
 
     glist2 = '0.025 0.05 0.075 0.10 0.125 0.2 0.3 0.35 0.4 0.45 0.50 0.55 0.60 0.65 0.70 0.75'
 	glist = '0.5 0.6 0.7 0.8 1.5'# 0.3 0.35 0.4 0.45 0.5'# 0.55 0.6 0.65 0.7 0.75 0.8 0.85 0.9 0.95 1.0'
-	w_num = 4;  array w_list[w_num];
-	w_list[1] = 0.01;	w_list[2] = 0.1;	w_list[3] = 0.3;	w_list[4] = 0.5;
+	w_num = 5;	array w_list[w_num];
+	w_list[1] = 0.01;	w_list[2] = 0.05;	w_list[3] = 0.1;	w_list[4] = 0.3;	w_list[5] = 0.5;
 
 	h0 = 20;	hend = 180; 	dh = 20;
 	g0 = 10;	gend = 70; 	dg = 10;
@@ -39,12 +39,12 @@ site = 1
 q = 1
 operator = 0	 		# 1-SigmaZ , 0-Hq :local
 rescale_times = 1
-L = 13
+L = 12
 g = 0.8
 h=0.8
 J=1.0
 w = 0.01
-w2 = 0.3
+w2 = 0.05
 
 fileexist(name)=system("[ -f '".name."' ] && echo '1' || echo '0'") + 0
 set lmargin at screen 0.15
@@ -153,9 +153,9 @@ if(user_defined == 0){
 
 } else {
 	set key right top
-	set xrange[*:1.5]
+	set xrange[*:1.2]
 	#set logscale x
-rescale_thouless = 1
+rescale_thouless = 0
 conductance = 0
 if(conductance){ set key left top; unset logscale y; set format y '%g'; set xrange[0.2:0.6];}
 fanc(tau, tH) = conductance? (log10(1.0 / $3)) : (rescale_thouless? $3 * $4 : $3)

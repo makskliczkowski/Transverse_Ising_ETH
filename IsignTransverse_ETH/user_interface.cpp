@@ -60,7 +60,7 @@ void isingUI::ui::make_sim()
 {
 					// ----------------------
 					//this->diagonalize(); continue;
-					spectral_form_factor(); continue;
+					//spectral_form_factor(); continue;
 					std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
 					smoothen_data(this->saving_dir + "SpectralFormFactor" + kPSep, info + ".dat"); continue;
 } continue;
