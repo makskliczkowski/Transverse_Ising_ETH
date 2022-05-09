@@ -2,7 +2,7 @@
 // set externs
 std::uniform_real_distribution<> theta	= std::uniform_real_distribution<>(0.0, pi);
 std::uniform_real_distribution<> fi		= std::uniform_real_distribution<>(0.0, pi);
-int outer_threads = 4;
+int outer_threads = 1;
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
 {
@@ -1009,6 +1009,9 @@ void isingUI::ui::spectral_form_factor(){
 	this->ch = 1;
 	clk::time_point start = std::chrono::system_clock::now();
 
+	std::string dir = this->saving_dir + "SpectralFormFactor" + kPSep;
+	std::string dir2 = this->saving_dir + "LevelSpacing" + kPSep + "raw_data" + kPSep;
+	createDirs(dir, dir2);
 	//------- PREAMBLE{"k", "x", "p"}
 	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
 					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
@@ -1067,15 +1070,17 @@ void isingUI::ui::spectral_form_factor(){
 				return abs(x - E_av) < abs(y - E_av);
 				});
 			u64 E_av_idx = i - eigenvalues.begin();
+			double r1_tmp = statistics::eigenlevel_statistics((E_av_idx - num / 2) + eigenvalues.begin(), (E_av_idx + num / 2) + eigenvalues.begin());
 			#pragma omp critical
 			{
-				r1 += statistics::eigenlevel_statistics((E_av_idx - num / 2) + eigenvalues.begin(), (E_av_idx + num / 2) + eigenvalues.begin());
+				r1 += r1_tmp;
 			}
 			if(this->ch)
 				statistics::unfolding(eigenvalues);
+			double r2_tmp = statistics::eigenlevel_statistics((E_av_idx - num / 2) + eigenvalues.begin(), (E_av_idx + num / 2) + eigenvalues.begin());
 			#pragma omp critical
 			{
-				r2 += statistics::eigenlevel_statistics((E_av_idx - num / 2) + eigenvalues.begin(), (E_av_idx + num / 2) + eigenvalues.begin());
+				r2 += r2_tmp;
 			}
 		// ------------------------------------- calculate sff
 			if(this->fun == 3) stout << "\t\t	--> finished unfolding for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
@@ -1086,6 +1091,11 @@ void isingUI::ui::spectral_form_factor(){
 				Z += Z_r;
 			}
 		if(this->fun == 3) stout << "\t\t	--> finished realisation for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
+		
+		//--------- SAVE REALISATION TO FILE
+		std::string dir_re  = this->saving_dir + "SpectralFormFactor" + kPSep + "realisation=" + std::to_string(this->jobid + realis) + kPSep;
+		createDirs(dir_re);
+		save_to_file(dir_re + info + ".dat", times, sff_r, Z_r, r1_tmp, r2_tmp);
 	};
 	
 	// ----------- choose model and run kernel
@@ -1110,9 +1120,6 @@ void isingUI::ui::spectral_form_factor(){
 	r2 /= norm;
 	sff = sff / Z;
 
-	std::string dir = this->saving_dir + "SpectralFormFactor" + kPSep;
-	std::string dir2 = this->saving_dir + "LevelSpacing" + kPSep + "raw_data" + kPSep;
-	createDirs(dir, dir2);
 	std::ofstream lvl;
 	openFile(lvl, dir2 + info + ".dat", std::ios::out);
 	printSeparated(lvl, "\t", 16, true, r1, r2);

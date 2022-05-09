@@ -24,7 +24,7 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 model = 0       # 1=symmetries and 0=disorder
 w = 0.3
 g = 0.8
-L = 12
+L = 13
 h = 0.8
 J=1.0
 scaling = 1		# 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - w scaling (k -  scaling for model==1)

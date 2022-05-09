@@ -112,8 +112,8 @@ namespace isingUI
 		int L, Ls, Ln, m;									// lattice params
 		bool p, q, ch;										// boolean values
 		int realisations;									// number of realisations to average on for disordered case - symmetries got 1
-		long unsigned int seed;								// radnom seed for random generator
-		size_t jobid;										// unique _id given to current job
+		size_t seed;										// radnom seed for random generator
+		int jobid;											// unique _id given to current job
 
 		int mu;												// small bucket for the operator fluctuations to be averaged onto
 		int site;											// site for operator averages

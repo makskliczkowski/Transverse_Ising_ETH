@@ -19,26 +19,26 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 
 #---------------------------- PARAMETERS
 model = 0       # 1=symmetries and 0=disorder
-w = 0.05
-g = 0.7
-L = 13
+w = 0.1
+g = 0.9
+L = 10
 h = 0.8
 J = 1.0
 k=1
 J_knot = 0.; g_knot = 0.; 
-scaling = 2		     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
+scaling = 3		     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
 smoothed = 1       # smoothed ?
 plot_der_GOE = 0     # plot deriviation from GOE value
 zoom_in = 0          # zoom in to collapse on GOE
 find_Thouless = 1    # find thouless time?
-add_gap_ratio = 1	 # add gap ratio
+add_gap_ratio = 0	 # add gap ratio
 if(scaling < 0 || scaling > 4 || zoom_in == 1) add_gap_ratio = 0;
 if(plot_der_GOE){ zoom_in = 0;}
 
 	h0 = 10;     hend = 50;		dh = 5;
 	g0 = 10;    gend = 150;		dg = 10;
-    J0 = 10;    Jend = 100;     dJ = 20
-	L0 = 9;	    Lend = 12; 		dL = 1;
+    J0 = 30;    Jend = 100;     dJ = 10
+	L0 = 9;	    Lend = 13; 		dL = 1;
 	w_num = 5;	array w_list[w_num];
 	w_list[1] = 0.01;	w_list[2] = 0.05;	w_list[3] = 0.1;	w_list[4] = 0.3;	w_list[5] = 0.5;
     h_list = '0.20 0.60 1.20 1.40 1.60 1.80 2.40 3.00 3.60'
@@ -110,18 +110,21 @@ i0 = 0; iend = 0; di = 1;
 		tau[idx] = NaN; y_vals[idx] = NaN;	gap_ratio[idx] = NaN;
 		if(fileexist(name)){
             f(x,y) = x > 2.5? NaN : ((log10( y / GOE(x) )) - eps)**2
-			stats name nooutput; n_cols = STATS_columns;
-			if(find_Thouless){
-				stats name using (f($1, $2)) nooutput prefix "Y";       y_min = Y_index_min;
-            	stats name using 1 every ::y_min::(y_min+1) nooutput;   tau[idx] = STATS_min; 
-            	stats name every ::y_min::(y_min+1) using 2 nooutput;   y_vals[idx] = STATS_min;
-            	stats name using 1 nooutput;   new_min = STATS_min;     if(new_min < x_min){ x_min = new_min; }
-            	stats name using 2 nooutput;   new_min = STATS_min;     if(new_min < y_min){ y_min = new_min; }
-			}
-			if(add_gap_ratio && n_cols >= 5){
-				stats name every ::0::0 using 5 nooutput; gap_ratio[idx] = STATS_min;
-				x_vals_gap[idx] = scaling != 1? 0.01 * i : i;
-				if(scaling == 4 && model == 0){ x_vals_gap[idx] = w_list[i]; }
+			stats name u 1 nooutput; bool = STATS_min;
+			if(bool > 0){
+				stats name nooutput; n_cols = STATS_columns;
+				if(find_Thouless){
+					stats name using (f($1, $2)) nooutput prefix "Y";       y_min = Y_index_min;
+            		stats name using 1 every ::y_min::(y_min+1) nooutput;   tau[idx] = STATS_min; 
+            		stats name every ::y_min::(y_min+1) using 2 nooutput;   y_vals[idx] = STATS_min;
+            		stats name using 1 nooutput;   new_min = STATS_min;     if(new_min < x_min){ x_min = new_min; }
+            		stats name using 2 nooutput;   new_min = STATS_min;     if(new_min < y_min){ y_min = new_min; }
+				}
+				if(add_gap_ratio && n_cols >= 5){
+					stats name every ::0::0 using 5 nooutput; gap_ratio[idx] = STATS_min;
+					x_vals_gap[idx] = scaling != 1? 0.01 * i : i;
+					if(scaling == 4 && model == 0){ x_vals_gap[idx] = w_list[i]; }
+				}
 			}
 		}
         print _key_title(i),"  ", tau[idx]
