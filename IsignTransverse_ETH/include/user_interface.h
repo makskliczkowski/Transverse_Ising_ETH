@@ -95,7 +95,9 @@ namespace isingUI
 		{"fun","-1"},					// choose function 
 		{"ch", "0"},					// some boolean choose flag
 		{"ts", "0.1"},					// time step for 
-		{"scale", "0"}					// scale: linear-0 or log-1
+		{"scale", "0"},					// scale: linear-0 or log-1
+		{"seed", "87178291199L"},		// seed foir random generator
+		{"jobid", "0"}					// unique job id
 	};
 
 	// ----------------------------------- UI CLASS SPECIALISATION -----------------------------------
@@ -103,23 +105,27 @@ namespace isingUI
 	class ui : public user_interface {
 	protected:
 		// MODEL PARAMETERS
-		double J, h, g;																	// external fields
-		int hn, gn, wn, g0n;															// external fields number of points
-		double hs, gs, ws, g0s;															// external fields step
-		double w, g0, J0;																// disorder strengths
-		int L, Ls, Ln, m;																// lattice params
-		bool p, q, ch;																	// boolean values
-		int realisations;																// number of realisations to average on for disordered case - symmetries got 1
-		int mu;																			// small bucket for the operator fluctuations to be averaged onto
-		int site;																		// site for operator averages
-		int op;																			// choose operator
-		int fun;																		// choose function to start calculations
-		double dt;																		// time step for evolution
-		int scale;																		// choose scale: either linear or log
+		double J, h, g;										// external fields
+		int hn, gn, wn, g0n;								// external fields number of points
+		double hs, gs, ws, g0s;								// external fields step
+		double w, g0, J0;									// disorder strengths
+		int L, Ls, Ln, m;									// lattice params
+		bool p, q, ch;										// boolean values
+		int realisations;									// number of realisations to average on for disordered case - symmetries got 1
+		long unsigned int seed;								// radnom seed for random generator
+		size_t jobid;										// unique _id given to current job
+
+		int mu;												// small bucket for the operator fluctuations to be averaged onto
+		int site;											// site for operator averages
+		int op;												// choose operator
+		int fun;											// choose function to start calculations
+		double dt;											// time step for evolution
+		int scale;											// choose scale: either linear or log
+
 		struct {
-			int k_sym;																	// translational symmetry generator
-			int p_sym;																	// parity symmetry generator
-			int x_sym;																	// spin-flip symmetry generator
+			int k_sym;										// translational symmetry generator
+			int p_sym;										// parity symmetry generator
+			int x_sym;										// spin-flip symmetry generator
 		} symmetries;
 	public:
 		// ----------------------------------- CONSTRUCTORS
@@ -309,7 +315,6 @@ namespace isingUI
 			callable& lambda, 			//!< callable function
 			_types... args				//!< arguments passed to callable interface lambda
 		) {
-			gen = std::mt19937_64(seed);
 				double x = 0.0;
 				switch (par)
 				{

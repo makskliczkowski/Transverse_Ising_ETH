@@ -39,12 +39,12 @@ site = 1
 q = 1
 operator = 0	 		# 1-SigmaZ , 0-Hq :local
 rescale_times = 1
-L = 12
+L = 13
 g = 0.8
 h=0.8
 J=1.0
 w = 0.01
-w2 = 0.05
+w2 = 0.1
 
 fileexist(name)=system("[ -f '".name."' ] && echo '1' || echo '0'") + 0
 set lmargin at screen 0.15

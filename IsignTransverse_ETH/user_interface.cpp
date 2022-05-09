@@ -8,7 +8,8 @@ void isingUI::ui::make_sim()
 {
 	
 	printAllOptions();
-	seed = static_cast<long unsigned int>(time(0));
+	gen = std::mt19937_64(this->seed);
+
 	clk::time_point start = std::chrono::system_clock::now();
 	const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
 	const double gmin = this->g, gmax = this->g + this->gn * this->gs;
@@ -113,7 +114,7 @@ void isingUI::ui::make_sim()
 					double omega_max = alfa->get_eigenEnergy(alfa->get_hilbert_size() - 1) - alfa->get_eigenEnergy(0);
 						auto times = this->scale ? arma::logspace(-2, t_max, 500) : arma::join_cols(range1, range2, arma::regspace(11.0 * this->dt, this->dt, 2e2));
 							
-							alfa->reset_random();
+							alfa->reset_random(this->seed);
 							stout << "\t\t	-->set random generators for " << name
 								  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 							arma::vec entropy(times.size(), arma::fill::zeros);
@@ -639,7 +640,7 @@ void isingUI::ui::calculate_spectrals()
 			arma::vec opIntSpec(times.size(), arma::fill::zeros);
 			double Z = 0.0;
 			double LTA = 0;
-			alfa.reset_random();
+			alfa.reset_random(this->seed);
 			for (int r = 0; r < this->realisations; r++)
 			{
 				const auto start_loop = std::chrono::system_clock::now();
@@ -726,7 +727,7 @@ void isingUI::ui::entropy_evolution(){
 		double dt_new = 1e-2;
 		std::string dir = this->saving_dir + "Entropy" + kPSep;
 		createDirs(dir);
-		alfa.reset_random();
+		alfa.reset_random(this->seed);
 
 		// ----------- diagonalize
 		stout << "\t\t	--> start diagonalizing for " << alfa.get_info()
@@ -2082,6 +2083,9 @@ void isingUI::ui::set_default()
 	this->ch = false;
 	this->dt = 0.1;
 	this->scale = 0;
+
+	this->seed = static_cast<long unsigned int>(87178291199L);
+	this->jobid = 0;
 }
 
 // ------------------------------------- CONSTURCTORS
@@ -2198,6 +2202,12 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv)
 	this->set_option(this->ch, argv, choosen_option);
 	choosen_option = "-scale";
 	this->set_option(this->scale, argv, choosen_option);
+
+	// disorder
+	choosen_option = "-jobid";
+	this->set_option(this->jobid, argv, choosen_option);
+	choosen_option = "-seed";
+	this->set_option(this->seed, argv, choosen_option);
 
 	// model
 	choosen_option = "-m";

@@ -106,8 +106,8 @@ public:
 	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
 	virtual void hamiltonian_heisenberg() = 0;													// pure virtual heisenberg hamiltonian creator
 	virtual void setHamiltonianElem(u64 k, double value, u64 new_idx) = 0;						// sets the Hamiltonian elements in a virtual way
-	void reset_random() const {
-		gen = std::mt19937_64(seed);
+	void reset_random(size_t new_seed = seed_global) const {
+		gen = std::mt19937_64(new_seed);
 		//this->ran.reset();
 	}
 	double getRandomValue(const double _min, const double _max) {

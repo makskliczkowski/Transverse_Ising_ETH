@@ -22,7 +22,7 @@ RANGE = "set xrange[0:1]; set yrange[0:2.0]"
 UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset border;"
 #-- PARAMETERS
 model = 0       # 1=symmetries and 0=disorder
-w = 0.05
+w = 0.3
 g = 0.8
 L = 12
 h = 0.8
@@ -40,7 +40,7 @@ if(!heatmap){
 	h0 = 5;     hend = 55;		dh = 10;
 	g0 = 5;    gend = 50;		dg = 10;
     J0 = 10;    Jend = 60;     dJ = 10
-	L0 = 9;	    Lend = 12; 		dL = 1;
+	L0 = 9;	    Lend = 13; 		dL = 1;
 
     h_list = '0.20 0.60 1.20 1.40 1.60 1.80 2.40 3.00 3.60'
     g_list = '0.20 0.30 0.70 0.80 1.10 1.40'; g00=0.20

@@ -120,7 +120,7 @@ namespace fs = std::experimental::filesystem;
 #endif
 
 extern std::random_device rd;
-extern std::mt19937::result_type seed;
+extern std::mt19937::result_type seed_global;
 extern std::mt19937_64 gen;
 typedef size_t u64;
 // ----------------------------------------------------------------------------- namespaces -----------------------------------------------------------------------------
@@ -181,7 +181,7 @@ const v_1d<u64> BinaryPowers = { ULLPOW(0), ULLPOW(1), ULLPOW(2), ULLPOW(3),
 extern int num_of_threads;													// number of threads
 constexpr long double pi = 3.141592653589793238462643383279502884L;			// it is me, pi
 constexpr long double two_pi = 2 * 3.141592653589793238462643383279502884L;	// it is me, 2pi
-const auto global_seed = std::random_device{}();							// global seed for classes
+//const auto global_seed = std::random_device{}();							// global seed for classes
 const std::string kPSep = std::string(kPathSeparator);
 
 
