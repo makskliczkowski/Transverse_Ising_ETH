@@ -45,7 +45,7 @@ void isingUI::ui::make_sim()
 		thouless_times();
 		break;
 	default:
-		printSeparated(std::cout, "\t", 16, true, "L", "g", "h");
+		printSeparated(std::cout, "\t", 16, true, "L", "J", "g", "h");
 		for (int system_size = Lmin; system_size < Lmax; system_size += this->Ls)
 		{
 			for (double gx = gmin; gx < gmax; gx += this->gs)
@@ -61,7 +61,7 @@ for(this->J = 0.05; this->J <= 1.0; this->J += 0.05)
 					printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h);
 					// ----------------------
 					//this->diagonalize(); continue;
-					spectral_form_factor(); continue;
+					//spectral_form_factor(); continue;
 					average_SFF(); continue;
 					std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
 					smoothen_data(this->saving_dir + "SpectralFormFactor" + kPSep, info + ".dat"); continue;
