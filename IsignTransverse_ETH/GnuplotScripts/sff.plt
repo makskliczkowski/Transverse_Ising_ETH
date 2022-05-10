@@ -29,16 +29,16 @@ J_knot = 0.; g_knot = 0.;
 scaling = 3		     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
 smoothed = 1       # smoothed ?
 plot_der_GOE = 0     # plot deriviation from GOE value
-zoom_in = 0          # zoom in to collapse on GOE
-find_Thouless = 1    # find thouless time?
-add_gap_ratio = 0	 # add gap ratio
+zoom_in = 0         # zoom in to collapse on GOE
+find_Thouless = 0    # find thouless time?
+add_gap_ratio = 1	 # add gap ratio
 if(scaling < 0 || scaling > 4 || zoom_in == 1) add_gap_ratio = 0;
 if(plot_der_GOE){ zoom_in = 0;}
 
-	h0 = 10;     hend = 50;		dh = 5;
+	h0 = 10;     hend = 100;		dh = 10;
 	g0 = 10;    gend = 150;		dg = 10;
-    J0 = 30;    Jend = 100;     dJ = 10
-	L0 = 9;	    Lend = 13; 		dL = 1;
+    J0 = 5;    Jend = 30;     dJ = 5
+	L0 = 8;	    Lend = 13; 		dL = 1;
 	w_num = 5;	array w_list[w_num];
 	w_list[1] = 0.01;	w_list[2] = 0.05;	w_list[3] = 0.1;	w_list[4] = 0.3;	w_list[5] = 0.5;
     h_list = '0.20 0.60 1.20 1.40 1.60 1.80 2.40 3.00 3.60'
@@ -119,6 +119,9 @@ i0 = 0; iend = 0; di = 1;
             		stats name every ::y_min::(y_min+1) using 2 nooutput;   y_vals[idx] = STATS_min;
             		stats name using 1 nooutput;   new_min = STATS_min;     if(new_min < x_min){ x_min = new_min; }
             		stats name using 2 nooutput;   new_min = STATS_min;     if(new_min < y_min){ y_min = new_min; }
+				} else {
+					x_min = 1e-3;
+					y_min = 1e-2;
 				}
 				if(add_gap_ratio && n_cols >= 5){
 					stats name every ::0::0 using 5 nooutput; gap_ratio[idx] = STATS_min;

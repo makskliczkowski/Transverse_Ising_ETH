@@ -190,6 +190,10 @@ namespace isingUI
 
 		void smoothen_data(const std::string& dir, const std::string& name, int mu = -1);
 
+		//-------------------------------------------------------------------------- AVERAGE OVER REALISATIONS
+		//<! average data over disorder realisations
+		void average_SFF();
+
 		//-------------------------------------------------------------------------- FUNCTIONS TO CALL IN FUN-DEFAULT MODE
 		/// <summary>
 		/// saves matrix elements for using in the autoencoder
@@ -198,7 +202,6 @@ namespace isingUI
 		/// <param name="names"> names of operators set in input, must be equal size as operators</param>
 		void saveDataForAutoEncoder_disorder(std::initializer_list<op_type> operators, std::initializer_list<std::string> names);
 		void saveDataForAutoEncoder_symmetries(std::initializer_list<op_type> operators, std::initializer_list<std::string> names);
-
 
 		//-------------------------------------------------------------------------- GENERAL LAMBDA'S
 		//<! generate random product state (random orientation of spins on the bloch sphere)

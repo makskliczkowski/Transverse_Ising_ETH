@@ -56,12 +56,13 @@ void isingUI::ui::make_sim()
 					this->g = gx;
 					this->h = hx;
 					const auto start_loop = std::chrono::system_clock::now();
-					printSeparated(std::cout, "\t", 16, true, this->L, this->g, this->h);
-//for(this->J = 0.1; this->J <= 1.0; this->J += 0.1)
+for(this->J = 0.05; this->J <= 1.0; this->J += 0.05)
 {
+					printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h);
 					// ----------------------
 					//this->diagonalize(); continue;
-					//spectral_form_factor(); continue;
+					spectral_form_factor(); continue;
+					average_SFF(); continue;
 					std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
 					smoothen_data(this->saving_dir + "SpectralFormFactor" + kPSep, info + ".dat"); continue;
 } continue;
@@ -1114,6 +1115,99 @@ void isingUI::ui::spectral_form_factor(){
 		average_over_realisations<par>(false, lambda_average);
 		norm = this->realisations;
 	}
+	if(sff.is_empty()) return;
+	if(sff.is_zero()) return;
+	r1 /= norm;
+	r2 /= norm;
+	sff = sff / Z;
+
+	std::ofstream lvl;
+	openFile(lvl, dir2 + info + ".dat", std::ios::out);
+	printSeparated(lvl, "\t", 16, true, r1, r2);
+	lvl.close();
+	// ---------- find Thouless time
+	double eps = 8e-2;
+	auto K_GOE = [](double t){
+		return t < 1? 2 * t - t * log(1+2*t) : 2 - t * log( (2*t+1) / (2*t-1) );
+	};
+	double thouless_time = 0;
+	const double t_max = this->ch? 2.5 : 2.5 * tH;
+	double delta_min = 1e6;
+	for(int i = 0; i < sff.size(); i++){
+		double t = this->ch? times(i) : times(i) * tH;
+		double delta = abs(log10( sff(i) / K_GOE(t) )) - eps;
+		delta *= delta;
+		if(delta < delta_min){
+			delta_min = delta;
+			thouless_time = times(i); 
+		}
+		if(times(i) >= t_max) break;
+	}
+	save_to_file(dir + info + ".dat", times, sff, tH, thouless_time, r1, r2, dim);
+	smoothen_data(dir, info + ".dat");
+}
+
+void isingUI::ui::average_SFF(){
+	std::string dir = this->saving_dir + "SpectralFormFactor" + kPSep;
+	std::string dir2 = this->saving_dir + "LevelSpacing" + kPSep + "raw_data" + kPSep;
+	
+	const Ising_params par = Ising_params::h;
+	//------- PREAMBLE
+	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
+					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
+
+	const double chi = 0.341345;
+	size_t dim = ULLPOW(this->L);
+	if(this->m){
+		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
+								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+		dim = alfa->get_hilbert_size();
+	}
+	const double wH = sqrt(this->L) / (chi * dim) * sqrt(this->J * this->J + this->h * this->h + this->g * this->g
+												 + ( this->m? 0.0 : (this->w * this->w + this->g0 * this->g0 + this->J0 * this->J0) / 3. ));
+	double tH = 1. / wH;
+	arma::vec times; // are always the same
+	arma::vec sff(5000, arma::fill::zeros);
+	double Z = 0.0;
+	double r1 = 0.0;
+	double r2 = 0.0;
+	// ------ SET LAMBDA
+	int counter_realis = 0;
+	auto lambda_average = [this, &info, &par, &sff, &Z, &r1, &r2, &times, &counter_realis](
+		int realis, double x
+		)
+	{
+		std::string dir_re  = this->saving_dir + "SpectralFormFactor" + kPSep + "realisation=" + std::to_string(this->jobid + realis) + kPSep;
+		std::ifstream file;
+
+		auto data = readFromFile(file, dir_re + info + ".dat");
+		if(data.empty()) return;
+		#pragma omp critical
+		{
+			times = data[0];
+			sff += data[1];
+			Z += data[2](0);
+			r1 += data[3](0);
+			r2 += data[4](0);
+			counter_realis++;
+		}
+	};
+	double norm = 0.0;
+	if(this->m){
+		int counter = 0;
+		for(int k = 1; k < this->L; k++)
+		{
+			if(k == this->L / 2) continue;
+			this->symmetries.k_sym = k;
+			average_over_realisations<par>(false, lambda_average);
+			counter++;
+		}
+		norm = counter_realis * counter;
+	} else{
+		average_over_realisations<par>(false, lambda_average);
+		norm = counter_realis;
+	}
+
 	if(sff.is_empty()) return;
 	if(sff.is_zero()) return;
 	r1 /= norm;

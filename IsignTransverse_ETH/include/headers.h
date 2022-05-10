@@ -521,7 +521,7 @@ template <typename T>
 inline bool openFile(T& file, std::string filename, std::ios_base::openmode mode = std::ios::out) {
 	file.open(filename, mode);
 	if (!file.is_open()) {
-		stout << "couldn't open a file: " + filename << std::endl;
+		//stout << "couldn't open a file: " + filename << std::endl;
 		return false;
 	}
 	return true;
