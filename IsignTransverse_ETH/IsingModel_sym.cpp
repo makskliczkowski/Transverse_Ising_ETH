@@ -550,6 +550,48 @@ cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_co
 }
 
 
+//--------------------------------------------------------- dummy functions
+arma::vec IsingModel_sym::get_non_interacting_energies(){
+	const u64 dim = ULLPOW(this->L);
+	arma::vec energies(dim);
+	int counter = 0;
+	double epsilon = sqrt(this->g * this->g + this->h + this->h);
+	for(int k = 0; k <= L; k++)
+	{
+		int degeneracy = std::tgamma(this->L + 1) / ( std::tgamma(k + 1) * std::tgamma(this->L - k + 1) ); // tgamma(n) = (n-1)!
+		for(int d = 0; d < degeneracy; d++)
+			energies(counter++) = -(this->L - 2 * k) * epsilon;
+	}
+	return energies;
+}
+arma::vec IsingModel_sym::first_interacting_correction(){
+	const u64 dim = ULLPOW(this->L);
+	arma::vec energies(dim);
+	int counter = 0;
+	const double epsilon = sqrt(this->g * this->g + this->h + this->h);
+	const double lambda = this->h * this->h / (epsilon * epsilon);
+	for(int k = 0; k <= L; k++)
+	{
+		std::vector<int> bitmask(k, 1); 	// string with k-leading 1's
+		bitmask.resize(this->L, 0);			// L-k trailing 0's
+
+		// -------- permute all binary representations to get all combinations of subset of size k
+    	do {
+			double E = 0.0;
+    	    for (int i = 0; i < this->L; i++)  {
+				const int nei = this->nearest_neighbors[i];
+				if(nei >= 0){
+    	        	if (bitmask[i] == bitmask[nei]) E += this->J * lambda;
+					else 							E -= this->J * lambda;
+				}
+    	    }
+			energies(counter++) = E;
+    	} while (std::prev_permutation(bitmask.begin(), bitmask.end()));
+	}
+	auto E = this->get_non_interacting_energies();
+	return E + energies;
+}
+
 // ----------------------------------------------------------------------------------------- entaglement
 auto IsingModel_sym::reduced_density_matrix(const arma::cx_vec& state, int A_size) const -> arma::cx_mat {
 	// set subsytsems size

@@ -676,7 +676,73 @@ arma::mat IsingModel_disorder::correlation_matrix(u64 state_id) const {
 
 
 
+//--------------------------------------------------------- dummy functions
 
+arma::vec IsingModel_disorder::get_non_interacting_energies(){
+	const u64 dim = ULLPOW(this->L);
+	arma::vec energies(dim);
+	auto epsilon = [this](int site){
+		double hi = this->h + this->dh(site);
+		return sqrt(this->g * this->g + hi * hi);
+	};
+	int counter = 0;
+	for(int k = 0; k <= L; k++) // number of flipped bits
+	{
+		std::vector<int> bitmask(k, 1); 	// string with k-leading 1's
+		bitmask.resize(this->L, 0);			// L-k trailing 0's
+
+		// -------- permute all binary representations to get all combinations of subset of size k
+    	do {
+			double E = 0.0;
+    	    for (int i = 0; i < this->L; i++)  {
+    	        if (bitmask[i]) E += epsilon(i);
+				else 			E -= epsilon(i);
+    	    }
+			energies(counter++) = E;
+    	} while (std::prev_permutation(bitmask.begin(), bitmask.end()));
+	}
+	sort(energies.begin(), energies.end());
+	return energies;
+}
+
+arma::vec IsingModel_disorder::first_interacting_correction(){
+	const u64 dim = ULLPOW(this->L);
+	arma::vec energies(dim);
+	auto epsilon = [this](int site){
+		double hi = this->h + this->dh(site);
+		return sqrt(this->g * this->g + hi * hi);
+	};
+	auto lambda = [this, &epsilon](int site){
+		const int nei = this->nearest_neighbors[site];
+		double hi = this->h + this->dh(site);
+		double hi_next = nei >= 0? this->h + this->dh(nei) : 0.0;
+		double denom = nei >= 0? epsilon(site) * epsilon(nei) : 1.0;
+		return hi * hi_next / denom;
+	};
+	int counter = 0;
+	for(int k = 0; k <= L; k++) // number of flipped bits
+	{
+		std::vector<int> bitmask(k, 1); 	// string with k-leading 1's
+		bitmask.resize(this->L, 0);			// L-k trailing 0's
+
+		// -------- permute all binary representations to get all combinations of subset of size k
+    	do {
+			double E = 0.0;
+    	    for (int i = 0; i < this->L; i++)  {
+    	        if (bitmask[i]) E += epsilon(i);
+				else 			E -= epsilon(i);
+				const int nei = this->nearest_neighbors[i];
+				if(nei >= 0){
+    	        	if (bitmask[i] == bitmask[nei]) E += this->J * lambda(i);
+					else 							E -= this->J * lambda(i);
+				}
+    	    }
+			energies(counter++) = E;
+    	} while (std::prev_permutation(bitmask.begin(), bitmask.end()));
+	}
+	sort(energies.begin(), energies.end());
+	return energies;
+}
 
 // ----------------------------------------------------------------------------------------- entaglement
 auto IsingModel_disorder::reduced_density_matrix(const arma::cx_vec& state, int A_size) const -> arma::cx_mat {

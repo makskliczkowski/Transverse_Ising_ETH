@@ -288,6 +288,10 @@ public:
 	arma::vec entaglement_entropy(const arma::cx_vec& state) const;
 
 	void set_coefficients(const arma::cx_vec& initial_state);
+
+	//--------------------------------------------------------- dummy functions
+	virtual arma::vec get_non_interacting_energies() = 0;
+	virtual arma::vec first_interacting_correction() = 0;
 };
 
 inline void normaliseOp(arma::sp_cx_mat& op) {
@@ -421,6 +425,10 @@ public:
 
 	arma::cx_mat reduced_density_matrix(const arma::cx_vec& state, int A_size) const override;
 	arma::mat correlation_matrix(u64 state_id) const override;
+
+	//--------------------------------------------------------- dummy functions
+	virtual arma::vec get_non_interacting_energies() override;
+	virtual arma::vec first_interacting_correction() override;
 };
 //-------------------------------------------------------------------------------------------------------------------------------
 /// <summary>
@@ -507,6 +515,10 @@ public:
 		tmp_str.pop_back();
 		return tmp_str;
 	}
+
+	//--------------------------------------------------------- dummy functions
+	virtual arma::vec get_non_interacting_energies() override;
+	virtual arma::vec first_interacting_correction() override;
 };
 // ---------------------------------- HELPERS ----------------------------------
 template <typename _type>

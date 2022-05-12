@@ -2,7 +2,7 @@
 // set externs
 std::uniform_real_distribution<> theta	= std::uniform_real_distribution<>(0.0, pi);
 std::uniform_real_distribution<> fi		= std::uniform_real_distribution<>(0.0, pi);
-int outer_threads = 1;
+int outer_threads = 10;
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
 {
@@ -56,13 +56,20 @@ void isingUI::ui::make_sim()
 					this->g = gx;
 					this->h = hx;
 					const auto start_loop = std::chrono::system_clock::now();
-for(this->J = 0.05; this->J <= 1.0; this->J += 0.05)
+for(this->J = 0.01; this->J <= 0.1; this->J += 0.01)
 {
 					printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h);
+	//auto model = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+	//model->diagonalization();
+	//auto E = model->first_interacting_correction();
+	//for(int i = 0; i < E.size(); i++)
+	//	printSeparated(std::cout, "\t", 16, true, E(i), model->get_eigenEnergy(i), abs(E(i) - model->get_eigenEnergy(i)));
+	//stout << "----------------------------------" << std::endl;
+	//continue;
 					// ----------------------
 					//this->diagonalize(); continue;
-					//spectral_form_factor(); continue;
-					average_SFF(); continue;
+					//average_SFF(); continue;
+					spectral_form_factor(); continue;
 					std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
 					smoothen_data(this->saving_dir + "SpectralFormFactor" + kPSep, info + ".dat"); continue;
 } continue;
@@ -269,16 +276,30 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 		loaded = eigenvalues.load(arma::hdf5_name(name, "eigenvalues/" + _suffix));
 	}
 	if(!loaded){
-		//#undef MY_MAC
-		#if defined(MY_MAC)
-			std::cout << "Failed to load energies, returning empty array" << std::endl;
-		#else
-			alfa.diagonalization(false);
-			//stout << "No energies found, diagonalizing matrix now!" << std::endl;
-			eigenvalues = alfa.get_eigenvalues();
-			// save eigenvalues (yet unsaved)
-			//eigenvalues.save(arma::hdf5_name(name, "eigenvalues/" + _suffix));
-		#endif
+		if(alfa.g == 0){
+			auto H = alfa.get_hamiltonian();
+			const u64 N = alfa.get_hilbert_size();
+			arma::cx_vec E(N);
+			for(int i = 0; i < N; i++)
+				E(i) = H(i,i);
+			eigenvalues = real(E);
+			sort(eigenvalues.begin(), eigenvalues.end());
+		} 
+		else if(alfa.J <= 0.1){
+			eigenvalues = alfa.first_interacting_correction();
+		} 
+		else {
+			//#undef MY_MAC
+			#if defined(MY_MAC)
+				std::cout << "Failed to load energies, returning empty array" << std::endl;
+			#else
+				alfa.diagonalization(false);
+				//stout << "No energies found, diagonalizing matrix now!" << std::endl;
+				eigenvalues = alfa.get_eigenvalues();
+				// save eigenvalues (yet unsaved)
+				//eigenvalues.save(arma::hdf5_name(name, "eigenvalues/" + _suffix));
+			#endif
+		}
 	}
 	return eigenvalues;
 }
@@ -1028,11 +1049,11 @@ void isingUI::ui::spectral_form_factor(){
 												 + ( this->m? 0.0 : (this->w * this->w + this->g0 * this->g0 + this->J0 * this->J0) / 3. ));
 	double tH = 1. / wH;
 	double r1 = 0.0, r2 = 0.0;
-	int num_times = 5000;
+	int num_times = 8000;
 	int time_end = (int)std::ceil(std::log10(5 * tH));
 	time_end = (time_end / std::log10(tH) < 1.5) ? time_end + 1 : time_end;
 
-	arma::vec times = this->ch? arma::logspace(log10(1.0 / (two_pi * dim)), 1, num_times) : arma::logspace(-2, time_end, num_times);
+	arma::vec times = this->ch? arma::logspace(log10(1.0 / (two_pi * dim)), 2, num_times) : arma::logspace(-2, time_end, num_times);
 	arma::vec sff(num_times, arma::fill::zeros);
 	double Z = 0.0;
 
@@ -1094,9 +1115,14 @@ void isingUI::ui::spectral_form_factor(){
 		if(this->fun == 3) stout << "\t\t	--> finished realisation for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 		
 		//--------- SAVE REALISATION TO FILE
-		std::string dir_re  = this->saving_dir + "SpectralFormFactor" + kPSep + "realisation=" + std::to_string(this->jobid + realis) + kPSep;
-		createDirs(dir_re);
-		save_to_file(dir_re + info + ".dat", times, sff_r, Z_r, r1_tmp, r2_tmp);
+		#if !defined(MY_MAC)
+			std::string dir_re  = this->saving_dir + "SpectralFormFactor" + kPSep + "realisation=" + std::to_string(this->jobid + realis) + kPSep;
+			createDirs(dir_re);
+			save_to_file(dir_re + info + ".dat", times, sff_r, Z_r, r1_tmp, r2_tmp);
+		#else
+			stout << this->jobid + realis << "\t";
+			stout << std::endl;
+		#endif
 	};
 	
 	// ----------- choose model and run kernel
@@ -1120,6 +1146,7 @@ void isingUI::ui::spectral_form_factor(){
 	r1 /= norm;
 	r2 /= norm;
 	sff = sff / Z;
+	info = "perturbation_order=1" + info;
 
 	std::ofstream lvl;
 	openFile(lvl, dir2 + info + ".dat", std::ios::out);
