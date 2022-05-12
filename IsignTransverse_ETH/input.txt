@@ -1,1 +1,1 @@
--L 9 -Ln 4 -Ls 1 -J 0.0 -g 0.9 -gs 0.05 -gn 1 -h 0.8 -hs 0.05 -hn 1 -w 0.1 -th 10 -r 2000 -op 3 -fun 70 -s 6 -mu 50 -dt 0.1 -ch 1 -scale 1 -m 0 -jobid 0
+-L 13 -Ln 3 -Ls 1 -J 0.0 -g 0.9 -gs 0.05 -gn 1 -h 0.8 -hs 0.05 -hn 1 -w 0.1 -th 64 -r 10000 -op 3 -fun 70 -s 6 -mu 50 -dt 0.1 -ch 1 -scale 1 -m 0 -jobid 0

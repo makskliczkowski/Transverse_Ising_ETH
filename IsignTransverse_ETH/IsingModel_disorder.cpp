@@ -81,10 +81,12 @@ void IsingModel_disorder::hamiltonian() {
 		std::cout << "Memory exceeded" << e.what() << "\n";
 		assert(false);
 	}
-
-	this->dh = create_random_vec(L, this->w);                               // creates random disorder vector
-	this->dJ = create_random_vec(L, this->J0);                              // creates random exchange vector
-	this->dg = create_random_vec(L, this->g0);                              // creates random transverse field vector
+	#pragma omp critical
+	{
+		this->dh = create_random_vec(L, this->w);                               // creates random disorder vector
+		this->dJ = create_random_vec(L, this->J0);                              // creates random exchange vector
+		this->dg = create_random_vec(L, this->g0);                              // creates random transverse field vector
+	}
 	//this->dh.zeros();
 	//dh(1) = 0.165; dh(4) = -0.24;
 	for (long int k = 0; k < N; k++) {

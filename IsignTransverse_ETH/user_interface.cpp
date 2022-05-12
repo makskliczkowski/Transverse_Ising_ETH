@@ -2,7 +2,7 @@
 // set externs
 std::uniform_real_distribution<> theta	= std::uniform_real_distribution<>(0.0, pi);
 std::uniform_real_distribution<> fi		= std::uniform_real_distribution<>(0.0, pi);
-int outer_threads = 10;
+int outer_threads = 1;
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
 {
@@ -56,8 +56,10 @@ void isingUI::ui::make_sim()
 					this->g = gx;
 					this->h = hx;
 					const auto start_loop = std::chrono::system_clock::now();
-for(this->J = 0.01; this->J <= 0.1; this->J += 0.01)
+for(this->J = 0.05; this->J <= 1.0; this->J += 0.05)
 {
+	//if(this->L > 10) this->realisations = 1000;
+
 					printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h);
 	//auto model = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 	//model->diagonalization();
@@ -68,7 +70,7 @@ for(this->J = 0.01; this->J <= 0.1; this->J += 0.01)
 	//continue;
 					// ----------------------
 					//this->diagonalize(); continue;
-					//average_SFF(); continue;
+					average_SFF(); continue;
 					spectral_form_factor(); continue;
 					std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
 					smoothen_data(this->saving_dir + "SpectralFormFactor" + kPSep, info + ".dat"); continue;
@@ -285,8 +287,8 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 			eigenvalues = real(E);
 			sort(eigenvalues.begin(), eigenvalues.end());
 		} 
-		else if(alfa.J <= 0.1){
-			eigenvalues = alfa.first_interacting_correction();
+		else if(alfa.J == 0.0){
+			eigenvalues = alfa.get_non_interacting_energies();
 		} 
 		else {
 			//#undef MY_MAC
@@ -1049,7 +1051,7 @@ void isingUI::ui::spectral_form_factor(){
 												 + ( this->m? 0.0 : (this->w * this->w + this->g0 * this->g0 + this->J0 * this->J0) / 3. ));
 	double tH = 1. / wH;
 	double r1 = 0.0, r2 = 0.0;
-	int num_times = 8000;
+	int num_times = 5000;
 	int time_end = (int)std::ceil(std::log10(5 * tH));
 	time_end = (time_end / std::log10(tH) < 1.5) ? time_end + 1 : time_end;
 
@@ -1146,8 +1148,8 @@ void isingUI::ui::spectral_form_factor(){
 	r1 /= norm;
 	r2 /= norm;
 	sff = sff / Z;
-	info = "perturbation_order=1" + info;
-
+	//info = "perturbation_order=1" + info;
+	if(this->jobid > 0) return;
 	std::ofstream lvl;
 	openFile(lvl, dir2 + info + ".dat", std::ios::out);
 	printSeparated(lvl, "\t", 16, true, r1, r2);
@@ -1209,6 +1211,7 @@ void isingUI::ui::average_SFF(){
 
 		auto data = readFromFile(file, dir_re + info + ".dat");
 		if(data.empty()) return;
+		if(data[0].size() != sff.size()) return;
 		#pragma omp critical
 		{
 			times = data[0];
