@@ -2,7 +2,7 @@
 // set externs
 std::uniform_real_distribution<> theta	= std::uniform_real_distribution<>(0.0, pi);
 std::uniform_real_distribution<> fi		= std::uniform_real_distribution<>(0.0, pi);
-int outer_threads = 1;
+int outer_threads = 10;
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
 {
@@ -56,7 +56,7 @@ void isingUI::ui::make_sim()
 					this->g = gx;
 					this->h = hx;
 					const auto start_loop = std::chrono::system_clock::now();
-for(this->J = 0.05; this->J <= 1.0; this->J += 0.05)
+//for(this->J = 0.05; this->J <= 1.0; this->J += 0.05)
 {
 	//if(this->L > 10) this->realisations = 1000;
 
@@ -70,7 +70,7 @@ for(this->J = 0.05; this->J <= 1.0; this->J += 0.05)
 	//continue;
 					// ----------------------
 					//this->diagonalize(); continue;
-					average_SFF(); continue;
+					//average_SFF(); continue;
 					spectral_form_factor(); continue;
 					std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
 					smoothen_data(this->saving_dir + "SpectralFormFactor" + kPSep, info + ".dat"); continue;
@@ -908,7 +908,7 @@ void isingUI::ui::relaxationTimesFromFiles()
 		//	if(spectral_function(idx_tmp - 1) > 0.5 * spectral_function(i))	
 		//		idx_tmp = spectral_function.size() - 1;
 		
-		std::vector<double> w_cut_vals = this->g < 0.6? std::vector({0.2, 0.4, 0.6, 0.8, 1.1, 1.1, 1.1, 1.1})
+		std::vector<double> w_cut_vals = this->g <= 0.6? std::vector({0.2, 0.4, 0.6, 0.8, 1.1, 1.1, 1.1, 1.1})
 													  : std::vector({10.0, 0.4, 1.0, 1.2, 1.2, 1.2, 1.2, 1.2});
 		double w_cut = w_cut_vals[_site];
 		u64 idx_tmp = min_element(begin(omega_vals), end(omega_vals), [=](double a, double b) {

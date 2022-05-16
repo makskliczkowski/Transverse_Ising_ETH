@@ -31,13 +31,13 @@ heatmap = 1 		# ==1 plot 2D heatmap, else plot cuts at specific values
 h_vs_g = 0;			# ==0 --> as function of h on x-axis
 relax_vs_approx = 0	# pick initial relax time = 1 or approx with renormalized peak = 0
 plot_thouless = 0	# plot only thouless times
-scaling = 1			# = 0 q/j-scaling, =1-size scaling, =2-h/g, =3-compare_operators
-user_defined = 1
+scaling = 3			# = 0 q/j-scaling, =1-size scaling, =2-h/g, =3-compare_operators
+user_defined = 0
 
 q_vs_j = 1
 site = 1
 q = 1
-operator = 0	 		# 1-SigmaZ , 0-Hq :local
+operator = 1	 		# 1-SigmaZ , 0-Hq :local
 rescale_times = 1
 L = 13
 g = 0.8
@@ -133,7 +133,7 @@ if(user_defined == 0){
 		if(scaling == 1){ plot for[i=L0:Lend:dL] dir._name(J, i, (q_vs_j? (q<0? i / 2. : q) : site)) u ($1 == h? $2 : NaN):(rescale((f($3,$5)),i)) w lp ls ((i+3-L0)) pt ((i-L0)/dL+1) ps 1 title sprintf("L=%d", i),\
 							_name_th(J, L, w2) u ($1 == h? $2 : NaN):($3*$4) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
 		} else {
-		if(scaling == 2){ plot for[i=h0:hend:dh] name u (100*$1 == i? $2 : NaN):(f($3,$5)/$4) w lp ls ((i-h0)/dh) pt 6 ps 1.5 title sprintf("h=%.2f", 0.01*i),\
+		if(scaling == 2){ plot for[i=h0:hend:dh] name u (100*$1 == i? $2 : NaN):(f($3,$5)) w lp ls ((i-h0)/dh) pt 6 ps 1.5 title sprintf("h=%.2f", 0.01*i),\
 							_name_th(J, L, w2) u ($1 == 0.01*h? $2 : NaN):($3*$4) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
 		} else {
 		if(scaling == 3){ 

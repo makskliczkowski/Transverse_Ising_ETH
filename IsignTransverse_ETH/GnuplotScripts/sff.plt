@@ -21,27 +21,27 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 model = 0       # 1=symmetries and 0=disorder
 w = 0.1
 g = 0.9
-L = 9
+L = 15
 h = 0.8
-J = 0.01
+J = 1.00
 k=1
 J_knot = 0.; g_knot = 0.; 
-scaling = 3		     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
-smoothed = 0         # smoothed ?
+scaling = 2	     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
+smoothed = 1        # smoothed ?
 plot_der_GOE = 0     # plot deriviation from GOE value
 zoom_in = 0          # zoom in to collapse on GOE
 find_Thouless = 0    # find thouless time?
-add_gap_ratio = 0	 # add gap ratio
+add_gap_ratio = 1	 # add gap ratio
 
-perturbation_expanson = 1;
+perturbation_expanson = 0;
 pert_order = 1;
 if(scaling < 0 || scaling > 4 || zoom_in == 1) add_gap_ratio = 0;
 if(plot_der_GOE){ zoom_in = 0;}
 
 	h0 = 10;     hend = 100;		dh = 10;
 	g0 = 10;    gend = 150;		dg = 10;
-    J0 = 0;    Jend = 10;     dJ = 1
-	L0 = 8;	    Lend = 14; 		dL = 1;
+    J0 = 0;    Jend = 30;     dJ = 5
+	L0 = 9;	    Lend = 15; 		dL = 1;
 	w_num = 5;	array w_list[w_num];
 	w_list[1] = 0.01;	w_list[2] = 0.05;	w_list[3] = 0.1;	w_list[4] = 0.3;	w_list[5] = 0.5;
     h_list = '0.20 0.60 1.20 1.40 1.60 1.80 2.40 3.00 3.60'
@@ -63,7 +63,7 @@ LINE = scaling == 4 && model == 0? "unset logscale y; set format x '10^{%L}'; se
 
 load './gnuplot-colorbrewer-master/diverging/RdYlGn.plt'
 out_dir = 'SpectralFormFactor/'
-_name_long(Lx, Jx, hx, gx) = dir_base.(perturbation_expanson && Jx != 0 && Jx != 0.05? sprintf("perturbation_order=%d", pert_order) : "").(\
+_name_long(Lx, Jx, hx, gx) = dir_base.(perturbation_expanson && Jx != 0.0 && Jx != 0.05? sprintf("perturbation_order=%d", pert_order) : "").(\
 								model? sprintf("_L=%d,J=%.2f,g=%.2f,h=%.2f.dat", Lx, Jx, gx, hx) :\
                         			   sprintf("_L=%d,J=%.2f,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", Lx, Jx, gx, hx, w));
 
@@ -126,7 +126,7 @@ i0 = 0; iend = 0; di = 1;
             		stats name using 1 nooutput;   new_min = STATS_min;     if(new_min < x_min){ x_min = new_min; }
             		stats name using 2 nooutput;   new_min = STATS_min;     if(new_min < y_min){ y_min = new_min; }
 				} else {
-					x_min = 1e-3;
+					x_min = 1e-4;
 					y_min = 1e-2;
 				}
 				if(add_gap_ratio && n_cols >= 5){
@@ -146,7 +146,7 @@ i0 = 0; iend = 0; di = 1;
 if(!plot_der_GOE){ set arrow from 1, graph 0 to 1,1 nohead ls 1 dt (3,5,10,5) lc rgb 'black' lw 2;}
 if(zoom_in) { unset logscale y; set format y '%g'; set key bottom right font ",20";}
 RANGE=zoom_in? "set xrange[1e-3:20]; set yrange[0:1.5];"\
-                    : sprintf("set xrange[%.6f:10]; set yrange[%.5f:%.2f];", x_min, 0.8 * y_min, 0.5*(scaling == 1? 2**Lend : 2**L))
+                    : sprintf("set xrange[%.6f:8]; set yrange[%.5f:%.2f];", x_min, 0.8 * y_min, 0.5*(scaling == 1? 2**Lend : 2**L))
 MARGIN = "set lmargin at screen 0.10; set rmargin at screen 0.95; set bmargin at screen 0.10; set tmargin at screen 0.99;"
 MARGIN_inset = "set lmargin at screen 0.52; set rmargin at screen 0.92; set bmargin at screen 0.62; set tmargin at screen 0.97;"
 #---------------------------- PLOT
