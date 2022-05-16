@@ -40,17 +40,17 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 14; 
+L = 13; 
 g = 0.8;
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
 rescale = 0				# rescale the spectral function by f(w, L)?
 power = 0.5				# power in scaling with omega
-operator = 2	 		# 1-SigmaZ , 0-Hq :local
+operator = 1	 		# 1-SigmaZ , 0-Hq :local
 site = 2				# site at which the operator acts
 cor = 0					# correlations
-scaling = 0				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
+scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
 q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
 compare = 0
 smoothed_data = 0		# plot smoothed data?
@@ -68,7 +68,7 @@ LIOM = 0				# plot LIOMs?
 local = 0
 
 	h0 = 10;	hend = 70;		dh = 10;
-	g0 = 20;	gend = 90;		dg = 10;
+	g0 = 20;	gend = 50;		dg = 10;
 	L0 = 10;	Lend = 15; 		dL = 1;
 
 use_fit = 0
@@ -256,11 +256,11 @@ size = (iend - i0) / di+1
 			#set label 1 at 0.012,0.4 sprintf("%s",label_fit) front
 			unset logscale y; set format y '%g'; set logscale x; unset ylabel; @MARGIN3; @RANGE; plot for[i=i0:iend:di] _name(i) u (rescale_x($1, i)):($2-sub(i,i0,di)) w l lw 1.5 notitle
 		}
-		#ssf_name(gx,Lx) = sprintf("./Spectracd Pro	lFormFactor/_L=%d,J0=0.00,g=%.2f,g0=0.00,h=0.80,w=0.01.dat", Lx, gx)
+		#ssf_name(gx,Lx) = dir_base.sprintf("SpectralFormFactor/_L=%d,J=1.00,J0=0.00,g=%.2f,g0=0.00,h=0.80,w=0.10.dat", Lx, gx)
 		#dim=2.0**L
 		#scale=dim / (dim*dim-dim)
 		#print scale
-		#@MARGIN; @RANGE; plot for[i=i0:iend:di] ssf_name(0.01*i, L) u 1:( scale*($2 - 1.0) + LTA[(i-i0)/di+1] * ( 1.0 + scale - scale*$2) ) w p pt 6 lw 0.5 notitle		
+		#@MARGIN; @RANGE; plot for[i=i0:iend:di] ssf_name(0.01*i, L) u ($1*tH[(i-i0)/di+1]):( scale*($2 - 1.0) + LTA[(i-i0)/di+1] * ( 1.0 + scale - scale*$2) ) w p pt 6 lw 0.5 notitle		
 		if(use_fit){
 			@UNSET; @MARGIN; @RANGE; 
 			if(compare){ set logscale xy;}

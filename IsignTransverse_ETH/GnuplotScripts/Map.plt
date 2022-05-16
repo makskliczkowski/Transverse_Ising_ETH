@@ -27,20 +27,21 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset border;"
 
 	h0 = 20;	hend = 180; 	dh = 20;
 	g0 = 10;	gend = 70; 	dg = 10;
+    J0 = 35;    Jend = 95;     dJ = 5
 heatmap = 1 		# ==1 plot 2D heatmap, else plot cuts at specific values
 h_vs_g = 0;			# ==0 --> as function of h on x-axis
 relax_vs_approx = 0	# pick initial relax time = 1 or approx with renormalized peak = 0
 plot_thouless = 0	# plot only thouless times
-scaling = 3			# = 0 q/j-scaling, =1-size scaling, =2-h/g, =3-compare_operators
+scaling = 0			# = 0 q/j-scaling, =1-size scaling, =2-h/g, =3-compare_operators
 user_defined = 0
 
 q_vs_j = 1
 site = 1
 q = 1
 operator = 1	 		# 1-SigmaZ , 0-Hq :local
-rescale_times = 1
-L = 13
-g = 0.8
+rescale_times = 0
+L = 15
+g = 0.9
 h=0.8
 J=1.0
 w = 0.01
@@ -103,7 +104,7 @@ if(user_defined == 0){
 		#set logscale x
 		#set yrange[0.01:1000]
 		set xlabel "{/*1.5h/J}"
-		if(scaling == 0){ 	plot for[i=0:(q_vs_j? L/2 : L-1)] dir._name(J, L,i) u ($2 == g? $1 : NaN):(f($3,$5)) w lp ls (i+1) pt (i+3) ps 1.5 title _str(i)
+		if(scaling == 0){ 	plot for[i=1:(q_vs_j? L/2 : L-1)] dir._name(J, L,i) u ($2 == g? $1 : NaN):(f($3,$5)) w lp ls (i+1) pt (i+3) ps 1.5 title _str(i)
 		} else {
 		if(scaling == 1){ plot for[i=L0:15:dL] dir._name(J, i, (q_vs_j? (q<0? i / 2 : q) : site)) u ($2 == g? $1 : NaN):(f($3,$5)) w lp ls ((i-7)) pt (i-5) ps 1.5 title sprintf("L=%d", i)
 		} else {
@@ -123,12 +124,16 @@ if(user_defined == 0){
 	} else{
 		set xrange[0:1.5];
 		set xlabel "{/*1.5g/J}"
-		#set logscale x
+		set logscale x
 		#unset logscale y; set format y '%g'
-		#set yrange[-3:10];
-		if(scaling == 0){	plot for[i=0:(q_vs_j? L/2 : L-1)] dir._name(J, L,i) u ($1 == h? $2 : NaN):(f($3,$5)) w lp ls (i+1) pt (i+4) ps 1.5 title _str(i),\
+		set yrange[0.1:*];
+		ef(x)=0.9/x**2.
+		#ef(x) = 1000*exp(-9*x)
+		if(scaling == 0){	plot for[i=1:(q_vs_j? L/2 : L-1)] dir._name(J, L,i) u ($1 == h? $2 : NaN):(f($3,$5)) w lp ls (i+1) pt (i+4) ps 1.5 title _str(i),\
 								dir._name(J, L,1) u ($1 == h? $2 : NaN):4 w l ls 0 lw 3 notitle,\
-							_name_th(J, L, w2) u ($1 == h? $2 : NaN):($3*$4) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
+							_name_th(J, L, w2) u ($1 == h? $2 : NaN):($3*$4) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}",\
+							ef(x) w l dt (3,5,10,5) lc rgb "black" lw 1.5 notitle,\
+							1000*exp(-8.5*x) w l dt (3,5,10,5) lc rgb "blue" lw 1.5 notitle
 		} else {
 		if(scaling == 1){ plot for[i=L0:Lend:dL] dir._name(J, i, (q_vs_j? (q<0? i / 2. : q) : site)) u ($1 == h? $2 : NaN):(rescale((f($3,$5)),i)) w lp ls ((i+3-L0)) pt ((i-L0)/dL+1) ps 1 title sprintf("L=%d", i),\
 							_name_th(J, L, w2) u ($1 == h? $2 : NaN):($3*$4) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
@@ -153,8 +158,10 @@ if(user_defined == 0){
 
 } else {
 	set key right top
-	set xrange[*:1.2]
-	#set logscale x
+	SCALE="set xrange[0.3:1.0]; set yrange[0.01:0.4];"
+	@SCALE;
+	#unset logscale y; set format y '%g';
+	set logscale x
 rescale_thouless = 0
 conductance = 0
 if(conductance){ set key left top; unset logscale y; set format y '%g'; set xrange[0.2:0.6];}
@@ -172,8 +179,28 @@ set key left top
 			plot for[i=g0:gend:dg] _name_th_L(J, 0.01*i, h, w) u 1:($2*$3) w lp pt 4 ps 0.75 title sprintf("g=%.2f", 0.01*i), _name_th_L(J, 0.01*gend, h, w) u 1:($3) w l ls 1 dt (3,5,10,5) lc rgb 'black' lw 2 title "t_H"
 		}
 	} else {
-		set key left bottom
-		plot for[i=1:w_num] _name_th(J, L, w_list[i]) u ($1 == h? $2 : NaN):(fanc($3,$4)) w lp pt 4 ps 0.75 title sprintf("w=%.2f", w_list[i]), _name_th(J, L, w_list[w_num]) u ($1 == h? $2 : NaN):4 w l ls 1 dt (3,5,10,5) lc rgb 'black' lw 2 title "t_H"
+		Lx = 11
+		set multiplot
+		ss = "\n";
+		while(Lx <= 14){
+			@MARGIN; @SCALE
+			sizeee = (Jend-J0)/dJ + 1
+			array tau[sizeee];	array Jarr[sizeee];
+    		do for[i=J0:Jend:dJ]{
+				idx = (i - J0)/dJ + 1
+        	    stats _name_th(0.01*i, Lx, w2) using ($1 == h && $2 == g? fanc($3,$4) : NaN) every ::0::0 nooutput;   tau[idx] = STATS_min; 
+				Jarr[idx] = 0.01*i;
+				print Jarr[idx], tau[idx]
+			}
+			#plot for[i=1:sizeee] '+' u (Jarr[i]):(tau[i]) w lp pt 6 ps 0.75 notitle
+			plot Jarr using (Jarr[$1]):(tau[$1]) w lp pt 6 ps 1.75 lc (Lx-9) t ss.sprintf("L=%d", Lx)
+			Lx = Lx+1
+			unset xlabel; unset ylabel; unset title;
+			ss = ss."\n\n\n" 
+		}
+		unset multiplot
+		#set key left bottom
+		#plot for[i=1:w_num] _name_th(J, L, w_list[i]) u ($1 == h? $2 : NaN):(fanc($3,$4)) w lp pt 4 ps 0.75 title sprintf("w=%.2f", w_list[i]), _name_th(J, L, w_list[w_num]) u ($1 == h? $2 : NaN):4 w l ls 1 dt (3,5,10,5) lc rgb 'black' lw 2 title "t_H"
 	}
 }
 

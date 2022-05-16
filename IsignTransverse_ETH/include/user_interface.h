@@ -328,6 +328,7 @@ namespace isingUI
 				}
 			if(this->m){
 				arma::vec _vec = x + create_random_vec(this->realisations, x / 50.);
+				stout << _vec << std::endl;
 			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 				for(int r = 0; r < _vec.size(); r++){
 					auto dummy_lambda = [&lambda](int real, double x, auto... args){

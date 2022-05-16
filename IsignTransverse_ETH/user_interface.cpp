@@ -56,7 +56,7 @@ void isingUI::ui::make_sim()
 					this->g = gx;
 					this->h = hx;
 					const auto start_loop = std::chrono::system_clock::now();
-//for(this->J = 0.05; this->J <= 1.0; this->J += 0.05)
+for(this->J = 0.00; this->J <= 1.0; this->J += 0.05)
 {
 	//if(this->L > 10) this->realisations = 1000;
 
@@ -71,6 +71,7 @@ void isingUI::ui::make_sim()
 					// ----------------------
 					//this->diagonalize(); continue;
 					//average_SFF(); continue;
+					thouless_times(); continue;
 					spectral_form_factor(); continue;
 					std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
 					smoothen_data(this->saving_dir + "SpectralFormFactor" + kPSep, info + ".dat"); continue;
@@ -240,16 +241,16 @@ void isingUI::ui::diagonalize(){
 		auto eigenvalues = alfa.get_eigenvalues();
 		stout << "\t\t	--> finished diagonalizing for " << info + _suffix<< " - in time : " << tim_s(start) << "s" << std::endl;
 
-		std::string name = dir + info + ".hdf5";
-		eigenvalues.save(arma::hdf5_name(name, "/eigenvalues/" + _suffix, arma::hdf5_opts::append));
+		std::string name = dir + info + _suffix + ".hdf5";
+		eigenvalues.save(arma::hdf5_name(name, "/eigenvalues/", arma::hdf5_opts::append));
 		stout << "\t\t	--> finished saving eigenvalues for " << info + _suffix << " - in time : " << tim_s(start) << "s" << std::endl;
-		if(this->ch){
-			auto V = alfa.get_eigenvectors();
-			V.save(arma::hdf5_name(name, "/eigenvectors/" + _suffix, arma::hdf5_opts::append));
-			stout << "\t\t	--> finished saving eigenvectors for " << info << " - in time : " << tim_s(start) << "s" << std::endl;
-		}
+		//if(this->ch){
+		//	auto V = alfa.get_eigenvectors();
+		//	V.save(arma::hdf5_name(name, "/eigenvectors/" + _suffix, arma::hdf5_opts::append));
+		//	stout << "\t\t	--> finished saving eigenvectors for " << info << " - in time : " << tim_s(start) << "s" << std::endl;
+		//}
 	};
-	herr_t status;
+	//herr_t status;
 	// ----------- choose model and run kernel
 	if(this->m){
 		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
@@ -260,7 +261,7 @@ void isingUI::ui::diagonalize(){
 		std::string info = alfa->get_info({});
 		for(int r = 0; r < this->realisations; r++){
 			alfa->hamiltonian();
-			kernel(*alfa, "_real=" + std::to_string(r));
+			kernel(*alfa, "_real=" + std::to_string(r + this->jobid));
 		}
 	}
 }
@@ -881,7 +882,7 @@ void isingUI::ui::relaxationTimesFromFiles()
 		smoothen_data(dir_out, name, 10);
 
 		// spectral function
-		smoothen_data(dir_spec, name, 100 * std::pow(this->L / 15.0, 3.0));
+		//smoothen_data(dir_spec, name, 100 * std::pow(this->L / 15.0, 3.0));
 		auto data_spec = readFromFile(file, dir_spec + "smoothed" + kPSep + name);
 		file.close();
 		arma::vec omega_vals;
@@ -908,32 +909,69 @@ void isingUI::ui::relaxationTimesFromFiles()
 		//	if(spectral_function(idx_tmp - 1) > 0.5 * spectral_function(i))	
 		//		idx_tmp = spectral_function.size() - 1;
 		
+		std::vector<std::vector<double>> w_cut_vals2 = {std::vector({1.5, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1}),		// g=0.05
+													    std::vector({0.2, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1}),		// g=0.1
+													    std::vector({0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2}),		// g=0.15
+													    std::vector({0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2}),		// g=0.2
+													    std::vector({0.2, 0.2, 0.4, 0.4, 0.5, 0.5, 0.5, 0.5}),		// g=0.25
+													    std::vector({0.3, 0.3, 0.4, 0.4, 0.5, 0.5, 0.5, 0.5}),		// g=0.3
+													    std::vector({0.3, 0.3, 0.5, 0.6, 0.8, 0.8, 0.8, 0.8}),		// g=0.35
+													    std::vector({0.4, 0.4, 0.5, 0.6, 0.8, 0.8, 0.8, 0.8}),		// g=0.4
+													    std::vector({0.4, 0.4, 0.6, 0.8, 1.0, 1.0, 1.0, 1.0}),		// g=0.45
+													    std::vector({0.4, 0.4, 0.6, 0.8, 1.0, 1.0, 1.0, 1.0}),		// g=0.5
+													    std::vector({0.4, 0.4, 0.8, 1.0, 1.2, 1.2, 1.2, 1.2}),		// g=0.55
+													    std::vector({0.4, 0.4, 0.8, 1.0, 1.2, 1.2, 1.2, 1.2}),		// g=0.6
+													    std::vector({0.4, 0.4, 1.0, 1.2, 1.3, 1.3, 1.3, 1.3}),		// g=0.65
+													    std::vector({0.6, 0.6, 1.0, 1.2, 1.3, 1.3, 1.3, 1.3}),		// g=0.7
+													    std::vector({0.6, 0.6, 1.2, 1.4, 1.4, 1.4, 1.4, 1.4}),		// g=0.75
+													    std::vector({0.8, 0.8, 1.2, 1.4, 1.4, 1.4, 1.4, 1.4}),		// g=0.8
+													    std::vector({0.8, 0.8, 1.4, 10., 10., 10., 10., 1.1}),		// g=0.85
+													    std::vector({1.0, 1.0, 1.4, 10., 10., 10., 10., 1.1}),		// g=0.9
+													    std::vector({1.0, 1.0, 1.6, 10., 10., 10., 10., 1.1}),		// g=0.95
+													    std::vector({1.1, 1.1, 1.6, 10., 10., 10., 10., 1.1}),		// g=1.0
+													    std::vector({1.1, 1.1, 1.8, 10., 10., 10., 10., 1.1}),		// g=1.05
+													    std::vector({1.2, 1.2, 1.8, 10., 10., 10., 10., 1.1}),		// g=1.1
+													    std::vector({1.2, 1.2, 1.8, 10., 10., 10., 10., 1.1}),		// g=1.15
+													    std::vector({1.3, 1.3, 1.8, 10., 10., 10., 10., 1.1}),		// g=1.2
+													    std::vector({1.3, 1.3, 2.0, 10., 10., 10., 10., 1.1}),		// g=1.25
+													    std::vector({1.4, 1.4, 2.0, 10., 10., 10., 10., 1.1}),		// g=1.3
+													    std::vector({1.4, 1.4, 2.0, 10., 10., 10., 10., 1.1}),		// g=1.35
+													    std::vector({1.5, 1.5, 2.0, 10., 10., 10., 10., 1.1}),		// g=1.4
+													    std::vector({1.5, 1.5, 2.0, 10., 10., 10., 10., 1.1}),		// g=1.45
+													    std::vector({1.5, 1.5, 2.0, 10., 10., 10., 10., 1.1})		// g=1.5
+													    };
+		
 		std::vector<double> w_cut_vals = this->g <= 0.6? std::vector({0.2, 0.4, 0.6, 0.8, 1.1, 1.1, 1.1, 1.1})
 													  : std::vector({10.0, 0.4, 1.0, 1.2, 1.2, 1.2, 1.2, 1.2});
-		double w_cut = w_cut_vals[_site];
-		u64 idx_tmp = min_element(begin(omega_vals), end(omega_vals), [=](double a, double b) {
-				return abs(a - w_cut) < abs(b - w_cut);
-				}) - omega_vals.begin();
-		if(spectral_function(idx_tmp - 1) > 0.25 * spectral_function(i))	
-				idx_tmp = spectral_function.size() - 1;
-		u64 idx = min_element(begin(data[0]), end(data[0]), [=](double a, double b) {
-					return abs(a - omega_vals(idx_tmp)) < abs(b - omega_vals(idx_tmp));
-					}) - data[0].begin();
-		stout << data[0](idx) << std::endl << std::endl;
-		arma::vec renorm_fun = (data[1] - LTA) / (data[0](idx) > 0.5 * wH? (data[1](idx) - LTA) : data[1](idx) );
-		
-		// save normalized data
-		save_to_file(dir_norm + name, data[0], renorm_fun, wH, LTA);
+		double w_cut = w_cut_vals2[int(100 * gx / 5) - 1][_site];
+		auto get_minimum = [&](double w_cut) -> double {
+			u64 idx_tmp = min_element(begin(omega_vals), end(omega_vals), [=](double a, double b) {
+					return abs(a - w_cut) < abs(b - w_cut);
+					}) - omega_vals.begin();
+			if(spectral_function(idx_tmp - 1) > 0.25 * spectral_function(i))	
+					idx_tmp = spectral_function.size() - 1;
+			u64 idx = min_element(begin(data[0]), end(data[0]), [=](double a, double b) {
+						return abs(a - omega_vals(idx_tmp)) < abs(b - omega_vals(idx_tmp));
+						}) - data[0].begin();
+			stout << data[0](idx) << std::endl << std::endl;
+			arma::vec renorm_fun = (data[1] - LTA) / (data[0](idx) > 0.5 * wH? (data[1](idx) - LTA) : data[1](idx) );
+			// save normalized data
+			save_to_file(dir_norm + name, data[0], renorm_fun, wH, LTA);
+			double relax = 0.0 / 0.0; // NaN
+			for (int k = 0; k < renorm_fun.size(); k++) {	if (renorm_fun(k) 	>= 0.5 && k > 0){ relax = 1. / data[0](k);	break; }}
+			return relax;
+		};
 		
 		// find relax rate
-		double relax1 = 1.0 / 0.0; // NaN
-		double relax2 = 1.0 / 0.0; // NaN
-		for (int k = 0; k < renorm_fun.size(); k++) {	if (renorm_fun(k) 	>= 0.5 && k > 0){ relax1 = 1. / data[0](k);	break; }}
+		//double relax1 = 0.0 / 0.0; // NaN
+		double relax1 = get_minimum(w_cut);
+		double relax3 = get_minimum(10.0);
+		double relax2 = 0.0 / 0.0; // NaN
 		for (int k = 0; k < data[0].size(); k++)	{	if (data[1](k) 		>= 0.5 && k > 0){ relax2 = 1. / data[0](k);	break; }}
 		printSeparated(std::cout, "\t", 12, false, opname, prints...);
-		printSeparated(std::cout, "\t", 12, true, relax2, 1. / wH, relax1, idx);
+		//printSeparated(std::cout, "\t", 12, true, relax2, 1. / wH, relax1, idx);
 		printSeparated(map, "\t", 12, false, prints...);
-		printSeparated(map, "\t", 12, true, relax2, 1. / wH, relax1);
+		printSeparated(map, "\t", 12, true, relax2, 1. / wH, relax1, relax3);
 	};
 	std::string dir = this->saving_dir + "RelaxationTimes" + kPSep;
 	createDirs(dir);
@@ -1036,8 +1074,8 @@ void isingUI::ui::spectral_form_factor(){
 	std::string dir = this->saving_dir + "SpectralFormFactor" + kPSep;
 	std::string dir2 = this->saving_dir + "LevelSpacing" + kPSep + "raw_data" + kPSep;
 	createDirs(dir, dir2);
-	//------- PREAMBLE{"k", "x", "p"}
-	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
+	//------- PREAMBLE
+	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"k", "x", "p"}) 
 					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
 
 	const double chi = 0.341345;
@@ -1079,6 +1117,7 @@ void isingUI::ui::spectral_form_factor(){
 			auto alfa = std::make_unique<IsingModel_sym>(this->L, Jx, gx, hx,
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 			eigenvalues = this->get_eigenvalues(*alfa, suffix);
+			info = IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym);
 		} else{
 			auto alfa = std::make_unique<IsingModel_disorder>(this->L, Jx, this->J0, gx, this->g0, hx, this->w, this->boundary_conditions);
 			eigenvalues = this->get_eigenvalues(*alfa, suffix);

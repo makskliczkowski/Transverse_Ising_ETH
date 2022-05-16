@@ -39,18 +39,18 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 15; 
+L = 13; 
 g = 0.9
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
 
-x_range_min=1e-5
+x_range_min=1e-2
 
 integrated_by_hand = 0 #integrated time evolution?
 if(integrated_by_hand) cd '.\integrated'
 rescale = 0				# rescale the spectral function by f(w, L)?
-site = 1				# site at which the operator acts
+site = 5				# site at which the operator acts
 scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
 q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
 operator = 1	 		# 1-SigmaZ , 0-Hq :local
@@ -58,7 +58,7 @@ operator = 1	 		# 1-SigmaZ , 0-Hq :local
 two_panels = 1			# plot integrated spectral function next to respons function
 smoothed = 1			# smoothed derivative?
 #-- IntegratedSpecFun
-plot_normalized = 0		# plot renormalized to 1st peak
+plot_normalized = 1		# plot renormalized to 1st peak
 plot_exponent = 0;	# plot as integrated response function
 #-- SpectralFun
 plot_derivative = 0		# use derivative as integrated spectal function
@@ -71,7 +71,7 @@ LIOM = 0				# plot LIOMs?
 local = 0
 
 	h0 = 10;	hend = 150;		dh = 10;
-	g0 = 20;	gend = 100;		dg = 10;
+	g0 = 10;	gend = 150;		dg = 10;
 	L0 = 10;	Lend = 15; 		dL = 1;
 
 use_fit = 0
@@ -226,9 +226,9 @@ if(scaling == 3) { str(x) = _str(x) }
 		if(y_min > 0.1){ set ytics add(sprintf("%.4f",y_min) y_min);}
 		y_min = sub(y_min, iend)
 		if(!y_log){ y_min = 0.0; }
-		XRANGE = (rescale? "set xrange[15**nu*x_range_min:15**nu*1e2];" : "set xrange[x_range_min:1e2];" );
+		XRANGE = (rescale? "set xrange[15**nu*x_range_min:15**nu*1e2];" : "set xrange[x_range_min:1e1];" );
 		YRANGE = plot_exponent? "set yrange[1e-10:1.5e3];"\
-					: plot_normalized? "set yrange[0.5*y_min:1.5e0];" : "set yrange[0.9*y_min:1e0];"
+					: plot_normalized? "set yrange[0.5*y_min:1.0e0];" : "set yrange[0.9*y_min:1e0];"
 		#if(fit) {set label 1 at 0.02,(y_log? 0.6:0.6) sprintf("%s",label_fit) front }
 		
 
@@ -250,7 +250,7 @@ if(scaling == 3) { str(x) = _str(x) }
 		MARGIN = !two_panels? "set lmargin at screen 0.10; set rmargin at screen 0.95; set bmargin at screen 0.10; set tmargin at screen 0.95;"\
 			: "set lmargin at screen 0.10; set rmargin at screen 0.5; set bmargin at screen 0.12; set tmargin at screen 0.97;"
 		MARGIN2= "set lmargin at screen 0.55; set rmargin at screen 0.97; set bmargin at screen 0.12; set tmargin at screen 0.97;"
-		XRANGE2 = plot_derivative? "set xrange[1e-4:2e1];" : "set xrange[1e-4:2e1];"; 
+		XRANGE2 = plot_derivative? "set xrange[1e-4:2e1];" : "set xrange[1e-1:1e1];"; 
 		YRANGE2 = plot_derivative? "set yrange[1e-1:1e1];" : "set yrange[1e-8:1e-1];";
 		
 		set multiplot
