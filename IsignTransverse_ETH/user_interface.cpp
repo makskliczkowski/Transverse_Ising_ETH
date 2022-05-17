@@ -310,27 +310,22 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 
 void isingUI::ui::combine_spectra(){
 	std::string dir = this->saving_dir + "DIAGONALIZATION" + kPSep;
-	auto kernel = [this, &dir](auto& alfa, std::string _suffix = ""){
+	auto kernel = [this, &dir](int realis, double x){
 		arma::vec eigenvalues;
-		std::string name = dir + alfa.get_info({}) + _suffix + ".hdf5";
+		std::string _suffix = "_real=" + std::to_string(realis);
+		std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"k", "x", "p"}) 
+					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
+		std::string name = dir + info + _suffix + ".hdf5";
 		bool loaded = eigenvalues.load(arma::hdf5_name(name, "/eigenvalues/dataset"));
 		#pragma omp critical
 		{
-			eigenvalues.save(arma::hdf5_name(dir + alfa.get_info({}) + ".hdf5", "/eigenvalues/" + _suffix, arma::hdf5_opts::append));
+			eigenvalues.save(arma::hdf5_name(dir + info + ".hdf5", "/eigenvalues/" + _suffix, arma::hdf5_opts::append));
 		}
 	};
 	if(this->m){
-		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
-								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-		kernel(*alfa);
+		average_over_realisations<Ising_params::h>(false, kernel);
 	} else{
-		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-		std::string info = alfa->get_info({});
-	#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
-		for(int r = 0; r < this->realisations; r++){
-			alfa->hamiltonian();
-			kernel(*alfa, "_real=" + std::to_string(r + this->jobid));
-		}
+		average_over_realisations<Ising_params::h>(false, kernel);
 	}
 }
 //-------------------------------------------------------------------- COMPARING SYMMETRIC TO DISORDERED RESULTS
@@ -1429,6 +1424,7 @@ void isingUI::ui::analyze_spectra(){
 	std::string dir_spacing 	= this->saving_dir + "LevelSpacingDistribution" + kPSep;
 	std::string dir_DOS 		= this->saving_dir + "DensityOfStates" + kPSep;
 	std::string dir_unfolding 	= this->saving_dir + "Unfolding" + kPSep;
+	createDirs(dir_DOS, dir_spacing, dir_unfolding);
 
 	size_t N = ULLPOW(this->L);
 	if(this->m){
