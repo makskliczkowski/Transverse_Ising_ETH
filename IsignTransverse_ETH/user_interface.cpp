@@ -56,7 +56,7 @@ void isingUI::ui::make_sim()
 					this->g = gx;
 					this->h = hx;
 					const auto start_loop = std::chrono::system_clock::now();
-for(this->J = 0.00; this->J <= 1.0; this->J += 0.05)
+for(this->J = 0.05; this->J <= 1.0; this->J += 0.05)
 {
 	//if(this->L > 10) this->realisations = 1000;
 
@@ -71,6 +71,7 @@ for(this->J = 0.00; this->J <= 1.0; this->J += 0.05)
 					// ----------------------
 					//this->diagonalize(); continue;
 					//average_SFF(); continue;
+					combine_spectra(); analyze_spectra(); continue;
 					thouless_times(); continue;
 					spectral_form_factor(); continue;
 					std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
@@ -272,11 +273,11 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 	arma::vec eigenvalues;
 	std::string dir = this->saving_dir + "DIAGONALIZATION" + kPSep;
 	createDirs(dir);
-	std::string name = dir + alfa.get_info({}) + ".hdf5";
+	std::string name = dir + alfa.get_info({}) + _suffix + ".hdf5";
 	bool loaded;
 	#pragma omp critical
 	{
-		loaded = eigenvalues.load(arma::hdf5_name(name, "eigenvalues/" + _suffix));
+		loaded = eigenvalues.load(arma::hdf5_name(name, "eigenvalues/"));
 	}
 	if(!loaded){
 		if(alfa.g == 0){
@@ -307,6 +308,31 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 	return eigenvalues;
 }
 
+void isingUI::ui::combine_spectra(){
+	std::string dir = this->saving_dir + "DIAGONALIZATION" + kPSep;
+	auto kernel = [this, &dir](auto& alfa, std::string _suffix = ""){
+		arma::vec eigenvalues;
+		std::string name = dir + alfa.get_info({}) + _suffix + ".hdf5";
+		bool loaded = eigenvalues.load(arma::hdf5_name(name, "/eigenvalues/dataset"));
+		#pragma omp critical
+		{
+			eigenvalues.save(arma::hdf5_name(dir + alfa.get_info({}) + ".hdf5", "/eigenvalues/" + _suffix, arma::hdf5_opts::append));
+		}
+	};
+	if(this->m){
+		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
+								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+		kernel(*alfa);
+	} else{
+		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+		std::string info = alfa->get_info({});
+	#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
+		for(int r = 0; r < this->realisations; r++){
+			alfa->hamiltonian();
+			kernel(*alfa, "_real=" + std::to_string(r + this->jobid));
+		}
+	}
+}
 //-------------------------------------------------------------------- COMPARING SYMMETRIC TO DISORDERED RESULTS
 void isingUI::ui::compare_energies()
 {
@@ -1391,6 +1417,158 @@ void isingUI::ui::thouless_times()
 	}
 }
 		
+//<! analyze spectra with unfolding, DOS and level spacing distribution --  all to file
+void isingUI::ui::analyze_spectra(){
+
+	//-------PREAMBLE
+	const Ising_params par = Ising_params::h;
+
+	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"k", "x", "p"}) 
+					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
+
+	std::string dir_spacing 	= this->saving_dir + "LevelSpacingDistribution" + kPSep;
+	std::string dir_DOS 		= this->saving_dir + "DensityOfStates" + kPSep;
+	std::string dir_unfolding 	= this->saving_dir + "Unfolding" + kPSep;
+
+	size_t N = ULLPOW(this->L);
+	if(this->m){
+		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
+								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+		N = alfa->get_hilbert_size();
+	}
+	const size_t dist_size 	= 2 * int(0.5 * N / 2.) + 1;
+	const long n_bins 		= 1 + long(3.322 * log(N));
+
+	arma::vec DOS(n_bins, arma::fill::zeros);
+	arma::vec DOS_unfolded(n_bins, arma::fill::zeros);
+
+	arma::vec lvl_distribution_unfolded(dist_size, arma::fill::zeros);
+	arma::vec lvl_distribution_unfolded_log(dist_size, arma::fill::zeros);
+	double wH 				= 0.0;
+	double wH_typ 			= 0.0;
+	double wH_typ_unfolded 	= 0.0;
+	double _min_spacing 	= 0.0, _max_spacing 	= 0.0;
+	double _min_spacing_log = 0.0, _max_spacing_log = 0.0;
+	//-------SET KERNEL
+	auto lambda_average = [this, &info, &n_bins, &N,
+		&dir_spacing, &dir_DOS, &dir_unfolding,
+		&lvl_distribution_unfolded, &lvl_distribution_unfolded_log, &_min_spacing, &_max_spacing, &_min_spacing_log, &_max_spacing_log,
+		&wH, &wH_typ, &wH_typ_unfolded
+		]
+		(int realis, double x){
+		arma::vec eigenvalues;
+		std::string dir = this->saving_dir + "DIAGONALIZATION" + kPSep;
+		createDirs(dir);
+		std::string name = dir + info + ".hdf5";
+		bool loaded;
+		#pragma omp critical
+		{
+			std::string _suffix = "_real=" + std::to_string(realis);
+			loaded = eigenvalues.load(arma::hdf5_name(name, "/eigenvalues/" + _suffix));
+		}
+		if(!loaded) return;
+
+		//------------------- Unfolding, cdf and fit	
+		arma::vec cdf(eigenvalues.size(), arma::fill::zeros);
+    	std::iota(cdf.begin(), cdf.end(), 0);
+    	auto p1 = arma::polyfit(eigenvalues, cdf, 3);	arma::vec res1 = arma::polyval(p1, eigenvalues);
+		auto p2 = arma::polyfit(eigenvalues, cdf, 4);	arma::vec res2 = arma::polyval(p2, eigenvalues);
+		auto p3 = arma::polyfit(eigenvalues, cdf, 5);	arma::vec res3 = arma::polyval(p3, eigenvalues);
+		auto p4 = arma::polyfit(eigenvalues, cdf, 6);	arma::vec res4 = arma::polyval(p4, eigenvalues);
+    	arma::vec energies_unfolded = res4;
+
+		//------------------- Density of States
+		auto DOS = statistics::probability_distribution(eigenvalues, n_bins);
+		auto omegas = arma::linspace(arma::min(eigenvalues), arma::max(eigenvalues), DOS.size());
+
+		auto DOS2 = statistics::probability_distribution(energies_unfolded, n_bins);
+		auto omegas2 = arma::linspace(arma::min(energies_unfolded), arma::max(energies_unfolded), DOS.size());
+
+
+		if(realis == 0){
+			std::ofstream file;
+			openFile(file, dir_unfolding + info, std::ios::out);
+			for(int k = 0; k < cdf.size(); k++)
+				printSeparated(file, "\t", 14, true, eigenvalues(k), cdf(k), res1(k), res2(k), res3(k), res4(k));
+			file.close();
+			save_to_file(dir_DOS + info + ".dat", omegas, DOS);
+			save_to_file(dir_DOS + "Unfolded" + info + ".dat", omegas2, DOS2);
+		}
+		//------------------- Get 50% spectrum
+		double E_av = arma::trace(eigenvalues) / double(N);
+		const u64 num = 0.5 * N;
+		auto i = min_element(begin(eigenvalues), end(eigenvalues), [=](double x, double y) {
+			return abs(x - E_av) < abs(y - E_av);
+			});
+		u64 E_av_idx = i - eigenvalues.begin();
+		const long E_min = E_av_idx - num / 2.;
+		const long E_max = E_av_idx + num / 2. + 1;
+		arma::vec energies 				= exctract_vector(eigenvalues, E_min, E_max);
+		arma::vec energies_unfolded_cut = exctract_vector(energies_unfolded, E_min, E_max);
+
+		//------------------- Level Spacing Distribution
+		arma::vec level_spacings(energies.size() - 1, arma::fill::zeros);
+		arma::vec level_spacings_unfolded(energies.size() - 1, arma::fill::zeros);
+
+		for(int i = 0; i < energies.size() - 1; i++){
+			const double delta 			= energies(i+1) 				- energies(i);
+			const double delta_unfolded = energies_unfolded_cut(i+1) 	- energies_unfolded_cut(i);
+
+			wH 				 += delta;
+			wH_typ  		 += log(abs(delta));
+			wH_typ_unfolded  += log(abs(delta_unfolded));
+
+			level_spacings(i) 			= delta;
+			level_spacings_unfolded(i) 	= delta_unfolded;
+		}
+		#pragma omp critical
+		{
+			//lvl_distribution 				+= statistics::probability_distribution(level_spacings);
+			//lvl_distribution_log 			+= statistics::probability_distribution(arma::log(level_spacings));
+			lvl_distribution_unfolded 		+= statistics::probability_distribution(level_spacings_unfolded);
+			lvl_distribution_unfolded_log 	+= statistics::probability_distribution(arma::log(level_spacings_unfolded));
+			_min_spacing += arma::min(level_spacings_unfolded);		
+			_max_spacing += arma::max(level_spacings_unfolded);
+			_min_spacing_log += arma::min(arma::log(level_spacings_unfolded));	
+			_max_spacing_log += arma::max(arma::log(level_spacings_unfolded));
+		}
+		
+	};
+
+	//------CALCULATE FOR MODEL
+	double norm;
+	if(this->m){
+		int counter = 0;
+		for(int k = 1; k < this->L; k++)
+		{
+			if(k == this->L / 2) continue;
+			this->symmetries.k_sym = k;
+			average_over_realisations<par>(false, lambda_average);
+			counter++;
+		}
+		norm = this->realisations * counter;
+	} else{
+		average_over_realisations<par>(false, lambda_average);
+		norm = this->realisations;
+	}
+	lvl_distribution_unfolded 		/= norm;
+	lvl_distribution_unfolded_log 	/= norm;
+	_min_spacing /= norm; _max_spacing /= norm; _min_spacing_log /= norm; _max_spacing_log /= norm;
+	auto save_dist = [this, &dir_spacing, &info](
+		std::string name, 
+		arma::vec x,
+		arma::vec data, 
+		auto... args
+		){
+		std::ofstream file;
+		openFile(file, dir_spacing + name + info + ".dat", std::ios::out);
+		for(int k = 0; k < data.size(); k++)
+			printSeparated(file, "\t", 14, true, x(k), data(k), args...);
+		file.close();
+	};
+	save_dist("unfolded", 		arma::linspace(_min_spacing, 	 _max_spacing, 		lvl_distribution_unfolded.size()), 	lvl_distribution_unfolded, 		wH_typ_unfolded, wH, wH_typ);
+	save_dist("unfolded_log", 	arma::linspace(_min_spacing_log, _max_spacing_log, 	lvl_distribution_unfolded.size()), 	lvl_distribution_unfolded_log, 	wH_typ_unfolded, wH, wH_typ);
+}	
 //--------------------------------------------------------------------- ADIABATIC GAUGE POTENTIAL
 void isingUI::ui::adiabaticGaugePotential_dis()
 {

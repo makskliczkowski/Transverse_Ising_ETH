@@ -146,7 +146,7 @@ inline
 arma::vec unfolding(const arma::vec& eigenvalues){
     const size_t N = eigenvalues.size();
 
-    // calcuklate cummulative distribution function (cdf)
+    // calculate cummulative distribution function (cdf)
     arma::vec cdf(eigenvalues.size(), arma::fill::zeros);
     std::iota(cdf.begin(), cdf.end(), 0);
     

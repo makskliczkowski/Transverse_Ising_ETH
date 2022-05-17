@@ -254,5 +254,15 @@ namespace spectrals{
 
 		return output;
 	}
+
+
+	// -----------------------------------------  GREEN'S FUNCTION AND DOS
+	inline
+	auto density_of_states(
+		const arma::vec& energies
+	) -> arma::vec
+	{
+		return arma::vec();
+	};
 	
 }

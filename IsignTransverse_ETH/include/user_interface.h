@@ -150,6 +150,8 @@ namespace isingUI
 		template <typename _type> [[nodiscard]]
 		auto get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix = "") -> arma::vec;
 
+		//<! comvbine .hdf5 files seperated
+		void combine_spectra();
 		// --------------- COMPARISONS
 		void compare_energies();
 		void compare_matrix_elements(op_type op, int k_alfa, int k_beta, int p_alfa = 1, int p_beta = 1, int x_alfa = 1, int x_beta = 1);
@@ -177,6 +179,9 @@ namespace isingUI
 		//<! find thouless time with various method as function of h,g,J
 		void thouless_times();
 		
+		//<! analyze spectra with unfolding, DOS and level spacing distribution --  all to file
+		void analyze_spectra();
+
 		//-------------------------------------------------------------------------- ADIABATIC GAUGE POTENTIALS
 		void adiabaticGaugePotential_sym(bool SigmaZ = 0, bool avSymSectors = 0);
 		void adiabaticGaugePotential_dis();
