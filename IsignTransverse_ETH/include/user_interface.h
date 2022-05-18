@@ -21,7 +21,7 @@ class user_interface {
 protected:
 	unsigned int thread_number = 1;																								// number of threads
 	int boundary_conditions = 1;																						// boundary conditions - 0 - PBC, 1 - OBC, 2 - ABC,...
-	string saving_dir = "";																								// directory for files to be saved onto
+	std::string saving_dir = "";																								// directory for files to be saved onto
 
 	// ----------------------------------- FUNCTIONS FOR READING THE INPUT
 

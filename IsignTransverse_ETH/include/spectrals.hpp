@@ -259,10 +259,20 @@ namespace spectrals{
 	// -----------------------------------------  GREEN'S FUNCTION AND DOS
 	inline
 	auto density_of_states(
-		const arma::vec& energies
+		const arma::vec& energies,
+		double dw,
+		double eta = -1
 	) -> arma::vec
 	{
-		return arma::vec();
+		if(eta <= 0) eta = dw / 5.;
+		auto omegas = arma::regspace(1.25 * arma::min(energies), dw, 1.25 * arma::min(energies));
+		arma::vec DOS(omegas.size(), arma::fill::zeros);
+		for(int k = 0; k < omegas.size(); k++){
+			double w = omegas(k);
+			for(int n = 0; n < energies.size(); n++)
+				DOS(k) += -1. / pi * imag(1. / (w + eta * 1i - (energies(n) - energies(0))));
+		}
+		return DOS;
 	};
 	
 }
