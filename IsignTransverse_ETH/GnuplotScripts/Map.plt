@@ -40,7 +40,10 @@ site = 1
 q = 1
 operator = 1	 		# 1-SigmaZ , 0-Hq :local
 rescale_times = 0
-L = 15
+rescale_x_axis = 0
+exponent = 1
+
+L = 13
 g = 0.9
 h=0.8
 J=1.0
@@ -73,6 +76,7 @@ _name_th_L(Jx, gx, hx, dis) = dir_base.'ThoulessTime/'.sprintf("_L,J=%.2f,J0=0.0
 
 nu=2
 rescale(t,L) = rescale_times? t/L**nu : t
+rescaleX(x, i) = rescale_x_axis? 1./x**exponent : x;
 use_fit = 0
 
 set encoding utf8
@@ -103,7 +107,7 @@ if(user_defined == 0){
 		set xrange[0.01:1.5]
 		#set logscale x
 		#set yrange[0.01:1000]
-		set xlabel "{/*1.5h/J}"
+		set xlabel (rescale_x_axis? sprintf("{/*1.5 1/h^{%d}}", exponent) : "{/*1.5h}")
 		if(scaling == 0){ 	plot for[i=1:(q_vs_j? L/2 : L-1)] dir._name(J, L,i) u ($2 == g? $1 : NaN):(f($3,$5)) w lp ls (i+1) pt (i+3) ps 1.5 title _str(i)
 		} else {
 		if(scaling == 1){ plot for[i=L0:15:dL] dir._name(J, i, (q_vs_j? (q<0? i / 2 : q) : site)) u ($2 == g? $1 : NaN):(f($3,$5)) w lp ls ((i-7)) pt (i-5) ps 1.5 title sprintf("L=%d", i)
@@ -122,24 +126,24 @@ if(user_defined == 0){
 			plot name u ($2 == g? $1 : NaN):(f($3,$5)/$4) w lp pt 6 ps 1.5 title sprintf("L=%d,g=%.2f,h=%.2f",L,g,h)
 		}}}}
 	} else{
-		set xrange[0:1.5];
-		set xlabel "{/*1.5g/J}"
-		set logscale x
+		set xrange[rescaleX(0.05,0):rescaleX(1.5,0)];
+		set xlabel (rescale_x_axis? sprintf("{/*1.5 1/g^{%d}}", exponent) : "{/*1.5g}")
+		#set logscale x
 		#unset logscale y; set format y '%g'
 		set yrange[0.1:*];
 		ef(x)=0.9/x**2.
 		#ef(x) = 1000*exp(-9*x)
-		if(scaling == 0){	plot for[i=1:(q_vs_j? L/2 : L-1)] dir._name(J, L,i) u ($1 == h? $2 : NaN):(f($3,$5)) w lp ls (i+1) pt (i+4) ps 1.5 title _str(i),\
-								dir._name(J, L,1) u ($1 == h? $2 : NaN):4 w l ls 0 lw 3 notitle,\
-							_name_th(J, L, w2) u ($1 == h? $2 : NaN):($3*$4) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}",\
+		if(scaling == 0){	plot for[i=1:(q_vs_j? L/2 : L-1)] dir._name(J, L,i) u ($1 == h? rescaleX($2, i) : NaN):(f($3,$6)) w lp ls (i+1) pt (i+4) ps 1.5 title _str(i),\
+								dir._name(J, L,1) u ($1 == h? rescaleX($2, 1) : NaN):4 w l ls 0 lw 3 notitle,\
+							_name_th(J, L, w2) u ($1 == h? rescaleX($2, 0) : NaN):($3*$4) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}",\
 							ef(x) w l dt (3,5,10,5) lc rgb "black" lw 1.5 notitle,\
 							1000*exp(-8.5*x) w l dt (3,5,10,5) lc rgb "blue" lw 1.5 notitle
 		} else {
-		if(scaling == 1){ plot for[i=L0:Lend:dL] dir._name(J, i, (q_vs_j? (q<0? i / 2. : q) : site)) u ($1 == h? $2 : NaN):(rescale((f($3,$5)),i)) w lp ls ((i+3-L0)) pt ((i-L0)/dL+1) ps 1 title sprintf("L=%d", i),\
-							_name_th(J, L, w2) u ($1 == h? $2 : NaN):($3*$4) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
+		if(scaling == 1){ plot for[i=L0:Lend:dL] dir._name(J, i, (q_vs_j? (q<0? i / 2. : q) : site)) u ($1 == h? rescaleX($2, i) : NaN):(rescale((f($3,$5)),i)) w lp ls ((i+3-L0)) pt ((i-L0)/dL+1) ps 1 title sprintf("L=%d", i),\
+							_name_th(J, L, w2) u ($1 == h? rescaleX($2, L) : NaN):($3*$4) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
 		} else {
-		if(scaling == 2){ plot for[i=h0:hend:dh] name u (100*$1 == i? $2 : NaN):(f($3,$5)) w lp ls ((i-h0)/dh) pt 6 ps 1.5 title sprintf("h=%.2f", 0.01*i),\
-							_name_th(J, L, w2) u ($1 == 0.01*h? $2 : NaN):($3*$4) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
+		if(scaling == 2){ plot for[i=h0:hend:dh] name u (100*$1 == i? rescaleX($2, i) : NaN):(f($3,$5)) w lp ls ((i-h0)/dh) pt 6 ps 1.5 title sprintf("h=%.2f", 0.01*i),\
+							_name_th(J, L, w2) u ($1 == 0.01*h? rescaleX($2, hend) : NaN):($3*$4) w lp pt 4 ps 1.5 title "{/Symbol t}_{Th}"
 		} else {
 		if(scaling == 3){ 
 			set key spacing 2

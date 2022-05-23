@@ -28,7 +28,7 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 #-- PARAMETERS
 w = 0.1
 g = 0.7
-L = 8
+L = 14
 h = 0.8
 
 h0 = 80
@@ -41,7 +41,7 @@ scaling = 0		# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 o
 y_ax = 2		# =0 - ||O_diag||; =1 - ||O_off||; =2 - <r>
 model = 0
 
-choose = 2		# 0 - qpt / 1 - magnetization quench / 2 - ssf / 3 - commutators
+choose = 1		# 0 - qpt / 1 - magnetization quench / 2 - ssf / 3 - commutators
 #-- GRAPHICS
 
 #set y2tics 0.37, 0.05
@@ -82,30 +82,21 @@ if(choose == 0){
 } else{
 	if(choose == 1){
 		#_name = dir.sprintf("quench_g_init=0.00,h_init-0.50_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", L, g, h)
-		eh=0
-		nejm = eh? "quench_ferromagnet" : "quench_domain_wall";
-		_name = dir.nejm.sprintf("_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", L, g, h, w);
+		_name(Lx, hx) = dir_base.sprintf("Confine_L=%d,J=%.2f,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", Lx, -1.0, -0.9, -hx);
 		#plot for[gx=20:60:10] dir.sprintf("meson_coverage_L=%d,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", L, gx*0.01, h, w) u 1:2 w lp title sprintf("g=%.2f", 0.01*gx)
 		#exit;
-		 heatmap = 0
-		if(heatmap){
-			set xrange[-0.5:L-0.5]
-			set yrange[0:50]
-			set view map
-			set pm3d interpolate 0,0
-			#set cbrange[0:0.1]
-			set yrange
-			splot _name u 1:2:3 with image
-		} else {
-			set key outside right
-			set xrange[0:60];
-			set logscale x
-			i = 0;
-			plot _name u ($1 == 1? $2 : NaN):3 w lp title 'i=1',\
-				_name u ($1 == 2? $2 : NaN):3 w lp title 'i=2',\
-				_name u ($1 == L / 2? $2 : NaN):3 w lp title 'i=L/2',\
-				_name u ($1 == L / 2 + 1? $2 : NaN):3 w lp title 'i=L/2+1'
-		}
+			set logscale y
+			set yrange[0.5:1]
+			set xrange[0:15]
+			h=0.05
+			L=17
+			a=1.02;	b=0.03
+			f(x) = a*exp(-b*x)
+			set fit quiet
+			fit[2:5][*:*] f(x) _name(L, h) u 1:2 via a, b;
+			print a,b
+			plot for[hx=4:10] _name(L, 0.01*hx) u 1:2 w lp title sprintf("h=%.2f", 0.01*hx)
+			#plot for[Lx=14:17] _name(Lx, h) u 1:2 w lp title sprintf("L=%d", Lx), (x < 10? f(x) : NaN) w l dt (8,8) lc rgb "black" lw 1.5 t 'exp-fit'
 
 	} else{
 		if(choose == 2){

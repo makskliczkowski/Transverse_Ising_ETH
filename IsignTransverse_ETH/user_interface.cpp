@@ -2,7 +2,7 @@
 // set externs
 std::uniform_real_distribution<> theta	= std::uniform_real_distribution<>(0.0, pi);
 std::uniform_real_distribution<> fi		= std::uniform_real_distribution<>(0.0, pi);
-int outer_threads = 16;
+int outer_threads = 1;
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
 {
@@ -70,7 +70,7 @@ for(this->J = 0.05; this->J <= 1.0; this->J += 0.05)
 	//continue;
 					// ----------------------
 					//this->diagonalize(); continue;
-					for(this->w = 0.2; this->w < 3.0; this->w += 0.1)
+					for(this->w = 0.1; this->w < 2.0; this->w += 0.1)
 						analyze_spectra();
 					continue;
 					average_SFF(); continue;
@@ -241,9 +241,22 @@ void isingUI::ui::diagonalize(){
 		){
 		std::string info = alfa.get_info({});
 		stout << "\n\t\t--> finished creating model for " << info + _suffix << " - in time : " << tim_s(start) << "s" << std::endl;
-
-		alfa.diagonalization(this->ch);
-		auto eigenvalues = alfa.get_eigenvalues();
+		arma::vec eigenvalues;
+		if(alfa.g == 0){
+			auto H = alfa.get_hamiltonian();
+			const u64 N = alfa.get_hilbert_size();
+			arma::cx_vec E(N);
+			for(int i = 0; i < N; i++)
+				E(i) = H(i,i);
+			eigenvalues = real(E);
+			sort(eigenvalues.begin(), eigenvalues.end());
+		} 
+		else if(alfa.J == 0.0){
+			eigenvalues = alfa.get_non_interacting_energies();
+		} else{
+			alfa.diagonalization(this->ch);
+			eigenvalues = alfa.get_eigenvalues();
+		}
 		stout << "\t\t	--> finished diagonalizing for " << info + _suffix<< " - in time : " << tim_s(start) << "s" << std::endl;
 
 		std::string name = dir + info + _suffix + ".hdf5";
@@ -1318,7 +1331,7 @@ void isingUI::ui::average_SFF(){
 	printSeparated(lvl, "\t", 16, true, r1, r2);
 	lvl.close();
 	// ---------- find Thouless time
-	double eps = 8e-2;
+	double eps = 5e-2;
 	auto K_GOE = [](double t){
 		return t < 1? 2 * t - t * log(1+2*t) : 2 - t * log( (2*t+1) / (2*t-1) );
 	};
@@ -1345,14 +1358,17 @@ void isingUI::ui::thouless_times()
 	const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
 	auto gx_list = arma::linspace(this->g, this->g + this->gs * (this->gn - 1), this->gn);
 	auto hx_list = arma::linspace(this->h, this->h + this->hs * (this->hn - 1), this->hn);
-	
+	auto wx_list = arma::linspace(this->w, this->w + this->ws * (this->wn - 1), this->wn);
+	auto k_list = arma::linspace(0, this->L, this->L);
+	auto _list = this->m? k_list : wx_list;
+	std::cout << _list << std::endl;
 	auto kernel = [this](
-		int Lx, double gx, double hx, 
+		int Lx, double Jx, double gx, double hx, double wx,
 		std::ofstream& map, auto... prints
 		){
 		std::ifstream file;
-		std::string info = this->m? IsingModel_sym::set_info(Lx, this->J,gx, hx, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
-						: IsingModel_disorder::set_info(Lx, this->J, this->J0, gx, this->g0, hx, this->w);
+		std::string info = this->m? IsingModel_sym::set_info(Lx, Jx ,gx, hx, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
+						: IsingModel_disorder::set_info(Lx, Jx, this->J0, gx, this->g0, hx, wx);
 		std::string filename = this->saving_dir + "SpectralFormFactor/smoothed" + kPSep + info + ".dat";
 		auto data = readFromFile(file, filename);
 		file.close();
@@ -1360,7 +1376,14 @@ void isingUI::ui::thouless_times()
 		arma::vec times = data[0];
 		arma::vec sff = data[1];
 		double tH = data[2](0);
-
+		double r1 = 0.0, r2 = 0.0;
+		size_t dim = 0;
+		if(data.size() > 4){
+			r1 = data[4](0);
+			r2 = data[5](0);
+		}
+		if(data.size() > 6)
+			dim = data[6](0);
 		// find thouless time
 		double eps = 5e-2;
 		auto K_GOE = [](double t){
@@ -1388,11 +1411,24 @@ void isingUI::ui::thouless_times()
 		printSeparated(std::cout, "\t", 12, false, prints...);
 		printSeparated(std::cout, "\t", 12, true, thouless_time, tH);
 		printSeparated(map, "\t", 12, false, prints...);
-		printSeparated(map, "\t", 12, true, thouless_time, tH);
+		printSeparated(map, "\t", 12, true, thouless_time, tH, r1, r2, dim);
 	};
 	std::string dir = this->saving_dir + "ThoulessTime" + kPSep;
 	createDirs(dir);
+	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"h", "g"}) 
+					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, {"h", "g", "L", "J", "w"}, ",");
+	std::ofstream map;
+	openFile(map, dir + "_all" + info + ".dat", ios::out);
+	for (int size = Lmin; size < Lmax; size += this->Ls){
+		for(double Jx = this->w; Jx <= 1.05; Jx += 0.05){
+			for (auto &gx : gx_list){
+				for (auto &hx : hx_list){
+					for(auto& x : _list){	// either disorder w (m=0) or symmetry sector k (m=1)
+						kernel(size, Jx, gx, hx, x, map, size, Jx, gx, hx, x);
+		}}}}}
+	map.close();
 
+	return;
 	for (int size = Lmin; size < Lmax; size += this->Ls){
 		std::string info = this->m? IsingModel_sym::set_info(size, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"h", "g"}) 
 					: IsingModel_disorder::set_info(size, this->J, this->J0, this->g, this->g0, this->h, this->w, {"h", "g"});
@@ -1400,12 +1436,12 @@ void isingUI::ui::thouless_times()
 		openFile(map_g, dir + "_g" + info + ".dat", ios::out);
 		for (auto &hx : hx_list)
 			for (auto &gx : gx_list)
-				kernel(size, gx, hx, map_g, hx, gx);
+				kernel(size, this->J, gx, hx, this->w, map_g, hx, gx);
 		map_g.close();
 		openFile(map_h, dir + "_h" + info + ".dat", ios::out);
 		for (auto &gx : gx_list)
 			for (auto &hx : hx_list)
-				kernel(size, gx, hx, map_h, hx, gx);
+				kernel(size, this->J, gx, hx, this->w, map_h, hx, gx);
 		map_h.close();
 	}
 	for (auto &gx : gx_list){
@@ -1415,7 +1451,7 @@ void isingUI::ui::thouless_times()
 					: IsingModel_disorder::set_info(this->L, this->J, this->J0, gx, this->g0, hx, this->w, {"L"}, ",");
 			openFile(map_L, dir + "_L" + info + ".dat", ios::out);
 			for (int size = Lmin; size < Lmax; size += this->Ls)
-				kernel(size, gx, hx, map_L, size);
+				kernel(size, this->J, gx, hx, this->w, map_L, size);
 			map_L.close();	
 		}
 	}
