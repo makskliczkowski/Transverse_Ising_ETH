@@ -19,17 +19,17 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 
 #---------------------------- PARAMETERS
 model = 0       # 1=symmetries and 0=disorder
-w = 0.25
+w = 0.1
 g = 0.9
-L = 14
+L = 15
 h = 0.8
-J = 1.00
+J = 0.05
 k=1
 J_knot = 0.; g_knot = 0.; 
-scaling = 4     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
+scaling = 1     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
 smoothed = 0        # smoothed ?
 plot_der_GOE = 0	 # plot deriviation from GOE value
-zoom_in = 0          # zoom in to collapse on GOE
+zoom_in = 1          # zoom in to collapse on GOE
 find_Thouless = 1    # find thouless time?
 add_gap_ratio = 1	 # add gap ratio
 rescale_times = 0	 # rescale times by size or parameter
@@ -157,7 +157,7 @@ if(!plot_der_GOE){ set arrow from 1, graph 0 to 1,1 nohead ls 1 dt (3,5,10,5) lc
 if(zoom_in) { unset logscale y; set format y '%g'; set key bottom right font ",20";}
 print x_min, y_min
 RANGE=zoom_in? "set xrange[1e-3:20]; set yrange[0:1.2];"\
-                    : sprintf("set xrange[%.6f:8]; set yrange[%.10f:%.2f];", x_min, 0.8 * y_min, 0.5*(scaling == 1? 2**Lend : 2**L))
+                    : sprintf("set xrange[%.6f:98]; set yrange[%.10f:%.2f];", x_min, 0.8 * y_min, 0.5*(scaling == 1? 2**Lend : 2**L))
 MARGIN = "set lmargin at screen 0.10; set rmargin at screen 0.95; set bmargin at screen 0.10; set tmargin at screen 0.99;"
 MARGIN_inset = "set lmargin at screen 0.52; set rmargin at screen 0.92; set bmargin at screen 0.62; set tmargin at screen 0.97;"
 #---------------------------- PLOT

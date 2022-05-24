@@ -40,17 +40,17 @@ w = 0.1
 g = 0.9
 L = 12
 h = 0.8
-J = 0.1
+J = 0.2
 
 what = 1                # 0 - DOS / 1 - Lvl-spacing Distribution / 2 - unfolding analysis
 plot_typical_wH = 0     # plot only the scaling of wH_typical
 scaling = 0             # 0 - J scaling / 1 - w scaling
 
 use_unfolded = 0        # use unfolded energies for DOS
-use_logarithmic = 1     # use low(w) distribution
+use_logarithmic = 0     # use low(w) distribution
 compare_fits = 1        # compare different ploynomial degrees in unfolding
-use_fit = 1             # use fit for distribtution
-    J0 = 5;    Jend = 75;  dJ = 70
+use_fit = 0             # use fit for distribtution
+    J0 = 5;    Jend = 100;  dJ = 20
     w0 = 10;    wend = 40;  dw = 10
 
 if(plot_typical_wH){
@@ -91,7 +91,7 @@ do for[i=i0:iend:di]{
         stats _name_ using 4 every ::0::0 nooutput;   wH[idx] = STATS_min;
         if(use_fit){ fit fun_fit(x) dir_dist._name(0.01*i) u 1:2 via a, mu, sig; }
         a_list[idx] = a;    mu_list[idx] = mu;  sig_list[idx] = sig;
-        print wH_typical[idx], wH[idx], a_list[idx], mu_list[idx], sig_list[idx], x_min, x_max
+        print wH_typical[idx], wH[idx], a_list[idx], mu_list[idx], sig_list[idx]
     }
 }
 array E_noninteracting[L+1];
@@ -123,15 +123,17 @@ if(what == 0){
     unset multiplot
 } else {
     if(what == 1){
-        set logscale y; set yrange[1e-3:2]
-        set key inside left top
+        #set logscale y; set yrange[1e-3:2]
+        set key inside right top
         SCALE = use_logarithmic? "set xrange[-3:2]; set yrange[1e-3:1.7];" : "set xrange[1e-3:10]; set yrange[1e-3:2.7];" 
         if(use_logarithmic){ set ylabel 'P(log_{10} {/Symbol w})';    set xlabel 'log_{10} {/Symbol w}'}
         else {set ylabel 'P({/Symbol w})';    set xlabel '{/Symbol w}'; };#set logscale x;};
+        trueX(x) = use_logarithmic? 10**x : x
+        factor = use_logarithmic? log(10) : 1.0
         set multiplot
         @MARGIN; @SCALE;    plot for[i=i0:iend:di] dir_dist._name(0.01*i) u 1:2 w steps lw 2 t _key_title(0.01*i), '+' u (NaN):(NaN) w p ps 2 pt 7 lc rgb "black" t 'log {/Symbol w}_H^{typ}',\
-                                     log(10)*10**x*P_GOE(10**x) w l ls 1 dt (2,2) lc rgb 'black' lw 2 t 'GOE',\
-                                     log(10)*10**x*P_POISSON(10**x) w l ls 1 dt (4,3,2, 2) lc rgb 'red' lw 2 t 'Poisson', '+' u (NaN):(NaN) w l dt (8,8) lw 2 lc 1 t 'log-normal fit'
+                                     factor*trueX(x)*P_GOE(trueX(x)) w l ls 1 dt (2,2) lc rgb 'black' lw 2 t 'GOE',\
+                                     factor*trueX(x)*P_POISSON(trueX(x)) w l ls 1 dt (4,3,2, 2) lc rgb 'red' lw 2 t 'Poisson', '+' u (NaN):(NaN) w l dt (8,8) lw 2 lc 1 t 'log-normal fit'
         @UNSET; 
         @MARGIN; @SCALE;    plot for[i=i0:iend:di] '+' u (wH_typical[(i-i0)/di + 1]):(0.0) w p ps 2 pt 7 notitle
         if(use_fit){

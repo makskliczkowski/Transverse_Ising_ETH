@@ -1477,16 +1477,18 @@ void isingUI::ui::analyze_spectra(){
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 		N = alfa->get_hilbert_size();
 	}
-	const u64 num = 0.75 * N;
+	const u64 num = 0.5 * N;
 	const size_t dist_size 	= 2 * int(num / 2.) + 1; // to omit problems when (num % 2 == 1) !!
-	const long n_bins 		= 5 * (1 + long(3.322 * log(N)));
+	const long n_bins 		= 10 * (1 + long(3.322 * log(N)));
 
 	arma::vec DOS(n_bins, arma::fill::zeros);
 	arma::vec DOS_unfolded(n_bins, arma::fill::zeros);
 	double _min_energy = 0.0,			 _max_energy = 0.0;
 	double _min_energy_unfolded = 0.0,	 _max_energy_unfolded = 0.0;
 
-	const long n_bins_lvl = 3 * (1 + long(3.322 * log(dist_size)));
+	const long n_bins_lvl = 5 * (1 + long(3.322 * log(dist_size)));
+	arma::vec lvl_distribution(n_bins_lvl, arma::fill::zeros);
+	arma::vec lvl_distribution_log(n_bins_lvl, arma::fill::zeros);
 	arma::vec lvl_distribution_unfolded(n_bins_lvl, arma::fill::zeros);
 	arma::vec lvl_distribution_unfolded_log(n_bins_lvl, arma::fill::zeros);
 	double wH 				= 0.0;
@@ -1494,6 +1496,8 @@ void isingUI::ui::analyze_spectra(){
 	double wH_typ_unfolded 	= 0.0;
 	double _min_spacing 	= 0.0, _max_spacing 	= 0.0;
 	double _min_spacing_log = 0.0, _max_spacing_log = 0.0;
+	double _min_spacing_unfolded 	 = 0.0,  _max_spacing_unfolded    = 0.0;
+	double _min_spacing_unfolded_log = 0.0, _max_spacing_unfolded_log = 0.0;
 
 	//-------SET KERNEL
 	int counter_realis = 0;
@@ -1529,9 +1533,8 @@ void isingUI::ui::analyze_spectra(){
 				for(int k = 0; k < cdf.size(); k++)
 					printSeparated(file, "\t", 14, true, eigenvalues(k), cdf(k), res1(k), res2(k), res3(k), res4(k));
 				file.close();
-				//save_to_file(dir_DOS + info + ".dat", omegas, DOS);
-				//save_to_file(dir_DOS + "Unfolded" + info + ".dat", omegas2, DOS2);
 			}
+
 			//------------------- Get 50% spectrum
 			double E_av = arma::trace(eigenvalues) / double(N);
 			auto i = min_element(begin(eigenvalues), end(eigenvalues), [=](double x, double y) {
@@ -1560,16 +1563,21 @@ void isingUI::ui::analyze_spectra(){
 			}
 			#pragma omp critical
 			{
-				//lvl_distribution 				+= statistics::probability_distribution(level_spacings);
-				//lvl_distribution_log 			+= statistics::probability_distribution(arma::log(level_spacings));
+				lvl_distribution 				+= statistics::probability_distribution(level_spacings);
+				lvl_distribution_log 			+= statistics::probability_distribution(arma::log(level_spacings));
 				lvl_distribution_unfolded 		+= statistics::probability_distribution(level_spacings_unfolded, n_bins_lvl);
-				_min_spacing += arma::min(level_spacings_unfolded);		
-				_max_spacing += arma::max(level_spacings_unfolded);
+				_min_spacing += arma::min(level_spacings);		
+				_max_spacing += arma::max(level_spacings);
+				_min_spacing_unfolded += arma::min(level_spacings_unfolded);		
+				_max_spacing_unfolded += arma::max(level_spacings_unfolded);
 
 				arma::vec level_spacings_unfolded_log = arma::log10(level_spacings_unfolded);
+				arma::vec level_spacings_log = arma::log10(level_spacings);
 				lvl_distribution_unfolded_log += statistics::probability_distribution(level_spacings_unfolded_log, n_bins_lvl);
-				_min_spacing_log += arma::min(level_spacings_unfolded_log);	
-				_max_spacing_log += arma::max(level_spacings_unfolded_log);
+				_min_spacing_log += arma::min(level_spacings_log);	
+				_max_spacing_log += arma::max(level_spacings_log);
+				_min_spacing_unfolded_log += arma::min(level_spacings_unfolded_log);	
+				_max_spacing_unfolded_log += arma::max(level_spacings_unfolded_log);
 				counter_realis++;
 
 				//------------------- Density of States
@@ -1605,17 +1613,25 @@ void isingUI::ui::analyze_spectra(){
 		average_over_realisations<par>(false, lambda_average);
 		norm = counter_realis;
 	}
-	lvl_distribution_unfolded /= norm;	lvl_distribution_unfolded_log /= norm;
+	
 	_min_spacing /= norm; _max_spacing /= norm; _min_spacing_log /= norm; _max_spacing_log /= norm;
-	if(_max_spacing_log > 5) _max_spacing_log = 5.0;
-	if(_max_spacing > 20) _max_spacing = 20.0;
+	_min_spacing_unfolded /= norm; _max_spacing_unfolded /= norm; _min_spacing_unfolded_log /= norm; _max_spacing_unfolded_log /= norm;
+	lvl_distribution 		= normalise_dist(lvl_distribution / norm, 	  _min_spacing, 	_max_spacing);
+	lvl_distribution_log 	= normalise_dist(lvl_distribution_log / norm, _min_spacing_log, _max_spacing_log);
+	lvl_distribution_unfolded 		= normalise_dist(lvl_distribution_unfolded / norm, 	   _min_spacing_unfolded, 	  _max_spacing_unfolded);
+	lvl_distribution_unfolded_log 	= normalise_dist(lvl_distribution_unfolded_log / norm, _min_spacing_unfolded_log, _max_spacing_unfolded_log);
+
 	_min_energy /= norm; _max_energy /= norm; _min_energy_unfolded /= norm; _max_energy_unfolded /= norm;
 	DOS /= norm;	 DOS_unfolded /= norm;
 	wH /= norm;	wH_typ /= norm;	wH_typ_unfolded /= norm;
+
 	save_to_file(dir_DOS + info + ".dat", 				arma::linspace(_min_energy, 		 _max_energy, 			DOS.size()), 			DOS 		);
 	save_to_file(dir_DOS + "unfolded" + info + ".dat", 	arma::linspace(_min_energy_unfolded, _max_energy_unfolded, 	DOS_unfolded.size()), 	DOS_unfolded);
-	save_to_file(dir_spacing + "unfolded"     + info + ".dat", 	arma::linspace(_min_spacing, 	 _max_spacing, 		lvl_distribution_unfolded.size()), 	lvl_distribution_unfolded, 		exp(wH_typ_unfolded), wH, exp(wH_typ));
-	save_to_file(dir_spacing + "unfolded_log" + info + ".dat", 	arma::linspace(_min_spacing_log, _max_spacing_log, 	lvl_distribution_unfolded.size()), 	lvl_distribution_unfolded_log, 	wH_typ_unfolded, wH, wH_typ);
+	
+	save_to_file(dir_spacing + ""     + info + ".dat", 	arma::linspace(_min_spacing, 	 _max_spacing, 		lvl_distribution.size()), 	lvl_distribution, 		exp(wH_typ_unfolded), wH, exp(wH_typ));
+	save_to_file(dir_spacing + "_log" + info + ".dat", 	arma::linspace(_min_spacing_log, _max_spacing_log, 	lvl_distribution.size()), 	lvl_distribution_log, 	wH_typ_unfolded, wH, wH_typ);
+	save_to_file(dir_spacing + "unfolded"     + info + ".dat", 	arma::linspace(_min_spacing_unfolded, 	 _max_spacing_unfolded, 		lvl_distribution_unfolded.size()), 	lvl_distribution_unfolded, 		exp(wH_typ_unfolded), wH, exp(wH_typ));
+	save_to_file(dir_spacing + "unfolded_log" + info + ".dat", 	arma::linspace(_min_spacing_unfolded_log, _max_spacing_unfolded_log, 	lvl_distribution_unfolded.size()), 	lvl_distribution_unfolded_log, 	wH_typ_unfolded, wH, wH_typ);
 }	
 //--------------------------------------------------------------------- ADIABATIC GAUGE POTENTIAL
 void isingUI::ui::adiabaticGaugePotential_dis()
