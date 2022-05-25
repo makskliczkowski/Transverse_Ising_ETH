@@ -2,7 +2,7 @@
 // set externs
 std::uniform_real_distribution<> theta	= std::uniform_real_distribution<>(0.0, pi);
 std::uniform_real_distribution<> fi		= std::uniform_real_distribution<>(0.0, pi);
-int outer_threads = 64;
+int outer_threads = 1;
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
 {
@@ -323,11 +323,14 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 				alfa.diagonalization(false);
 				//stout << "No energies found, diagonalizing matrix now!" << std::endl;
 				eigenvalues = alfa.get_eigenvalues();
-				// save eigenvalues (yet unsaved)
-				eigenvalues.save(arma::hdf5_name(name + _suffix + ".hdf5", "eigenvalues/"));
 			#endif
 		}
 	}
+	#if defined(MY_MAC)
+		// save eigenvalues (yet unsaved)
+		if(!loaded){
+			eigenvalues.save(arma::hdf5_name(name + _suffix + ".hdf5", "eigenvalues/"));
+	#endif
 	return eigenvalues;
 }
 
