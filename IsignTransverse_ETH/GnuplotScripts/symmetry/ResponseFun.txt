@@ -1,0 +1,304 @@
+cd '.\ResponseFunction'
+reset 
+
+#------------------------------------ PREAMBLE
+set autoscale
+set term wxt size 800, 800 font "Helvetica,12"
+set mxtics
+set mytics
+
+FORMAT = "set style line 12 lc rgb '#ddccdd' lt 1 lw 1.5; \
+set style line 13 lc rgb '#ddccdd' lt 1 lw 0.5; \
+set grid xtics mxtics ytics mytics back ls 12, ls 13;\
+set size square;\
+set xtics mirror;\
+set ytics mirror;"
+@FORMAT
+set logscale xy	
+
+#------------------------------------ Margins for each row resp. column
+TMARGIN = "set tmargin at screen 0.91; set bmargin at screen 0.56"
+BMARGIN = "set tmargin at screen 0.46; set bmargin at screen 0.11"
+# TICS
+NOYTICS = "set format y '';"
+YTICS = "set format y '%g';"
+
+#------------------------------------ PARAMETERS
+omegaregion = 0						# omega region: =0 : w->0, =1 : w->inf; =2 all w
+
+L = 19; 
+g = 0.72; 
+h = 0.8;
+rescale = 0							# rescale the spectral function by f(w, L)?
+power = 0.5							# power in scaling with omega
+SigX_or_SigZ = 0	 				# 0-SigX , 1-SigZ :local, 2-SpinCur
+operator_sum = 1					# is the operator a sum
+cor = 0								# correlations
+scaling = 0							# size scaling=1 or h-scaling=0 or g-scaling=2
+fit = 0								# fit with gauss?
+	h0 = 170;	hend = 200; dh = 10;
+	L0 = 16;	Lend = 19; dL = 1;
+##-- FIT FUNCTIONS
+Gauss(x) = 1 / (sigma*sqrt(2.*pi)) * exp(-(x - mu)**2. / (2.*sigma**2) )
+g_min = 0.; g_max = 8;
+LogOmega(x) = a * exp(b * x * log(x))
+LogOmega2(x) = p * exp(q * x * (r - log(x)))
+l_min = 10; l_max = 30;
+set fit quiet
+
+
+#------------------------------------ GRAPHICS
+my_title = "Spectral function |f_O({/Symbol w},E)|^2 with"
+if(scaling < 2) my_title = my_title.sprintf(" g=%0.2f", g)
+if(fit == 1){
+	my_title = my_title.sprintf(", h=%.2f, L = %d", h, L)
+}
+else {
+	if(scaling < 2) {
+		my_title = my_title.(scaling == 1? sprintf(", h=%.2f", h) : sprintf(", L=%d", L))
+	} else{
+		my_title = my_title.sprintf(", h=%.2f, L=%d", h, L)
+	}
+}
+global_title = my_title." for operator O"
+my_title = my_title."\n for operator O = ";
+if(SigX_or_SigZ < 2) {
+	my_title = my_title.(operator_sum? "L^{-1/2}{/Symbol S}_i" : "").(SigX_or_SigZ? "{/Symbol s}^z_" : "{/Symbol s}^x_").(operator_sum? "i" : "0")
+} else{
+	my_title = my_title.("L^{-1/2}{/Symbol S}_i({/Symbol s}^x_i{/Symbol s}^y_{i+1}-{/Symbol s}^y_i{/Symbol s}^x_{i+1})")
+}
+
+P(x) = (x >= 1e-3 && x <= 1.0)? x : -x;
+
+
+#------------------------------------ DATA AND FIT
+operator = "SpinCur"
+if(SigX_or_SigZ < 2) operator = (SigX_or_SigZ == 0)? "SigmaX" : "SigmaZ"
+plotname = "ResponseFunction".operator.sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, h)
+if(fit){
+	a=1;	b=-1;
+	mu=5;	sigma=100;
+	p=exp(-2);	q=0.5;	r=1.5;
+	#fit[g_min:g_max][*:*] Gauss(x) plotname u 1:2 via mu, sigma
+	print mu, sigma
+	fit[l_min:l_max][*:*] LogOmega(x) plotname u 1:2 via a,b
+	print a, b
+	fit[l_min:l_max][*:*] LogOmega2(x) plotname u 1:2 via p,q,r
+	print p,q,r
+	a = 1. / a; b = -abs(b);
+	# paper paramters:
+	#p = exp(-2); q = 0.5; r = 1 + log(2);
+}
+
+f(w, L) = rescale? w**power * L : 1.0;
+
+set style line 1 dt (3,5,10,5) lc rgb "black" lw 1.5
+set style line 2 dt (3,3) lc rgb "red" lw 1.5
+set style line 3 dt (8,8) lc rgb "blue" lw 1.5
+set style line 4 dt (1,1) lc rgb "green" lw 1.5
+
+#------------------------------------------------------------------------ MULTIPLOT	
+if(omegaregion == 0){
+#------------------------------------------------------- w->0 region
+LMARGIN = "set lmargin at screen 0.10; set rmargin at screen 0.44"
+RMARGIN = "set lmargin at screen 0.54; set rmargin at screen 0.88"
+	set term wxt size 1600, 800
+	set multiplot layout 1,2 rowsfirst title global_title
+	unset key
+	Yname = "set ylabel (rescale? sprintf('{/Symbol w}^{%.2f}L|f_O({/Symbol w},E)|^2', power) : '|f_O({/Symbol w},E)|^2')"
+	Xname = "set xlabel '{/Symbol w}/J'"
+	set xrange[5e-4:4]
+	set yrange[1e-5:1e-2]
+	dummy_name = "ResponseFunctionSigmaX".sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, h)
+	set key right top inside font ",11"
+	#------------------------------------ LEFT PANEL
+	@LMARGIN; @YTICS; @FORMAT; @Xname; @Yname;
+	set title "O = L^{-1/2}{/Symbol S}_i{/Symbol s}^x_i"
+	if(scaling == 1){
+		plot for[L=L0:Lend:dL]    "ResponseFunctionSigmaX".sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, h) u 1:(f($1,L)*$2) w l lw 1.5 title sprintf("L=%d",L)
+	}else{
+		if(scaling == 2){
+			plot for[gx in '0.30 0.72 0.95 1.10 1.40 1.70 2.00'] "ResponseFunctionSigmaX".sprintf("_L=%d,g=".gx.",k=0,p=1,x=1,h=%.5f.dat", L, h) u 1:(f($1,L)*$2) w l lw 1.5 title "g=".gx
+		}else{
+			plot for[hx=h0:hend:dh] "ResponseFunctionSigmaX".sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, hx/100.) u 1:(f($1,L)*$2) w l lw 1.5 title sprintf("h=%.2f", hx/100.)
+		}
+	}
+	unset tics; unset xlabel; unset ylabel; unset title; unset border;
+	set key left bottom
+	plot dummy_name u (P($1)):(1e-4 / $1**0.5) w l ls 1 t '{/Symbol w}^{-1/2}', \
+	dummy_name u (P($1)):(5e-6/$1) w l ls 2 title '{/Symbol w}^{-1}',\
+	dummy_name u (P($1)):(5e-7/$1**1.5) w l ls 3 title '{/Symbol w}^{-3/2}',\
+	dummy_name u (P($1)):(5e-8 / $1**2.) w l ls 4 t '{/Symbol w}^{-2}'
+	
+	#------------------------------------ RIGHT PANEL
+	set border; 
+	@RMARGIN; @YTICS; @FORMAT; @Xname; @Yname;
+	set key right top inside font ",11"
+	set title "O = L^{-1/2}{/Symbol S}_i{/Symbol s}^z_i"
+	if(scaling == 1){
+		plot for[L=L0:Lend:dL]    "ResponseFunctionSigmaZ".sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, h) u 1:(f($1,L)*$2) w l lw 1.5 title sprintf("L=%d",L)
+	}else{
+		if(scaling == 2){
+			plot for[gx in '0.30 0.72 0.95 1.10 1.40 1.70 2.00'] "ResponseFunctionSigmaZ".sprintf("_L=%d,g=".gx.",k=0,p=1,x=1,h=%.5f.dat", L, h) u 1:(f($1,L)*$2) w l lw 1.5 title "g=".gx
+		}else{
+			plot for[hx=h0:hend:dh] "ResponseFunctionSigmaZ".sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, hx/100.) u 1:(f($1,L)*$2) w l lw 1.5 title sprintf("h=%.2f", hx/100.)
+		}
+	}
+	unset tics; unset xlabel; unset ylabel; unset title; unset border;
+	set key left bottom
+	plot dummy_name u (P($1)):(1e-4 * $1**0.5) w l ls 1 t '{/Symbol w}^{-1/2}', \
+	dummy_name u (P($1)):(2e-4*$1) w l ls 2 title '{/Symbol w}^{-1}',\
+	dummy_name u (P($1)):(1e-7/$1**1.5) w l ls 3 title '{/Symbol w}^{-3/2}',\
+	dummy_name u (P($1)):(5e-8/ $1**2.) w l ls 4 t '{/Symbol w}^{-2}'
+	unset multiplot
+}
+else{
+	if(omegaregion == 1){
+	#------------------------------------------------------- w->inf region
+		set term wxt size 1800, 600
+		LMARGIN = "set lmargin at screen 0.10; set rmargin at screen 0.38;"
+		CMARGIN = "set lmargin at screen 0.40; set rmargin at screen 0.68;"
+		RMARGIN = "set lmargin at screen 0.70; set rmargin at screen 0.98;"
+		HOR_MARGIN = "set bmargin at screen 0.15; set tmargin at screen 0.85;"
+		set multiplot layout 1,3 rowsfirst title my_title
+		unset key
+		dummy_name = "ResponseFunction".operator.sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", Lend, g, h)
+		unset logscale x
+		set yrange[1e-32:1e-2]
+		#------------------------------------ LEFT PANEL
+		set border;
+		@HOR_MARGIN; @LMARGIN; @YTICS; @FORMAT;
+		set xrange[0:50]
+		set ylabel (rescale? sprintf('{/Symbol w}^{%.2f}L|f_O({/Symbol w},E)|^2', power) : '|f_O({/Symbol w},E)|^2')
+		set xlabel '{/Symbol w}/J'
+		set key right top inside font ",11"
+		if(scaling == 1){
+			plot for[L=L0:Lend:dL] "ResponseFunction".operator.sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, h) u 1:(f($1,L)*$2) w l lw 1.5 title sprintf("L=%d",L)
+		}else{
+			if(scaling == 2){
+				plot for[gx in '0.30 0.72 0.95 1.10 1.40 1.70 2.00'] "ResponseFunction".operator.sprintf("_L=%d,g=".gx.",k=0,p=1,x=1,h=%.5f.dat", L, h) u 1:(f($1,L)*$2) w l lw 1.5 title "g=".gx
+			}else{
+				plot for[hx=h0:hend:dh] "ResponseFunction".operator.sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, hx/100.) u 1:(f($1,L)*$2) w l lw 1.5 title sprintf("h=%.2f", hx/100.)
+			}
+		}
+		unset tics; unset xlabel; unset ylabel; unset title; unset border;
+		set key left bottom
+		plot dummy_name u 1:(1e5*exp(-log(10)*$1)) w l ls 1 t 'e^{-{/Symbol w}}'
+		
+		#------------------------------------ CENTER PANEL
+		set border;
+		@HOR_MARGIN; @CMARGIN; @YTICS; @FORMAT;
+		set xrange[0:160]
+		set key right top inside font ",11"
+		set xlabel '{/Symbol w}/Jln({/Symbol w}/J)'
+		unset ylabel
+		if(scaling == 1){
+			plot for[L=L0:Lend:dL] "ResponseFunction".operator.sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, h) u ($1*log($1)):(f($1,L)*$2) w l lw 1.5 title sprintf("L=%d",L)
+		}else{
+			if(scaling == 2){
+				plot for[gx in '0.30 0.72 0.95 1.10 1.40 1.70 2.00'] "ResponseFunction".operator.sprintf("_L=%d,g=".gx.",k=0,p=1,x=1,h=%.5f.dat", L, h) u ($1*log($1)):(f($1,L)*$2) w l lw 1.5 title "g=".gx
+			}else{
+				plot for[hx=h0:hend:dh] "ResponseFunction".operator.sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, hx/100.) u ($1*log($1)):(f($1,L)*$2) w l lw 1.5 title sprintf("h=%.2f", hx/100.)
+			}
+		}
+		unset tics; unset xlabel; unset ylabel; unset title; unset border;
+		set key left bottom
+		set xrange[0:160]
+		set yrange[1e-32:]
+		plot dummy_name u ($1*log($1)):(1e2*exp(-1.1*$1*log($1))) w l ls 1 t 'e^{-{/Symbol w}ln{/Symbol w}}',\
+		dummy_name u ($1*log($1)):(1e2*exp(-0.55*$1*log($1))) w l ls 1 notitle
+		
+		#------------------------------------ RIGHT PANEL
+		set border;
+		@HOR_MARGIN; @RMARGIN; @YTICS; @FORMAT;
+		set xrange[0:1600]
+		set xlabel '{/Symbol w}^2/J^2'
+		unset ylabel
+		set key right top inside font ",11"
+		if(scaling == 1){
+			plot for[L=L0:Lend:dL] "ResponseFunction".operator.sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, h) u ($1**2.):(f($1,L)*$2) w l lw 1.5 title sprintf("L=%d",L)
+		}else{
+			if(scaling == 2){
+				plot for[gx in '0.30 0.72 0.95 1.10 1.40 1.70 2.00'] "ResponseFunction".operator.sprintf("_L=%d,g=".gx.",k=0,p=1,x=1,h=%.5f.dat", L, h) u ($1**2.):(f($1,L)*$2) w l lw 1.5 title "g=".gx
+			}else{
+				plot for[hx=h0:hend:dh] "ResponseFunction".operator.sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, hx/100.) u ($1**2.):(f($1,L)*$2) w l lw 1.5 title sprintf("h=%.2f", hx/100.)
+			}
+		}
+		unset tics; unset xlabel; unset ylabel; unset title; unset border;
+		set key left bottom
+		plot dummy_name u ($1**2.):(1e-14*exp(-0.1*$1**2)) w l ls 1 t 'e^{-{/Symbol w}^2}'
+		unset multiplot
+	} else{
+	#------------------------------------------------------- w -> all
+		set term wxt size 1600, 800
+		set multiplot layout 1,2 rowsfirst title global_title
+		unset key
+		Yname = "set ylabel (rescale? sprintf('{/Symbol w}^{%.2f}L|f_O({/Symbol w},E)|^2', power) : '|f_O({/Symbol w},E)|^2')"
+		Xname = "set xlabel '{/Symbol w}/J'"
+		#set xrange[:10]
+		#unset logscale x
+		set yrange[1e-8:1e-1]
+		set xrange[5e-4:10]
+		dummy_name = "ResponseFunctionSigmaX".sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, h)
+		set key center bottom inside font ",11" maxrows(5)
+		#------------------------------------ LEFT PANEL
+		@LMARGIN; @YTICS; @FORMAT; @Xname; @Yname;
+		set title "O = L^{-1/2}{/Symbol S}_i{/Symbol s}^x_i"
+		if(scaling == 1){
+			plot for[L=L0:Lend:dL]    "ResponseFunctionSigmaX".sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, h) u 1:(f($1,L)*$2) w l lw 1.5 title sprintf("L=%d",L)
+		}else{
+			if(scaling == 2){
+				plot for[gx in '0.30 0.72 0.95 1.10 1.40 1.70 2.00'] "ResponseFunctionSigmaX".sprintf("_L=%d,g=".gx.",k=0,p=1,x=1,h=%.5f.dat", L, h) u 1:(f($1,L)*$2) w l lw 1.5 title "g=".gx
+			}else{
+				plot for[hx=h0:hend:dh] "ResponseFunctionSigmaX".sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, hx/100.) u 1:(f($1,L)*$2) w l lw 1.5 title sprintf("h=%.2f", hx/100.)
+			}
+		}
+		unset tics; unset xlabel; unset ylabel; unset title; unset border;
+		set key left bottom
+		plot dummy_name u (P($1)):(1e-4/$1**0.5) w l ls 1 t '{/Symbol w}^{-1/2}', \
+		dummy_name u (P($1)):(4e-6/$1) w l ls 2 title '{/Symbol w}^{-1}',\
+		dummy_name u (P($1)):(1e-6/$1**1.5) w l ls 3 title '{/Symbol w}^{-3/2}',\
+		dummy_name u (P($1)):(4e-8/$1**2.) w l ls 4 t '{/Symbol w}^{-2}'
+		
+		#------------------------------------ RIGHT PANEL
+		set border; 
+		@RMARGIN; @YTICS; @FORMAT; @Xname; @Yname;
+		set yrange[1e-8:1e-2]
+		set xrange[5e-4:10]
+		set key center bottom inside font ",11" maxrows(5)
+		set title "O = L^{-1/2}{/Symbol S}_i{/Symbol s}^z_i"
+		if(scaling == 1){
+			plot for[L=L0:Lend:dL]    "ResponseFunctionSigmaZ".sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, h) u 1:(f($1,L)*$2) w l lw 1.5 title sprintf("L=%d",L)
+		}else{
+			if(scaling == 2){
+				plot for[gx in '0.30 0.72 0.95 1.10 1.40 1.70 2.00'] "ResponseFunctionSigmaZ".sprintf("_L=%d,g=".gx.",k=0,p=1,x=1,h=%.5f.dat", L, h) u 1:(f($1,L)*$2) w l lw 1.5 title "g=".gx
+			}else{
+				plot for[hx=h0:hend:dh] "ResponseFunctionSigmaZ".sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, hx/100.) u 1:(f($1,L)*$2) w l lw 1.5 title sprintf("h=%.2f", hx/100.)
+			}
+		}
+		unset tics; unset xlabel; unset ylabel; unset title; unset border;
+		set key left bottom
+		plot dummy_name u (P($1)):(1e-4/$1**0.5) w l ls 1 t '{/Symbol w}^{-1/2}', \
+		dummy_name u (P($1)):(1e-5/$1) w l ls 2 title '{/Symbol w}^{-1}',\
+		dummy_name u (P($1)):(5e-6/$1**1.5) w l ls 3 title '{/Symbol w}^{-3/2}',\
+		dummy_name u (P($1)):(4e-8/$1**2.) w l ls 4 t '{/Symbol w}^{-2}'
+		unset multiplot
+	}
+}
+
+cd '..\'
+
+#if(fit){
+	#	plot plotname u ($1 > g_min && $1 < g_max? $1 : NaN):(Gauss($1)) w l lw 2 title sprintf("e^{-({/Symbol w}-%.2f)^2 / %.2f}", mu, 2*sigma),\
+	#		plotname u ($1 > 5 && $1 < l_max? $1 : NaN):(LogOmega($1)) w l lw 2 title sprintf("%.3f*e^{-%.2f{/Symbol w}ln({/Symbol w})}", a, b) ,\
+	#		plotname u ($1 > 5 && $1 < l_max? $1 : NaN):(LogOmega2($1)) w l lw 2 title sprintf("%.3f*e^{%.2f{/Symbol w}(%.2f-ln({/Symbol w}))}", p,q,r) ,\
+	#		plotname u (2*$2 < y_min? NaN : $1):2 w lp ls 0 ps 0.5 pt 6 title '|f_O({/Symbol w},E)|^2'
+	#}else{
+	#	if(scaling){
+	#		plot for[L=14:19:1]    "ResponseFunction".operator.sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, h)   every ::1 u 1:(f($1,L)*$2) w l title sprintf("L=%d",L)
+	#	}else{
+	#		plot for[hx=50:150:10] "ResponseFunction".operator.sprintf("_L=%d,g=0.72,k=0,p=1,x=1,h=%.5f.dat", L,hx/100.) every ::1 u 1:(f($1,L)*$2) w l title sprintf("h=%.5f", hx/100.)
+	#	}
+	#	#plot for[hx in hx_log] "ResponseFunction".operator.sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f.dat", L, g, 1.0*hx) u (f($1, L)*$2 > y_min? $1:1/0):(f($1, L)*$2) w lp pt 6 title "h=".hx
+	#	#plot for[M=400:2000:400] "ResponseFunction".operator.sprintf("_L=%d,g=%.2f,k=0,p=1,x=1,h=%.5f,M=%d.dat", L, g, h,M) u (f($1, L)*$2 > y_min? $1:1/0):(f($1, L)*$2) w lp title sprintf("M=%d",M)
+	#}

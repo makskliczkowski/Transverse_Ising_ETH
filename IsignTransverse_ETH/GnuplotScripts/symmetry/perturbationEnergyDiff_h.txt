@@ -1,0 +1,28 @@
+cd '.\perturbation data\EnergyDiff'
+reset
+
+set autoscale
+set xrange[-0.02:0.02]
+#set yrange [0.01:50]
+set logscale y
+L = 18
+g = 0.8
+pert = 0.0050
+
+set title sprintf("Probability distribution of difference {/Symbol d}E = E_{g+{/Symbol d}{/Symbol e},h+{/Symbol d}{/Symbol e}} - E_{g,h}\n\
+with g=%0.2f and {/Symbol d}{/Symbol e}=%0.4f, L = %d", g, pert, L)
+set ylabel 'P({/Symbol d}E)'
+set xlabel '{/Symbol d}E'
+set key vertical inside right top
+set key spacing 1
+
+
+plot sprintf("perturbationEnergyDiffDist_L=%d,g=%0.2f,h=1.00,k=0,p=-1,x=1,pert=%.4f.dat", L, g, pert) w lp title 'h=1.0',\
+sprintf("perturbationEnergyDiffDist_L=%d,g=%0.2f,h=1.36,k=0,p=-1,x=1,pert=%.4f.dat", L, g, pert) w lp title 'h=1.36',\
+sprintf("perturbationEnergyDiffDist_L=%d,g=%0.2f,h=1.46,k=0,p=-1,x=1,pert=%.4f.dat", L, g, pert) w lp title 'h=1.46',\
+sprintf("perturbationEnergyDiffDist_L=%d,g=%0.2f,h=1.56,k=0,p=-1,x=1,pert=%.4f.dat", L, g, pert) w lp title 'h=1.56',\
+sprintf("perturbationEnergyDiffDist_L=%d,g=%0.2f,h=1.66,k=0,p=-1,x=1,pert=%.4f.dat", L, g, pert) w lp title 'h=1.66',\
+sprintf("perturbationEnergyDiffDist_L=%d,g=%0.2f,h=2.01,k=0,p=-1,x=1,pert=%.4f.dat", L, g, pert) w lp title 'h=2.01',\
+sprintf("perturbationEnergyDiffDist_L=%d,g=%0.2f,h=2.61,k=0,p=1,x=1,pert=%.4f.dat", L, g, pert) w lp title 'h=2.61'
+cd '..\'
+cd '..\'

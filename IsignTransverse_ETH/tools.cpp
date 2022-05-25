@@ -1,18 +1,18 @@
 #include "include/headers.h"
-int num_of_threads = 8;
+int num_of_threads = 16;
 
 std::random_device rd;
-std::mt19937::result_type seed = 87178291199L; // set constant to maintain same disorder for different sizes etc
-// rd() ^ (\
-	(std::mt19937::result_type)\
-	std::chrono::duration_cast<std::chrono::seconds>(\
-		std::chrono::system_clock::now().time_since_epoch()\
-		).count() +\
-	(std::mt19937::result_type)\
-	std::chrono::duration_cast<std::chrono::microseconds>(\
-		std::chrono::high_resolution_clock::now().time_since_epoch()\
-		).count());
-std::mt19937_64 gen(seed);
+std::mt19937::result_type seed_global = static_cast<long unsigned int>(time(0)); // 87178291199L; // set constant to maintain same disorder for different sizes etc
+// rd() ^ (
+//	(std::mt19937::result_type)
+//	std::chrono::duration_cast<std::chrono::seconds>(
+//		std::chrono::system_clock::now().time_since_epoch()
+//		).count() +
+//	(std::mt19937::result_type)
+//	std::chrono::duration_cast<std::chrono::microseconds>(
+//		std::chrono::high_resolution_clock::now().time_since_epoch()
+//		).count());
+std::mt19937_64 gen(seed_global);
 
 /* STRING BASED TOOLS */
 /// <summary>
@@ -59,22 +59,7 @@ std::vector<std::string> split_str(std::string s, std::string delimiter)
 	return res;
 }
 
-/// <summary>
-/// Saves input dataset Y to file along X values and gaussian distribution form X values and mean/stddev from Y
-/// </summary>
-/// <param name="dir"> saving directory </param>
-/// <param name="name"> name of file </param>
-/// <param name="X"> x values </param>
-/// <param name="Y"> Y values</param>
-void save_to_file(std::string dir, std::string name, const arma::vec& X, const arma::vec& Y) {
-	if (X.size() != Y.size()) throw "Incompatible datasets\n";
-	std::ofstream file(dir + name + ".dat");
-	double std_dev = arma::stddev(Y);
-	double mean = 0.0;// arma::mean(Y);
-	for (int k = 0; k < X.size(); k++)
-		file << X(k) << "\t\t" << Y(k) << "\t\t" << gaussian(X(k), mean, std_dev) << endl;
-	file.close();
-}
+
 
 // PROBABILITY BASED TOOLS
 double simpson_rule(double a, double b, int n, const arma::vec& f) {
@@ -84,19 +69,64 @@ double simpson_rule(double a, double b, int n, const arma::vec& f) {
 	double sum_odds = 0.0;
 #pragma omp parallel for reduction(+: sum_odds)
 	for (int i = 1; i < n; i += 2) {
-		int idx = ((a + i * h) + abs(a)) / h;
-		sum_odds += f(idx);
+		int idx = int(((a + i * h) + abs(a)) / h);
+		sum_odds += (idx < f.size()) ? f(idx) : 0.0;
 	}
 
 	double sum_evens = 0.0;
 #pragma omp parallel for reduction(+: sum_evens)
 	for (int i = 2; i < n; i += 2) {
-		int idx = ((a + i * h) + abs(a)) / h;
-		sum_evens += f(idx);
+		int idx = int(((a + i * h) + abs(a)) / h);
+		sum_evens += (idx < f.size()) ? f(idx) : 0.0;
 	}
 
 	return (f(0) + f(f.size() - 1) + 2 * sum_evens + 4 * sum_odds) * h / 3;
 }
+
+DISABLE_WARNING_PUSH
+DISABLE_OVERFLOW // VS19 error with simple implicit cast, instead produces warning: might overflow
+arma::vec non_uniform_derivative(const arma::vec& x, const arma::vec& y) {
+	const int size = y.size();
+	arma::vec output(size - 1, arma::fill::zeros);
+	for (int j = 1; j < size; j++) 
+		output(j - 1) = (y(j) - y(j - 1)) / (x(j) - x(j - 1));
+	return output;
+}
+arma::vec log_derivative(const arma::vec& x, const arma::vec& y){
+	const int size = y.size();
+	arma::vec output(size - 1, arma::fill::zeros);
+	for (int j = 1; j < size; j++) 
+		output(j - 1) = log( y(j) / y(j - 1) ) / log( x(j) / x(j - 1) );
+	return output;
+}
+
+template<typename _type>
+_type simpson_rule(const arma::vec& x, const arma::Col<_type>& f) {
+	const int N = (int)f.size() - 1;
+	arma::vec h(N);
+	for (int i = 0; i < N; i++)
+		h(i) = x(i + 1) - x(i);
+	
+	_type sum = _type(0.0);
+//#pragma omp parallel for reduction(+: sum)
+	for (int i = 0; i <= N / 2 - 1; i++) {
+		_type a = 2 - h(2 * i + 1) / h(2 * i);
+		_type b = (h(2 * i) + h(2 * i + 1)) * (h(2 * i) + h(2 * i + 1)) / (h(2 * i) * h(2 * i + 1));
+		_type c = 2 - h(2 * i) / h(2 * i + 1);
+		sum += (h(2 * i) + h(2 * i + 1)) / 6.0 * (a * f(2 * i) + b * f(2 * i + 1) + c * f(2 * i + 2));
+	}
+
+	if (N % 2 == 0) {
+		_type a = (2 * h(N - 1) * h(N - 1)  + 3 * h(N - 1) * h(N - 2)) / (6 * (h(N - 2) + h(N - 1)));
+		_type b = (	h(N - 1) * h(N - 1) 	+ 3 * h(N - 1) * h(N - 2)) / (6 *  h(N - 2));
+		_type c = (	h(N - 1) * h(N - 1) * h(N - 1)				 	 ) / (6 *  h(N - 2) * (h(N - 2) + h(N - 1)));
+	}
+	return sum;
+}
+DISABLE_WARNING_POP
+template cpx simpson_rule<cpx>(const arma::vec&, const arma::Col<cpx>&);
+template double simpson_rule<double>(const arma::vec&, const arma::Col<double>&);
+
 
 /// <summary>
 /// find non-unique elements in input array and store only elemetns, which did not have duplicates
@@ -106,9 +136,11 @@ double simpson_rule(double a, double b, int n, const arma::vec& f) {
 arma::vec get_NonDegenerated_Elements(const arma::vec& arr_in) {
 	std::vector<double> arr_degen;
 	u64 N = arr_in.size();
-	for (int k = 0; k < N - 1; k++)
-		if (abs(arr_in(k + 1) - arr_in(k)) < 1e-12)
-			arr_degen.push_back(arr_in(k));
+	NO_OVERFLOW(
+		for (int k = 0; k < N - 1; k++)
+			if (abs(arr_in(k + 1) - arr_in(k)) < 1e-12)
+				arr_degen.push_back(arr_in(k));
+	);
 	if (abs(arr_in(N - 1) - arr_in(N - 2)) < 1e-12)
 		arr_degen.push_back(arr_in(N - 1));
 
@@ -119,7 +151,7 @@ arma::vec get_NonDegenerated_Elements(const arma::vec& arr_in) {
 			});
 		arr_unique.erase(new_end, arr_unique.end());
 	}
-	return arma::unique((vec)arr_unique);
+	return arma::unique((arma::vec)arr_unique);
 }
 
 /// <summary>

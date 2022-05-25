@@ -1,0 +1,132 @@
+cd '.\perturbation data\OperatorDiff'
+reset
+##------ PREAMBLE
+set autoscale
+#set yrange[0.001:50]
+#set xrange[-0.4:0.4]
+set logscale y
+set term wxt size 850, 800
+set mxtics
+set mytics
+set style line 12 lc rgb '#ddccdd' lt 1 lw 1.5
+set style line 13 lc rgb '#ddccdd' lt 1 lw 0.5
+set grid xtics mxtics ytics mytics back ls 12, ls 13
+set size square
+set xtics nomirror
+
+##------- FIT functions
+Gauss(x) = 1 / (sigma*sqrt(2.*pi)) * exp(-(x-mu)**2. / (2.*sigma**2) )
+Laplace(x) = exp(-abs(x - b) / lambda) / (2.0 * lambda)
+set fit quiet
+		
+#GIF
+set terminal gif animate delay 100
+
+##------- PARAMETERS
+L=18
+hx = 0.6
+g = 0.8
+pert = 0.001
+pert_list = '1e-3 1.9e-3 2.8e-3 3.7e-3 4.6e-3 5.5e-3 6.4e-3 7.3e-3 8.2e-3 9.1e-3'
+do for[i=1:39:2]{
+	pert_list = pert_list.sprintf(" %.5f", i/100.)
+}
+h_list = ''
+hh = 0.6
+while(hh <= 2.0){
+	h_list = h_list.sprintf(" %.2f", hh)
+	hh = hh + ( (hh <= 1.15 || hh >= 1.35)? 0.05 : 0.02);
+}
+
+set print sprintf("KulLeibDivergence_L=%d,g=%.2f,k=0,p=1,x=1.dat", L, g)
+set output sprintf("perturbationOperatorsDist_L=%d,g=%.2f,k=0,p=1,x=1,pert=%.4f_vs_h.gif", L, g, pert)
+#set output sprintf("perturbationOperatorsDist_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1_vs_pert.gif", L, g, hx)
+do for[hoo in h_list]{
+	hx = hoo * 1.;
+	#out_name = sprintf("ChiSquared_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", L, g, hx)
+	do for[pert in pert_list]{
+		thisX_min = -0.5
+		thisX_max = 0.5
+		#set output sprintf("perturbationOperatorsDist_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1,pert=%.4f.png", L, g, hx, pert)
+		name = sprintf("perturbationOperatorsDist_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1,pert=%.4f.dat", L, g, hx, 1.*pert)
+		
+		#---------- FIND INDEX OF DISTRIBUTION EKSTREMUM
+		#stats name using 2 every ::1 nooutput prefix "Y"
+		#index_of_max = Y_index_max+1
+		#stats name using 1 every ::index_of_max::(index_of_max+1) nooutput name 'work_'
+		#max_position = work_max
+		
+		#--- find appropriate x values
+		stats name using 1 every ::1 nooutput name 'myX_'
+		thisX_max = myX_max
+		thisX_min = myX_min
+		
+		#-- FIT
+		fit Gauss(x) name u 1:2 via mu, sigma
+		#WSSR_Gauss = FIT_WSSR  / FIT_NDF
+		
+		fit Laplace(x) name u 1:2 via b, lambda
+		#WSSR_Laplace = FIT_WSSR  / FIT_NDF
+		#print pert, WSSR_Gauss, WSSR_Laplace
+		
+		#------- GRAPH DESIGN
+		set title sprintf("Probability distribution of difference dO_{nn} = O_{nn}(g+dx,h+dx)- O_{nn}(g,h)\nwith g=%0.2f, h=%0.2f and dx=%.3f", g, hx, 1.*pert)
+		
+		set ylabel 'P(dO_{nn})'
+		set xlabel 'dO_{nn}'
+		
+		set key outside top right
+		set key spacing 5
+		#unset key
+		
+		
+		
+		###---------- CALCULATE CHI^2 TEST FOR GOODNESS OF FIT
+		#back2 = back1 = 0
+		#shift(x) = (back2 = back1, back1 = x) ## function to assign previous row to parameter
+		##stats name using 1:(shift($1), $0 < 1 ? 0 : ((Gauss($1) - Gauss(back2)) * myX_records - $2)**2) / ((Gauss($1) - Gauss(back2))* myX_records)\
+		#	every ::1 nooutput name 'Chi1_'
+		#stats name using 1:(((Gauss($1) - $2)**2) / Gauss($1)) every ::1 nooutput name 'Chi1_'
+		#chi_test1 = Chi1_mean_y #/ (myX_records-2)
+		#
+		##stats name using 1:(shift($1), $0 < 1 ? 0 : ((Laplace($1) - Laplace(back2)) * myX_records - $2)**2) / ((Laplace($1) - Laplace(back2))* myX_records)\
+		#	every ::1 nooutput name 'Chi2_'
+		#stats name using 1:(((Laplace($1) - $2)**2) / Laplace($1)) every ::1 nooutput name 'Chi2_'
+		#chi_test2 = Chi2_mean_y #/ (myX_records-2)
+		#
+		#print hx, pert, chi_test1, chi_test2
+		
+		stats name using 1:(Gauss($1)*log(Gauss($1) / $2)) every ::1 nooutput name 'Ga1_'
+		D1 = Ga1_mean_y
+		
+		stats name using 1:($2*log($2 / Gauss($1))) every ::1 nooutput name 'Ga2_'
+		D2 = Ga2_mean_y
+		
+		stats name using 1:(Laplace($1)*log(Laplace($1) / $2)) every ::1 nooutput name 'Lap1_'
+		D3 = Lap1_mean_y
+		
+		stats name using 1:($2*log($2 / Laplace($1))) every ::1 nooutput name 'Lap2_'
+		D4 = Lap2_mean_y
+		
+		print sprintf("%.2f\t\t%.5f\t\t%.10f\t\t%.10f\t\t%.10f\t\t%.10f", hx, 1.0 * pert, D1, D2, D3, D4);
+		
+		
+		##-------------- PLOT SHit
+		set yrange[1e-2:1000]
+		#set xrange[1.2*thisX_min:1.2*thisX_max]
+		#set arrow from max_position, graph 0 to max_position, graph 1 nohead lt 2 lc 0
+		#set arrow from graph 0, 0.01*Y_max to graph 1, 0.01*Y_max nohead lt 2 lc 0
+		#set arrow from graph 0, Y_max to graph 1, Y_max nohead
+		#set arrow from 0, graph 0 to 0, graph 1 nohead
+		
+		plot name u 1:2 w lp pt 6 ps 1 title 'data',\
+			Gauss(x) w l dt 2 lw 1.5 title sprintf("\nGaussian fit:\n mu = %0.3f\n sigma = %1.3f", mu, sigma),\
+			Laplace(x) w l dt 4 lw 2 title sprintf("\nLaplacian fit:\n b=%0.3f\n lambda=%1.3f", b, lambda)
+		# \261 %1.5f - for adding deviation of parameter denoted as .._err
+		
+		#pause(0.5)
+	
+	}
+}
+cd '..\'
+cd '..\'

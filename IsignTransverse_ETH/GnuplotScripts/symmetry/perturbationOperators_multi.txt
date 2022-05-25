@@ -1,0 +1,95 @@
+cd '.\perturbation data\OperatorDiff'
+reset
+unset key
+
+g = 0.8
+L = 18
+mean = -0.0
+
+set term wxt size 800, 800
+set mxtics
+set mytics
+set style line 12 lc rgb '#ddccdd' lt 1 lw 1.5
+set style line 13 lc rgb '#ddccdd' lt 1 lw 0.5
+set grid xtics mxtics ytics mytics back ls 12, ls 13
+set logscale y
+set size square
+set xtics nomirror
+
+# Margins for each row resp. column
+TMARGIN = "set tmargin at screen 0.92; set bmargin at screen 0.56"
+BMARGIN = "set tmargin at screen 0.46; set bmargin at screen 0.10"
+LMARGIN = "set lmargin at screen 0.10; set rmargin at screen 0.46"
+RMARGIN = "set lmargin at screen 0.46; set rmargin at screen 0.82"
+
+
+
+#set key at graph 1.44,1.0 vertical maxcols(1) font ",9"
+
+# x- and ytics for each row resp. column	
+NOXTICS1 = "set format x '%g';set xrange[-0.15+mean:mean]; unset xlabel"
+NOXTICS2 = "set format x '%g';set xrange[mean:0.15]; unset xlabel;"
+XTICS1 = "set format x '%g'; set xlabel '{/Symbol d}O_{nn}'; set xrange[-0.2+mean:mean];"
+XTICS2 = "set format x '%g'; set xlabel '{/Symbol d}O_{nn}'; set xrange[mean:0.2];"
+NOYTICS = "set format y ''; unset ylabel; set yrange[0.01:100]"
+YTICS = "set format y '%g'; set ylabel 'P({/Symbol d}O_{nn})'; set yrange[0.01:100]"
+
+### Start multiplot (2x2 layout)
+set multiplot layout 2,2 rowsfirst title sprintf("{/:Bold=13 Operator perturbation distribution for g=%.2f}", g)
+
+# --- CHANGING perturbation
+h = 1.0
+pert0 = 1
+pert_end = 39
+dpert = 8
+
+# --- GRAPH a
+@TMARGIN; @LMARGIN
+@NOXTICS1; @YTICS
+unset key
+
+set title sprintf("{/:Italic=12 h=%.2f}", h) offset 16,-1
+name = sprintf("perturbationOperatorsDist_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1,", L, g, h)
+plot for[pert=pert0:pert_end:dpert] name.sprintf("pert=%.4f.dat", pert / 100.0) u 1:2\
+	 w lp pt 7 ps 0.5 title sprintf("{/Symbol d}{/Symbol e}=%.2f", pert / 100.0)
+	
+# --- GRAPH b
+@TMARGIN; @RMARGIN
+@NOXTICS2; @NOYTICS
+set key vertical outside right
+
+unset title
+name = sprintf("perturbationOperatorsDist_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1,", L, g, h)
+plot for[pert=pert0:pert_end:dpert] name.sprintf("pert=%.4f.dat",pert / 100.0) u 1:2\
+	w lp pt 7 ps 0.5 title sprintf("{/Symbol d}{/Symbol e}=%.2f", pert / 100.0)
+
+# --- CHANGING H field
+pert = 0.11
+h0 = 60
+h_end = 180
+dh = 20
+
+# --- GRAPH c
+@BMARGIN; @LMARGIN
+@XTICS1; @YTICS
+unset key
+
+set title sprintf("{/:Italic=12 {/Symbol d}{/Symbol e}=%.2f}", pert) offset 16,-1
+name = sprintf("perturbationOperatorsDist_L=%d,g=%.2f,", L, g)
+plot for[h=h0:h_end:dh] name.sprintf("h=%.2f,k=0,p=1,x=1,pert=%.4f.dat", h / 100.0, pert) u 1:2\
+	 w lp pt 7 ps 0.5 title sprintf("h=%.2f", h / 100.0)
+
+# --- GRAPH d
+@BMARGIN; @RMARGIN
+@XTICS2; @NOYTICS
+set key vertical outside right
+unset title
+name = sprintf("perturbationOperatorsDist_L=%d,g=%.2f,", L, g)
+plot for[h=h0:h_end:dh] name.sprintf("h=%.2f,k=0,p=1,x=1,pert=%.4f.dat", h / 100.0, pert) u 1:2\
+	 w lp pt 7 ps 0.5 title sprintf("h=%.2f", h / 100.0)
+
+unset multiplot
+### End multiplot
+
+cd '..\'
+cd '..\'

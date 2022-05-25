@@ -1,0 +1,23 @@
+cd '.\Probability Distributions\Gap Ratio'
+f(x) = 27 / 4 * (x+x**2) / sqrt( (1 + x + x**2)**5 )
+
+set ylabel 'P(r)'
+set xlabel 'r'
+set key outside
+set xrange [0:1]
+
+g = 0.81
+h = 0.93
+
+
+plot f(x) title 'GOE', sprintf("ProbDistGap_L=8,g=%0.2f,h=%0.2f,k=2,p=-1,x=-1.dat", g, h) u 1:2 w steps title 'L=8',\
+sprintf("ProbDistGap_L=10,g=%0.2f,h=%0.2f,k=2,p=-1,x=-1.dat", g, h) u 1:2 w steps title 'L=10',\
+sprintf("ProbDistGap_L=12,g=%0.2f,h=%0.2f,k=2,p=-1,x=-1.dat", g, h) u 1:2 w steps title 'L=12',\
+sprintf("ProbDistGap_L=14,g=%0.2f,h=%0.2f,k=2,p=-1,x=-1.dat", g, h) u 1:2 w steps title 'L=14',\
+sprintf("ProbDistGap_L=16,g=%0.2f,h=%0.2f,k=2,p=-1,x=-1.dat", g, h) u 1:2 w steps title 'L=16',\
+sprintf("ProbDistGap_L=18,g=%0.2f,h=%0.2f,k=2,p=-1,x=-1.dat", g, h) u 1:2 w steps title 'L=18',\
+sprintf("ProbDistGap_L=20,g=%0.2f,h=%0.2f,k=2,p=-1,x=-1.dat", g, h) u 1:2 w steps title 'L=20',\
+sprintf("ProbDistGap_L=22,g=%0.2f,h=%0.2f,k=2,p=-1,x=-1.dat", g, h) u 1:2 w steps title 'L=22'
+
+cd '..\'
+cd '..\'

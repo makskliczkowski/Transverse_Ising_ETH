@@ -1,0 +1,45 @@
+reset 
+set term wxt size 1200, 800 font "Helvetica,12"
+load '.\gnuplot-colorbrewer-master\diverging\RdYlGn.plt'
+set mxtics
+set mytics
+set style line 12 lc rgb '#ddccdd' lt 1 lw 1.5
+set style line 13 lc rgb '#ddccdd' lt 1 lw 0.5
+set grid xtics mxtics ytics mytics back ls 12, ls 13
+set xtics nomirror
+set autoscale
+set xrange[0.05:5]
+
+	g0 = 50;	gend = 100; 	dg = 5;
+	h0 = 10;	hend = 100; 	dh = 10;
+heatmap = 0 		# ==1 plot 2D heatmap, else plot cuts at specific values
+h_vs_g = 1;			# ==0 --> as function of g
+which = 2			# ==0 -r; ==1 -ipr; ==2 -S-informatyion entropy
+if(which == 0) set cbrange[0.35:0.55]
+
+set lmargin at screen 0.15
+set rmargin at screen 0.85
+set bmargin at screen 0.15
+set tmargin at screen 0.9
+
+set key outside right
+if(heatmap){
+	set title (which == 0? "<r>" : (which == 1? "ipr / D" : "S / 0.48ln(D)"))
+	set size square
+	set xlabel "g/J"
+	set ylabel "h/J"
+	set yrange[0.05:5]
+	set view map
+	set pm3d interpolate 0,0
+	unset key
+	splot "FullMap,L=14,k=0,p=1,x=1.dat" u 1:2:(column(which+3)) with image
+} else{
+	set ylabel (which == 0? "<r>" : (which == 1? "ipr / D" : "S / 0.48ln(D)"))
+	if(h_vs_g){
+		set xlabel "h/J"
+		plot for[i=g0:gend:dg] "FullMap,L=17,k=0,p=1,x=1.dat" u (100*$1 ==i? $2 : NaN):(column(which + 3)) w lp ls ((i-g0)/dg) pt 6 ps 0.75 title sprintf("g=%.2f", 0.01*i)
+	} else{
+		set xlabel "g/J"
+		plot for[i=h0:hend:dh] "FullMap,L=17,k=0,p=1,x=1.dat" u (100*$2 ==i? $1 : NaN):(column(which + 3)) w lp ls ((i-h0)/dh) pt 6 ps 0.75 title sprintf("h=%.2f", 0.01*i)
+	}
+}

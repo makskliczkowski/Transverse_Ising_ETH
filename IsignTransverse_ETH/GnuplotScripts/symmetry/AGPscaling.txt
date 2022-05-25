@@ -1,0 +1,79 @@
+reset
+
+#unset key
+
+set term wxt size 1100, 900
+set mxtics
+set mytics
+set style line 12 lc rgb '#ddccdd' lt 1 lw 1.5
+set style line 13 lc rgb '#ddccdd' lt 1 lw 0.5
+set grid xtics mxtics ytics mytics back ls 12, ls 13
+#set grid x2tics mxtics ytics mytics back ls 12, ls 13
+set logscale y
+set size square
+set xtics nomirror
+
+# Margins for each row resp. column
+TMARGIN = "set tmargin at screen 0.84; set bmargin at screen 0.48"
+BMARGIN = "set tmargin at screen 0.46; set bmargin at screen 0.10"
+LMARGIN = "set lmargin at screen 0.10; set rmargin at screen 0.46"
+RMARGIN = "set lmargin at screen 0.54; set rmargin at screen 0.90"
+set format x ''
+set format x2 ''
+
+
+set key at graph 1.44,1.0 vertical maxcols(1) font ",9"
+
+# x- and ytics for each row resp. column	
+NOXTICS1 = "set format x ''; set format x2 '';set xrange[4:13]; unset xlabel"
+NOXTICS2 = "set format x '';set format x2 '%g' ;set xrange[3:9]; unset xlabel;"
+XTICS1 = "set format x '%g'; set format x2 ''; set xlabel 'L'; set xrange[4:13];"
+XTICS2 = "set format x '%g'; set format x2 ''; set xlabel 'L^*=log(dim)/log(2)'; set xrange[3:9];"
+NOYTICS = "set format y ''; unset ylabel; set yrange[0.025:50]"
+YTICS = "set format y '%g'; set ylabel '|{/Symbol L}_{{/Symbol l}}|^2 / L'; set yrange[0.025:50]"
+
+### Start multiplot (2x2 layout)
+set multiplot layout 2,2 rowsfirst title sprintf("{/:Bold=14 Adiabatic gauge potential size scaling {/Symbol L}_{{/Symbol l}} for g=%.2f}", 0.8)
+# --- GRAPH a
+@TMARGIN; @LMARGIN
+@NOXTICS1; @YTICS
+set title 'Total Hamiltonian'
+#set label 1 'a' at graph 0.02,0.95 font ',10'
+name = 'AGPsize_dis_L=16,g=0.80,k=0,p=1,x=1.dat'
+stats name u 1:3 nooutput; 
+blocks = STATS_blocks
+plot for[i=0:blocks-1:1] name i i u 1:3 w lp pt 7 ps 0.5 title columnheader(1)
+	
+# --- GRAPH b
+@TMARGIN; @RMARGIN
+@NOXTICS2; @NOYTICS
+#set label 1 'b' at graph 0.02,0.95 font ',10'
+set title 'Symmetry block k=0,p=1,x=1'
+name = 'AGPsize_L=16,g=0.80,k=0,p=1,x=1.dat'
+stats name u 4:3 nooutput; 
+blocks = STATS_blocks
+plot for[i=0:blocks-1:1] name i i u 4:3 w lp pt 7 ps 0.5 title columnheader(1),\
+name using 1:(NaN) notitle axes x2y1
+
+# --- GRAPH c
+@BMARGIN; @LMARGIN
+@XTICS1; @YTICS
+#set label 1 'c' at graph 0.02,0.95 font ',10'
+unset title
+name = 'AGPsize_hdis_L=16,g=0.80,k=0,p=1,x=1.dat'
+stats name u 1:3 nooutput; 
+blocks = STATS_blocks
+plot for[i=0:blocks-1:2] name i i u 1:3 w lp pt 7 ps 0.5 title columnheader(1)
+
+# --- GRAPH d
+@BMARGIN; @RMARGIN
+@XTICS2; @NOYTICS
+#set label 1 'd' at graph 0.02,0.95 font ',10'
+unset title
+name = 'AGPsize_h_L=16,g=0.80,k=0,p=1,x=1.dat'
+stats name u 4:3 nooutput; 
+blocks = STATS_blocks
+plot for[i=0:blocks-1:1] name i i u 4:3 w lp pt 7 ps 0.5 title columnheader(1)
+
+unset multiplot
+### End multiplot

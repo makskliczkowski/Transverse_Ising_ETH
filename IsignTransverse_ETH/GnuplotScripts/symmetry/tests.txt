@@ -1,0 +1,164 @@
+reset 
+cd '.\Level Spacing'
+##--PREAMBLE
+set autoscale
+set term wxt size 950, 800 font "Helvetica,14"
+set mxtics
+set mytics
+set style line 12 lc rgb '#ddccdd' lt 1 lw 1.5
+set style line 13 lc rgb '#ddccdd' lt 1 lw 0.5
+set grid xtics mxtics ytics mytics back ls 12, ls 13
+set logscale xy
+set size square
+set xtics nomirror
+set key outside top right font ",12"
+
+# Margins for each row resp. column
+TMARGIN = "set tmargin at screen 0.92; set bmargin at screen 0.56"
+BMARGIN = "set tmargin at screen 0.46; set bmargin at screen 0.10"
+LMARGIN = "set lmargin at screen 0.10; set rmargin at screen 0.46"
+RMARGIN = "set lmargin at screen 0.46; set rmargin at screen 0.82"
+RANGE = "set xrange[0:1]; set yrange[0:2.0]"
+UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset border;"
+#-- PARAMETERS
+g = 2.0	
+L = 19
+h = 0.2
+h0 = 80
+hend = 400
+dh = 40
+E_or_O = 0  	#energies(0) or operator(1)
+var = 1			# variance?
+smoothen = 0	# smooth data?
+scaling = 0		# use size scaling?
+g_scaling = 1	# scaling with g
+y_ax = 2		# =0 - ||O_diag||; =1 - ||O_off||; =2 - <r>
+
+#-- GRAPHICS
+my_title = "level statistics for"
+if(y_ax < 2) my_title = "operator Hilbert-Schmidt norm ||O||^2"
+if(g_scaling && !scaling){
+	my_title = my_title.sprintf(" L = %d and h = %.2f", L, h)
+} else{
+	if(scaling){
+		my_title = my_title.sprintf(" g = %.2f and h = %.2f", g, h)
+	} else{
+		my_title = my_title.sprintf(" L = %d and g = %.2f", L, g)
+	}
+}
+set title my_title
+set y2tics -100, 10
+set ytics nomirror
+set xlabel 'r'
+set ylabel 'P(r)'
+if(y_ax < 2) set ylabel (y_ax == 0? '||O_{diag}||^2' : '||O_{off}||^2')
+normalise = 0
+#set y2tics 0.37, 0.05
+#set y2range[0.37:0.54]
+set xrange[0.1:5.0]
+set ytics nomirror
+
+GOE(x) = x < 1.5? 0.5307 : NaN;
+Lap(x) = x > 2.? 0.3863 : NaN;
+unset logscale	
+#set logscale x
+set xrange[0:1]
+plot_set = smoothen? 'u 1:(column(y_ax + 2)):(1e3) smooth acs' : 'u 1:(column(y_ax + 2))';
+set multiplot
+set lmargin at screen 0.10; set rmargin at screen 0.86;
+set tmargin at screen 0.86; set bmargin at screen 0.10
+@RANGE
+if(g_scaling){
+	#plot for[gx in '0.30 0.72 0.95 1.10 1.40 1.70 2.00'] sprintf("normsX,L=%d,g=".gx.",k=0,p=1,x=1.txt", L) every 2 @plot_set w steps title 'g='.gx
+	plot for[gx in '0.20 0.50 0.70 0.80 1.40 2.00'] sprintf("LevelSpacing_L=%d,g=".gx.",h=%.2f,k=0,p=1,x=1.dat", L, h) u 1:2 w steps lw 2 title 'g='.gx
+}
+else{
+	if(!scaling){
+		#plot sprintf("normsX,L=%d,g=%.2f,k=0,p=1,x=1.txt", L, g) u 1:2 w lp pt 6 lc 0 title sprintf("||O||^2_{diag}") axis x1y1,\
+			sprintf("normsX,L=%d,g=%.2f,k=0,p=1,x=1.txt", L, g) u 1:3 w lp pt 7 lc 0 title sprintf("||O||^2_{off}") axis x1y1,\
+			sprintf("normsX,L=%d,g=%.2f,k=0,p=1,x=1.txt", L, g) @plot_set w lp pt 4 lc 2 title sprintf("<r>") axis x1y2,\
+			GOE(x) w l ls 3 lw 2 notitle axis x1y2,\
+			Lap(x) w l ls 3 lw 2 notitle axis x1y2
+		plot for[hx=h0:hend:dh] sprintf("LevelSpacing_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", L, g, hx*0.01) u 1:2 w steps lw 2 title sprintf("h=%.2f",0.01*hx)
+	}
+	else{
+		#plot for[Lx=16:19] sprintf("normsX,L=%d,g=%.2f,k=0,p=1,x=1.txt", Lx, g) @plot_set w lp title sprintf("L=%d",Lx)
+		plot for[Lx=14:19] sprintf("LevelSpacing_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", Lx, g, h) u 1:2 w steps lw 2 title sprintf("L=%d",Lx)
+	}
+}	
+@UNSET; @RANGE
+set style line 2 dt (3,3) lc rgb "red" lw 1.5
+plot 2/(1+x)**2 w l ls 2 notitle, 27./4 * (x+x**2)/(1+x+x**2)**2.5 w l ls 2 notitle
+unset multiplot
+
+
+
+
+
+
+
+
+
+#weigth = 1e6
+#plot sprintf("normsX_2nd,L=%d,g=%.2f,k=0,p=1,x=1.txt", 18, g) u 1:4 w lp title sprintf("L=%d",18),\
+ "" u 1:4 smooth bezier t "bezier smooth" lw 2,\
+ "" u 1:4:(weigth) smooth acsplines  t "acsplines smooth" lw 2,\
+ "" u 1:4:(weigth/1e1) smooth acsplines  t "acs smooth w=1e5" lw 2,\
+ "" u 1:4:(weigth/1e2) smooth acsplines  t "acs smooth w=1e4" lw 2,\
+ "" u 1:4:(weigth/1e2) smooth acsplines  t "acs smooth w=1e3" lw 2,\
+ "" u 1:4:(weigth/1e3) smooth acsplines  t "acs smooth w=1e2" lw 2,\
+ "" u 1:4:(weigth/1e4) smooth acsplines  t "acs smooth w=1e1" lw 2
+
+#plot 'norms.txt' u 1:(normalise == 0? $2 : ($2/($2+$3))) w lp pt 4 lc 0 title sprintf("||O||^2_{diag}, L=%d", 9),\
+	'norms.txt' u 1:(normalise == 0? $4 : ($4/($4+$5))) w lp pt 6 lc 1 title sprintf("||O||^2_{diag}, L=%d", 10),\
+	'norms.txt' u 1:(normalise == 0? $6 : ($6/($6+$7))) w lp pt 8 lc 2 title sprintf("||O||^2_{diag}, L=%d", 11),\
+	'norms.txt' u 1:(normalise == 0? $3 : ($3/($2+$3))) w lp pt 5 lc 0 title sprintf("||O||^2_{off}, L=%d", 9),\
+	'norms.txt' u 1:(normalise == 0? $5 : ($5/($4+$5))) w lp pt 7 lc 1 title sprintf("||O||^2_{off}, L=%d", 10),\
+	'norms.txt' u 1:(normalise == 0? $7 : ($7/($6+$7))) w lp pt 9 lc 2 title sprintf("||O||^2_{off}, L=%d", 11)#,\
+	'norms.txt' u 1:($2+$3) w l lc 0 title sprintf("||O||^2, L=%d", 9),\
+	'norms.txt' u 1:($4+$5) w l lc 1 title sprintf("||O||^2, L=%d", 10),\
+	'norms.txt' u 1:($6+$7) w l lc 2 title sprintf("||O||^2, L=%d", 11)
+
+cd '..\'
+
+#YRANGE = ( E_or_O? 'set yrange [:0.01]' : 'unset logscale y; set yrange [3:8]')
+#@YRANGE
+#unset title
+#set xlabel '{/Symbol d}{/Symbol l}'
+#yname = ((E_or_O==0)? '<({/Symbol d}E_n)' : '<({/Symbol d}O_{nn})')
+#if(var == 1) yname = yname.'^2'
+#yname = yname.'>'.((var == 1 && E_or_O == 0)? ' / {/Symbol d}{/Symbol l}^2' : '')
+#set ylabel yname
+##set format cb "%3.1f"
+##load '.\gnuplot-colorbrewer-master\qualitative\Accent.plt'
+#set palette model HSV
+#name = (E_or_O==1)?	 sprintf("perturbationOperatorsMoments_L=%d,g=%.2f,h=",L, g) : sprintf("perturbationEnergyMoments_L=%d,g=%.2f,h=",L, g)
+#
+#N = 224 #687  			#hilbert dimension
+#chi = 0.341345		#gaussian normalization
+#f(hx) = sqrt(L) / (chi * N) * sqrt(1 + hx * hx + g * g);
+##print f(0.9)
+#g(hx) = (hx-h0)/dh+1
+##set yrange[1e-8:0.1]
+##set xrange[1e-4:1]
+#
+##plot for[Lx=L:17] sprintf("perturbationEnergyMoments_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat",Lx, g, h) every ::1 u 1:((var == 0)? $2 : ($3**2) / (E_or_O == 0? $1**2 : 1.))\
+# w lp ps 0.75 title sprintf("L=%d",Lx)
+#
+##plot for [hx=h0:hend:dh] name.sprintf("%.2f,k=0,p=1,x=1.dat", hx / 100.) every ::1 u 1:((var == 0)? $2 : ($3**2) / (E_or_O == 0? $1**2 : 1.))\
+# w lp lc g(hx) pt (g(hx) < 8? 6 : 8) ps 0.75 title sprintf("h=%.2f",hx/100.)
+#hx = 80
+#name = (E_or_O==1)?	 sprintf("perturbationOperatorsMoments") : sprintf("perturbationEnergyMoments")
+#plot name.sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat",12, g, hx / 100.) every ::1 u 1:((var == 0)? $2 : ($3**2) / (E_or_O == 0? $1**2 : 1.))\
+ w lp lc 0 lt 0 lw 1.5 pt 6 ps 0.75 title sprintf("L=%d",12), name.sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", 12, g, hx / 100.) u 1:($5 / (E_or_O == 0? $1**2 : 1.) / sqrt(12)) w l lc 0 title ' ',\
+ name.sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat",13, g, hx / 100.) every ::1 u 1:((var == 0)? $2 : ($3**2) / (E_or_O == 0? $1**2 : 1.))\
+ w lp lc 1 lt 0 lw 1.5 pt 6 ps 0.75 title sprintf("L=%d",13), name.sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", 13, g, hx / 100.) u 1:($5 / (E_or_O == 0? $1**2 : 1.)/ sqrt(13)) w l lc 1 title ' ',\
+ name.sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat",14, g, hx / 100.) every ::1 u 1:((var == 0)? $2 : ($3**2) / (E_or_O == 0? $1**2 : 1.))\
+ w lp lc 2 lt 0 lw 1.5 pt 6 ps 0.75 title sprintf("L=%d",14), name.sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", 14, g, hx / 100.) u 1:($5 / (E_or_O == 0? $1**2 : 1.)/ sqrt(14)) w l lc 2 title ' ',\
+ name.sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat",15, g, hx / 100.) every ::1 u 1:((var == 0)? $2 : ($3**2) / (E_or_O == 0? $1**2 : 1.))\
+ w lp lc 3 lt 0 lw 1.5 pt 6 ps 0.75 title sprintf("L=%d",15), name.sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", 15, g, hx / 100.) u 1:($5 / (E_or_O == 0? $1**2 : 1.)/ sqrt(15)) w l lc 3 title ' ',\
+ name.sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat",16, g, hx / 100.) every ::1 u 1:((var == 0)? $2 : ($3**2) / (E_or_O == 0? $1**2 : 1.))\
+ w lp lc 4 lt 0 lw 1.5 pt 6 ps 0.75 title sprintf("L=%d",16), name.sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", 16, g,hx / 100.) u 1:($5 / (E_or_O == 0? $1**2 : 1.)/ sqrt(16)) w l lc 4 title ' '
+
+ #,\
+ (t/2.)**8, (t/2.)**16 ls 0 lw 2 title '{/Symbol d}{/Symbol l}^2', f(t), (t/2.)**14 w l lw 2 title "\nMean level\n spacing"

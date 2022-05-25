@@ -1,0 +1,663 @@
+
+	// ---------------------------------- PHYSICAL OPERATORS (model states dependent) ----------------------------------
+	virtual double av_sigma_z(u64 alfa, u64 beta) = 0;											// check the sigma_z matrix element extensive
+	virtual double av_sigma_z(u64 alfa, u64 beta, int corr_len) = 0;							// check the sigma_z matrix element with correlation length
+	virtual double av_sigma_z(u64 alfa, u64 beta, std::vector<int> sites) = 0;		// check the matrix element of sigma_z elements sites correlation
+			
+	virtual double av_sigma_x(u64 alfa, u64 beta) = 0;											// check the sigma_z matrix element extensive
+	virtual double av_sigma_x(u64 alfa, u64 beta, int corr_len) = 0;							// check the sigma_z matrix element with correlation length
+	virtual double av_sigma_x(u64 alfa, u64 beta, std::vector<int> sites) = 0;		// check the matrix element of sigma_x elements sites correlation
+			
+	virtual double av_spin_flip(u64 alfa, u64 beta) = 0;										// check the spin flip element extensive
+	virtual double av_spin_flip(u64 alfa, u64 beta, std::vector<int> sites) = 0;		// check the spin flip element at input sites (up to 2)
+
+	virtual cpx av_spin_current(u64 alfa, u64 beta) = 0;										// check the spin current extensive
+	virtual cpx av_spin_current(u64 alfa, u64 beta, std::vector<int> sites) = 0;		// check the spin current at given sites
+
+//----------------------------------- --------------------------------- SYMMETRIES --------------------------------- --------------------------------- --------------------------------- 
+	// MATRICES & OPERATORS
+	double av_sigma_z(u64 alfa, u64 beta) override;											// check the sigma_z matrix element extensive
+	double av_sigma_z(u64 alfa, u64 beta, int corr_len) override;							// check the sigma_z matrix element with correlation length extensive
+	double av_sigma_z(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the matrix element of sigma_z elements sites correlation
+
+	double av_sigma_x(u64 alfa, u64 beta) override;											// check the sigma_z matrix element extensive
+	double av_sigma_x(u64 alfa, u64 beta, int corr_len) override;							// check the sigma_z matrix element with correlation length extensive
+	double av_sigma_x(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the matrix element of sigma_x elements sites correlation
+
+	double av_spin_flip(u64 alfa, u64 beta) override;										// check the spin flip element extensive
+	double av_spin_flip(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the spin flip element at input sites (up to 2)
+
+	cpx av_spin_current(u64 alfa, u64 beta) override;										// check the extensive spin current
+	cpx av_spin_current(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the spin current at given sites
+
+	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::vector<int> sites);					// calculates the matrix element of operator at given site
+	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op);											// calculates the matrix element of operator at given site in extensive form (a sum)
+	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, int corr_len);							// calculates the matrix element of operator at given site in extensive form (a sum) with corr_len
+
+	friend cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, u64 base_vec, u64 k, \
+		const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::vector<int> sites);
+
+
+/// <summary>
+/// <summary>
+/// Calculates the matrix element for sigma_z Pauli matrix
+/// </summary>
+/// <param name="sites">Sites the matrix works on</param>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <returns>The matrix element</returns>
+double IsingModel_sym::av_sigma_z(u64 alfa, u64 beta, std::vector<int> sites) {
+	auto sig_z = IsingModel::sigma_z;
+	return real(av_operator(alfa, beta, *this, *this, sig_z, sites));
+}
+
+/// <summary>
+/// Calculates the matrix element for sigma_z extensive
+/// </summary>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <returns>The matrix element</returns>
+double IsingModel_sym::av_sigma_z(u64 alfa, u64 beta) {
+	auto sig_z = IsingModel::sigma_z;
+	return real(av_operator(alfa, beta, *this, *this, sig_z));
+}
+
+/// <summary>
+/// Calculates the matrix element for sigma_z extensive correlations
+/// </summary>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <param name="corr_length">correlation length</param>
+/// <returns>The matrix element</returns>
+double IsingModel_sym::av_sigma_z(u64 alfa, u64 beta, int corr_length) {
+	auto sig_z = IsingModel::sigma_z;
+	return real(av_operator(alfa, beta, *this, *this, sig_z, corr_length));
+}
+
+/// <summary>
+/// Calculates the matrix element for sigma_x Pauli matrix
+/// </summary>
+/// <param name="sites">Sites the matrix works on</param>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <returns>The matrix element</returns>
+double IsingModel_sym::av_sigma_x(u64 alfa, u64 beta, std::vector<int> sites) {
+	auto sig_x = IsingModel::sigma_x;
+	return real(av_operator(alfa, beta, *this, *this, sig_x, sites));
+}
+
+/// <summary>
+/// Calculates the matrix element for sigma_x extensive
+/// </summary>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <returns>The matrix element</returns>
+double IsingModel_sym::av_sigma_x(const u64 alfa, const u64 beta) {
+	auto sig_x = IsingModel::sigma_x;
+	return real(av_operator(alfa, beta, *this, *this, sig_x));
+}
+
+/// <summary>
+/// Calculates the matrix element for sigma_x extensive correlations
+/// </summary>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <param name="corr_length">correlation length</param>
+/// <returns>The matrix element</returns>
+double IsingModel_sym::av_sigma_x(u64 alfa, u64 beta, int corr_length) {
+	auto sig_x = IsingModel::sigma_x;
+	return real(av_operator(alfa, beta, *this, *this, sig_x, corr_length));
+}
+
+/// <summary>
+///
+/// </summary>
+/// <param name="alfa"></param>
+/// <param name="beta"></param>
+/// <returns></returns>
+double IsingModel_sym::av_spin_flip(u64 alfa, u64 beta) {
+	auto spin_flip = IsingModel::spin_flip;
+	auto value = av_operator(alfa, beta, *this, *this, spin_flip);
+	value += conj(av_operator(beta, alfa, *this, *this, spin_flip));
+	return 0.5 * real(value);
+}
+
+/// <summary>
+///
+/// </summary>
+/// <param name="alfa"></param>
+/// <param name="beta"></param>
+/// <param name="sites"></param>
+/// <returns></returns>
+double IsingModel_sym::av_spin_flip(u64 alfa, u64 beta, std::vector<int> sites) {
+	auto spin_flip = IsingModel::spin_flip;
+	auto value = av_operator(alfa, beta, *this, *this, spin_flip, sites);
+	value += conj(av_operator(beta, alfa, *this, *this, spin_flip, sites));
+	return 0.5 * real(value);
+}
+
+/// <summary>
+///
+/// </summary>
+/// <param name="alfa"></param>
+/// <param name="beta"></param>
+/// <returns></returns>
+cpx IsingModel_sym::av_spin_current(u64 alfa, u64 beta) {
+	auto spin_flip = IsingModel::spin_flip;
+	auto value = im * av_operator(alfa, beta, *this, *this, spin_flip, 1);
+	value -= conj(im * av_operator(beta, alfa, *this, *this, spin_flip, 1));
+	return 0.5i * value;
+}
+
+/// <summary>
+///
+/// </summary>
+/// <param name="alfa"></param>
+/// <param name="beta"></param>
+/// <param name="sites"></param>
+/// <returns></returns>
+cpx IsingModel_sym::av_spin_current(u64 alfa, u64 beta, std::vector<int> sites) {
+	auto spin_flip = IsingModel::spin_flip;
+	auto value = im * av_operator(alfa, beta, *this, *this, spin_flip, sites);
+	value += conj(im * av_operator(beta, alfa, *this, *this, spin_flip, sites));
+	return 0.5i * value;
+}
+
+// ----------------------------------------------------------------------------- WRAPPERS FOR SIGMA OPERATORS - getting overlap -----------------------------------------------------------------------------
+
+/// <summary>
+/// This form of average operators takes potentailly two symmetry sectors alfa and beta with
+/// according states and tries to find a matrix element <alfa|op|beta>. Additionally it takes the
+/// list of sites that the operator works on as a multiplication (f.e. op_0 * op_1 |beta> with {0, 1}
+/// </summary>
+cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::vector<int> sites) {
+	// throwables
+	for (auto& site : sites)
+		if ((site < 0 || site >= sec_alfa.L) && sec_alfa.L != sec_beta.L) throw "Site index exceeds chain or incompatible chain lengths. Your choice\n";
+	if (sec_alfa.J != sec_beta.J || sec_alfa.h != sec_beta.h || sec_alfa.g != sec_beta.g) throw "incompatible model parameters, sun \\('.')// \n";
+
+	arma::subview_col state_alfa = sec_alfa.eigenvectors.col(alfa);
+	arma::subview_col state_beta = sec_beta.eigenvectors.col(beta);
+
+	// calculating normalisation for both sector symmetry groups
+	double G = 0;
+	double G_alfa = (double)sec_alfa.get_sym_group().size();
+	double G_beta = (double)sec_beta.get_sym_group().size();
+	G = std::sqrt(G_alfa * G_beta);
+
+	// going through all sector beta states
+	double overlap_real = 0;
+	double overlap_imag = 0;
+#pragma omp parallel for reduction(+:overlap_real, overlap_imag)
+	for (int i = 0; i < sec_beta.N; i++) {
+		const u64 base_vec = sec_beta.mapping[i];
+		cpx overlap = apply_sym_overlap(state_alfa, state_beta, base_vec, i, sec_alfa, sec_beta, op, sites);
+		overlap_real += overlap.real();
+		overlap_imag += overlap.imag();
+	}
+	return cpx(overlap_real, overlap_imag) / G;
+}
+
+/// <summary>
+/// This form of average operators takes potentailly two symmetry sectors alfa and beta with
+/// according states and tries to find a matrix element <alfa|op|beta>. Without taking states it calculates
+/// <alfa| \sum _i = 0 ^N op_i |beta>
+/// </summary>
+cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op) {
+	if (sec_alfa.L != sec_beta.L) throw "Incompatible chain lengths. Your choice\n";
+	if (sec_alfa.J != sec_beta.J || sec_alfa.h != sec_beta.h || sec_alfa.g != sec_beta.g) throw "incompatible model parameters, sun \\('.')// \n";
+
+	arma::subview_col state_alfa = sec_alfa.eigenvectors.col(alfa);
+	arma::subview_col state_beta = sec_beta.eigenvectors.col(beta);
+
+	// calculating normalisation for both sector symmetry groups
+	double G = 0;
+	double G_alfa = (double)sec_alfa.get_sym_group().size();
+	double G_beta = (double)sec_beta.get_sym_group().size();
+	G = std::sqrt(G_alfa * G_beta);
+
+	// going through all sector beta states
+	double overlap_real = 0;
+	double overlap_imag = 0;
+#pragma omp parallel for reduction(+:overlap_real, overlap_imag)
+	for (int i = 0; i < sec_beta.N; i++) {
+		for (int l = 0; l < sec_beta.L; l++) {
+			const u64 base_vec = sec_beta.mapping[i];
+			cpx overlap = apply_sym_overlap(state_alfa, state_beta, base_vec, i, sec_alfa, sec_beta, op, { l });
+			overlap_real += overlap.real();
+			overlap_imag += overlap.imag();
+		}
+	}
+	return cpx(overlap_real, overlap_imag) / (G * sqrt(sec_alfa.L));
+}
+
+/// <summary>
+/// This form of average operators takes potentailly two symmetry sectors alfa and beta with
+/// according states and tries to find a matrix element <alfa|op|beta>. Without taking states it calculates
+/// <alfa| \sum _i = 0 ^N op_i op_{i + corr_len} |beta>
+/// </summary>
+cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, int corr_len) {
+	if (sec_alfa.L != sec_beta.L) throw "Incompatible chain lengths. Your choice\n";
+	if (corr_len >= sec_alfa.L) throw "Exceeding correlation length\n";
+	if (sec_alfa.J != sec_beta.J || sec_alfa.h != sec_beta.h || sec_alfa.g != sec_beta.g) throw "incompatible model parameters, sun \\('.')// \n";
+
+	arma::subview_col state_alfa = sec_alfa.eigenvectors.col(alfa);
+	arma::subview_col state_beta = sec_beta.eigenvectors.col(beta);
+
+	// calculating normalisation for both sector symmetry groups
+	double G = 0;
+	double G_alfa = (double)sec_alfa.get_sym_group().size();
+	double G_beta = (double)sec_beta.get_sym_group().size();
+	G = std::sqrt(G_alfa * G_beta);
+
+	auto neis = get_neigh_vector(sec_alfa._BC, sec_alfa.L, corr_len);
+	// going through all sector beta states
+
+	double overlap_real = 0;
+	double overlap_imag = 0;
+#pragma omp parallel for reduction(+:overlap_real, overlap_imag)
+	for (int i = 0; i < sec_beta.N; i++) {
+		for (int l = 0; l < sec_beta.L; l++) {
+			const u64 base_vec = sec_beta.mapping[i];
+			const int nei = neis[l];
+			if (nei >= 0) {
+				cpx overlap = apply_sym_overlap(state_alfa, state_beta, base_vec, i, sec_alfa, sec_beta, op, { l, nei });
+				overlap_real += overlap.real();
+				overlap_imag += overlap.imag();
+			}
+		}
+	}
+	return cpx(overlap_real, overlap_imag) / (G * sqrt(sec_alfa.L));
+}
+
+/// <summary>
+/// It applies the symmetry overlap for given base vector from sector beta
+/// </summary>
+/// <param name="alfa">sector alfa eigenstate (left) </param>
+/// <param name="beta">sector beta eigenstate (right) </param>
+/// <param name="base_vec">base vector in numerical representation</param>
+/// <param name="k">index in mapping of beta sector</param>
+/// <param name="op">Operator that shall be applied on beta state</param>
+/// <param name="sites">sites that stand for multiplication of operators</param>
+/// <returns> overlap of <alfa| coeff(k) |base_vec> </returns>
+cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, u64 base_vec, u64 k, const IsingModel_sym& sec_alfa, \
+	const IsingModel_sym& sec_beta, op_type op, std::vector<int> sites)
+{
+	const int L = sec_alfa.L;
+	auto get_overlap_sym = [&](u64 vec_sym, cpx sym_eig) {
+		cpx overlap = 0.0;
+		auto [val_sym_beta, vec_sym_tmp] = op(vec_sym, L, sites);
+		if (abs(val_sym_beta) > 1e-14) {
+			auto [idx_sym, val_sym_alfa] = (vec_sym == vec_sym_tmp) ? \
+				std::make_pair(k, sym_eig) : \
+				find_rep_and_sym_eigval(vec_sym_tmp, sec_alfa, sec_beta.normalisation[k]);
+			if (idx_sym < sec_alfa.N)
+				overlap = sym_eig * conj(val_sym_alfa * alfa(idx_sym)) * beta(k) * val_sym_beta;
+		}
+		return overlap;
+	};
+	cpx overlap = 0.0;
+	auto symmetry_group = sec_beta.get_sym_group();
+	auto symmetry_eigVal = sec_beta.get_sym_eigVal();
+	for (int k = 0; k < symmetry_group.size(); k++) {
+		auto sym_operation	= symmetry_group[k];
+		auto symRepr		= symmetry_eigVal[k];
+		overlap += get_overlap_sym(sym_operation(base_vec, L), symRepr);
+	}
+	return overlap;
+}
+
+
+//----------------------------------- --------------------------------- DISORDER --------------------------------- --------------------------------- --------------------------------- 
+	
+	cpx av_operator(u64 alfa, u64 beta, op_type op, std::vector<int> sites);	// calculates the matrix element of operator at given site
+	cpx av_operator(u64 alfa, u64 beta, op_type op);							// calculates the matrix element of operator at given site in extensive form (a sum)
+	cpx av_operator(u64 alfa, u64 beta, op_type op, int corr_len);
+
+/// <summary>
+/// Calculates the matrix element for sigma_z Pauli matrix
+/// </summary>
+/// <param name="sites">Sites the matrix works on</param>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <returns>The matrix element</returns>
+double IsingModel_disorder::av_sigma_z(u64 alfa, u64 beta, std::vector<int> sites) {
+	for (auto& site : sites)
+		if (site < 0 || site >= L) throw "Site index exceeds chain";
+
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+	double value = 0;
+#pragma omp parallel for reduction (+: value)
+	for (int k = 0; k < N; k++) {
+		double S_z = 1;
+		for (auto& site : sites)
+			S_z *= checkBit(k, L - 1 - site) ? 1.0 : -1.0;
+		value += S_z * state_alfa(k) * state_beta(k);
+	}
+	return value;
+}
+
+/// <summary>
+/// Calculates the matrix element for sigma_z extensive
+/// </summary>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <returns>The matrix element</returns>
+double IsingModel_disorder::av_sigma_z(u64 alfa, u64 beta)
+{
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+	double value = 0;
+#pragma omp parallel for reduction (+: value)
+	for (int k = 0; k < N; k++) {
+		for (int l = 0; l < this->L; l++) {
+			double Sz = checkBit(k, L - 1 - l) ? 1.0 : -1.0;
+			value += Sz * state_alfa(k) * state_beta(k);
+		}
+	}
+	return value / sqrt(this->L);
+}
+
+/// <summary>
+/// Calculates the matrix element for sigma_z extensive correlations
+/// </summary>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <param name="corr_length">correlation length</param>
+/// <returns>The matrix element</returns>
+double IsingModel_disorder::av_sigma_z(u64 alfa, u64 beta, int corr_length)
+{
+	if (corr_length >= L) throw "exceeding correlation length\n";
+
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+	double value = 0;
+	auto neis = get_neigh_vector(this->_BC, this->L, corr_length);
+#pragma omp parallel for reduction (+: value) collapse(2)
+	for (int k = 0; k < N; k++) {
+		for (int l = 0; l < this->L; l++) {
+			int nei = neis[l];
+			if (nei < 0) continue;
+			double Sz = checkBit(k, L - 1 - l) ? 1.0 : -1.0;
+			double Sz_corr = checkBit(k, L - 1 - nei) ? 1.0 : -1.0;
+			value += Sz * Sz_corr * state_alfa(k) * state_beta(k);
+		}
+	}
+	return value / sqrt(this->L);
+}
+
+/// <summary>
+/// Calculates the matrix element for sigma_x Pauli matrix
+/// </summary>
+/// <param name="sites">Sites the matrix works on</param>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <returns>The matrix element</returns>
+double IsingModel_disorder::av_sigma_x(u64 alfa, u64 beta, std::vector<int> sites) {
+	for (auto& site : sites) {
+		if (site < 0 || site >= L) throw "Site index exceeds chain";
+	}
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+	double value = 0;
+#pragma omp parallel for reduction (+: value)
+	for (int k = 0; k < N; k++) {
+		for (auto& site : sites) {
+			NO_OVERFLOW(u64 idx = flip(k, BinaryPowers[this->L - 1 - site], this->L - 1 - site);)
+			value += state_alfa(idx) * state_beta(k);
+		}
+	}
+	return value;
+}
+
+/// <summary>
+/// Calculates the matrix element for sigma_x extensive (sum over the system)
+/// </summary>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <returns>The matrix element</returns>
+double IsingModel_disorder::av_sigma_x(u64 alfa, u64 beta) {
+	double overlap = 0;
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+#pragma omp parallel for reduction(+: overlap)
+	for (long int k = 0; k < N; k++) {
+		for (int j = 0; j < this->L; j++) {
+			NO_OVERFLOW(u64 new_idx = flip(k, BinaryPowers[this->L - 1 - j], this->L - 1 - j);)
+			overlap += state_alfa(new_idx) * state_beta(k);
+		}
+	}
+	return overlap / sqrt(this->L);
+}
+
+/// <summary>
+/// Calculates the matrix element for sigma_x extensive correlations : s^x_i s^x_i+1
+/// </summary>
+/// <param name="alfa">Left state</param>
+/// <param name="beta">Right state</param>
+/// <param name="corr_length">correlation length</param>
+/// <returns>The matrix element</returns>
+double IsingModel_disorder::av_sigma_x(u64 alfa, u64 beta, int corr_length)
+{
+	if (corr_length >= L) throw "exceeding correlation length\n";
+
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+	double value = 0;
+	auto neis = get_neigh_vector(this->_BC, this->L, corr_length);
+#pragma omp parallel for reduction (+: value)
+	for (int k = 0; k < N; k++) {
+		for (int l = 0; l < this->L; l++) {
+			int nei = neis[l];
+			if (nei < 0) continue;
+			NO_OVERFLOW(
+				u64 idx = flip(k, BinaryPowers[this->L - 1 - nei], this->L - 1 - nei);
+				u64 new_idx = flip(idx, BinaryPowers[this->L - 1 - l], this->L - 1 - l);
+			);
+			value += state_alfa(new_idx) * state_beta(k);
+		}
+	}
+	return value / sqrt(this->L);
+}
+
+/// <summary>
+///
+/// </summary>
+/// <param name="alfa"></param>
+/// <param name="beta"></param>
+/// <param name="sites"></param>
+/// <returns></returns>
+double IsingModel_disorder::av_spin_flip(u64 alfa, u64 beta, std::vector<int> sites) {
+	if (sites.size() != 2) throw "Not implemented such exotic operators, choose 1 or 2 sites\n";
+	for (auto& site : sites) {
+		if (site < 0 || site >= L) throw "Site index exceeds chain";
+	}
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+	double value = 0;
+#pragma omp parallel
+	{
+		std::vector<bool> base_vector(L), temp(L);
+#pragma omp for reduction (+: value)
+		for (int k = 0; k < N; k++) {
+			int_to_binary(map(k), base_vector);
+			auto it = sites.begin();
+			auto it2 = it + 1;
+			temp = base_vector;
+			if ((base_vector[*it] == 0 && base_vector[*it2] == 1) || (base_vector[*it] == 1 && base_vector[*it2] == 0)) {
+				temp[*it] = !base_vector[*it];
+				temp[*it2] = !base_vector[*it2];
+				const u64 idx = binary_to_int(temp);
+				value += state_alfa(idx) * state_beta(k);
+			}
+		}
+	}
+	return 2.0 * value;
+}
+
+/// <summary>
+///
+/// </summary>
+/// <param name="alfa"></param>
+/// <param name="beta"></param>
+/// <returns></returns>
+double IsingModel_disorder::av_spin_flip(u64 alfa, u64 beta) {
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+	double value = 0;
+#pragma omp parallel
+	{
+		std::vector<bool> base_vector(L), temp(L);
+#pragma omp for reduction (+: value)
+		for (int k = 0; k < N; k++) {
+			int_to_binary(map(k), base_vector);
+			for (int l = 0; l < this->L; l++) {
+				temp = base_vector;
+				const int nei = this->nearest_neighbors[l];
+				if (nei < 0) continue;
+				if ((base_vector[l] == 0 && base_vector[nei] == 1) || (base_vector[nei] == 0 && base_vector[l])) {
+					temp[l] = !base_vector[l];
+					temp[nei] = !base_vector[nei];
+					const u64 idx = binary_to_int(temp);
+					value += state_alfa(idx) * state_beta(k);
+				}
+			}
+		}
+	}
+	return 2.0 * value / sqrt(L);
+}
+
+/// <summary>
+///
+/// </summary>
+/// <param name="alfa"></param>
+/// <param name="beta"></param>
+/// <param name="sites"></param>
+/// <returns></returns>
+cpx IsingModel_disorder::av_spin_current(u64 alfa, u64 beta, std::vector<int> sites) {
+	if (sites.size() != 2) throw "Not implemented such exotic operators, choose 1 or 2 sites\n";
+	for (auto& site : sites) {
+		if (site < 0 || site >= L) throw "Site index exceeds chain";
+	}
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+	double value_real = 0, value_imag = 0;
+#pragma omp parallel
+	{
+		std::vector<bool> base_vector(L), temp(L);
+#pragma omp for reduction (+: value_real, value_imag)
+		for (int k = 0; k < N; k++) {
+			int_to_binary(map(k), base_vector);
+			auto l = *(sites.begin());
+			auto nei = *(sites.begin() + 1);
+			temp = base_vector;
+			if (nei < 0) continue;
+			cpx value = 0.0;
+			if (base_vector[l] && !base_vector[nei]) {
+				temp[l] = 0;
+				temp[nei] = 1;
+				const u64 idx = binary_to_int(temp);
+				value = state_alfa(idx) * state_beta(k) * im;
+			}
+			else if (!base_vector[l] && base_vector[nei]) {
+				temp[l] = 1;
+				temp[nei] = 0;
+				const u64 idx = binary_to_int(temp);
+				value = -state_alfa(idx) * state_beta(k) * im;
+			}
+			value_real += value.real();
+			value_imag += value.imag();
+		}
+	}
+	return 2i * cpx(value_real, value_imag);
+}
+/// <summary>
+///
+/// </summary>
+/// <param name="alfa"></param>
+/// <param name="beta"></param>
+/// <returns></returns>
+cpx IsingModel_disorder::av_spin_current(u64 alfa, u64 beta) {
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+	double value_real = 0, value_imag = 0;
+#pragma omp parallel
+	{
+		std::vector<bool> base_vector(L), temp(L);
+#pragma omp for reduction (+: value_real, value_imag)
+		for (int k = 0; k < N; k++) {
+			int_to_binary(map(k), base_vector);
+			for (int l = 0; l < this->L; l++) {
+				temp = base_vector;
+				const int nei = this->nearest_neighbors[l];
+				if (nei < 0) continue;
+				cpx value = 0.0;
+				if (base_vector[l] && !base_vector[nei]) {
+					temp[l] = 0;
+					temp[nei] = 1;
+					const u64 idx = binary_to_int(temp);
+					value = state_alfa(idx) * state_beta(k) * im;
+				}
+				else if (!base_vector[l] && base_vector[nei]) {
+					temp[l] = 1;
+					temp[nei] = 0;
+					const u64 idx = binary_to_int(temp);
+					value = -state_alfa(idx) * state_beta(k) * im;
+				}
+				value_real += value.real();
+				value_imag += value.imag();
+			}
+		}
+	}
+	return 2i * cpx(value_real, value_imag) / sqrt(this->L);
+}
+// ----------------------------------------------------------------------------- CALCULATE MATRIX ELEMENTS VIA INPUT OPERATOR -----------------------------------------------------------------------------
+cpx IsingModel_disorder::av_operator(u64 alfa, u64 beta, op_type op, std::vector<int> sites) {
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+	double overlap_real = 0, overlap_imag = 0;
+#pragma omp parallel for reduction(+: overlap_real, overlap_imag)
+	for (int k = 0; k < N; k++) {
+		auto [ret_val, new_idx] = op(k, this->L, sites);
+		cpx overlap = ret_val * state_alfa(new_idx) * state_beta(k);
+		overlap_real += real(overlap);
+		overlap_imag += imag(overlap);
+	}
+	return cpx(overlap_real, overlap_imag);
+}
+cpx IsingModel_disorder::av_operator(u64 alfa, u64 beta, op_type op) {
+	double overlap_real = 0, overlap_imag = 0;
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+#pragma omp parallel for reduction(+: overlap_real, overlap_imag)
+	for (long int k = 0; k < N; k++) {
+		for (int j = 0; j < this->L; j++) {
+			auto [ret_val, new_idx] = op(k, this->L, { j });
+			cpx overlap = ret_val * state_alfa(new_idx) * state_beta(k);
+			overlap_real += real(overlap);
+			overlap_imag += imag(overlap);
+		}
+	}
+	return cpx(overlap_real, overlap_imag) / sqrt(this->L);
+}
+cpx IsingModel_disorder::av_operator(u64 alfa, u64 beta, op_type op, int corr_len) {
+	if (corr_len >= L) throw "exceeding correlation length\n";
+
+	double overlap_real = 0, overlap_imag = 0;
+	arma::subview_col state_alfa = this->eigenvectors.col(alfa);
+	arma::subview_col state_beta = this->eigenvectors.col(beta);
+	auto neis = get_neigh_vector(this->_BC, this->L, corr_len);
+#pragma omp parallel for reduction(+: overlap_real, overlap_imag)
+	for (int k = 0; k < N; k++) {
+		for (int l = 0; l < this->L; l++) {
+			int nei = neis[l];
+			if (nei < 0) continue;
+			auto [ret_val, new_idx] = op(k, this->L, { l, nei });
+			cpx overlap = state_alfa(new_idx) * state_beta(k);
+			overlap_real += real(overlap);
+			overlap_imag += imag(overlap);
+		}
+	}
+	return cpx(overlap_real, overlap_imag) / sqrt(this->L);
+}

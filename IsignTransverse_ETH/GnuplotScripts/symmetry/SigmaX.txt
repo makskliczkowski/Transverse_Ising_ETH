@@ -1,0 +1,19 @@
+cd '.\Operator Matrix Elements'
+resetset size square
+set xrange[-1:1]
+set ylabel '<n|{/Symbol s}_0^x|n>'
+set xlabel 'E_n/L'
+set key outside above
+
+g = 0.81;
+h = 1.0;
+
+plot sprintf("SigmaX_L=13,g=%0.2f,h=%.2f,k=0,p=1,x=1.dat", g, h) w lp pt 6 ps 0.5 title 'L=13',\
+sprintf("SigmaX_L=15,g=%0.2f,h=%.2f,k=0,p=1,x=1.dat", g, h) w lp pt 6 ps 0.5 title 'L=15',\
+sprintf("SigmaX_L=17,g=%0.2f,h=%.2f,k=0,p=1,x=1.dat", g, h) w lp pt 6 ps 0.5 title 'L=17',\
+sprintf("SigmaX_L=19,g=%0.2f,h=%.2f,k=0,p=1,x=1.dat", g, h) w lp pt 6 ps 0.5 title 'L=19'#,\
+sprintf("SigmaX_L=14,g=%0.2f,h=%.2f,k=0,p=1,x=1.dat", g, h) w lp pt 6 ps 0.5 title 'L=14',\
+sprintf("SigmaX_L=16,g=%0.2f,h=%.2f,k=0,p=1,x=1.dat", g, h) w lp pt 6 ps 0.5 title 'L=16',\
+sprintf("SigmaX_L=18,g=%0.2f,h=%.2f,k=0,p=1,x=1.dat", g, h) w lp pt 6 ps 0.5 title 'L=18'
+
+cd '..\'

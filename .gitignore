@@ -12,10 +12,19 @@
 *.sln
 *.vcxproj
 *.vcxproj.filters
-*.png
-*.txt
+#*.png
 *.git
-
+*.gz
+#*.plt -- keep gnuplot scripts in source control
+*.zip
+*.pdf
+*.rar
+*.o 	# ignore executable files
+slurm-*.out
+*.sh
+*.txt to keep gnuplot scripts
+# *.dat
+# whole folders will be ignored
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
@@ -70,6 +79,9 @@ artifacts/
 
 # StyleCop
 StyleCopReport.xml
+
+# VS Code files
+*.json
 
 # Files built by Visual Studio
 *_i.c
@@ -355,7 +367,8 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
-*.dat
-*.zip
-*.pdf
-*.rar
+
+#User folders
+IsignTransverse_ETH/results/
+IsignTransverse_ETH/Python/
+IsignTransverse_ETH/SPINONsynchro/

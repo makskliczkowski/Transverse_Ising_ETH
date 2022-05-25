@@ -1,0 +1,223 @@
+cd './Fidelity'
+reset
+#------------------------------------ PREAMBLE
+set autoscale
+set term wxt size 1800, 700 font ",12"
+set mxtics
+set mytics
+
+FORMAT = "set style line 12 lc rgb '#ddccdd' lt 1 lw 1.5; \
+set style line 13 lc rgb '#ddccdd' lt 1 lw 0.5; \
+set grid xtics mxtics ytics mytics back ls 12, ls 13;\
+set size square;\
+set xtics mirror;\
+set ytics mirror;"
+@FORMAT
+
+set style line 1 dt (3,5,10,5) lc rgb "black" lw 1.5
+#------------------------------------ Margins for each row resp. column
+TMARGIN = "set tmargin at screen 0.91; set bmargin at screen 0.56"
+BMARGIN = "set tmargin at screen 0.46; set bmargin at screen 0.11"
+# TICS
+NOYTICS = "set format y '';"
+YTICS = "set format y '%g';"
+
+#------------------------------------ PARAMETERS
+L = 19; 
+g = 0.2; 
+h = 0.1;
+scaling = 0				# size scaling=1 or h-scaling=0 or g-scaling=2
+smoothen = 0
+same = 1				# if set to 1 only one parameter is plotted for 3 cases
+which = 2				# choose parameter: 0-fid; 1-entropy; 2-level statistics
+levelSpacing = 1		# show level spacing
+
+unset title
+my_title = (scaling != 1? (scaling == 0? sprintf("L = %d, g = %.2f",L,g) : sprintf("L = %d, h = %.2f",L,h)) : sprintf("g = %.2f, h = %.2f",g,h))
+
+GOE(x) = x < 2.0? 0.5307 : NaN;
+Lap(x) = x > 2.5? 0.3863 : NaN;
+
+plot_set = (smoothen? ':(5e3) smooth acs' : '')
+##----------------------------------- MULTIPLOT	
+	Xlabel = "set xlabel '{/Symbol d}h' offset 0,0.5"
+	set key below maxcols(4)
+	if(same){
+		if(which == 2){
+			my_title = 'level spacing <r_{g,h+{/Symbol d}h}> - smoothed'
+			set yrange[0.34:0.55]
+			set xrange[0:3]
+		} else{
+			plot_set = ''
+			plot_set = (which == 0? 'u 1:2' : 'u 1:3')
+			if(which == 1){
+				my_title = 'information entropy S/( 0.48ln(D) )'
+			} else{
+				set logscale y
+				my_title = 'fidelity <{/Symbol f}_{g,h}|{/Symbol f}_{g,h+{/Symbol d}h}>'
+			}
+		}
+	}
+if(!levelSpacing){	
+	LMARGIN = "set lmargin at screen 0.10; set rmargin at screen 0.38;"
+	CMARGIN = "set lmargin at screen 0.40; set rmargin at screen 0.68;"
+	RMARGIN = "set lmargin at screen 0.70; set rmargin at screen 0.98;"
+	HOR_MARGIN = "set bmargin at screen 0.2; set tmargin at screen 0.85;"
+	set multiplot layout 1,3 rowsfirst title my_title
+if(same){ #------------------------------------------------------------------------ info entropy 3 cases: hscaling/g scaling/size scaling
+	set border;
+	@HOR_MARGIN; @LMARGIN; @YTICS; @FORMAT;
+	set xlabel 'h+{/Symbol d}h' offset 0,0.5
+	set title sprintf("L = %d, g = %.2f",L,g)
+	plot for[hx=1:11:1] "Fidelity".sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", L, g, hx/10.) u (0.1*hx+$1):(column(which+2)) w l lw 1.5 title sprintf("h=%.2f", hx/10.)
+	if(which == 2){
+		set label 'GOE' at graph 0.1,0.95
+		set label 'Laplace' at graph 0.8,0.15
+		set style line 1 dt (3,5,10,5) lc rgb "black" lw 1.5
+		unset tics; unset xlabel; unset ylabel; unset title; unset border;
+		plot GOE(x) w l ls 1 notitle, Lap(x) w l ls 1 notitle
+	}
+	#------------------------------------ CENTER PANEL
+	set border;
+	@HOR_MARGIN; @CMARGIN; @YTICS; @FORMAT; @Xlabel
+	set title sprintf("L = %d, h = %.2f",L,h)
+	plot for[gx in '0.10 0.20 0.30 0.40 0.50 0.60 0.70 0.80 0.90 1.00 1.20 1.40 2.00'] \
+	"Fidelity".sprintf("_L=%d,g=".gx.",h=%.2f,k=0,p=1,x=1.dat", L, h) u 1:(column(which+2)) w l lw 1.5 title "g=".gx
+	if(which == 2){
+		set label 'GOE' at graph 0.1,0.95
+		set label 'Laplace' at graph 0.8,0.15
+		set style line 1 dt (3,5,10,5) lc rgb "black" lw 1.5
+		unset tics; unset xlabel; unset ylabel; unset title; unset border;
+		plot GOE(x) w l ls 1 notitle, Lap(x) w l ls 1 notitle
+	}
+	#------------------------------------ RIGHT PANEL
+	set border;
+	@HOR_MARGIN; @RMARGIN; @YTICS; @FORMAT; @Xlabel
+	set title sprintf("g = %.2f, h = %.2f",g, h)
+	plot for[L=16:19:1]    "Fidelity".sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", L, g, h) u 1:(column(which+2)) w l lw 1.5 title sprintf("L=%d",L)
+	if(which == 2){
+		set label 'GOE' at graph 0.1,0.95
+		set label 'Laplace' at graph 0.8,0.15
+		set style line 1 dt (3,5,10,5) lc rgb "black" lw 1.5
+		unset tics; unset xlabel; unset ylabel; unset title; unset border;
+		plot GOE(x) w l ls 1 notitle, Lap(x) w l ls 1 notitle
+	}
+	
+} else{ #------------------------------------------------------------------------ fidelity/info entropy/level statistics
+	#------------------------------------ LEFT PANEL
+	set border;
+	@Xlabel
+	@HOR_MARGIN; @LMARGIN; @YTICS; @FORMAT;
+	set logscale xy
+	set title 'fidelity <{/Symbol f}_{g,h}|{/Symbol f}_{g,h+{/Symbol d}h}>'
+	if(scaling == 1){
+		plot for[L=16:18:1]    "Fidelity".sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", L, g, h) u 1:2 w l lw 1.5 title sprintf("L=%d",L)
+	}else{
+		if(scaling == 2){
+			plot for[gx in '0.10 0.50 0.80 1.00 1.20'] "Fidelity".sprintf("_L=%d,g=".gx.",h=%.2f,k=0,p=1,x=1.dat", L, h) u 1:2 w l lw 1.5 title "g=".gx
+		} else{
+			plot for[hx=1:11:2] "Fidelity".sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", L, g, hx/10.) u 1:2 w l lw 1.5 title sprintf("h=%.2f", hx/10.)
+		}
+	}
+	unset logscale
+	#------------------------------------ CENTER PANEL
+	set border;
+	@HOR_MARGIN; @CMARGIN; @YTICS; @FORMAT;
+	unset ylabel
+	set title 'information entropy S/( 0.48ln(D) )'
+	if(scaling == 1){
+		plot for[L=16:18:1]    "Fidelity".sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", L, g, h) u 1:3 w l lw 1.5 title sprintf("L=%d",L)
+	}else{
+		if(scaling == 2){
+			plot for[gx in '0.10 0.50 0.80 1.00 1.20'] "Fidelity".sprintf("_L=%d,g=".gx.",h=%.2f,k=0,p=1,x=1.dat", L, h) u 1:3 w l lw 1.5 title "g=".gx
+		} else{
+			plot for[hx=1:11:2] "Fidelity".sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", L, g, hx/10.) u 1:3 w l lw 1.5 title sprintf("h=%.2f", hx/10.)
+		}
+	}
+	
+	#------------------------------------ RIGHT PANEL
+	set border;
+	@HOR_MARGIN; @RMARGIN; @YTICS; @FORMAT;
+	set yrange[0.34:0.55]
+	set xrange[0:3]
+	set title 'level spacing <r_{g,h+{/Symbol d}h}> - smoothed'
+	
+	if(scaling == 1){
+		plot for[L=16:18:1]    "Fidelity".sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", L, g, h) @plot_set w l lw 1.5 title sprintf("L=%d",L)
+	}else{
+		if(scaling == 2){
+			plot for[gx in '0.10 0.50 0.80 1.00 1.20'] "Fidelity".sprintf("_L=%d,g=".gx.",h=%.2f,k=0,p=1,x=1.dat", L, h) @plot_set w l lw 1.5 title "g=".gx
+		} else{
+			plot for[hx=1:11:2] "Fidelity".sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", L, g, hx/10.) @plot_set w l lw 1.5 title sprintf("h=%.2f", hx/10.)
+		}
+	}
+	set label 'GOE' at graph 0.1,0.95
+	set label 'Laplace' at graph 0.8,0.15
+	set style line 1 dt (3,5,10,5) lc rgb "black" lw 1.5
+	unset tics; unset xlabel; unset ylabel; unset title; unset border;
+	plot GOE(x) w l ls 1 notitle, Lap(x) w l ls 1 notitle
+
+}
+unset multiplot
+}
+else{#------------------------------------------------------------------------ level spacing taken separately
+	LMARGIN = "set lmargin at screen 0.10; set rmargin at screen 0.46"
+	RMARGIN = "set lmargin at screen 0.50; set rmargin at screen 0.86"
+	HOR_MARGIN = "set bmargin at screen 0.15	; set tmargin at screen 0.85;"
+	set term wxt size 1500, 800
+	
+	set multiplot layout 1,2 rowsfirst title "Level Spacing ratio"
+	Yname = "set ylabel 'r'"
+	Xname = "set xlabel 'h/J'"
+	set xrange[0:6]
+	set yrange[0.35:0.55]
+	dummy_name = "levelStat".sprintf(",L=%d,g=%.2f,k=0,p=1,x=1.txt", L, g)
+	#------------------------------------ LEFT PANEL
+	@HOR_MARGIN; @LMARGIN; @YTICS; @FORMAT; @Xname; @Yname;
+	set title sprintf("g=%.2f",g);
+	plot for[L=16:19:1] "levelStat".sprintf(",L=%d,g=%.2f,k=0,p=1,x=1.txt", L, g) u 1:3 w l lw 1.5 title sprintf("L=%d",L)
+	
+	unset tics; unset xlabel; unset ylabel; unset title; unset border;
+	set xrange[0:6]
+	set yrange[0.35:0.55]
+	plot GOE(x) w l ls 1 notitle, Lap(x) w l ls 1 notitle
+	
+	#------------------------------------ RIGHT PANEL
+	set border; 
+	set key vertical  at graph 1.2,1.0
+	@HOR_MARGIN; @RMARGIN; @YTICS; @FORMAT; @Xname; @Yname;
+	set title sprintf("L=%d", L)
+	plot for[gx in '0.20 0.30 0.50 0.70 0.90 1.00 1.40 1.50 2.00']\
+	"levelStat".sprintf(",L=%d,g=".gx.",k=0,p=1,x=1.txt", L) u 1:3 w l lw 1.5 title "g=".gx
+	
+	unset tics; unset xlabel; unset ylabel; unset title; unset border;
+	set xrange[0:6]
+	set yrange[0.35:0.55]
+	plot GOE(x) w l ls 1 notitle, Lap(x) w l ls 1 notitle
+	unset multiplot
+}
+	
+##----------------------------------- END MULTIPLOT
+
+#plot 'Fidelity_L=10,g=0.80,h=0.93,k=0,p=1,x=1.dat' u 1:2 w lp title 'L=10',\
+'Fidelity_L=11,g=0.80,h=0.93,k=0,p=1,x=1.dat' u 1:2 w lp title 'L=11',\
+'Fidelity_L=12,g=0.80,h=0.93,k=0,p=1,x=1.dat' u 1:2 w lp title 'L=12',\
+'Fidelity_L=13,g=0.80,h=0.93,k=0,p=1,x=1.dat' u 1:2 w lp title 'L=13',\
+'Fidelity_L=14,g=0.80,h=0.93,k=0,p=1,x=1.dat' u 1:2 w lp title 'L=14',\
+'Fidelity_L=15,g=0.80,h=0.93,k=0,p=1,x=1.dat' u 1:2 w lp title 'L=15',\
+'Fidelity_L=16,g=0.80,h=0.93,k=0,p=1,x=1.dat' u 1:2 w lp title 'L=16'
+
+
+#plot 'Fidelity_L=14,g=0.80,h=1.00,k=0,p=-1,x=1.dat' u 1:3 w lp title 'h=1.0',\
+'Fidelity_L=14,g=0.80,h=1.40,k=0,p=-1,x=1.dat' u 1:3 w lp title 'h=1.4',\
+'Fidelity_L=14,g=0.80,h=1.80,k=0,p=-1,x=1.dat' u 1:3 w lp title 'h=1.8',\
+'Fidelity_L=14,g=0.80,h=2.20,k=0,p=-1,x=1.dat' u 1:3 w lp title 'h=2.2',\
+'Fidelity_L=14,g=0.80,h=2.60,k=0,p=-1,x=1.dat' u 1:3 w lp title 'h=2.6',\
+'Fidelity_L=14,g=0.80,h=3.00,k=0,p=-1,x=1.dat' u 1:3 w lp title 'h=3.0',\
+'Fidelity_L=14,g=0.80,h=3.40,k=0,p=-1,x=1.dat' u 1:3 w lp title 'h=3.4',\
+'Fidelity_L=14,g=0.80,h=3.80,k=0,p=-1,x=1.dat' u 1:3 w lp title 'h=3.8',\
+'Fidelity_L=14,g=0.80,h=4.20,k=0,p=-1,x=1.dat' u 1:3 w lp title 'h=4.2',\
+'Fidelity_L=14,g=0.80,h=4.60,k=0,p=-1,x=1.dat' u 1:3 w lp title 'h=4.6'
+
+
+cd '../'

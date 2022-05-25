@@ -1,0 +1,83 @@
+cd '.\Probability Distributions\Spectrum Repulsion'
+reset
+
+##--PREAMBLE
+set autoscal
+set term wxt size 850, 800 font "Helvetica,12"
+set mxtics
+set mytics
+set style line 12 lc rgb '#ddccdd' lt 1 lw 1.5
+set style line 13 lc rgb '#ddccdd' lt 1 lw 0.5
+set grid xtics mxtics ytics mytics back ls 12, ls 13
+set logscale y
+set size square
+set xtics nomirror
+set key outside top right
+set key spacing 5
+set xrange[0:0.2]
+set yrange[0.05:100]
+
+# Margins for each row resp. column
+TMARGIN = "set tmargin at screen 0.92; set bmargin at screen 0.56"
+BMARGIN = "set tmargin at screen 0.46; set bmargin at screen 0.10"
+LMARGIN = "set lmargin at screen 0.10; set rmargin at screen 0.46"
+RMARGIN = "set lmargin at screen 0.46; set rmargin at screen 0.82"
+
+##------- FIT functions
+Gauss(x) = 1 / (sigma*sqrt(2.*pi)) * exp(-(x - mu)**2. / (2.*sigma**2) )
+Laplace(x) = exp(-abs(x - b) / lambda) / (2.0 * lambda)
+set fit quiet
+
+#-- PARAMETERS
+g=0.72
+hx = 0.9
+L=18
+SigX_or_SigZ = 0 					# 0-SigX , 1-SigZ :local
+operator_sum = 0					# is the operator a sum
+cor = 0								# correlations
+
+## -GRAPHICS
+my_title = sprintf("Probability distribution of difference |z_n| = |O_{n+1,n+1} - O_{n,n}| \n with g=%0.2f and L=%d for operator O = ", g, L)
+my_title = my_title.(operator_sum? "{/Symbol S}_i" : "").(SigX_or_SigZ? "{/Symbol s}^z_" : "{/Symbol s}^x_").(operator_sum? "i" : "0")
+set title my_title
+set ylabel 'P(|z_n|)'
+set xlabel '|z_n|'
+
+##__ FILE NAME
+name = "ProbDistSpecRap"
+name = name.(SigX_or_SigZ? "SigmaZ" : "SigmaX")
+#correlations?
+#if(cor > 0){
+#	name."n"
+#}
+#do for[i=0:cor-1]{
+#	name."n"
+#}
+
+while(hx < 2.0){
+	plotname = name.sprintf("_L=%d,g=%0.2f,h=%0.2f,k=0,p=1,x=1.dat", L, g, hx)
+	
+	#---------- FIND Y EKSTREMA
+		stats plotname using 2 every ::1 nooutput prefix "Y"
+	#-- FIT
+		fit[*:*][0.01*Y_max:Y_max] Gauss(x) plotname u 1:2 via mu, sigma
+		WSSR_Gauss = FIT_WSSR  / FIT_NDF
+		
+		fit[*:*][0.01*Y_max:Y_max] Laplace(x) plotname u 1:2 via b, lambda
+		WSSR_Laplace = FIT_WSSR  / FIT_NDF	
+	
+	###---------- CALCULATE CHI^2 TEST FOR GOODNESS OF FIT
+		stats plotname using 1:(((Gauss($1) - $2)**2) / Gauss($1)) every ::1 nooutput name 'Chi1_'
+		chi_test1 = Chi1_mean_y #/ (myX_records-2)
+		stats plotname using 1:(((Laplace($1) - $2)**2) / Laplace($1)) every ::1 nooutput name 'Chi2_'
+		chi_test2 = Chi2_mean_y #/ (myX_records-2)
+		
+	print hx, chi_test1, chi_test2
+	plot plotname w lp lc 0 lw 2 title sprintf("h = %.2f", hx),\
+			Gauss(x) w l dt 2 lw 1.5 title sprintf("\nGaussian fit:\n mu = %0.2f\n sigma = %1.2f\n chi^2 = %0.4f", mu, sigma, chi_test1),\
+			Laplace(x) w l dt 4 lw 2 title sprintf("\nLaplacian fit:\n b=%0.2f\n lambda=%1.2f\n chi^2 = %.4f", b, lambda, chi_test2)
+	pause(0.75)
+	hx = hx + 0.1
+}
+cd '..\'
+cd '..\'
