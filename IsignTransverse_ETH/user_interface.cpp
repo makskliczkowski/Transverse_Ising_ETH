@@ -2,7 +2,7 @@
 // set externs
 std::uniform_real_distribution<> theta	= std::uniform_real_distribution<>(0.0, pi);
 std::uniform_real_distribution<> fi		= std::uniform_real_distribution<>(0.0, pi);
-int outer_threads = 1;
+int outer_threads = 32;
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
 {
@@ -56,7 +56,7 @@ void isingUI::ui::make_sim()
 					this->g = gx;
 					this->h = hx;
 					const auto start_loop = std::chrono::system_clock::now();
-//for(this->J = 0.05; this->J <= 1.05; this->J += 0.05)
+for(this->J = 0.05; this->J <= 1.05; this->J += 0.05)
 {
 	//if(this->L > 10) this->realisations = 1000;
 
@@ -70,15 +70,14 @@ void isingUI::ui::make_sim()
 	//continue;
 					// ----------------------
 					//this->diagonalize(); continue;
-					for(this->w = 0.1; this->w <= 0.7; this->w += 0.1){
+					//for(this->w = 0.1; this->w <= 0.7; this->w += 0.1)
+					{
 						std::cout << this->w << std::endl;
-						diagonalize();
-						analyze_spectra();
-						spectral_form_factor();
+						//diagonalize();
+						//analyze_spectra();
+						//spectral_form_factor();
 					}
-					continue;
-					average_SFF(); continue;
-					//combine_spectra(); 
+					average_SFF();
 					analyze_spectra(); continue;
 					thouless_times(); continue;
 					spectral_form_factor(); continue;
