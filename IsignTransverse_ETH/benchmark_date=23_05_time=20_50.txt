@@ -1,0 +1,187 @@
+ - - - - - - MAKING ISING INTERFACE AND USING OUTER THREADS : 64 - - - - - - 
+------------------------------CHOSEN OPTIONS:
+DIR = ./results/disorder/PBC/
+model = disordered
+BC = PBC
+L  = 10
+Ls = 1
+Ln = 8
+J  = 1.00000000
+h  = 0.80000000
+hs = 0.10000000
+hn = 1
+g  = 0.70000000
+gs = 0.10000000
+gn = 1
+thread_num = 64
+site = 1
+operator = SigmaZ_j=1
+bucket size = 5
+time step = 0.10000000
+boolean value = 0
+scale = linear
+J0  = 0.00000000
+w   = 0.01000000
+ws  = 0.00000000
+wn  = 1
+g0  = 0.00000000
+g0s = 0.00000000
+g0n = 1
+realisations = 1
+---------------------------------------------------------------------------------
+
+ Usage: name of executable [options] outputDirectory 
+ The input can be both introduced with [options] described below or with giving the input directory(which also is the flag in the options)
+ options:
+-f input file for all of the options : (default none)
+-mu bucket size for ergodic coefficients (default 5)
+-J spin exchange coefficient : (default 1)
+-J0 random spin exchange set in uniform distribution [-J0,J0]
+-g transverse magnetic field (x-) constant: (default 1)
+-gs transverse magnetic field (x-) constant step: (default 0.0)
+-gn transverse magnetic field (x-) constant number: (default 1)
+-g0 random transverse field set in uniform distribution [-g0,g0]
+-g0s transverse disorder strength step: (default 0.0)
+-g0n transverse disorder strength number: (default 1)
+-h perpendicular (z-) magnetic field constant: (default 0)
+-hs perpendicular (z-) magnetic field constant step: (default 0.0)
+-hn perpendicular (z-) magnetic field constant number: (default 1)
+-w disorder strength : (default 0 - no disorder introduced)
+-ws disorder strength step: (default 0.0)
+-wn disorder strength number: (default 1)
+-L chain length minimum: bigger than 0 (default 8)
+-Ls chain length step: bigger equal than 0 (default 0)
+-Ln chain length number: bigger than 0 (default 1)
+-b boundary conditions : bigger than 0 (default 0 - PBC)
+	0 -- PBC
+	1 -- OBC
+	2 -- ABC -- none so far implemented
+-s site to act with local operators (default 0)
+-op flag to choose operator: 
+	0 -- Sz_i-local
+	1 -- Sx_i-local
+	2 -- Hi
+	3 -- Sz_q
+	4 -- Sx_q
+	5 -- Hq
+	  -- to get sum of local Sz or Sx take Sz_q or Sx_q with -s=0
+	  -- i or q are set to site (flag -s); (default 0)
+-fun choose function to start calculations: check user_interface.cpp -> make_sim() to find functions
+		0 -- diagonalizing hamiltonian and writing to file eigenvalues. Set -ch=1 to include eigenvector calculation
+		1 -- time evolution (and spectral functions) for any model (disordered is with averaging):
+		 set -op for operator and -s for acting site
+		2 -- evolution of entropy from initial state chosen by the -op flag:
+			for both models (-m flag) and possible to use lanczos iterative method by setting -ch=1
+			use -mu to set number of lanczos steps (<10 is enough) and -ts as time step (divided by E_max - E_min): 0.1 is sufficient
+				* op=0 -- random initial product state averaged over -r realisations
+				* op=1 -- fully ferromagnetically polarised state |111111...>
+				* op=2 -- fully anti-ferromagnetically polarised state |111111...>
+		3 -- spectral form factor calculation (checks if file exists with data, if not then diagonalize and save
+		 is looped over h, g and L, set Ls, Gs, hs, Ln, gn, hn or use defaults and only for specific g, h, L find ssf
+		4 -- relaxation times from integrated spectral function for:
+		 operator -op flag on site -s flag
+		 (also derivative of integrated spectral function is calculated)
+		 looped over system sizes: -L, -Ls, -Ln and sites: from 0 to L/2
+	 5 -- benchmark diagonalization routines vs CPU count:
+		 looped over different system sizes set by -L, -Ln, -Ls
+		 for number of threads: 1, 2, 4, 8, 16, 24, 32, 40, 48, 64
+		6 -- AGPs for small disorder (-m=0) as function of h for -ch=1 or as function of g for -ch=0 for input operator from -op flag
+		 SET: -L, -Ln, -Ls, -h, -hn, -hs, -op, -w(default=0.01)
+	 7 -- calculate gap ratio <r> either from input file or diagonalize matrix otherwise.
+	 default -- in make_sim space for user to write function; designed for non-builtin behavior
+-m model to be choosen : (default 0 - without symmetries)
+	0 -- nonsymmetric model - only here the disorder is working
+	1 -- include symmetries - here the parity flag is also working
+-k translation symetry sector, 0-L, (default 0)
+-p parity symmetry sector, +-1 (if applicable) (default 1)
+-x spin flip symmetry sector, +-1 (if applicable) (default 1)
+-th number of threads to be used for CPU parallelization : depends on the machine specifics, default(1)
+-ch general boolean flag used in different context (default: 0)
+-ts time step for evolution (default: 0.1)
+-scale choose scale for data: either linear-0, log-1 or custom-2 (default: linear)
+-h quit with help
+
+---------------------------------------------------------------------------------
+
+               1	              10	            1024	      1.18000000	      0.17800000	
+               2	              10	            1024	      0.46000000	      0.13800000	
+               4	              10	            1024	      0.29400000	      0.09000000	
+               8	              10	            1024	      0.31600000	      0.07100000	
+              16	              10	            1024	      0.53600000	      0.07000000	
+              24	              10	            1024	      0.34800000	      0.08400000	
+              32	              10	            1024	      0.13600000	      0.08400000	
+              40	              10	            1024	      0.23600000	      0.13800000	
+              48	              10	            1024	      0.26400000	      0.13200000	
+              64	              10	            1024	      0.26900000	      0.16800000	
+               1	              11	            2048	      4.78800000	      1.62700000	
+               2	              11	            2048	      2.50100000	      0.91800000	
+               4	              11	            2048	      1.36900000	      0.55200000	
+               8	              11	            2048	      0.82100000	      0.39000000	
+              16	              11	            2048	      0.57900000	      0.34200000	
+              24	              11	            2048	      0.66900000	      0.38300000	
+              32	              11	            2048	      0.63900000	      0.44000000	
+              40	              11	            2048	      0.71500000	      0.43400000	
+              48	              11	            2048	      0.71600000	      0.49000000	
+              64	              11	            2048	      1.75200000	      0.91000000	
+               1	              12	            4096	     40.57300000	     14.95600000	
+               2	              12	            4096	     21.54400000	      8.60300000	
+               4	              12	            4096	     10.75700000	      4.47200000	
+               8	              12	            4096	      5.82900000	      2.47100000	
+              16	              12	            4096	      3.77100000	      1.96700000	
+              24	              12	            4096	      3.14500000	      1.89200000	
+              32	              12	            4096	      3.04900000	      2.07800000	
+              40	              12	            4096	      3.51300000	      2.44500000	
+              48	              12	            4096	      3.73300000	      2.51900000	
+              64	              12	            4096	      4.32400000	      2.78200000	
+               1	              13	            8192	    600.17800000	    112.01900000	
+               2	              13	            8192	    318.93600000	     64.86600000	
+               4	              13	            8192	    164.99300000	     36.71200000	
+               8	              13	            8192	     84.19600000	     26.21300000	
+              16	              13	            8192	     45.82200000	     21.63600000	
+              24	              13	            8192	     33.93500000	     22.03700000	
+              32	              13	            8192	     33.12400000	     21.69800000	
+              40	              13	            8192	     33.71400000	     22.83900000	
+              48	              13	            8192	     33.96200000	     23.95600000	
+              64	              13	            8192	     32.08500000	     26.06200000	
+               1	              14	           16384	   4796.38000000	    889.85500000	
+               2	              14	           16384	   2489.38000000	    680.28100000	
+               4	              14	           16384	   1284.36600000	    365.44200000	
+               8	              14	           16384	    652.04000000	    209.64300000	
+              16	              14	           16384	    341.41100000	    198.12800000	
+              24	              14	           16384	    264.46900000	    212.29900000	
+              32	              14	           16384	    214.34200000	    216.57500000	
+              40	              14	           16384	    243.07600000	    232.64700000	
+              48	              14	           16384	    232.89800000	    230.99900000	
+              64	              14	           16384	    206.60900000	    237.17500000	
+
+Intel MKL ERROR: Parameter 9 was incorrect on entry to DSYTRD.
+
+Intel MKL ERROR: Parameter 8 was incorrect on entry to DSTEDC.
+
+Intel MKL ERROR: Parameter 12 was incorrect on entry to DORMTR.
+               1	              15	           32768	  36732.00300000	   7962.14700000	
+
+Intel MKL ERROR: Parameter 8 was incorrect on entry to DSTEDC.
+
+Intel MKL ERROR: Parameter 12 was incorrect on entry to DORMTR.
+               2	              15	           32768	  26229.16500000	   5292.08200000	
+
+Intel MKL ERROR: Parameter 8 was incorrect on entry to DSTEDC.
+
+Intel MKL ERROR: Parameter 12 was incorrect on entry to DORMTR.
+               4	              15	           32768	  12990.82400000	   2907.24300000	
+
+Intel MKL ERROR: Parameter 8 was incorrect on entry to DSTEDC.
+
+Intel MKL ERROR: Parameter 12 was incorrect on entry to DORMTR.
+               8	              15	           32768	   9105.39200000	   2017.81800000	
+
+Intel MKL ERROR: Parameter 8 was incorrect on entry to DSTEDC.
+
+Intel MKL ERROR: Parameter 12 was incorrect on entry to DORMTR.
+              16	              15	           32768	   7991.61400000	   1696.89400000	
+
+Intel MKL ERROR: Parameter 8 was incorrect on entry to DSTEDC.
+
+Intel MKL ERROR: Parameter 12 was incorrect on entry to DORMTR.
+              24	              15	           32768	   7364.77200000	   1702.67400000	
