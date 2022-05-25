@@ -167,7 +167,7 @@ void unfolding(arma::vec& eigenvalues){
     eigenvalues = unfolding(E);
 }
 
-// ---------------------------------------------------------------------------------- SPECTRAL FORM FACTOR
+// ---------------------------------------------------------------------------------- SPECTRAL STATISTICS
 // ----------------------------------------- MEAN LEVEL SPACING
 //<! mean level spacing between iterators
 template <typename iterator_type>
@@ -203,7 +203,24 @@ mean_level_spacing(const arma::vec& eigenvalues)
 	}
 	return sqrt(trace_H2 / double(N) - trace_H * trace_H / double(N * N)) / (chi * N);
 }
-
+// ----------------------------------------- MEAN LEVEL SPACING
+//<! typical level spacing between iterators
+template <typename iterator_type>
+[[nodiscard]]
+inline
+double
+typical_level_spacing(
+    iterator_type begin,  //<! first iterator to consider
+    iterator_type end     //<! last iterator
+    ){
+	double omega_H_typ = 0;
+    u64 size = std::distance(begin, end);
+#pragma omp parallel for reduction(+: omega_H_typ)
+	for (auto it = begin; it != end; ++it) {
+		omega_H_typ += log(*std::next(it) - *it);
+	}
+	return exp(omega_H_typ / double(size));
+}
 // ----------------------------------------- SPECTRAL FORM FACTOR (SFF)
 //<! ssf at time-point
 [[nodiscard]]

@@ -35,17 +35,20 @@ if [[ $# -lt 5 ]]; then
 fi
 
 # set number of realisations, array from L=8 to L=16
-	#R_ARR=(200 200 200 100 100 40 40 20 10);	r=${R_ARR[`expr ${L}-8`]}
-	R_ARR=(200 200 200 100 100 50 50 20 10);	r=${R_ARR[`expr ${L}-12`]}
+	R_ARR=(200 200 200 100 100 40 40 20 10);	r=${R_ARR[`expr ${L}-8`]}
+	#R_ARR=(200 200 200 100 100 50 50 20 10);	r=${R_ARR[`expr ${L}-12`]}
 	#r = 1;
 # set input parameters: to multiply use \*, cause * means 'all files'
 # also to have floating-point use =$echo("scale=num_of_digits; {expresion}" | bc)
-	par0=$dz;
-	#par0 = 0.3
+	#par0=$dz;
+	#par0=0.1
 	par=$(echo $dz $SLURM_ARRAY_TASK_ID $par0 | awk '{printf "%.3f", $3 + $1 * $2}')
 	#g=$par;	h=$x;		J=$y;
 	#g=$y;		h=$par;	J=$x;
-	g=$x;		h=$y;		J=$par;
+	#g=$x;		h=$y;		J=$par;
+	
+	wx=0.3; # -- disorder with longest thouless time in ergodic regime
+	g=$x;		h=$y;		wx=$par;	J=0.05;
 
 	seed=$(echo $SLURM_ARRAY_JOB_ID $SLURM_ARRAY_TASK_ID $SLURM_ARRAY_TASK_COUNT | awk '{printf "%d", $1 + $2 / $3 * $1}')  
 #--------------------- output filename
@@ -71,7 +74,7 @@ else
 	funName="Other"
 fi
 suffix="_op=${operator}_site=${site}_seed=${seed}";
-filename="run_logs/${funName}_L=${L}_J=${J}_h=${h}_g=${g}${suffix}"
+filename="run_logs/${funName}_L=${L}_J=${J}_h=${h}_g=${g}_w=${wx}${suffix}"
 
 #--------------------- print all variables to see if all correct
 	echo "L=${L}"
@@ -87,5 +90,5 @@ filename="run_logs/${funName}_L=${L}_J=${J}_h=${h}_g=${g}${suffix}"
 # -DARMA_DONT_USE_WRAPPER -I/home/rswietek/LIBRARIES_CPP/armadillo-10.8.2/include -llapack -lopenblas -fopenmp -lpthread -lm -lstdc++fs -fomit-frame-pointer -Ofast >& compile_${funName}_L=${1}_h=${2}_g=${g}${suffix}.log
  
  #--------------------- run
-./Ising.o "${@:10}" -L $L -J $J -g $g -h $h -th $thread_num -m 1 -w 1.0 -r $r\
+./Ising.o "${@:10}" -L $L -J $J -g $g -h $h -th $thread_num -m 0 -w $wx -r $r\
  -op $operator -fun $fun -s $site -b 0 -ch $ch -seed $seed -jobid $jobid >& ${filename}.log
