@@ -56,7 +56,7 @@ void isingUI::ui::make_sim()
 					this->g = gx;
 					this->h = hx;
 					const auto start_loop = std::chrono::system_clock::now();
-for(this->J = 0.00; this->J <= 1.05; this->J += 0.05)
+//for(this->J = 0.00; this->J <= 1.05; this->J += 0.05)
 {
 	//if(this->L > 10) this->realisations = 1000;
 
@@ -70,13 +70,13 @@ for(this->J = 0.00; this->J <= 1.05; this->J += 0.05)
 	//continue;
 					// ----------------------
 					//this->diagonalize(); continue;
-					for(this->w = 0.3; this->w <= 0.7; this->w += 0.2)
+					for(this->w = 0.1; this->w <= 0.7; this->w += 0.1)
 					{
 						std::cout << this->w << std::endl;
-						//diagonalize();
-						//spectral_form_factor();
-						analyze_spectra();
-						average_SFF();
+						diagonalize();
+						spectral_form_factor();
+						//analyze_spectra();
+						//average_SFF();
 					}
 					continue;
 					average_SFF(); continue;

@@ -38,19 +38,19 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset border;"
 model = 0       # 1=symmetries and 0=disorder
 w = 0.3
 g = 0.9
-L = 16
+L = 14
 h = 0.8
-J = 0.05
+J = 0.15
 
-what = 1                # 0 - DOS / 1 - Lvl-spacing Distribution / 2 - unfolding analysis
+what = 0                # 0 - DOS / 1 - Lvl-spacing Distribution / 2 - unfolding analysis
 plot_typical_wH = 0     # plot only the scaling of wH_typical
-scaling = 1             # 0 - J scaling / 1 - w scaling
+scaling = 0             # 0 - J scaling / 1 - w scaling
 
-use_unfolded = 1        # use unfolded energies for DOS
+use_unfolded = 0        # use unfolded energies for DOS
 use_logarithmic = 1     # use low(w) distribution
 compare_fits = 1        # compare different ploynomial degrees in unfolding
 use_fit = 0             # use fit for distribtution
-    J0 = 5;    Jend = 100;  dJ = 20
+    J0 = 5;    Jend = 100;  dJ = 5
     w0 = 10;    wend = 60;  dw = 10
 
 if(plot_typical_wH){
