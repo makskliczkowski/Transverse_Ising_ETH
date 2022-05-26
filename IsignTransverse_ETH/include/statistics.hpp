@@ -54,7 +54,7 @@ double information_entropy(
 #pragma omp parallel for reduction(+: ent)
 	for (long k = (long)_min; k < (long)_max; k++) 
     {
-		cpx c_k = cdot(new_basis(k), _state);
+		cpx c_k = cdot(new_basis.col(k), _state);
 		double val = abs(conj(c_k) * c_k);
 		ent += val * log(val);
 	}

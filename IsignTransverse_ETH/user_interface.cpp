@@ -2,7 +2,7 @@
 // set externs
 std::uniform_real_distribution<> theta	= std::uniform_real_distribution<>(0.0, pi);
 std::uniform_real_distribution<> fi		= std::uniform_real_distribution<>(0.0, pi);
-int outer_threads = 1;
+int outer_threads = 64;
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
 {
@@ -56,7 +56,7 @@ void isingUI::ui::make_sim()
 					this->g = gx;
 					this->h = hx;
 					const auto start_loop = std::chrono::system_clock::now();
-//for(this->J = 0.05; this->J <= 1.05; this->J += 0.05)
+for(this->J = 0.00; this->J <= 1.05; this->J += 0.05)
 {
 	//if(this->L > 10) this->realisations = 1000;
 
@@ -70,11 +70,13 @@ void isingUI::ui::make_sim()
 	//continue;
 					// ----------------------
 					//this->diagonalize(); continue;
-					for(this->w = 0.1; this->w <= 0.7; this->w += 0.1){
+					for(this->w = 0.3; this->w <= 0.7; this->w += 0.2)
+					{
 						std::cout << this->w << std::endl;
-						diagonalize();
+						//diagonalize();
+						//spectral_form_factor();
 						analyze_spectra();
-						spectral_form_factor();
+						average_SFF();
 					}
 					continue;
 					average_SFF(); continue;
@@ -326,9 +328,9 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 			#endif
 		}
 	}
-	#if defined(MY_MAC)
+	#if !defined(MY_MAC)
 		// save eigenvalues (yet unsaved)
-		if(!loaded){
+		if(!loaded)
 			eigenvalues.save(arma::hdf5_name(name + _suffix + ".hdf5", "eigenvalues/"));
 	#endif
 	return eigenvalues;
@@ -1213,8 +1215,8 @@ void isingUI::ui::spectral_form_factor(){
 		#if !defined(MY_MAC)
 			std::string dir_re  = this->saving_dir + "SpectralFormFactor" + kPSep + "realisation=" + std::to_string(this->jobid + realis) + kPSep;
 			createDirs(dir_re);
-			save_to_file(dir_re + info + ".dat", 			times, sff_r, 		 Z_r, 		 r1_tmp, r2_tmp);
-			save_to_file(dir_re + "folded" + info + ".dat", times, sff_r_folded, Z_r_folded, r1_tmp, r2_tmp);
+			save_to_file(dir_re + info + ".dat", 			times, sff_r, 		 Z_r, 		 r1_tmp, r2_tmp, wH_mean_r, wH_typ_r);
+			save_to_file(dir_re + "folded" + info + ".dat", times, sff_r_folded, Z_r_folded, r1_tmp, r2_tmp, wH_mean_r, wH_typ_r);
 		#else
 			stout << this->jobid + realis << "\t";
 			stout << std::endl;
@@ -1244,8 +1246,8 @@ void isingUI::ui::spectral_form_factor(){
 	sff = sff / Z;
 	wH_mean /= norm;
 	wH_typ /= norm;
-	//info = "perturbation_order=1" + info;
-	if(this->jobid > 0) return;
+	
+	if(true || this->jobid > 0) return;
 	std::ofstream lvl;
 	openFile(lvl, dir2 + info + ".dat", std::ios::out);
 	printSeparated(lvl, "\t", 16, true, r1, r2);
