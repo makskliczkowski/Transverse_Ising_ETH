@@ -40,11 +40,11 @@ w = 0.1
 g = 0.9
 L = 12
 h = 0.8
-J = 0.2
+J = 0.1
 
 what = 1                # 0 - DOS / 1 - Lvl-spacing Distribution / 2 - unfolding analysis
 plot_typical_wH = 0     # plot only the scaling of wH_typical
-scaling = 0             # 0 - J scaling / 1 - w scaling
+scaling = 1             # 0 - J scaling / 1 - w scaling
 
 use_unfolded = 0        # use unfolded energies for DOS
 use_logarithmic = 0     # use low(w) distribution
