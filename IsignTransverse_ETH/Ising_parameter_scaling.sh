@@ -35,20 +35,20 @@ if [[ $# -lt 5 ]]; then
 fi
 
 # set number of realisations, array from L=8 to L=16
-	R_ARR=(200 200 200 100 100 40 40 20 10);	r=${R_ARR[`expr ${L}-8`]}
+	R_ARR=(200 200 200 100 100 50 50 20 10);	r=${R_ARR[`expr ${L}-8`]}
 	#R_ARR=(200 200 200 100 100 50 50 20 10);	r=${R_ARR[`expr ${L}-12`]}
 	#r = 1;
 # set input parameters: to multiply use \*, cause * means 'all files'
 # also to have floating-point use =$echo("scale=num_of_digits; {expresion}" | bc)
 	#par0=$dz;
-	#par0=0.1
+	par0=0.0
 	par=$(echo $dz $SLURM_ARRAY_TASK_ID $par0 | awk '{printf "%.3f", $3 + $1 * $2}')
 	#g=$par;	h=$x;		J=$y;
 	#g=$y;		h=$par;	J=$x;
-	#g=$x;		h=$y;		J=$par;
+	g=$x;		h=$y;		J=$par;
 	
-	wx=0.3; # -- disorder with longest thouless time in ergodic regime
-	g=$x;		h=$y;		wx=$par;	J=0.05;
+	wx=0.6; # -- disorder with longest thouless time in ergodic regime
+	#g=$x;		h=$y;		wx=$par;	J=0.05;
 
 	seed=$(echo $SLURM_ARRAY_JOB_ID $SLURM_ARRAY_TASK_ID $SLURM_ARRAY_TASK_COUNT | awk '{printf "%d", $1 + $2 / $3 * $1}')  
 #--------------------- output filename
