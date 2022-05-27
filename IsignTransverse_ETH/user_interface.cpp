@@ -1401,7 +1401,7 @@ void isingUI::ui::thouless_times()
 		if(data.size() > 6)
 			dim = data[6](0);
 		// find thouless time
-		double eps = 5e-2;
+		double eps = 8e-2;
 		auto K_GOE = [](double t){
 			return t < 1? 2 * t - t * log(1+2*t) : 2 - t * log( (2*t+1) / (2*t-1) );
 		};

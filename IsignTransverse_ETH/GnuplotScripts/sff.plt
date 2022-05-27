@@ -19,11 +19,11 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 
 #---------------------------- PARAMETERS
 model = 0       # 1=symmetries and 0=disorder
-w = 0.5
+w = 0.3
 g = 0.9
-L = 14
+L = 16
 h = 0.8
-J = 0.25
+J = 0.1
 k=1
 J_knot = 0.; g_knot = 0.; 
 scaling = 3     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
@@ -42,8 +42,8 @@ if(plot_der_GOE){ zoom_in = 0;}
 
 	h0 = 10;     hend = 100;		dh = 10;
 	g0 = 5;    gend = 150;		dg = 5;
-    J0 = 5;    Jend = 80;     dJ = 10
-	L0 = 9;	    Lend = 15; 		dL = 1;
+    J0 = 15;    Jend = 70;     dJ = 5
+	L0 = 10;	    Lend = 16; 		dL = 1;
 	w_num = 12;	array w_list[w_num];
 	w_list[1] = 0.01;	w_list[2] = 0.05;	w_list[3] = 0.1;	w_list[4] = 0.3;	w_list[5] = 0.5;
 	w_list[6] = 1.0;	w_list[7] = 1.5;
@@ -53,7 +53,7 @@ if(plot_der_GOE){ zoom_in = 0;}
 
 GOE(x) = (x < 1? 2 * x - x*log(1+2*x) : 2-x*log( (2*x+1) / (2*x-1)))
 
-eps = 5e-2
+eps = 8e-2
 ADD=plot_der_GOE? sprintf("%f w l ls 1 dt (3,5,10,5) lc rgb 'black' lw 2 notitle", eps)\
          : "GOE(x) w l ls 1 dt (3,5,10,5) lc rgb 'black' lw 2 t 'GOE', (x < 0.2? NaN : 1.0) w l ls 1 dt (3,5,10,5) lc rgb 'black' lw 2 notitle"		 
 dir_base = '../results/'.(model? 'symmetries' : 'disorder').'/PBC/SpectralFormFactor/'
