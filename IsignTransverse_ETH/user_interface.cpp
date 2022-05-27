@@ -15,6 +15,51 @@ void isingUI::ui::make_sim()
 	const double gmin = this->g, gmax = this->g + this->gn * this->gs;
 	const double hmin = this->h, hmax = this->h + this->hn * this->hs;
 	
+	//--- probability check
+	u64 num = 1e6;							// size of set
+	int num_of_up_spins = this->L / 2.;		// excited state in J=0 limit with L/2 spin ups
+	const double eps_mean = (this->L - 2 * num_of_threads) * sqrt(this->g * this->g + this->h * this->h);
+	const double eps_stddev = 4 * this->w / (2.0 * sqrt(2.0*log(2.0)));
+	std::vector<double> values1, values2;
+	const long n_bins = (1 + long(3.322 * log(num)));
+	arma::vec distribution(n_bins, arma::fill::zeros);
+	arma::vec distribution_log(n_bins, arma::fill::zeros);
+	arma::vec sample(num, arma::fill::zeros);
+	double _min = 0.0, _max = 0.0;
+	double _min_log = 0.0, _max_log = 0.0;
+
+	std::normal_distribution<double> dist(eps_mean, eps_stddev);
+	for(int r = 0; r < this->realisations; r++){
+
+	#pragma omp parallel
+		for(int i = 0; i < num; i++)
+			sample(i) = dist(gen);
+		auto _sample = arma::unique(arma::find(sample));
+		//sort(_sample.begin(), _sample.end()); -- unique sorts already
+		arma::vec diff(num - 1, arma::fill::zeros);
+	#pragma omp parallel
+		for(int i = 0; i < num - 1; i++)
+			diff(i) = abs(sample(i + 1) - sample(i));
+		_min += arma::min(diff);	_max += arma::max(diff);
+		distribution += statistics::probability_distribution(diff, n_bins);
+		diff = arma::log(diff);
+		_min_log += arma::min(diff);	_max_log += arma::max(diff);
+		distribution_log += statistics::probability_distribution(diff, n_bins);
+		
+		values1.push_back(abs(sample(num / 2. + 1) - sample(num / 2.)));
+		values2.push_back(abs(sample(num / 4. + 1) - sample(num / 4.)));
+		std::cout << "realisation = " << r << std::endl;
+	}
+	_min /= double(this->realisations);
+	_max /= double(this->realisations);
+	distribution /= double(this->realisations);
+	distribution_log /= double(this->realisations);
+	statistics::probability_distribution(this->saving_dir, "Distribution_half", arma::vec(values1));
+	statistics::probability_distribution(this->saving_dir, "Distribution_quarter", arma::vec(values2));
+	save_to_file(this->saving_dir + "Distribution_averaged.dat", arma::linspace(_min, _max, n_bins), distribution);
+	save_to_file(this->saving_dir + "Distribution_averaged_log.dat", arma::linspace(_min_log, _max_log, n_bins), distribution_log);
+
+	exit(1);
 	switch (this->fun)
 	{
 	case 0: 
