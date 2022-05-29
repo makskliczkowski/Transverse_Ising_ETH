@@ -19,11 +19,11 @@
 *.zip
 *.pdf
 *.rar
-*.o 	# ignore executable files
+*.o # ignore executable files
 slurm-*.out
 *.sh
-*.txt to keep gnuplot scripts
-# *.dat
+*.txt
+*.dat
 # whole folders will be ignored
 
 # User-specific files (MonoDevelop/Xamarin Studio)
