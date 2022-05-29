@@ -38,9 +38,9 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset border;"
 model = 0       # 1=symmetries and 0=disorder
 w = 0.3
 g = 0.9
-L = 14
+L = 12
 h = 0.8
-J = 0.05
+J = 0.0
 
 what = 0                # 0 - DOS / 1 - Lvl-spacing Distribution / 2 - unfolding analysis
 plot_typical_wH = 0     # plot only the scaling of wH_typical

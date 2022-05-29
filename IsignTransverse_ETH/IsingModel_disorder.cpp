@@ -26,7 +26,7 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 	#ifdef USE_HEISENBERG
 		this->hamiltonian_heisenberg();
 	#else
-		this->hamiltonian();
+		//this->hamiltonian();
 	#endif
 }
 

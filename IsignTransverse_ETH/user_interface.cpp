@@ -2,7 +2,7 @@
 // set externs
 std::uniform_real_distribution<> theta	= std::uniform_real_distribution<>(0.0, pi);
 std::uniform_real_distribution<> fi		= std::uniform_real_distribution<>(0.0, pi);
-int outer_threads = 1;
+int outer_threads = 100;
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
 {
@@ -16,6 +16,7 @@ void isingUI::ui::make_sim()
 	const double hmin = this->h, hmax = this->h + this->hn * this->hs;
 	
 	//--- probability check
+	/*
 	u64 num = 1e6;							// size of set
 	int num_of_up_spins = this->L / 2.;		// excited state in J=0 limit with L/2 spin ups
 	const double eps_mean = (this->L - 2 * num_of_threads) * sqrt(this->g * this->g + this->h * this->h);
@@ -29,29 +30,38 @@ void isingUI::ui::make_sim()
 	double _min_log = 0.0, _max_log = 0.0;
 
 	std::normal_distribution<double> dist(eps_mean, eps_stddev);
+	int counter = 0;
+	#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 	for(int r = 0; r < this->realisations; r++){
 
-	#pragma omp parallel
+	//#pragma omp parallel
 		for(int i = 0; i < num; i++)
 			sample(i) = dist(gen);
-		auto _sample = arma::unique(arma::find(sample));
+		arma::vec _sample = arma::unique(sample);
+		int num = _sample.size();
 		//sort(_sample.begin(), _sample.end()); -- unique sorts already
 		arma::vec diff(num - 1, arma::fill::zeros);
-	#pragma omp parallel
+	//#pragma omp parallel
 		for(int i = 0; i < num - 1; i++)
-			diff(i) = abs(sample(i + 1) - sample(i));
-		_min += arma::min(diff);	_max += arma::max(diff);
-		distribution += statistics::probability_distribution(diff, n_bins);
-		diff = arma::log(diff);
-		_min_log += arma::min(diff);	_max_log += arma::max(diff);
-		distribution_log += statistics::probability_distribution(diff, n_bins);
-		
-		values1.push_back(abs(sample(num / 2. + 1) - sample(num / 2.)));
-		values2.push_back(abs(sample(num / 4. + 1) - sample(num / 4.)));
-		std::cout << "realisation = " << r << std::endl;
+			diff(i) = abs(_sample(i + 1) - _sample(i));
+			#pragma omp critical
+			{
+				_min += arma::min(diff);	_max += arma::max(diff);
+				distribution += statistics::probability_distribution(diff, n_bins);
+				diff = arma::log(diff);
+				_min_log += arma::min(diff);	_max_log += arma::max(diff);
+				distribution_log += statistics::probability_distribution(diff, n_bins);
+
+				values1.push_back(abs(_sample(num / 2. + 1) - _sample(num / 2.)));
+				values2.push_back(abs(_sample(num / 4. + 1) - _sample(num / 4.)));
+				counter++;
+			}
+		std::cout << "realisation = " << double(counter) / double(this->realisations) << std::endl;
 	}
 	_min /= double(this->realisations);
 	_max /= double(this->realisations);
+	_min_log /= double(this->realisations);
+	_max_log /= double(this->realisations);
 	distribution /= double(this->realisations);
 	distribution_log /= double(this->realisations);
 	statistics::probability_distribution(this->saving_dir, "Distribution_half", arma::vec(values1));
@@ -60,6 +70,7 @@ void isingUI::ui::make_sim()
 	save_to_file(this->saving_dir + "Distribution_averaged_log.dat", arma::linspace(_min_log, _max_log, n_bins), distribution_log);
 
 	exit(1);
+	*/
 	switch (this->fun)
 	{
 	case 0: 
@@ -117,7 +128,13 @@ void isingUI::ui::make_sim()
 					//this->diagonalize(); continue;
 					for(this->w = 0.1; this->w <= 0.7; this->w += 0.1){
 						std::cout << this->w << std::endl;
+					    
+						int old_stdout = dup(1);
+    					freopen ("/dev/null", "w", stdout); // or "nul" instead of "/dev/null"
 						diagonalize();
+   						fclose(stdout);
+						stdout = fdopen(old_stdout, "w"); 
+
 						analyze_spectra();
 						spectral_form_factor();
 					}
@@ -1601,9 +1618,12 @@ void isingUI::ui::analyze_spectra(){
 			u64 E_av_idx = i - eigenvalues.begin();
 			const long E_min = E_av_idx - num / 2.;
 			const long E_max = E_av_idx + num / 2. + 1;
-			arma::vec energies 				= exctract_vector(eigenvalues, E_min, E_max);
-			arma::vec energies_unfolded_cut = exctract_vector(energies_unfolded, E_min, E_max);
 
+			double epsilon = sqrt(g*g + (h+w)*(h+w));
+			stout << "starting unfolding" << std::endl;
+			const arma::vec energies 				= exctract_vector_between_values(eigenvalues, -2 * epsilon, 2 * epsilon);
+			//arma::vec energies_unfolded_cut = exctract_vector(energies_unfolded, E_min, E_max);
+			arma::vec energies_unfolded_cut = statistics::unfolding(energies);
 			//------------------- Level Spacing Distribution
 			arma::vec level_spacings(energies.size() - 1, arma::fill::zeros);
 			arma::vec level_spacings_unfolded(energies.size() - 1, arma::fill::zeros);
@@ -1653,7 +1673,10 @@ void isingUI::ui::analyze_spectra(){
 			//std::cout << "Caught some error, but current spectrum is:" << std::endl;
 			//std::cout << eigenvalues.t() << std::endl;
 		}
-		
+		catch (...) {
+			stout << "Unknown error...!" << "\n";
+			assert(false);
+		}
 	};
 
 	//------CALCULATE FOR MODEL
