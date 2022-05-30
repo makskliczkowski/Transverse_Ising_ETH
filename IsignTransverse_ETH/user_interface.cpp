@@ -56,7 +56,7 @@ void isingUI::ui::make_sim()
 					this->g = gx;
 					this->h = hx;
 					const auto start_loop = std::chrono::system_clock::now();
-//for(this->J = 0.00; this->J <= 1.05; this->J += 0.05)
+for(this->J = 0.00; this->J <= 1.05; this->J += 0.05)
 {
 	//if(this->L > 10) this->realisations = 1000;
 
@@ -70,13 +70,13 @@ void isingUI::ui::make_sim()
 	//continue;
 					// ----------------------
 					//this->diagonalize(); continue;
-					for(this->w = 0.1; this->w <= 0.7; this->w += 0.1)
+					//for(this->w = 0.5; this->w <= 0.7; this->w += 0.1)
 					{
 						std::cout << this->w << std::endl;
-						diagonalize();
-						spectral_form_factor();
-						//analyze_spectra();
-						//average_SFF();
+						//diagonalize();
+						//spectral_form_factor();
+						analyze_spectra();
+						average_SFF();
 					}
 					continue;
 					average_SFF(); continue;
@@ -1586,7 +1586,6 @@ void isingUI::ui::analyze_spectra(){
 			arma::vec level_spacings(energies.size() - 1, arma::fill::zeros);
 			arma::vec level_spacings_unfolded(energies.size() - 1, arma::fill::zeros);
 			
-		#pragma omp parallel for reduction(+: wH, wH_typ, wH_typ_unfolded)
 			for(int i = 0; i < energies.size() - 1; i++){
 				const double delta 			= energies(i+1) 				- energies(i);
 				const double delta_unfolded = energies_unfolded_cut(i+1) 	- energies_unfolded_cut(i);
