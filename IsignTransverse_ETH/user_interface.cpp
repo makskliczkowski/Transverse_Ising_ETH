@@ -1145,7 +1145,8 @@ void isingUI::ui::spectral_form_factor(){
 	int time_end = (int)std::ceil(std::log10(5 * tH));
 	time_end = (time_end / std::log10(tH) < 1.5) ? time_end + 1 : time_end;
 
-	arma::vec times = this->ch? arma::logspace(log10(1.0 / (two_pi * dim)), 2, num_times) : arma::logspace(-2, time_end, num_times);
+	arma::vec times = arma::logspace(log10(1.0 / (two_pi * dim)), 2, num_times);
+	arma::vec times_fold = arma::logspace(-2, time_end, num_times);
 	arma::vec sff(num_times, arma::fill::zeros);
 	double Z = 0.0;
 	double wH_mean = 0.0;
@@ -1195,7 +1196,7 @@ void isingUI::ui::spectral_form_factor(){
 			double wH_typ_r = statistics::typical_level_spacing((E_av_idx - num / 2) + eigenvalues.begin(), (E_av_idx + num / 2) + eigenvalues.begin());
 			if(this->fun == 3) stout << "\t\t	--> finished unfolding for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 			
-			auto [sff_r_folded, Z_r_folded] = statistics::spectral_form_factor(eigenvalues, times, 0.5);
+			auto [sff_r_folded, Z_r_folded] = statistics::spectral_form_factor(eigenvalues, times_fold, 0.5);
 			if(this->ch)
 				statistics::unfolding(eigenvalues);
 
@@ -1293,14 +1294,16 @@ void isingUI::ui::average_SFF(){
 	const double wH = sqrt(this->L) / (chi * dim) * sqrt(this->J * this->J + this->h * this->h + this->g * this->g
 												 + ( this->m? 0.0 : (this->w * this->w + this->g0 * this->g0 + this->J0 * this->J0) / 3. ));
 	double tH = 1. / wH;
-	arma::vec times; // are always the same
+	arma::vec times, times_fold; // are always the same
 	arma::vec sff(5000, arma::fill::zeros);
+	arma::vec sff_fold(5000, arma::fill::zeros);
 	double Z = 0.0;
+	double Z_folded = 0.0;
 	double r1 = 0.0;
 	double r2 = 0.0;
 	// ------ SET LAMBDA
 	int counter_realis = 0;
-	auto lambda_average = [this, &info, &par, &sff, &Z, &r1, &r2, &times, &counter_realis](
+	auto lambda_average = [&](
 		int realis, double x
 		)
 	{
@@ -1309,7 +1312,11 @@ void isingUI::ui::average_SFF(){
 
 		auto data = readFromFile(file, dir_re + info + ".dat");
 		if(data.empty()) return;
-		if(data[0].size() != sff.size()) return;
+		if(data[0].size() != sff.size()) {
+			std:cout << "Incompatible data dimensions" << std::endl;
+			return;
+		}
+		file.close();
 		#pragma omp critical
 		{
 			times = data[0];
@@ -1318,6 +1325,20 @@ void isingUI::ui::average_SFF(){
 			r1 += data[3](0);
 			r2 += data[4](0);
 			counter_realis++;
+		}
+
+		data = readFromFile(file, dir_re + "folded" + info + ".dat");
+		if(data.empty()) return;
+		if(data[0].size() != sff_fold.size()) {
+			std::cout << "Incompatible data dimensions" << std::endl;
+			return;
+		}
+		file.close();
+		#pragma omp critical
+		{
+			times_fold = data[0];
+			sff_fold += data[1];
+			Z_folded += data[2](0);
 		}
 	};
 	double norm = 0.0;
@@ -1341,6 +1362,7 @@ void isingUI::ui::average_SFF(){
 	r1 /= norm;
 	r2 /= norm;
 	sff = sff / Z;
+	sff_fold = sff_fold / Z_folded;
 
 	std::ofstream lvl;
 	openFile(lvl, dir2 + info + ".dat", std::ios::out);
@@ -1355,17 +1377,29 @@ void isingUI::ui::average_SFF(){
 	const double t_max = this->ch? 2.5 : 2.5 * tH;
 	double delta_min = 1e6;
 	for(int i = 0; i < sff.size(); i++){
-		double t = this->ch? times(i) : times(i) * tH;
-		double delta = abs(log10( sff(i) / K_GOE(t) )) - eps;
+		double delta = abs(log10( sff(i) / K_GOE(times(i)) )) - eps;
 		delta *= delta;
 		if(delta < delta_min){
 			delta_min = delta;
 			thouless_time = times(i); 
 		}
-		if(times(i) >= t_max) break;
+		if(times(i) >= 2.5) break;
 	}
-	save_to_file(dir + info + ".dat", times, sff, tH, thouless_time, r1, r2, dim);
+	double thouless_time_fold = 0;
+	delta_min = 1e6;
+	for(int i = 0; i < sff_fold.size(); i++){
+		double delta = abs(log10( sff_fold(i) / K_GOE(times_fold(i)) )) - eps;
+		delta *= delta;
+		if(delta < delta_min){
+			delta_min = delta;
+			thouless_time = times_fold(i); 
+		}
+		if(times_fold(i) >= 2.5) break;
+	}
+	save_to_file(dir + info + ".dat", times, sff, tH, thouless_time, r1, r2, dim);	
 	smoothen_data(dir, info + ".dat");
+	save_to_file(dir + "folded" + info + ".dat", times_fold, sff_fold, tH, thouless_time_fold, r1, r2, dim);	
+	smoothen_data(dir, "folded" + info + ".dat");
 }
 
 //<! find thouless time with various method as function of h,g,J
@@ -1494,35 +1528,19 @@ void isingUI::ui::analyze_spectra(){
 		N = alfa->get_hilbert_size();
 	}
 	const u64 num = 0.5 * N;
-	const size_t dist_size 	= 2 * int(num / 2.) + 1; // to omit problems when (num % 2 == 1) !!
-	const long n_bins 		= 5 * (1 + long(3.322 * log(N)));
-
-	arma::vec DOS(n_bins, arma::fill::zeros);
-	arma::vec DOS_unfolded(n_bins, arma::fill::zeros);
-	double _min_energy = 0.0,			 _max_energy = 0.0;
-	double _min_energy_unfolded = 0.0,	 _max_energy_unfolded = 0.0;
-
-	const long n_bins_lvl = 5 * (1 + long(3.322 * log(dist_size)));
-	arma::vec lvl_distribution(n_bins_lvl, arma::fill::zeros);
-	arma::vec lvl_distribution_log(n_bins_lvl, arma::fill::zeros);
-	arma::vec lvl_distribution_unfolded(n_bins_lvl, arma::fill::zeros);
-	arma::vec lvl_distribution_unfolded_log(n_bins_lvl, arma::fill::zeros);
 	double wH 				= 0.0;
 	double wH_typ 			= 0.0;
 	double wH_typ_unfolded 	= 0.0;
-	double _min_spacing 	= 0.0, _max_spacing 	= 0.0;
-	double _min_spacing_log = 0.0, _max_spacing_log = 0.0;
-	double _min_spacing_unfolded 	 = 0.0,  _max_spacing_unfolded    = 0.0;
-	double _min_spacing_unfolded_log = 0.0, _max_spacing_unfolded_log = 0.0;
 
+	arma::vec energies_all, energies_unfolded_all;
+	arma::vec spacing, spacing_unfolded, spacing_log, spacing_unfolded_log;
 	//-------SET KERNEL
 	int counter_realis = 0;
 	auto lambda_average = [&]
 		(int realis, double x){
 		arma::vec eigenvalues;
 		std::string dir = this->saving_dir + "DIAGONALIZATION" + kPSep;
-		createDirs(dir);
-			std::string _suffix = "_real=" + std::to_string(realis);
+		std::string _suffix = "_real=" + std::to_string(realis);
 		std::string name = dir + info + _suffix + ".hdf5";
 		bool loaded;
 		#pragma omp critical
@@ -1534,16 +1552,16 @@ void isingUI::ui::analyze_spectra(){
 			if(eigenvalues.empty()) return;
 
 			//------------------- Unfolding, cdf and fit	
-			arma::vec cdf(eigenvalues.size(), arma::fill::zeros);
-    		std::iota(cdf.begin(), cdf.end(), 0);
-    		auto p1 = arma::polyfit(eigenvalues, cdf, 3);	arma::vec res1 = arma::polyval(p1, eigenvalues);
-			auto p2 = arma::polyfit(eigenvalues, cdf, 4);	arma::vec res2 = arma::polyval(p2, eigenvalues);
-			auto p3 = arma::polyfit(eigenvalues, cdf, 5);	arma::vec res3 = arma::polyval(p3, eigenvalues);
-			auto p4 = arma::polyfit(eigenvalues, cdf, 6);	arma::vec res4 = arma::polyval(p4, eigenvalues);
-    		arma::vec energies_unfolded = res4;
-
+			arma::vec energies_unfolded = statistics::unfolding(eigenvalues);
+    
 			if(realis == 0)
 			{
+				arma::vec cdf(eigenvalues.size(), arma::fill::zeros);
+    			std::iota(cdf.begin(), cdf.end(), 0);
+    			auto p1 = arma::polyfit(eigenvalues, cdf, 3);	arma::vec res1 = arma::polyval(p1, eigenvalues);
+				auto p2 = arma::polyfit(eigenvalues, cdf, 4);	arma::vec res2 = arma::polyval(p2, eigenvalues);
+				auto p3 = arma::polyfit(eigenvalues, cdf, 5);	arma::vec res3 = arma::polyval(p3, eigenvalues);
+				auto p4 = arma::polyfit(eigenvalues, cdf, 6);	arma::vec res4 = arma::polyval(p4, eigenvalues);
 				std::ofstream file;
 				openFile(file, dir_unfolding + info + ".dat", std::ios::out);
 				for(int k = 0; k < cdf.size(); k++)
@@ -1558,13 +1576,17 @@ void isingUI::ui::analyze_spectra(){
 			u64 E_av_idx = i - eigenvalues.begin();
 			const long E_min = E_av_idx - num / 2.;
 			const long E_max = E_av_idx + num / 2. + 1;
-			arma::vec energies 				= exctract_vector(eigenvalues, E_min, E_max);
-			arma::vec energies_unfolded_cut = exctract_vector(energies_unfolded, E_min, E_max);
 
-			//------------------- Level Spacing Distribution
+			//double epsilon = sqrt(g*g + (h+w)*(h+w));
+			//const arma::vec energies = exctract_vector_between_values(eigenvalues, -epsilon, epsilon);
+			const arma::vec energies = exctract_vector(eigenvalues, E_min, E_max);
+			arma::vec energies_unfolded_cut = statistics::unfolding(energies);
+			
+			//------------------- Level Spacings
 			arma::vec level_spacings(energies.size() - 1, arma::fill::zeros);
 			arma::vec level_spacings_unfolded(energies.size() - 1, arma::fill::zeros);
 			
+		#pragma omp parallel for reduction(+: wH, wH_typ, wH_typ_unfolded)
 			for(int i = 0; i < energies.size() - 1; i++){
 				const double delta 			= energies(i+1) 				- energies(i);
 				const double delta_unfolded = energies_unfolded_cut(i+1) 	- energies_unfolded_cut(i);
@@ -1576,32 +1598,17 @@ void isingUI::ui::analyze_spectra(){
 				level_spacings(i) 			= delta;
 				level_spacings_unfolded(i) 	= delta_unfolded;
 			}
-			#pragma omp critical
+			//------------------- Combine realisations
+		#pragma omp critical
 			{
-				lvl_distribution 				+= statistics::probability_distribution(level_spacings, n_bins_lvl);
-				lvl_distribution_unfolded 		+= statistics::probability_distribution(level_spacings_unfolded, n_bins_lvl);
-				_min_spacing += arma::min(level_spacings);		
-				_max_spacing += arma::max(level_spacings);
-				_min_spacing_unfolded += arma::min(level_spacings_unfolded);		
-				_max_spacing_unfolded += arma::max(level_spacings_unfolded);
-
 				arma::vec level_spacings_unfolded_log = arma::log10(level_spacings_unfolded);
 				arma::vec level_spacings_log = arma::log10(level_spacings);
-				lvl_distribution_log 		  += statistics::probability_distribution(level_spacings_log, n_bins_lvl);
-				lvl_distribution_unfolded_log += statistics::probability_distribution(level_spacings_unfolded_log, n_bins_lvl);
-				_min_spacing_log += arma::min(level_spacings_log);	
-				_max_spacing_log += arma::max(level_spacings_log);
-				_min_spacing_unfolded_log += arma::min(level_spacings_unfolded_log);	
-				_max_spacing_unfolded_log += arma::max(level_spacings_unfolded_log);
-				counter_realis++;
-
-				//------------------- Density of States
-				DOS 			+= statistics::probability_distribution(eigenvalues, n_bins);
-				DOS_unfolded 	+= statistics::probability_distribution(energies_unfolded, n_bins);
-				_min_energy += arma::min(eigenvalues);		
-				_max_energy += arma::max(eigenvalues);
-				_min_energy_unfolded += arma::min(energies_unfolded);	
-				_max_energy_unfolded += arma::max(energies_unfolded);
+				energies_all = arma::join_cols(energies_all, energies);
+				energies_unfolded_all = arma::join_cols(energies_unfolded_all, energies_unfolded_cut);
+				spacing = arma::join_cols(spacing, level_spacings);
+				spacing_log = arma::join_cols(spacing_log, level_spacings_log);
+				spacing_unfolded = arma::join_cols(spacing_unfolded, level_spacings_unfolded);
+				spacing_unfolded_log = arma::join_cols(spacing_unfolded_log, level_spacings_unfolded_log);
 			}
 		}
 		catch (const std::exception& err) {
@@ -1610,7 +1617,10 @@ void isingUI::ui::analyze_spectra(){
 			//std::cout << "Caught some error, but current spectrum is:" << std::endl;
 			//std::cout << eigenvalues.t() << std::endl;
 		}
-		
+		catch (...) {
+			stout << "Unknown error...!" << "\n";
+			assert(false);
+		}
 	};
 
 	//------CALCULATE FOR MODEL
@@ -1630,28 +1640,15 @@ void isingUI::ui::analyze_spectra(){
 		norm = counter_realis;
 	}
 	
-	if(lvl_distribution_unfolded.is_empty()) return;
-	if(lvl_distribution_unfolded.is_zero()) return;
-
-	_min_spacing /= norm; _max_spacing /= norm; _min_spacing_log /= norm; _max_spacing_log /= norm;
-	_min_spacing_unfolded /= norm; _max_spacing_unfolded /= norm; _min_spacing_unfolded_log /= norm; _max_spacing_unfolded_log /= norm;
-	lvl_distribution 		= normalise_dist(lvl_distribution / norm, 	  _min_spacing, 	_max_spacing);
-	lvl_distribution_log 	= normalise_dist(lvl_distribution_log / norm, _min_spacing_log, _max_spacing_log);
-	lvl_distribution_unfolded 		= normalise_dist(lvl_distribution_unfolded / norm, 	   _min_spacing_unfolded, 	  _max_spacing_unfolded);
-	lvl_distribution_unfolded_log 	= normalise_dist(lvl_distribution_unfolded_log / norm, _min_spacing_unfolded_log, _max_spacing_unfolded_log);
-
-	_min_energy /= norm; _max_energy /= norm; _min_energy_unfolded /= norm; _max_energy_unfolded /= norm;
-	DOS /= norm;	 DOS_unfolded /= norm;
 	wH /= norm;	wH_typ /= norm;	wH_typ_unfolded /= norm;
-
-	save_to_file(dir_DOS + info + ".dat", 				arma::linspace(_min_energy, 		 _max_energy, 			DOS.size()), 			DOS 		);
-	save_to_file(dir_DOS + "unfolded" + info + ".dat", 	arma::linspace(_min_energy_unfolded, _max_energy_unfolded, 	DOS_unfolded.size()), 	DOS_unfolded);
-	
-	save_to_file(dir_spacing + ""     + info + ".dat", 	arma::linspace(_min_spacing, 	 _max_spacing, 		lvl_distribution.size()), 	lvl_distribution, 		exp(wH_typ_unfolded), wH, exp(wH_typ));
-	save_to_file(dir_spacing + "_log" + info + ".dat", 	arma::linspace(_min_spacing_log, _max_spacing_log, 	lvl_distribution.size()), 	lvl_distribution_log, 	wH_typ_unfolded, wH, wH_typ);
-	save_to_file(dir_spacing + "unfolded"     + info + ".dat", 	arma::linspace(_min_spacing_unfolded, 	 _max_spacing_unfolded, 		lvl_distribution_unfolded.size()), 	lvl_distribution_unfolded, 		exp(wH_typ_unfolded), wH, exp(wH_typ));
-	save_to_file(dir_spacing + "unfolded_log" + info + ".dat", 	arma::linspace(_min_spacing_unfolded_log, _max_spacing_unfolded_log, 	lvl_distribution_unfolded.size()), 	lvl_distribution_unfolded_log, 	wH_typ_unfolded, wH, wH_typ);
+	statistics::probability_distribution(dir_spacing, info, spacing, -1, exp(wH_typ_unfolded), wH, exp(wH_typ));
+	statistics::probability_distribution(dir_spacing, "_log" + info, spacing_log, -1, wH_typ_unfolded, wH, wH_typ);
+	statistics::probability_distribution(dir_spacing, "unfolded" + info, spacing_unfolded, -1, exp(wH_typ_unfolded), wH, exp(wH_typ));
+	statistics::probability_distribution(dir_spacing, "unfolded_log" + info, spacing_unfolded_log, -1, wH_typ_unfolded, wH, wH_typ);
+	statistics::probability_distribution(dir_DOS, info, energies_all, -1);
+	statistics::probability_distribution(dir_DOS, "unfolded" + info, energies_unfolded_all, -1);
 }	
+
 //--------------------------------------------------------------------- ADIABATIC GAUGE POTENTIAL
 void isingUI::ui::adiabaticGaugePotential_dis()
 {
