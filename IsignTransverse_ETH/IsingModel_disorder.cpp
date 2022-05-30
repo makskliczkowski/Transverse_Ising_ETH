@@ -683,11 +683,13 @@ arma::mat IsingModel_disorder::correlation_matrix(u64 state_id) const {
 arma::vec IsingModel_disorder::get_non_interacting_energies(){
 	const u64 dim = ULLPOW(this->L);
 	arma::vec energies(dim);
+	this->dh = create_random_vec(this->L, this->w);
 	auto epsilon = [this](int site){
 		double hi = this->h + this->dh(site);
 		return sqrt(this->g * this->g + hi * hi);
 	};
 	int counter = 0;
+//#pragma omp parallel for
 	for(int k = 0; k <= L; k++) // number of flipped bits
 	{
 		std::vector<int> bitmask(k, 1); 	// string with k-leading 1's
@@ -700,7 +702,9 @@ arma::vec IsingModel_disorder::get_non_interacting_energies(){
     	        if (bitmask[i]) E += epsilon(i);
 				else 			E -= epsilon(i);
     	    }
-			energies(counter++) = E;
+			//#pragma omp critical
+				energies(counter++) = E;
+			
     	} while (std::prev_permutation(bitmask.begin(), bitmask.end()));
 	}
 	sort(energies.begin(), energies.end());

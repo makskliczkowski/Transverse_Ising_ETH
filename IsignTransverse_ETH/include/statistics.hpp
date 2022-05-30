@@ -142,6 +142,7 @@ arma::vec eigenlevel_statistics_return(const arma::vec& energies)
 
 //! ---------------------------------------------------------------- UNFOLDING
 //<! spectral unfolding as return
+[[nodiscard]]
 inline
 arma::vec unfolding(const arma::vec& eigenvalues){
     const size_t N = eigenvalues.size();
@@ -161,11 +162,12 @@ arma::vec unfolding(const arma::vec& eigenvalues){
 }
 
 //<! spectral unfolding in-place
-inline
-void unfolding(arma::vec& eigenvalues){
-    const arma::vec E = eigenvalues;
-    eigenvalues = unfolding(E);
-}
+//[[noreturn]]
+//inline
+//void unfolding(arma::vec& eigenvalues){
+//    const arma::vec E = eigenvalues;
+//    eigenvalues = unfolding(E);
+//}
 
 // ---------------------------------------------------------------------------------- SPECTRAL STATISTICS
 // ----------------------------------------- MEAN LEVEL SPACING

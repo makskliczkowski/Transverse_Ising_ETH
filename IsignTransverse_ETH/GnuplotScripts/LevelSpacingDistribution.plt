@@ -38,24 +38,24 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset border;"
 model = 0       # 1=symmetries and 0=disorder
 w = 0.3
 g = 0.9
-L = 12
+L = 18
 h = 0.8
 J = 0.0
 
-what = 0                # 0 - DOS / 1 - Lvl-spacing Distribution / 2 - unfolding analysis
+what = 1                # 0 - DOS / 1 - Lvl-spacing Distribution / 2 - unfolding analysis
 plot_typical_wH = 0     # plot only the scaling of wH_typical
-scaling = 2             # 0 - J scaling / 1 - L scaling / 2 - w scaling
+scaling = 1             # 0 - J scaling / 1 - L scaling / 2 - w scaling
 
-use_unfolded = 0        # use unfolded energies for DOS
+use_unfolded = 1        # use unfolded energies for DOS
 use_logarithmic = 1     # use low(w) distribution
 compare_fits = 1        # compare different ploynomial degrees in unfolding
-use_fit = 1             # use fit for distribtution
+use_fit = 0             # use fit for distribtution
     J0 = 5;    Jend = 100;  dJ = 20
     w0 = 10;    wend = 50;  dw = 10
 
 if(plot_typical_wH){
     J0 = 5; Jend = 100; dJ = 5;
-    w0 = 10;    wend = 300;  dw = 10
+    w0 = 20;    wend = 300;  dw = 10
 }
 
 _name_long(Lx, Jx, hx, gx, dis) = (model? sprintf("_L=%d,J=%.2f,g=%.2f,h=%.2f.dat", Lx, Jx, gx, hx) :\
@@ -65,7 +65,7 @@ if(scaling == 0){
     i0 = J0;    iend = Jend;    di = dJ;
     _name(x) = _name_long(L, 0.01*x, h, g, w);  _key_title(x) = sprintf("J=%.2f", 0.01*x)
   } else { if(scaling == 1) {   
-        i0 = 10;    iend = 16;  di = 1
+        i0 = 10;    iend = 24;  di = 2
         _name(x) = _name_long(x, J, h, g, w);  _key_title(x) = sprintf("L=%d", x)
     } else { if(scaling == 2) {  
         i0 = w0;    iend = wend;    di = dw;
@@ -76,7 +76,7 @@ if(scaling == 0){
 #--------- DIRECTORIES
 dir_base = '../results/'.(model? 'symmetries' : 'disorder').'/PBC/'
 dir_DOS = dir_base.'DensityOfStates/'.(use_unfolded? 'unfolded' : '')
-dir_dist = dir_base.'LevelSpacingDistribution/unfolded'.(use_logarithmic? '_log' : '');
+dir_dist = dir_base.'LevelSpacingDistribution/'.(use_unfolded? 'unfolded' : '').(use_logarithmic? '_log' : '');
 dir_unfolding = dir_base.'Unfolding/';
 
 #--------- FIT FUNCITONS for x=log10(w):
@@ -96,7 +96,8 @@ do for[i=i0:iend:di]{
     _name_ = dir_dist._name(i)
     sig = 0.5; mu = -1; a = 1.0
     if(fileexist(_name_)){
-        stats _name_ using 3 every ::0::0 nooutput;   wH_typical[idx] = STATS_min;
+        if(use_unfolded){ stats _name_ using 3 every ::0::0 nooutput;   wH_typical[idx] = STATS_min; 
+        } else { stats _name_ using 5 every ::0::0 nooutput;   wH_typical[idx] = STATS_min; }
         stats _name_ using 4 every ::0::0 nooutput;   wH[idx] = STATS_min;
         if(use_fit){ fit fun_fit(x) dir_dist._name(i) u 1:2 via a, mu, sig; }
         a_list[idx] = a;    mu_list[idx] = mu;  sig_list[idx] = sig;
@@ -134,17 +135,17 @@ if(what == 0){
     if(what == 1){
         #set logscale y; set yrange[1e-3:2]
         set key inside right top
-        SCALE = use_logarithmic? "set xrange[-3:2]; set yrange[1e-3:1.7];" : "set xrange[1e-3:10]; set yrange[1e-3:2.7];" 
+        SCALE = use_logarithmic? (use_unfolded? "set xrange[-3:2];" : "set xrange[-7:-1];")."set yrange[1e-3:1.7];" : "set xrange[1e-3:10]; set yrange[1e-3:2.7];" 
         if(use_logarithmic){ set ylabel 'P(log_{10} {/Symbol w})';    set xlabel 'log_{10} {/Symbol w}'}
         else {set ylabel 'P({/Symbol w})';    set xlabel '{/Symbol w}'; };#set logscale x;};
         trueX(x) = use_logarithmic? 10**x : x
-        factor = use_logarithmic? log(10) : 1.0
+        prefactor(x) = use_logarithmic? 10**x * log(10) : 1.0
         set multiplot
         @MARGIN; @SCALE;    plot for[i=i0:iend:di] dir_dist._name(i) u 1:2 w steps lw 2 t _key_title(i), '+' u (NaN):(NaN) w p ps 2 pt 7 lc rgb "black" t 'log {/Symbol w}_H^{typ}',\
-                                     factor*trueX(x)*P_GOE(trueX(x)) w l ls 1 dt (2,2) lc rgb 'black' lw 2 t 'GOE',\
-                                     factor*trueX(x)*P_POISSON(trueX(x)) w l ls 1 dt (4,3,2, 2) lc rgb 'red' lw 2 t 'Poisson', '+' u (NaN):(NaN) w l dt (8,8) lw 2 lc 1 t 'log-normal fit'
+                                     prefactor(x)*P_GOE(trueX(x)) w l ls 1 dt (2,2) lc rgb 'black' lw 2 t 'GOE',\
+                                     prefactor(x)*P_POISSON(trueX(x)) w l ls 1 dt (4,3,2, 2) lc rgb 'red' lw 2 t 'Poisson', '+' u (NaN):(NaN) w l dt (8,8) lw 2 lc 1 t 'log-normal fit'
         @UNSET; 
-        @MARGIN; @SCALE;    plot for[i=i0:iend:di] '+' u (wH_typical[(i-i0)/di + 1]):(0.0) w p ps 2 pt 7 notitle
+        @MARGIN; @SCALE;    plot for[i=i0:iend:di] '+' u (wH_typical[(i-i0)/di + 1]):(1e-3) w p ps 2 pt 7 notitle
         if(use_fit){
             @UNSET; 
             @MARGIN; @SCALE;    plot for[i=1:sizee] abs(plot_fit(x, a_list[i], mu_list[i], sig_list[i])) w l dt (8,8) lw 2 notitle
