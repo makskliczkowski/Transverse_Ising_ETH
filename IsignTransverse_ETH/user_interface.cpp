@@ -1413,12 +1413,12 @@ void isingUI::ui::thouless_times()
 	auto _list = this->m? k_list : wx_list;
 	std::cout << _list << std::endl;
 	auto kernel = [this](
-		int Lx, double Jx, double gx, double hx, double wx,
+		int Lx, double Jx, double gx, double hx, double x,
 		std::ofstream& map, auto... prints
 		){
 		std::ifstream file;
-		std::string info = this->m? IsingModel_sym::set_info(Lx, Jx ,gx, hx, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
-						: IsingModel_disorder::set_info(Lx, Jx, this->J0, gx, this->g0, hx, wx);
+		std::string info = this->m? IsingModel_sym::set_info(Lx, Jx ,gx, hx, x, this->symmetries.p_sym, this->symmetries.x_sym) 
+						: IsingModel_disorder::set_info(Lx, Jx, this->J0, gx, this->g0, hx, x);
 		std::string filename = this->saving_dir + "SpectralFormFactor/smoothed" + kPSep + info + ".dat";
 		auto data = readFromFile(file, filename);
 		file.close();
@@ -1470,7 +1470,7 @@ void isingUI::ui::thouless_times()
 	std::ofstream map;
 	openFile(map, dir + "_all" + info + ".dat", ios::out);
 	for (int size = Lmin; size < Lmax; size += this->Ls){
-		for(double Jx = this->w; Jx <= 1.05; Jx += 0.05){
+		for(double Jx = this->J; Jx <= 1.05; Jx += 0.05){
 			for (auto &gx : gx_list){
 				for (auto &hx : hx_list){
 					for(auto& x : _list){	// either disorder w (m=0) or symmetry sector k (m=1)
@@ -1586,7 +1586,6 @@ void isingUI::ui::analyze_spectra(){
 			arma::vec level_spacings(energies.size() - 1, arma::fill::zeros);
 			arma::vec level_spacings_unfolded(energies.size() - 1, arma::fill::zeros);
 			
-		#pragma omp parallel for reduction(+: wH, wH_typ, wH_typ_unfolded)
 			for(int i = 0; i < energies.size() - 1; i++){
 				const double delta 			= energies(i+1) 				- energies(i);
 				const double delta_unfolded = energies_unfolded_cut(i+1) 	- energies_unfolded_cut(i);
