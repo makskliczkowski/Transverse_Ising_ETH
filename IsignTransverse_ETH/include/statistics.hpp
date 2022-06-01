@@ -160,14 +160,6 @@ arma::vec unfolding(const arma::vec& eigenvalues, int n = 6){
     return res;
 }
 
-//<! spectral unfolding in-place
-//[[noreturn]]
-//inline
-//void unfolding(arma::vec& eigenvalues){
-//    const arma::vec E = eigenvalues;
-//    eigenvalues = unfolding(E);
-//}
-
 // ---------------------------------------------------------------------------------- SPECTRAL STATISTICS
 // ----------------------------------------- MEAN LEVEL SPACING
 //<! mean level spacing between iterators

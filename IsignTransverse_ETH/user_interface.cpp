@@ -383,7 +383,7 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 			#endif
 		}
 	}
-	#if defined(MY_MAC)
+	#ifndef MY_MAC
 		// save eigenvalues (yet unsaved)
 		if(!loaded)
 			eigenvalues.save(arma::hdf5_name(name + _suffix + ".hdf5", "eigenvalues/"));
