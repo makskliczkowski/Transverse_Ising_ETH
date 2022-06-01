@@ -56,7 +56,7 @@ void isingUI::ui::make_sim()
 					this->g = gx;
 					this->h = hx;
 					const auto start_loop = std::chrono::system_clock::now();
-for(this->J = 0.00; this->J <= 1.05; this->J += 0.05)
+//for(this->J = 0.00; this->J <= 1.05; this->J += 0.05)
 {
 	//if(this->L > 10) this->realisations = 1000;
 
@@ -70,13 +70,13 @@ for(this->J = 0.00; this->J <= 1.05; this->J += 0.05)
 	//continue;
 					// ----------------------
 					//this->diagonalize(); continue;
-					for(this->w = 0.6; this->w <= 1.3; this->w += 0.1)
+					for(this->w = 0.1; this->w <= 0.7; this->w += 0.1)
 					{
 						std::cout << this->w << std::endl;
-						//diagonalize();
-						//spectral_form_factor();
-						analyze_spectra();
-						average_SFF();
+						diagonalize();
+						spectral_form_factor();
+						//analyze_spectra();
+						//average_SFF();
 					}
 					continue;
 					average_SFF(); continue;
@@ -1581,7 +1581,8 @@ void isingUI::ui::analyze_spectra(){
 											exctract_vector(eigenvalues, E_min, E_max);
 			arma::vec energies_unfolded_cut = this->ch? statistics::unfolding(energies, this->L) :
 														 exctract_vector(energies_unfolded, E_min, E_max);
-			
+			sort(energies.begin(), energies.end());
+			sort(energies_unfolded_cut.begin(), energies_unfolded_cut.end());
 			//------------------- Level Spacings
 			arma::vec level_spacings(energies.size() - 1, arma::fill::zeros);
 			arma::vec level_spacings_unfolded(energies.size() - 1, arma::fill::zeros);
@@ -1638,10 +1639,7 @@ void isingUI::ui::analyze_spectra(){
 		average_over_realisations<par>(false, lambda_average);
 		norm = counter_realis;
 	}
-	if(spacing.is_empty() || spacing_log.is_empty() || spacing_unfolded.is_empty() || spacing_unfolded_log.is_empty()
-							 || energies_all.is_empty() || energies_unfolded_all.is_empty()) return;
-	if(spacing.is_zero() || spacing_log.is_zero() || spacing_unfolded.is_zero() || spacing_unfolded_log.is_zero()
-							 || energies_all.is_zero() || energies_unfolded_all.is_zero()) return;
+	
 	wH /= norm;	wH_typ /= norm;	wH_typ_unfolded /= norm;
 	std:string prefix = this->ch ? "oneband" : "";
 	statistics::probability_distribution(dir_spacing, prefix + info, spacing, -1, exp(wH_typ_unfolded), wH, exp(wH_typ));

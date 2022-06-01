@@ -20,7 +20,7 @@
 *.zip
 *.pdf
 *.rar
-*.o 	# ignore executable files
+*.o # ignore executable files
 slurm-*.out
 *.sh
 *.txt
