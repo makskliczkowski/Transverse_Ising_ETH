@@ -1581,8 +1581,7 @@ void isingUI::ui::analyze_spectra(){
 											exctract_vector(eigenvalues, E_min, E_max);
 			arma::vec energies_unfolded_cut = this->ch? statistics::unfolding(energies, this->L) :
 														 exctract_vector(energies_unfolded, E_min, E_max);
-			sort(energies.begin(), energies.end());
-			sort(energies_unfolded_cut.begin(), energies_unfolded_cut.end());
+			
 			//------------------- Level Spacings
 			arma::vec level_spacings(energies.size() - 1, arma::fill::zeros);
 			arma::vec level_spacings_unfolded(energies.size() - 1, arma::fill::zeros);
@@ -1639,7 +1638,11 @@ void isingUI::ui::analyze_spectra(){
 		average_over_realisations<par>(false, lambda_average);
 		norm = counter_realis;
 	}
-	
+	if(spacing.is_empty() || spacing_log.is_empty() || spacing_unfolded.is_empty() || spacing_unfolded_log.is_empty()
+							 || energies_all.is_empty() || energies_unfolded_all.is_empty()) return;
+	if(spacing.is_zero() || spacing_log.is_zero() || spacing_unfolded.is_zero() || spacing_unfolded_log.is_zero()
+							 || energies_all.is_zero() || energies_unfolded_all.is_zero()) return;
+
 	wH /= norm;	wH_typ /= norm;	wH_typ_unfolded /= norm;
 	std:string prefix = this->ch ? "oneband" : "";
 	statistics::probability_distribution(dir_spacing, prefix + info, spacing, -1, exp(wH_typ_unfolded), wH, exp(wH_typ));
