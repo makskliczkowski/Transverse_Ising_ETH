@@ -1548,7 +1548,7 @@ void isingUI::ui::analyze_spectra(){
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 		N = alfa->get_hilbert_size();
 	}
-	const u64 num = 0.5 * N;
+	const u64 num = 0.6 * N;
 	double wH 				= 0.0;
 	double wH_typ 			= 0.0;
 	double wH_typ_unfolded 	= 0.0;
@@ -1573,22 +1573,21 @@ void isingUI::ui::analyze_spectra(){
 			if(eigenvalues.empty()) return;
 
 			//------------------- Unfolding, cdf and fit	
-			arma::vec energies_unfolded = statistics::unfolding(eigenvalues);
-    
-			if(realis == 0)
-			{
-				arma::vec cdf(eigenvalues.size(), arma::fill::zeros);
-    			std::iota(cdf.begin(), cdf.end(), 0);
-    			auto p1 = arma::polyfit(eigenvalues, cdf, 3);	arma::vec res1 = arma::polyval(p1, eigenvalues);
-				auto p2 = arma::polyfit(eigenvalues, cdf, 4);	arma::vec res2 = arma::polyval(p2, eigenvalues);
-				auto p3 = arma::polyfit(eigenvalues, cdf, 5);	arma::vec res3 = arma::polyval(p3, eigenvalues);
-				auto p4 = arma::polyfit(eigenvalues, cdf, 6);	arma::vec res4 = arma::polyval(p4, eigenvalues);
-				std::ofstream file;
-				openFile(file, dir_unfolding + info + ".dat", std::ios::out);
-				for(int k = 0; k < cdf.size(); k++)
-					printSeparated(file, "\t", 14, true, eigenvalues(k), cdf(k), res1(k), res2(k), res3(k), res4(k));
-				file.close();
-			}
+			//if(realis == 0)
+			//{
+			//	arma::vec cdf(eigenvalues.size(), arma::fill::zeros);
+    		//	std::iota(cdf.begin(), cdf.end(), 0);
+    		//	auto p1 = arma::polyfit(eigenvalues, cdf, 3);			arma::vec res1 = arma::polyval(p1, eigenvalues);
+			//	auto p2 = arma::polyfit(eigenvalues, cdf, 6);			arma::vec res2 = arma::polyval(p2, eigenvalues);
+			//	auto p3 = arma::polyfit(eigenvalues, cdf, this->L);		arma::vec res3 = arma::polyval(p3, eigenvalues);
+			//	auto p4 = arma::polyfit(eigenvalues, cdf, this->L + 5);	arma::vec res4 = arma::polyval(p4, eigenvalues);
+			//	std::ofstream file;
+			//	openFile(file, dir_unfolding + info + ".dat", std::ios::out);
+			//	for(int k = 0; k < cdf.size(); k++)
+			//		printSeparated(file, "\t", 14, true, eigenvalues(k), cdf(k), res1(k), res2(k), res3(k), res4(k));
+			//	file.close();
+			//}
+			arma::vec energies_unfolded = statistics::unfolding(eigenvalues, this->L);
 			//------------------- Get 50% spectrum
 			double E_av = arma::trace(eigenvalues) / double(N);
 			auto i = min_element(begin(eigenvalues), end(eigenvalues), [=](double x, double y) {
@@ -1598,11 +1597,13 @@ void isingUI::ui::analyze_spectra(){
 			const long E_min = E_av_idx - num / 2.;
 			const long E_max = E_av_idx + num / 2. + 1;
 
-			//double epsilon = sqrt(g*g + (h+w)*(h+w));
-			//const arma::vec energies = exctract_vector_between_values(eigenvalues, -epsilon, epsilon);
-			const arma::vec energies = exctract_vector(eigenvalues, E_min, E_max);
-			arma::vec energies_unfolded_cut = statistics::unfolding(energies);
-			
+			double epsilon = sqrt(g*g + (h+w)*(h+w));
+			arma::vec energies = this->ch? exctract_vector_between_values(eigenvalues, -0.5 * epsilon, 0.5 * epsilon) : 
+											exctract_vector(eigenvalues, E_min, E_max);
+			arma::vec energies_unfolded_cut = this->ch? statistics::unfolding(energies, this->L) :
+														 exctract_vector(energies_unfolded, E_min, E_max);
+			sort(energies.begin(), energies.end());
+			sort(energies_unfolded_cut.begin(), energies_unfolded_cut.end());
 			//------------------- Level Spacings
 			arma::vec level_spacings(energies.size() - 1, arma::fill::zeros);
 			arma::vec level_spacings_unfolded(energies.size() - 1, arma::fill::zeros);
@@ -1622,14 +1623,14 @@ void isingUI::ui::analyze_spectra(){
 			//------------------- Combine realisations
 		#pragma omp critical
 			{
-				arma::vec level_spacings_unfolded_log = arma::log10(level_spacings_unfolded);
-				arma::vec level_spacings_log = arma::log10(level_spacings);
 				energies_all = arma::join_cols(energies_all, energies);
 				energies_unfolded_all = arma::join_cols(energies_unfolded_all, energies_unfolded_cut);
+				
 				spacing = arma::join_cols(spacing, level_spacings);
-				spacing_log = arma::join_cols(spacing_log, level_spacings_log);
+				spacing_log = arma::join_cols(spacing_log, arma::log10(level_spacings));
 				spacing_unfolded = arma::join_cols(spacing_unfolded, level_spacings_unfolded);
-				spacing_unfolded_log = arma::join_cols(spacing_unfolded_log, level_spacings_unfolded_log);
+				spacing_unfolded_log = arma::join_cols(spacing_unfolded_log, arma::log10(level_spacings_unfolded));
+				counter_realis++;
 			}
 		}
 		catch (const std::exception& err) {
@@ -1662,12 +1663,13 @@ void isingUI::ui::analyze_spectra(){
 	}
 	
 	wH /= norm;	wH_typ /= norm;	wH_typ_unfolded /= norm;
-	statistics::probability_distribution(dir_spacing, info, spacing, -1, exp(wH_typ_unfolded), wH, exp(wH_typ));
-	statistics::probability_distribution(dir_spacing, "_log" + info, spacing_log, -1, wH_typ_unfolded, wH, wH_typ);
-	statistics::probability_distribution(dir_spacing, "unfolded" + info, spacing_unfolded, -1, exp(wH_typ_unfolded), wH, exp(wH_typ));
-	statistics::probability_distribution(dir_spacing, "unfolded_log" + info, spacing_unfolded_log, -1, wH_typ_unfolded, wH, wH_typ);
-	statistics::probability_distribution(dir_DOS, info, energies_all, -1);
-	statistics::probability_distribution(dir_DOS, "unfolded" + info, energies_unfolded_all, -1);
+	std:string prefix = this->ch ? "oneband" : "";
+	statistics::probability_distribution(dir_spacing, prefix + info, spacing, -1, exp(wH_typ_unfolded), wH, exp(wH_typ));
+	statistics::probability_distribution(dir_spacing, prefix + "_log" + info, spacing_log, -1, wH_typ_unfolded, wH, wH_typ);
+	statistics::probability_distribution(dir_spacing, prefix + "unfolded" + info, spacing_unfolded, -1, exp(wH_typ_unfolded), wH, exp(wH_typ));
+	statistics::probability_distribution(dir_spacing, prefix + "unfolded_log" + info, spacing_unfolded_log, -1, wH_typ_unfolded, wH, wH_typ);
+	statistics::probability_distribution(dir_DOS, prefix + info, energies_all, -1);
+	statistics::probability_distribution(dir_DOS, prefix + "unfolded" + info, energies_unfolded_all, -1);
 }	
 //--------------------------------------------------------------------- ADIABATIC GAUGE POTENTIAL
 void isingUI::ui::adiabaticGaugePotential_dis()

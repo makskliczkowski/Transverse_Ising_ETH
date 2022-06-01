@@ -13,7 +13,7 @@ void probability_distribution(
 	_ty... args
     ) {
 	if (n_bins <= 0)
-		n_bins = 1 + 2 * long(3.322 * log(data.size()));
+		n_bins = 1 + 3 * long(3.322 * log(data.size()));
 	const double _min = arma::min(data);
 	const double _max = arma::max(data);
 	auto prob_dist = normalise_dist(

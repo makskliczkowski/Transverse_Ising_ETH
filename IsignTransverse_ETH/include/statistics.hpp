@@ -144,7 +144,7 @@ arma::vec eigenlevel_statistics_return(const arma::vec& energies)
 //<! spectral unfolding as return
 [[nodiscard]]
 inline
-arma::vec unfolding(const arma::vec& eigenvalues){
+arma::vec unfolding(const arma::vec& eigenvalues, int n = 6){
     const size_t N = eigenvalues.size();
 
     // calculate cummulative distribution function (cdf)
@@ -152,7 +152,6 @@ arma::vec unfolding(const arma::vec& eigenvalues){
     std::iota(cdf.begin(), cdf.end(), 0);
     
     // fit polynomial order 10 to cdf
-    int n = 6;
     auto p = arma::polyfit(eigenvalues, cdf, n);
 
     // evaluate fit at each energy: result is the unfolded energy
