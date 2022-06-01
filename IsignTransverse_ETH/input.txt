@@ -1,5 +1,2 @@
-<<<<<<< HEAD
--L 10 -Ln 5 -Ls 1 -J 0.0 -g 0.9 -gs 0.05 -gn 1 -h 0.8 -hs 0.1 -hn 1 -w 0.3 -ws 0.05 -wn 1 -th 32 -r 5000 -op 3 -fun 30 -s 6 -mu 50 -dt 0.1 -ch 1 -scale 1 -m 0 -jobid 0
-=======
--L 9 -Ln 8 -Ls 1 -J 1.0 -g 0.05 -gs 0.05 -gn 30 -h 0.05 -hs 0.05 -hn 30 -w 0.05 -ws 0.05 -wn 31 -th 10 -r 1 -op 3 -fun 8 -s 6 -mu 50 -dt 0.1 -ch 1 -scale 1 -m 0 -jobid 0
->>>>>>> Rafal_main
+-L 14 -Ln 1 -Ls 1 -J 0.0 -g 0.9 -gs 0.05 -gn 1 -h 0.8 -hs 0.1 -hn 1 -w 0.3 -ws 0.05 -wn 1 -th 32 -r 10000 -op 3 -fun 30 -s 6 -mu 50 -dt 0.1 -ch 1 -scale 1 -m 0 -jobid 0
+

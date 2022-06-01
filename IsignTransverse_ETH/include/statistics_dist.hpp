@@ -3,15 +3,17 @@
 namespace statistics{
 //! ---------------------------------------------------------------- DISTRIBUTION FUNCTIONS AND PROBABILITIES
 //<! Creates a probabilty distribution of data and saves it in the directory
+template <typename ... _ty>
 inline
 void probability_distribution(
     std::string dir,        //<! directory to save distribution
     std::string name,       //<! name of distribution
     const arma::vec& data,  //<! random data
-    int n_bins = -1         //<! number of bins in the histogram
+    int n_bins,		        //<! number of bins in the histogram
+	_ty... args
     ) {
 	if (n_bins <= 0)
-		n_bins = 1 + long(3.322 * log(data.size()));
+		n_bins = 1 + 3 * long(3.322 * log(data.size()));
 	const double _min = arma::min(data);
 	const double _max = arma::max(data);
 	auto prob_dist = normalise_dist(
@@ -20,8 +22,8 @@ void probability_distribution(
             ), _min, _max);
 	auto x = arma::linspace(_min, _max, prob_dist.size());
 
-    createDirs(dir);
-    save_to_file(dir + name + ".dat", x, prob_dist);
+    createDirs(dir); 
+    save_to_file(dir + name + ".dat", x, prob_dist, args...);
 }
 
 //<! Creates a probabilty distribution of data and saves it in the directory
