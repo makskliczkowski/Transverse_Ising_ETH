@@ -19,11 +19,11 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 
 #---------------------------- PARAMETERS
 model = 0       # 1=symmetries and 0=disorder
-w = 0.3
+w = 0.8
 g = 0.9
-L = 16
+L = 14
 h = 0.8
-J = 0.1
+J = 1.0
 k=1
 J_knot = 0.; g_knot = 0.; 
 scaling = 3     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
@@ -44,10 +44,11 @@ if(plot_der_GOE){ zoom_in = 0;}
 	g0 = 5;    gend = 150;		dg = 5;
     J0 = 15;    Jend = 70;     dJ = 5
 	L0 = 10;	    Lend = 16; 		dL = 1;
-	w_num = 12;	array w_list[w_num];
+	w_num = 16;	array w_list[w_num];
 	w_list[1] = 0.01;	w_list[2] = 0.05;	w_list[3] = 0.1;	w_list[4] = 0.3;	w_list[5] = 0.5;
 	w_list[6] = 1.0;	w_list[7] = 1.5;
-	do for[i=1:w_num]{ w_list[i] = 0.05+ 0.05*(i);}
+	w_list[8] = 0.6;	w_list[9] = 0.7;	w_list[10] = 0.8; w_list[11] = 0.9;	w_list[12] = 1.2;
+	do for[i=1:w_num]{ w_list[i] = 0.1+ 0.1*(i);}
     h_list = '0.20 0.60 1.20 1.40 1.60 1.80 2.40 3.00 3.60'
     g_list = '0.20 0.30 0.70 0.80 1.10 1.40';
 
