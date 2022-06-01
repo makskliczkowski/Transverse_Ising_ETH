@@ -1,9 +1,14 @@
+import importlib
 from os import sep as kPSep
 from numpy import array
 from numpy import loadtxt
 from numpy import exp
-from helper_functions import set_plot_elements
-from config import *
+import helper_functions as hfun
+import config as cf
+importlib.reload(cf)
+
+#--- Global
+user_settings = getattr(cf.plot_settings, 'settings')
 
 #--- GENERAL
 def load_taus():
@@ -11,7 +16,7 @@ def load_taus():
     Function to load Thouless times from file and return as numpy array
     """
 
-    name = f"{base_directory}ThoulessTime{kPSep}" + "_all" + ( ",p=%d,x=%d.dat"%(p_sym, x_sym) if model else ",J0=%.2f,g0=%.2f.dat"%(J0, g0) )
+    name = f"{cf.base_directory}ThoulessTime{kPSep}" + "_all" + ( ",p=%d,x=%d.dat"%(cf.p_sym, cf.x_sym) if cf.model else ",J0=%.2f,g0=%.2f.dat"%(cf.J0, cf.g0) )
     tau_data = loadtxt(name, unpack=True)
     return array(tau_data)
 
@@ -21,17 +26,18 @@ def compare_params(tau_data, row):
     """
     bool = 1
     for i in range(0, 5) :
-        if i != plot_settings['vs_idx']:
-            bool = bool and (abs(tau_data[i][row] - params_arr[i]) <= 1e-10)
+        if i != user_settings['vs_idx']:
+            bool = bool and (abs(tau_data[i][row] - cf.params_arr[i]) <= 1e-10)
     return bool
+
 #--- get tau data according to scaling in plot_settings
 def get_tau_data(tau_data) : 
-        vs_column = array(tau_data[plot_settings['vs_idx']])
+        vs_column = array(tau_data[user_settings['vs_idx']])
         taus = {}
         for i in range(0, len(vs_column)): 
             if(compare_params(tau_data, i)):
                 par = vs_column[i]
-                taus[f"%.5f"%(par)] = (tau_data[5][i] * (tau_data[6][i] if plot_settings['physical_units'] else 1.0), tau_data[7][i])
+                taus[f"%.5f"%(par)] = (tau_data[5][i] * (tau_data[6][i] if user_settings['physical_units'] else 1.0), tau_data[7][i])
         x_float = [];   tau = [];   gap = []
         if taus:
             lists = sorted(taus.items())
@@ -50,16 +56,17 @@ def get_tau_data(tau_data) :
 def load() :
     """
     Function to Load data from file given by plot_settings.
-    Parameters:
+    
+    Parameters used in function (all in config.py):
     -----------
     params_arr: array with model parameters set as follows:
-                 
-            --- first input are the scaling parameters in this order
-    
+
     base_directory:    directory to main results (in which ThoulessTimes folder resides)
 
     plot_settings:  dictionary with plot settings, see config.py
     """
+    print(user_settings)
+    hfun.print_vars(cf.params_arr, cf.names)
 
     #--- SET SCALING RANGES AND DATA
     x0 = 0.2
@@ -69,10 +76,10 @@ def load() :
     length = int((xend-x0) / dx) + 1
     #--- prepare scaling - axis
     vals = []
-    if plot_settings['scaling_idx'] == 0:
+    if user_settings['scaling_idx'] == 0:
         vals = range(12, 17)
-    elif plot_settings['scaling_idx'] == 4:
-        vals = range(0, params_arr[0])
+    elif user_settings['scaling_idx'] == 4:
+        vals = range(0, cf.params_arr[0])
     else :
         for x in range(0, length) :
             vals.append(x0 + x * dx)
@@ -86,8 +93,8 @@ def load() :
     tau_data = load_taus()
     new_vals = []
     for x in vals:
-        params_arr[plot_settings['scaling_idx']] = x
-        new_x, new_tau, new_gap = get_tau_data(tau_data, params_arr, plot_settings)
+        cf.params_arr[user_settings['scaling_idx']] = x
+        new_x, new_tau, new_gap = get_tau_data(tau_data)
         if new_tau.size > 1 :
             xvals.append(new_x)
             tau.append(new_tau)
@@ -110,24 +117,28 @@ def load() :
 
 
 #--- Function to plot thouless data given by plot_settings
-def plot(axis1, axis2) :
+def plot(axis1, axis2, new_settings = None) :
     """
     Plotter of Thouless times with plot_settings defining x-axis and scaling
     """
+    global user_settings
+    if new_settings != None:
+        user_settings = new_settings
+
     def key_title(x):
-        return plot_settings['scaling'] + (f"=%d"%(vals[i]) if plot_settings['scaling_idx'] == 0 else f"=%.2f"%(vals[i]))
+        return user_settings['scaling'] + (f"=%d"%(vals[i]) if user_settings['scaling_idx'] == 0 else f"=%.2f"%(vals[i]))
     def xform(x) :
-        return x if plot_settings['rescale'] == 0 else 1. / x**plot_settings['nu']
+        return x if user_settings['rescale'] == 0 else 1. / x**user_settings['nu']
 
     #--- load data 
-    vals, xvals, tau, gap_ratio = load(params_arr, base_directory, plot_settings, model)
+    vals, xvals, tau, gap_ratio = load()
     num_of_plots = len(tau)
     
     #--- plot first panel with thouless times
     marker_style = [];  face_colors = [];   ec = []
     for i in range(0, num_of_plots):
         yvals = tau[i]
-        if(plot_settings['scaling_idx'] == 0):   yvals = yvals / exp(0.01*vals[i]**2)
+        if(user_settings['scaling_idx'] == 0):   yvals = yvals / exp(0.01*vals[i]**2)
         p = axis1.plot(xform(xvals[i]), yvals, label=key_title(vals[i]))
         m = []; fc = [];    ec.append(p[0].get_color())
         
@@ -146,11 +157,11 @@ def plot(axis1, axis2) :
         marker_style.append(m); face_colors.append(fc)
 
     #-- set panel1 details
-    yrange = (1e-2, 5e3) if plot_settings['physical_units'] else (1e-5, 1e0)
-    set_plot_elements(axis1, [xform(xvals[0][0]), xform(xvals[0][len(xvals[0])-1])], yrange, 'tau', plot_settings)
+    yrange = (1e-2, 5e3) if user_settings['physical_units'] else (1e-5, 1e0)
+    hfun.set_plot_elements(axis1, [xform(xvals[0][0]), xform(xvals[0][len(xvals[0])-1])], yrange, 'tau')
     axis1.grid()
     axis1.legend()
-
+    axis1.title.set_text(hfun.info())
 
     #--- plot second panel with gap ratios
     for i in range(0, num_of_plots):
@@ -162,3 +173,4 @@ def plot(axis1, axis2) :
     axis2.axhline(y=0.5307, ls='--', color='black', label='GOE')
     axis2.axhline(y=0.3863, ls='--', color='red', label='Poisson')
     axis2.legend()
+    axis2.title.set_text(hfun.info())

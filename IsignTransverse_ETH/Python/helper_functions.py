@@ -1,9 +1,12 @@
-import os
-import matplotlib
+import importlib
+import config as cf
 from matplotlib.markers import MarkerStyle
 import matplotlib.pyplot as plt
+importlib.reload(cf)
+
 model = 0   # chooses model: 0-disorder / 1-symmetries
 BC = 1     # boundaary condition: 0 - OBC / 1 - PBC
+user_settings = getattr(cf.plot_settings, 'settings')
 
 #-------------------------- SET INFO
 def info_sym(L, J, g, h, k, p, x):
@@ -11,16 +14,15 @@ def info_sym(L, J, g, h, k, p, x):
 def info_dis(L, J, J0, g, g0, h, w):
     return "_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat"%(L, J, J0, g, g0, h, w)
 
-def info(_L, _J, _J0, _g, _g0, _h, _w, _k, _p, _x) :
+def info(_L = cf.params_arr[0], _J = cf.params_arr[1], _J0 = cf.params_arr[8], 
+            _g = cf.params_arr[2], _g0 = cf.params_arr[9], 
+            _h = cf.params_arr[3], _w = cf.params_arr[4], 
+          _k = cf.params_arr[5], _p = cf.params_arr[6], _x = cf.params_arr[7]
+    ):
     if(model) :
         return info_sym(_L, _J, _g, _h, _k, _p, _x)
     else :
         return info_dis(_L, _J, _J0, _g, _g0, _h, _w)
-
-
-#-------------------------- DIR
-kPSep = os.sep
-base_directory = f"..{kPSep}results{kPSep}" + (f"symmetries{kPSep}" if model else f"disorder{kPSep}") + (f"PBC{kPSep}" if BC else f"OBC{kPSep}") 
 
 #-------------------------- PRETTY PRINT
 def print_vars(arr_vals, names):
@@ -51,3 +53,23 @@ def mscatter(x,y,ax=None, m=None, fc=None, **kw):
             paths.append(path)
         sc.set_paths(paths)
     return sc
+
+#--------- Set user settings on plot
+def set_plot_elements(axis, xlim =[], ylim=[], ylabel = 'y', set_legend = True, font_size = 10):
+    axis.set(xlabel = r"$1\ /\ %s^{%.d}$"%(user_settings['vs'], user_settings['nu']) if user_settings['rescale'] else user_settings['vs'], ylabel = ylabel)
+    axis.set_yscale(user_settings['y_scale'])
+    axis.set_xscale(user_settings['x_scale'])
+    
+    if set_legend:
+        axis.legend(frameon=False
+                , loc='best'
+                , fontsize=font_size)
+                
+    x1, x2 = xlim
+    y1, y2 = ylim
+    if x1 != None and x2 != None:
+        if x1 < x2: axis.set_xlim([x1,x2])
+        else: axis.set_xlim([x2,x1])
+    if y1 != None and y2 != None:
+        if y1 < y2: axis.set_ylim([y1, y2])
+        else: axis.set_ylim([y2, y1])
