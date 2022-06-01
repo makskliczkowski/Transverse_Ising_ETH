@@ -67,6 +67,7 @@ def load() :
     """
     print(user_settings)
     hfun.print_vars(cf.params_arr, cf.names)
+    param_copy = cf.params_arr
 
     #--- SET SCALING RANGES AND DATA
     x0 = 0.2
@@ -78,7 +79,7 @@ def load() :
     vals = []
     if user_settings['scaling_idx'] == 0:
         vals = range(12, 17)
-    elif user_settings['scaling_idx'] == 4:
+    elif cf.model and user_settings['scaling_idx'] == 4:
         vals = range(0, cf.params_arr[0])
     else :
         for x in range(0, length) :
@@ -107,6 +108,8 @@ def load() :
     tau = array(tau)
     gap_ratio = array(gap_ratio)
     
+    #--- reset defaults
+    cf.params_arr = param_copy
     return vals, xvals, tau, gap_ratio
 
 
@@ -128,7 +131,7 @@ def plot(axis1, axis2, new_settings = None) :
     def key_title(x):
         return user_settings['scaling'] + (f"=%d"%(vals[i]) if user_settings['scaling_idx'] == 0 else f"=%.2f"%(vals[i]))
     def xform(x) :
-        return x if user_settings['rescale'] == 0 else 1. / x**user_settings['nu']
+        return x if user_settings['rescaleX'] == 0 else 1. / x**user_settings['nu']
 
     #--- load data 
     vals, xvals, tau, gap_ratio = load()
@@ -157,11 +160,12 @@ def plot(axis1, axis2, new_settings = None) :
         marker_style.append(m); face_colors.append(fc)
 
     #-- set panel1 details
-    yrange = (1e-2, 5e3) if user_settings['physical_units'] else (1e-5, 1e0)
-    hfun.set_plot_elements(axis1, [xform(xvals[0][0]), xform(xvals[0][len(xvals[0])-1])], yrange, 'tau')
+    yrange = (8e-1, 1e3) if user_settings['physical_units'] else (1e-5, 1e0)
+    xlab = r"$1\ /\ %s^{%.d}$"%(user_settings['vs'], user_settings['nu']) if user_settings['rescaleX'] else user_settings['vs']
+    hfun.set_plot_elements(axis = axis1, xlim = [xform(xvals[0][0]), xform(xvals[0][len(xvals[0])-1])], ylim = yrange, xlabel = xlab, ylabel = 'tau', settings=user_settings)
     axis1.grid()
     axis1.legend()
-    axis1.title.set_text(hfun.info())
+    axis1.title.set_text(hfun.remove_info(hfun.info_param(cf.params_arr), user_settings['vs'], user_settings['scaling']))
 
     #--- plot second panel with gap ratios
     for i in range(0, num_of_plots):

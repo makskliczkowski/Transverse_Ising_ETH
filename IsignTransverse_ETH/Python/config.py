@@ -29,13 +29,19 @@ plot_settings_dict = {
     
     'physical_units':   1,          # rescale by Heisenberg time?
 
-    'function':     'exp',          # rescale function
-    'rescale':          0,          # inverse axis x -> 1/x^nu    
+#---- rescaling y-data
+    'rescaleY':         1,          
+#---- rescaling x-axis
+    'rescaleX':         0,          
+    'func_x':       'exp',          # rescale function -> function(x, nu) (power-law = 1 / x^nu)    
     'nu':               2,          # power of inversion
-
+    
 #---- instances set after
     'vs_idx':          -1,          # idx of vs option set after dict
-    'scaling_idx':     -1           # idx of scaling option set after dict
+    'scaling_idx':     -1,          # idx of scaling option set after dict
+#- could be added later but better overwview if present here
+    'func_x_name':     '',
+    'func_Y_name':     ''
 }
 
 #---- set array with parameters
@@ -64,18 +70,46 @@ base_directory = f"..{kPSep}results{kPSep}" + (f"symmetries{kPSep}" if model els
 #--- class for settings to control
 class plot_settings_class:
     settings = {}
+
     def __init__(self, settings_dict_in):
         self.settings = settings_dict_in
         self.settings['vs_idx'] = options.index(self.settings['vs'])
         self.settings['scaling_idx'] = options.index(self.settings['scaling'])
-        #if self.settings['rescale'] : self.settings['x_scale'] = 'log'
+        #if self.settings['rescaleX'] : self.settings['x_scale'] = 'log'
+        #--- HERE SET FUNCTIONS, NAMES ETC
 
+
+#------ SETTERS
     def set_vs(self, vs_option):
+        """
+        Set parameter on x-axis, i.e. plot y-data vs ...
+        """
         self.settings['vs'] = vs_option
         self.settings['vs_idx'] = options.index(self.settings['vs'])
 
+
     def set_scaling(self, scaling_option):
+        """
+        Set parameter changed for every new plot, i.e. parameter in legend
+        """
         self.settings['scaling'] = scaling_option
         self.settings['scaling_idx'] = options.index(self.settings['scaling'])
+
+
+    def set_scales(self, xscale = 'log', yscale = 'log'):
+        """
+        Set scales of xy axis: linear or log
+        """
+        self.settings['x_scale'] = xscale
+        self.settings['y_scale'] = yscale
+
+
+    def set_x_rescale(self, rescale = 0, function = 'power-law', exponent = 2.0):
+        """
+        Set rescale functions on x-axis
+        """
+        self.settings['rescaleX'] = rescale
+        self.settings['nu'] = exponent
+        self.settings['func_x'] = function
 
 plot_settings = plot_settings_class(plot_settings_dict)
