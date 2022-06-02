@@ -56,7 +56,7 @@ void isingUI::ui::make_sim()
 					this->g = gx;
 					this->h = hx;
 					const auto start_loop = std::chrono::system_clock::now();
-//for(this->J = 0.00; this->J <= 1.05; this->J += 0.05)
+for(this->J = 0.05; this->J <= 1.5; this->J += 0.05)
 {
 	//if(this->L > 10) this->realisations = 1000;
 
@@ -70,11 +70,13 @@ void isingUI::ui::make_sim()
 	//continue;
 					// ----------------------
 					//this->diagonalize(); continue;
-					for(this->w = 0.1; this->w <= 0.7; this->w += 0.1)
+					//for(this->w = 0.1; this->w <= 0.7; this->w += 0.1)
 					{
 						std::cout << this->w << std::endl;
-						diagonalize();
-						spectral_form_factor();
+						for(this->site = 0; this->site < this->L; this->site++)
+							calculate_spectrals();
+						//diagonalize();
+						//spectral_form_factor();
 						//analyze_spectra();
 						//average_SFF();
 					}
@@ -1197,8 +1199,7 @@ void isingUI::ui::spectral_form_factor(){
 			if(this->fun == 3) stout << "\t\t	--> finished unfolding for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 			
 			auto [sff_r_folded, Z_r_folded] = statistics::spectral_form_factor(eigenvalues, times_fold, 0.5);
-			if(this->ch)
-				eigenvalues = statistics::unfolding(eigenvalues);
+			eigenvalues = statistics::unfolding(eigenvalues);
 
 			auto [sff_r, Z_r] = statistics::spectral_form_factor(eigenvalues, times, 0.5);
 			#pragma omp critical

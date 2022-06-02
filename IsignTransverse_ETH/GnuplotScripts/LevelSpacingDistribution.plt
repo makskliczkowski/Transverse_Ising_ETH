@@ -53,7 +53,7 @@ use_fit = 0                 # use fit for distribtution
 use_one_band_picture = 1    # use only middle band
 
     J0 = 5;    Jend = 100;  dJ = 20
-    w0 = 60;    wend = 120;  dw = 10
+    w0 = 20;    wend = 50;  dw = 10
 
 if(plot_typical_wH){
     J0 = 5; Jend = 100; dJ = 5;
@@ -152,7 +152,7 @@ if(what == 0){
     unset multiplot
 } else {
     if(what == 1){
-        set logscale y; set format y '10^{%L}';
+        #set logscale y; set format y '10^{%L}';
         #set logscale x; set format x '10^{%L}'
         set key inside right top
         SCALE = use_logarithmic? "set xrange[-3:2.5];"."set yrange[1e-4:1.1];" : "set xrange[1e-2:2e1]; set yrange[1e-5:1.5];" 
