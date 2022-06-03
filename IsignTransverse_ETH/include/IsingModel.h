@@ -560,4 +560,10 @@ std::unordered_map<uint64_t, uint64_t> mapping_sym_to_original(uint64_t _min, ui
 	return map;
 };
 
+
+
+
+
+using IsingSym 		= std::unique_ptr<IsingModel_sym>;
+using IsingDisorder = std::unique_ptr<IsingModel_disorder>;
 #endif

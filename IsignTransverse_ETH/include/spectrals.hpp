@@ -1,6 +1,105 @@
 #pragma once
 namespace spectrals{
+	
 	// ---------------------------------------------------------------------------------- RESPONSE FUNCTION
+	//<! set the omega bins for calculating the spectral function
+	//<! class with energy differences for given eigenvalues,
+	class preset_omega {
+	private:
+		arma::vec eigenvalues;
+		std::vector<double> energy_diferences;
+		std::vector<size_t> idx_alfa;
+		std::vector<size_t> idx_beta;
+		double tol = 2.0;			//<! width of antidiagonal to get matrix elements
+		double E_av = 0.0;			//<! mean energy (E_n + E_m)/2 ~ E_av 
+	public:
+		preset_omega() = default;
+		explicit preset_omega(
+			const arma::vec& _eigenvalues,	//<! input eigenvalues
+			double tolerance,				//<! width of antidiagonal
+			double mean_energy				//<! mean energy
+			) 
+				: eigenvalues(_eigenvalues), tol(tolerance), E_av(mean_energy) 
+				{ set_elements(); }
+		
+		//<! method to fill energy_differences and indices according to input settings
+		void set_elements()
+		{
+			const u64 N = this->eigenvalues.size();
+			this->idx_beta = std::vector<size_t>(); 
+			this->idx_alfa = std::vector<size_t>();
+			this->energy_diferences = std::vector<double>();
+			for (long int i = 0; i < N; i++)
+			{
+				for (long int j = 0; j < N && j != i; j++)
+				{
+					if (abs((this->eigenvalues(j) + this->eigenvalues(i)) / 2. - this->E_av) < this->tol / 2.)
+					{
+						this->idx_alfa.push_back(i);
+						this->idx_beta.push_back(j);
+						this->energy_diferences.push_back(abs(this->eigenvalues(j) - this->eigenvalues(i)));
+					}
+				}
+			}
+			auto permut = sort_permutation(this->energy_diferences, [](const double a, const double b)
+										   { return a < b; });
+			apply_permutation(this->energy_diferences, permut);
+			apply_permutation(this->idx_beta, permut);
+			apply_permutation(this->idx_alfa, permut);
+		}
+
+		//<! get all elements
+		auto get_elements() const
+			{ return std::make_tuple(this->energy_diferences, this->idx_alfa, this->idx_beta); }
+
+		//<! get number of energy differences
+		auto get_size() const
+			{ return this->energy_diferences.size(); }
+	};
+
+	//<! calculate response function for input model on self-built 'log' scale 
+	//<! (fixed number of matrix elementes in omega bucket)
+	inline 
+	auto spectralFunction(
+	    const arma::cx_mat &mat_elem,   	//<! input calculated matrix elements for any operator
+		const preset_omega& input_omegas,	//<! input omegas and indices as tuple
+		int M								//<! number of matrix elements in omega bucket
+	    ) -> std::pair<arma::vec, arma::vec>
+		{
+			
+			auto [energy_diff, idx_alfa, idx_beta] = input_omegas.get_elements();
+			long int size = (int)energy_diff.size();
+			long int bucket_num = int(size / (double)M);
+			arma::vec response_fun(bucket_num + 1, arma::fill::zeros);
+			arma::vec omegas(bucket_num + 1, arma::fill::zeros);
+			for (int k = 0; k < bucket_num; k++)
+			{
+				double element = 0;
+				double omega = 0;
+				for (long int p = k * M; p < (k + 1) * M; p++)
+				{
+					cpx overlap = mat_elem(idx_alfa[p], idx_beta[p]);
+					element += abs(overlap * overlap);
+					omega += energy_diff[p];
+				}
+				response_fun(k) = element / double(M);
+				omegas(k) = omega / double(M);
+			}
+			double element = 0;
+			double omega = 0;
+			int counter = 0;
+			for (long int p = bucket_num * M; p < size; p++)
+			{
+				cpx overlap = mat_elem(idx_alfa[p], idx_beta[p]);
+				element += abs(overlap * overlap);
+				omega += energy_diff[p];
+				counter++;
+			}
+			response_fun(bucket_num) = element / double(counter);
+			omegas(bucket_num) = omega / (double)counter;
+			return std::make_pair(omegas, response_fun);
+		}
+
 	//<! calculate response function for input model on self-built 'log' scale 
 	//<! (fixed number of matrix elementes in omega bucket)
 	template <typename _type>
@@ -37,7 +136,6 @@ namespace spectrals{
 		NO_OVERFLOW(int M = Mx[alfa.L - 8];);
 		std::ofstream reponse_fun;
 		openFile(reponse_fun, name + alfa.get_info({}) + ".dat", ios::out);
-		// long int M = std::pow(N, 0.75);
 		long int bucket_num = int(size / (double)M);
 		for (int k = 0; k < bucket_num; k++)
 		{
@@ -80,7 +178,7 @@ namespace spectrals{
 	    ){
 		const u64 N = alfa.get_hilbert_size();
 		const double wH = alfa.mean_level_spacing_analytical();
-		auto omegas = arma::logspace(std::floor(log10(wH)) - 1, 2, 300);
+		auto omegas = arma::logspace(std::floor(log10(wH)) - 1, 2, 5000);
 		std::ofstream reponse_fun;
 		openFile(reponse_fun, name + alfa.get_info({}) + ".dat", ios::out);
 		for (auto &w : omegas)
@@ -171,7 +269,7 @@ namespace spectrals{
 		}
 		norm_diag /= double(N);
 		const int t_max = (int)std::ceil(std::log(tH));
-		auto times = arma::logspace(-2, t_max, 500);
+		auto times = arma::logspace(-2, t_max, 5000);
 		for (auto &t : times)
 		{
 			double overlap = 0.;

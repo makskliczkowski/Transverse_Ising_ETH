@@ -123,6 +123,7 @@ extern std::random_device rd;
 extern std::mt19937::result_type seed_global;
 extern std::mt19937_64 gen;
 typedef size_t u64;
+
 // ----------------------------------------------------------------------------- namespaces -----------------------------------------------------------------------------
 using namespace std;
 using clk = std::chrono::system_clock;

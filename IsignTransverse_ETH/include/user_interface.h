@@ -183,9 +183,9 @@ namespace isingUI
 		void analyze_spectra();
 
 		//-------------------------------------------------------------------------- ADIABATIC GAUGE POTENTIALS
-		void adiabaticGaugePotential_sym(bool SigmaZ = 0, bool avSymSectors = 0);
-		void adiabaticGaugePotential_dis();
-		void combineAGPfiles();
+		//void adiabaticGaugePotential_sym(bool SigmaZ = 0, bool avSymSectors = 0);
+		//void adiabaticGaugePotential_dis();
+		//void combineAGPfiles();
 
 
 
@@ -274,30 +274,57 @@ namespace isingUI
 			}
 		}
 
+
+		enum class Ising_params{ J, h, g }; //<! choose which of these parameters
+
 		//<! loop over disorder realisations and call lambda each time
-		template <typename _ty, typename callable, typename... _types> 
+		template <
+			Ising_params par, 		//<! parameter to average over in non-disordered case
+			typename _ty, 			//<! type of model (double-> disorder, cpx-> sym)
+			typename callable, 		//<! type of callable lambda
+			typename... _types		//<! input types for lambda
+		> 
 		void average_over_realisations(
 			IsingModel<_ty>& model,		//!< input model (symmetric model has to have average over external random stuff)
 			bool with_diagonalization,	//!< checked if each realisation should diagonalize a new matrix
 			callable& lambda, 			//!< callable function
 			_types... args				//!< arguments passed to callable interface lambda
 		) {
-			model.reset_random();
+			double x = 0.0;
+				switch (par)
+				{
+					case Ising_params::J: x = this->J;	break;
+					case Ising_params::h: x = this->h;	break;
+					case Ising_params::g: x = this->g;	break;
+				default:				  x = 0.0;		break;
+				}
 			if(this->m){
-				arma::vec g_vec = model.g + create_random_vec(this->realisations, model.g / 50.);
+				arma::vec _vec = x + create_random_vec(this->realisations, x / 50.);
+				stout << _vec << std::endl;
+			
 			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
-				for(int r = 0; r < g_vec.size(); r++){
-					if(this->realisations > 1) model.g = g_vec(r);
+				for(int r = 0; r < _vec.size(); r++){
+					if(this->realisations > 1){
+						switch (par)
+						{
+							case Ising_params::J: model.J = _vec(r);	break;
+							case Ising_params::h: model.h = _vec(r);	break;
+							case Ising_params::g: model.g = _vec(r);	break;
+						default: 
+							std::cout << "No default mode, average only performed over J, g, h" << std::endl;	
+							break;
+						}
+					}
 					if (with_diagonalization) {
 						model.hamiltonian();
 						model.diagonalization();
 					}
 					auto dummy_lambda = [&lambda](IsingModel<_ty>& modello, int real, auto... args){
-						lambda(modello, real, std::forward<_types>(args)...);
+						lambda(modello, real, args...);
 					};
-					dummy_lambda(model, r, std::forward<_types>(args)...);
+					dummy_lambda(model, r, args...);
 				}
-			} else{
+			} else {
 			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 				for (int r = 0; r < this->realisations; r++) {
 					if (with_diagonalization) {
@@ -305,14 +332,13 @@ namespace isingUI
 						model.diagonalization();
 					}
 					auto dummy_lambda = [&lambda](IsingModel<_ty>& modello, int real, auto... args){
-						lambda(modello, real, std::forward<_types>(args)...);
+						lambda(modello, real, args...);
 					};
-					dummy_lambda(model, r, std::forward<_types>(args)...);
+					dummy_lambda(model, r, args...);
 				}
 			}
 		};
 
-		enum class Ising_params{ J, h, g }; //<! choose which of these parameters
 		template <
 			Ising_params par,	//<! which parameter to average over for symmetric case
 			typename callable,	//<! callable lambda function
@@ -337,17 +363,17 @@ namespace isingUI
 			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 				for(int r = 0; r < _vec.size(); r++){
 					auto dummy_lambda = [&lambda](int real, double x, auto... args){
-						lambda(real, x, std::forward<_types>(args)...);
+						lambda(real, x, args...);
 					};
-					dummy_lambda(r, _vec(r), std::forward<_types>(args)...);
+					dummy_lambda(r, _vec(r), args...);
 				}
 			} else{
 			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 				for (int r = 0; r < this->realisations; r++) {
 					auto dummy_lambda = [&lambda](int real, double x, auto... args){
-						lambda(real, x, std::forward<_types>(args)...);
+						lambda(real, x, args...);
 					};
-					dummy_lambda(r, x, std::forward<_types>(args)...);
+					dummy_lambda(r, x, args...);
 				}
 			}
 		};
