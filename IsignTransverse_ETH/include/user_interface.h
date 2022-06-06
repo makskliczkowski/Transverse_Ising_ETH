@@ -301,8 +301,6 @@ namespace isingUI
 			if(this->m){
 				arma::vec _vec = x + create_random_vec(this->realisations, x / 50.);
 				stout << _vec << std::endl;
-			
-			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 				for(int r = 0; r < _vec.size(); r++){
 					if(this->realisations > 1){
 						switch (par)
@@ -325,7 +323,6 @@ namespace isingUI
 					dummy_lambda(model, r, args...);
 				}
 			} else {
-			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 				for (int r = 0; r < this->realisations; r++) {
 					if (with_diagonalization) {
 						model.hamiltonian();

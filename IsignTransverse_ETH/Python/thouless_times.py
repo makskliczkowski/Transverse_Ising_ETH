@@ -72,14 +72,14 @@ def load() :
 
     #--- SET SCALING RANGES AND DATA
     x0 = 0.1
-    xend = 1.95
+    xend = 1.5
     dx = 0.1
 
     length = int((xend-x0) / dx) + 1
     #--- prepare scaling - axis
     vals = []
     if user_settings['scaling_idx'] == 0:
-        vals = range(12, 17)
+        vals = range(10, 17)
     elif cf.model and user_settings['scaling_idx'] == 4:
         vals = range(0, cf.params_arr[0])
     else :
@@ -142,9 +142,12 @@ def plot(axis1, axis2, new_settings = None) :
     y_max = -1.0e10
     x_min = 1.0e10
     x_max = -1.0e10
+
+    rescale_by_Lsquare = 1
+
     for i in range(0, num_of_plots):
         yvals = tau[i]
-        if user_settings['vs_idx'] > 0 : yvals = yvals / (vals[i]**2 if user_settings['scaling_idx'] == 0 else cf.L**2)
+        if rescale_by_Lsquare and user_settings['vs_idx'] > 0 : yvals = yvals / (vals[i]**2 if user_settings['scaling_idx'] == 0 else cf.L**2)
         yvals = cf.plot_settings.rescale(yvals, 'y')
         xx = cf.plot_settings.rescale(xvals[i], 'x')
         p = axis1.plot(xx, yvals, label=key_title(vals[i]))
@@ -172,11 +175,11 @@ def plot(axis1, axis2, new_settings = None) :
         marker_style.append(m); face_colors.append(fc)
 
     #-- set panel1 details
-    print(x_min, x_max, y_min, y_max)
+    print(x_min, x_max, y_min, y_max, user_settings['vs_idx'], user_settings['scaling_idx'])
     yrange = (0.9*y_min, 1.1*y_max)
-    xlab = r"$1\ /\ %s^{%.d}$"%(user_settings['vs'], user_settings['nu_x']) if user_settings['rescaleX'] else user_settings['vs']
+    ylab = "\\tau/L^2" if rescale_by_Lsquare and user_settings['vs_idx'] > 0 else "\\tau"
     hfun.set_plot_elements(axis = axis1, xlim = (0.98*x_min, 1.02*x_max), 
-                                ylim = yrange, xlabel = xlab, ylabel = "\\tau", settings=user_settings)
+                                ylim = yrange, ylabel = ylab, settings=user_settings)
     axis1.grid()
     axis1.legend()
     axis1.title.set_text(hfun.remove_info(hfun.info_param(cf.params_arr), user_settings['vs'], user_settings['scaling']))

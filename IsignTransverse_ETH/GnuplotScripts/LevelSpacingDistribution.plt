@@ -36,23 +36,23 @@ MARGIN = "set lmargin at screen 0.10; set rmargin at screen 0.99; set bmargin at
 UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset border;"
 #---------------------------- PARAMETERS
 model = 0       # 1=symmetries and 0=disorder
-w = 0.2
-g = 0.9
+w = 0.3
+g = 0.4
 L = 14
 h = 0.8
-J = 0.0
+J = 1.0
 
 what = 1                    # 0 - DOS / 1 - Lvl-spacing Distribution / 2 - unfolding analysis
 plot_typical_wH = 0         # plot only the scaling of wH_typical
-scaling = 2                 # 0 - J scaling / 1 - L scaling / 2 - w scaling
+scaling = 3                 # 0 - J scaling / 1 - L scaling / 2 - w scaling
 
 use_unfolded = 1            # use unfolded energies for DOS
-use_logarithmic = 1         # use low(w) distribution
+use_logarithmic = 0         # use low(w) distribution
 compare_fits = 1            # compare different ploynomial degrees in unfolding
 use_fit = 0                 # use fit for distribtution
-use_one_band_picture = 1    # use only middle band
+use_one_band_picture = 0    # use only middle band
 
-    J0 = 5;    Jend = 100;  dJ = 20
+    J0 = 10;    Jend = 155;  dJ = 10
     w0 = 20;    wend = 50;  dw = 10
 
 if(plot_typical_wH){
@@ -67,13 +67,14 @@ if(scaling == 0){
     i0 = J0;    iend = Jend;    di = dJ;
     _name(x) = _name_long(L, 0.01*x, h, g, w);  _key_title(x) = sprintf("J=%.2f", 0.01*x)
   } else { if(scaling == 1) {   
-        i0 = 10;    iend = 18;  di = 2
+        i0 = 10;    iend = 14;  di = 1
         _name(x) = _name_long(x, J, h, g, w);  _key_title(x) = sprintf("L=%d", x)
     } else { if(scaling == 2) {  
         i0 = w0;    iend = wend;    di = dw;
         _name(x) = _name_long(L, J, h, g, 0.01*x);  _key_title(x) = sprintf("w=%.2f", 0.01*x)
     } else {
-
+        i0 = J0;    iend = Jend;    di = dJ;
+        _name(x) = _name_long(L, J, h, 0.01*x, w);  _key_title(x) = sprintf("g=%.2f", 0.01*x)
     }}}
 #--------- DIRECTORIES
 dir_base = '../results/'.(model? 'symmetries' : 'disorder').'/PBC/'
@@ -152,10 +153,10 @@ if(what == 0){
     unset multiplot
 } else {
     if(what == 1){
-        #set logscale y; set format y '10^{%L}';
+        set logscale y; set format y '10^{%L}';
         #set logscale x; set format x '10^{%L}'
         set key inside right top
-        SCALE = use_logarithmic? "set xrange[-3:2.5];"."set yrange[1e-4:1.1];" : "set xrange[1e-2:2e1]; set yrange[1e-5:1.5];" 
+        SCALE = use_logarithmic? "set xrange[-3:2.5];"."set yrange[1e-4:1.7];" : "set xrange[1e-2:2e1]; set yrange[1e-5:1.5];" 
         if(use_logarithmic){ set ylabel 'P(log_{10} {/Symbol w}/{/Symbol w}_H)';    set xlabel 'log_{10} {/Symbol w}/{/Symbol w}_H'}
         else {set ylabel 'P({/Symbol w})';    set xlabel '{/Symbol w}'; };#set logscale x;};
         trueX(x) = use_logarithmic? 10**x : x

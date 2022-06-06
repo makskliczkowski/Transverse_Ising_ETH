@@ -72,13 +72,13 @@ def mscatter(x,y,ax=None, m=None, fc=None, **kw):
     return sc
 
 #--------- Set user settings on plot
-def set_plot_elements(axis, xlim =[], ylim=[], xlabel = 'x', ylabel = 'y', settings = None, set_legend = True, font_size = 10):
+def set_plot_elements(axis, xlim =[], ylim=[], xlabel = None, ylabel = 'y', settings = None, set_legend = True, font_size = 10):
     if settings == None:
         settings = user_settings
-    
-    xlab = list(settings['func_x_name'])
+    if xlabel == None :
+        xlab = list(settings['func_x_name'])
+        xlab[xlab.index('Q')] = settings['vs']
     ylab = list(settings['func_y_name'])
-    xlab[xlab.index('Q')] = settings['vs']
     ylab[ylab.index('Q')] = ylabel
     
     axis.set_ylabel("".join(ylab), rotation=0, fontsize=20, labelpad=10)

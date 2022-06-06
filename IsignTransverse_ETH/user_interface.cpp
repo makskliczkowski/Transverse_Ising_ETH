@@ -756,14 +756,12 @@ void isingUI::ui::calculate_spectrals()
 		stout << "\t\t	--> finished integrated spectral function for " << info
 			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
 
-		#pragma omp critical
-		{
-			LTA += LTA_tmp;
-			opEvol += op_tmp;
-			opIntSpec += res;
-			opSpecFun += specfun_r;
-			omega_spec = omega_spec_r;
-		}
+		LTA += LTA_tmp;
+		opEvol += op_tmp;
+		opIntSpec += res;
+		opSpecFun += specfun_r;
+		omega_spec = omega_spec_r;
+		
 		start_loop = std::chrono::system_clock::now();
 	};
 	
@@ -773,7 +771,7 @@ void isingUI::ui::calculate_spectrals()
 	auto prefix_kernel = [&](auto& alfa){
 		alfa.diagonalization();
 		auto E = alfa.get_eigenvalues();
-		set_omega = spectrals::preset_omega(E, 0.25 * alfa.L, E(alfa.E_av_idx));
+		set_omega = spectrals::preset_omega(E, 0.1 * alfa.L, E(alfa.E_av_idx));
 		const int size = set_omega.get_size();
 		M = int(size / double(num_of_points));
 		int num = int(size / double(M));
@@ -1393,7 +1391,6 @@ void isingUI::ui::average_SFF(){
 		return t < 1? 2 * t - t * log(1+2*t) : 2 - t * log( (2*t+1) / (2*t-1) );
 	};
 	double thouless_time = 0;
-	const double t_max = this->ch? 2.5 : 2.5 * tH;
 	double delta_min = 1e6;
 	for(int i = 0; i < sff.size(); i++){
 		double delta = abs(log10( sff(i) / K_GOE(times(i)) )) - eps;
@@ -1413,7 +1410,7 @@ void isingUI::ui::average_SFF(){
 			delta_min = delta;
 			thouless_time = times_fold(i); 
 		}
-		if(times_fold(i) >= 2.5) break;
+		if(times_fold(i) >= 2.5 * tH) break;
 	}
 	save_to_file(dir + info + ".dat", times, sff, tH, thouless_time, r1, r2, dim);	
 	smoothen_data(dir, info + ".dat");
@@ -1538,7 +1535,8 @@ void isingUI::ui::analyze_spectra(){
 	std::string dir_spacing 	= this->saving_dir + "LevelSpacingDistribution" + kPSep;
 	std::string dir_DOS 		= this->saving_dir + "DensityOfStates" + kPSep;
 	std::string dir_unfolding 	= this->saving_dir + "Unfolding" + kPSep;
-	createDirs(dir_DOS, dir_spacing, dir_unfolding);
+	std::string dir_gap 		= this->saving_dir + "LevelSpacing" + kPSep + "distribution" + kPSep;
+	createDirs(dir_DOS, dir_spacing, dir_unfolding, dir_gap);
 
 	size_t N = ULLPOW(this->L);
 	if(this->m){
@@ -1553,6 +1551,7 @@ void isingUI::ui::analyze_spectra(){
 
 	arma::vec energies_all, energies_unfolded_all;
 	arma::vec spacing, spacing_unfolded, spacing_log, spacing_unfolded_log;
+	arma::vec gap_ratio, gap_ratio_unfolded;
 	//-------SET KERNEL
 	int counter_realis = 0;
 	auto lambda_average = [&]
@@ -1604,7 +1603,6 @@ void isingUI::ui::analyze_spectra(){
 			//------------------- Level Spacings
 			arma::vec level_spacings(energies.size() - 1, arma::fill::zeros);
 			arma::vec level_spacings_unfolded(energies.size() - 1, arma::fill::zeros);
-			
 			for(int i = 0; i < energies.size() - 1; i++){
 				const double delta 			= energies(i+1) 				- energies(i);
 				const double delta_unfolded = energies_unfolded_cut(i+1) 	- energies_unfolded_cut(i);
@@ -1616,6 +1614,9 @@ void isingUI::ui::analyze_spectra(){
 				level_spacings(i) 			= delta;
 				level_spacings_unfolded(i) 	= delta_unfolded;
 			}
+			arma::vec gap = statistics::eigenlevel_statistics_return(eigenvalues);
+			arma::vec gap_unfolded = statistics::eigenlevel_statistics_return(energies_unfolded);
+
 			//------------------- Combine realisations
 		#pragma omp critical
 			{
@@ -1626,6 +1627,9 @@ void isingUI::ui::analyze_spectra(){
 				spacing_log = arma::join_cols(spacing_log, arma::log10(level_spacings));
 				spacing_unfolded = arma::join_cols(spacing_unfolded, level_spacings_unfolded);
 				spacing_unfolded_log = arma::join_cols(spacing_unfolded_log, arma::log10(level_spacings_unfolded));
+				
+				gap_ratio = arma::join_cols(gap_ratio, gap);
+				gap_ratio_unfolded = arma::join_cols(gap_ratio_unfolded, gap_unfolded);
 				counter_realis++;
 			}
 		}
@@ -1668,8 +1672,12 @@ void isingUI::ui::analyze_spectra(){
 	statistics::probability_distribution(dir_spacing, prefix + "_log" + info, spacing_log, -1, wH_typ_unfolded, wH, wH_typ);
 	statistics::probability_distribution(dir_spacing, prefix + "unfolded" + info, spacing_unfolded, -1, exp(wH_typ_unfolded), wH, exp(wH_typ));
 	statistics::probability_distribution(dir_spacing, prefix + "unfolded_log" + info, spacing_unfolded_log, -1, wH_typ_unfolded, wH, wH_typ);
+	
 	statistics::probability_distribution(dir_DOS, prefix + info, energies_all, -1);
 	statistics::probability_distribution(dir_DOS, prefix + "unfolded" + info, energies_unfolded_all, -1);
+
+	statistics::probability_distribution(dir_gap, info, gap_ratio, -1);
+	statistics::probability_distribution(dir_gap, info, gap_ratio_unfolded, -1);
 }
 
 //--------------------------------------------------------------------- ADIABATIC GAUGE POTENTIAL
