@@ -30,7 +30,7 @@ IsingModel_sym::IsingModel_sym(int L, double J, double g, double h, int k_sym, b
 		return;
 	}
 	this->set_neighbors(); // generate neighbors
-	#ifdef USE_HEISENBERG
+	#ifdef HEISENBERG
 		this->hamiltonian_heisenberg();
 	#else
 		this->hamiltonian();
@@ -136,7 +136,7 @@ void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_t
 void IsingModel_sym::generate_mapping() {
 	u64 start = 0, stop = static_cast<u64>(std::pow(2, this->L));
 	u64 two_powL = BinaryPowers[L];
-	#ifdef USE_HEISENBERG
+	#ifdef HEISENBERG
 		double g_temp = this->g;
 		this->g = 0;
 	#endif
@@ -164,7 +164,7 @@ void IsingModel_sym::generate_mapping() {
 			this->normalisation.insert(this->normalisation.end(), std::make_move_iterator(t.begin()), std::make_move_iterator(t.end()));
 	}
 	this->N = this->mapping.size();
-	#ifdef USE_HEISENBERG
+	#ifdef HEISENBERG
 		this->g = g_temp;
 	#endif
 	//assert(mapping.size() > 0 && "Not possible number of electrons - no. of states < 1");

@@ -7,6 +7,7 @@
 #include "thermodynamics.hpp"
 #include "statistics.hpp"
 #include "statistics_dist.hpp"
+#include "entaglement.hpp"
 
 const arma::vec down = { 0, 1 };
 const arma::vec up	 = { 1, 0 };
