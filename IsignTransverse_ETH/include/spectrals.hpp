@@ -236,7 +236,7 @@ namespace spectrals{
 
 	// ---------------------------------------------------------------------------------- TIME EVOLUTION
 	// ----------------------------------------- OUT-OF-TIME CORRELATION FUNCTION (OTOC)
-#define OTOC out_o_time_correlator
+#define OTOC out_of_time_correlator
 	//<! out of time correlator: < A(t) * B >
 	template <typename _type>
 	inline 

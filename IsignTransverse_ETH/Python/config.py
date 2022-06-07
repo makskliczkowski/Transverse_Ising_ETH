@@ -1,15 +1,17 @@
+import importlib
 from os import sep as kPSep
-
+import plot_settings as ps
+importlib.reload(ps)
 #---------------------------------------------------- MODEL PARAMETERS
 model = 0   # chooses model: 0-disorder / 1-symmetries
 BC = 1     # boundaary condition: 0 - OBC / 1 - PBC
 
-L = 12                          # system size
+L = 14                          # system size
 J = 1.00                        # spin exchange (Ising-like)
 g = 0.90                        # trasnverse magnetic field (z-axis)
 h = 0.80                        # longitudal magnetic field (x-axis)
 #---- DISORDER PARAMETERS
-w = 1.00                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
+w = 0.30                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 J0 = 0.0                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
 g0 = 0.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 #---- SYMETRY PARAMETERS
@@ -30,26 +32,37 @@ plot_settings_dict = {
     'physical_units':   1,          # rescale by Heisenberg time?
 
 #---- rescaling y-data
-    'rescaleY':         1,          
+    'rescaleY':         0,      
+    'func_y':       'log',           # rescale function -> function(x, nu) (power-law = 1 / x^nu)    
+    'nu_y':             3,           # power of inversion
+    
 #---- rescaling x-axis
-    'rescaleX':         0,          
-    'func_x':       'exp',          # rescale function -> function(x, nu) (power-law = 1 / x^nu)    
-    'nu':               2,          # power of inversion
+    'rescaleX':         1,          
+    'func_x':       'power-law',     # rescale function -> function(x, nu) (power-law = 1 / x^nu)    
+    'nu_x':             -1,           # power of inversion
     
 #---- instances set after
     'vs_idx':          -1,          # idx of vs option set after dict
     'scaling_idx':     -1,          # idx of scaling option set after dict
 #- could be added later but better overwview if present here
     'func_x_name':     '',
-    'func_Y_name':     ''
+    'func_y_name':     ''
 }
 
 #---- set array with parameters
 params_arr = [L, J, g, h, w, k_sym, p_sym, x_sym, J0, g0]
-options = ['L', 'J', 'g', 'h', 'w', 'k']
-names = options
+#options = ['L', 'J', 'g', 'h', 'w', 'k']
+names = ps.options
 names.extend(['p','x','J0','x0'])
 
+#---- DIR
+base_directory = f"..{kPSep}results{kPSep}" + (f"symmetries{kPSep}" if model else f"disorder{kPSep}") + (f"PBC{kPSep}" if BC else f"OBC{kPSep}") 
+
+#---- INSTANCE OF PLOT SETTINGS CLASS --> plot_settings.py
+plot_settings = ps.plot_settings_class(plot_settings_dict)
+
+
+#---------------------------------------------------- SHORT USER FUNCTIONS
 def set_params(_L = None, _J = None, _J0 = None, _g = None, _g0 = None, _h = None, _w = None, _k = None, _p = None, _x = None):
     global params_arr, L, J, J0, g, g0, h, w, k_sym, p_sym, x_sym
     if(_L != None):     L = _L 
@@ -63,53 +76,3 @@ def set_params(_L = None, _J = None, _J0 = None, _g = None, _g0 = None, _h = Non
     if(_p != None):     p_sym = _p 
     if(_x != None):     x_sym = _x
     params_arr = [L, J, g, h, w, k_sym, p_sym, x_sym, J0, g0]
-#---- DIR
-base_directory = f"..{kPSep}results{kPSep}" + (f"symmetries{kPSep}" if model else f"disorder{kPSep}") + (f"PBC{kPSep}" if BC else f"OBC{kPSep}") 
-
-
-#--- class for settings to control
-class plot_settings_class:
-    settings = {}
-
-    def __init__(self, settings_dict_in):
-        self.settings = settings_dict_in
-        self.settings['vs_idx'] = options.index(self.settings['vs'])
-        self.settings['scaling_idx'] = options.index(self.settings['scaling'])
-        #if self.settings['rescaleX'] : self.settings['x_scale'] = 'log'
-        #--- HERE SET FUNCTIONS, NAMES ETC
-
-
-#------ SETTERS
-    def set_vs(self, vs_option):
-        """
-        Set parameter on x-axis, i.e. plot y-data vs ...
-        """
-        self.settings['vs'] = vs_option
-        self.settings['vs_idx'] = options.index(self.settings['vs'])
-
-
-    def set_scaling(self, scaling_option):
-        """
-        Set parameter changed for every new plot, i.e. parameter in legend
-        """
-        self.settings['scaling'] = scaling_option
-        self.settings['scaling_idx'] = options.index(self.settings['scaling'])
-
-
-    def set_scales(self, xscale = 'log', yscale = 'log'):
-        """
-        Set scales of xy axis: linear or log
-        """
-        self.settings['x_scale'] = xscale
-        self.settings['y_scale'] = yscale
-
-
-    def set_x_rescale(self, rescale = 0, function = 'power-law', exponent = 2.0):
-        """
-        Set rescale functions on x-axis
-        """
-        self.settings['rescaleX'] = rescale
-        self.settings['nu'] = exponent
-        self.settings['func_x'] = function
-
-plot_settings = plot_settings_class(plot_settings_dict)

@@ -13,7 +13,7 @@
 *.sln
 *.vcxproj
 *.vcxproj.filters
-#*.png
+*.png
 *.git
 *.gz
 #*.plt -- keep gnuplot scripts in source control
@@ -371,5 +371,5 @@ MigrationBackup/
 
 #User folders
 IsignTransverse_ETH/results/
-IsignTransverse_ETH/Python/
+#IsignTransverse_ETH/Python/
 IsignTransverse_ETH/SPINONsynchro/

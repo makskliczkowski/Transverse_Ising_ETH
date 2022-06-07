@@ -19,14 +19,14 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 
 #---------------------------- PARAMETERS
 model = 0       # 1=symmetries and 0=disorder
-w = 1.0
+w = 0.5
 g = 0.9
-L = 16
+L = 14
 h = 0.8
-J = 1.0
+J = 0.05
 k=1
 J_knot = 0.; g_knot = 0.; 
-scaling = 2     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
+scaling = 3     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
 smoothed = 1        # smoothed ?
 plot_der_GOE = 0	 # plot deriviation from GOE value
 zoom_in = 0          # zoom in to collapse on GOE
@@ -34,9 +34,10 @@ find_Thouless = 1    # find thouless time?
 add_gap_ratio = 1	 # add gap ratio
 rescale_times = 0	 # rescale times by size or parameter
 nu = -0.5
+use_folded = 0		 # use folded spectrum
 
-perturbation_expanson = 0;
-pert_order = 1;
+compare_folded_to_unfolded = 0
+
 if(scaling < 0 || scaling > 4 || zoom_in == 1) add_gap_ratio = 0;
 if(plot_der_GOE){ zoom_in = 0;}
 
@@ -67,7 +68,7 @@ LINE = scaling == 4 && model == 0? "unset logscale y; set format x '10^{%L}'; se
 
 load './gnuplot-colorbrewer-master/diverging/RdYlGn.plt'
 out_dir = 'SpectralFormFactor/'
-_name_long(Lx, Jx, hx, gx) = dir_base.(perturbation_expanson && Jx != 0.0 && Jx != 0.05? sprintf("perturbation_order=%d", pert_order) : "").(\
+_name_long(Lx, Jx, hx, gx) = dir_base.(use_folded? "folded" : "").(\
 								model? sprintf("_L=%d,J=%.2f,g=%.2f,h=%.2f.dat", Lx, Jx, gx, hx) :\
                         			   sprintf("_L=%d,J=%.2f,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", Lx, Jx, gx, hx, w));
 
@@ -188,6 +189,9 @@ if(plot_der_GOE){   plot for[i=i0:iend:di] _name(i) u 1:(data($1, $2)) w l ls ((
 		unset label;
 		@LOG; @RANGE; @MARGIN; @UNSET; plot for[i=1:size] '+' using (_rescale_times(tau[i],(i-1)*di+i0)):(y_vals[i]) w lp ls i pt 7 ps 2.0 lw 2 notitle
 		#@RANGE; @MARGIN; @UNSET; plot tau using (tau[$1]):(y_vals[$1]) w p pt 6 ps 2.0 lw 2 lc rgb 'black' notitle
+	}
+	if(compare_folded_to_unfolded){
+		@RANGE; @MARGIN; plot for[i=i0:iend:di] (use_folded? "" : "folded")._name(i) u (_rescale_times($1,i)):(data($1, $2)) w l ls ((i-i0)/di+1) lw 2 dt (8,8) title _key_title(i)
 	}
     unset multiplot
 }

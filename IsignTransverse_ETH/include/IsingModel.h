@@ -140,16 +140,8 @@ public:
 	static double total_spin(const arma::mat& corr_mat);												// the diagonal part of a spin correlation matrix
 
 	// ---------------------------------- PHYSICAL QUANTITIES ----------------------------------
-	double ipr(int state_idx) const;																// calculate the ipr coeffincient (inverse participation ratio)
-	double information_entropy(u64 _id) const;														// calculate the information entropy in a given state (based on the ipr) Von Neuman type
-	double information_entropy(u64 _id, const IsingModel<_type>& beta, u64 _min, u64 _max) const;	// calculate the information entropy in basis of other model from input
-	double eigenlevel_statistics(u64 _min, u64 _max) const;											// calculate the statistics based on eigenlevels (r coefficient)
-	arma::vec eigenlevel_statistics_with_return() const;											// calculate the eigenlevel statistics and return the vector with the results
 	virtual double mean_level_spacing_analytical() const = 0;										// mean level spacing from analytical formula calcula
 	
-	// ---------------------------------- THERMODYNAMIC QUANTITIES ----------------------------------
-	std::tuple<arma::vec, arma::vec, arma::vec> thermal_quantities(const arma::vec& temperature);	// calculate thermal quantities with input temperature range
-																									// heat capacity, entropy, average energy
 	// lambda functions for Sigmas - changes the state and returns the value on the base vector
 	static std::pair<cpx, u64> sigma_x(u64 base_vec, int L, std::vector<int> sites) {
 		for (auto& site : sites) {
@@ -199,27 +191,7 @@ public:
 	};
 
 
-	// ---------------------------------- PHYSICAL OPERATORS (model states dependent) ----------------------------------
-	virtual double av_sigma_z(u64 alfa, u64 beta) = 0;											// check the sigma_z matrix element extensive
-	virtual double av_sigma_z(u64 alfa, u64 beta, int corr_len) = 0;							// check the sigma_z matrix element with correlation length
-	virtual double av_sigma_z(u64 alfa, u64 beta, std::vector<int> sites) = 0;		// check the matrix element of sigma_z elements sites correlation
-			
-	virtual double av_sigma_x(u64 alfa, u64 beta) = 0;											// check the sigma_z matrix element extensive
-	virtual double av_sigma_x(u64 alfa, u64 beta, int corr_len) = 0;							// check the sigma_z matrix element with correlation length
-	virtual double av_sigma_x(u64 alfa, u64 beta, std::vector<int> sites) = 0;		// check the matrix element of sigma_x elements sites correlation
-			
-	virtual double av_spin_flip(u64 alfa, u64 beta) = 0;										// check the spin flip element extensive
-	virtual double av_spin_flip(u64 alfa, u64 beta, std::vector<int> sites) = 0;		// check the spin flip element at input sites (up to 2)
-
-	virtual cpx av_spin_current(u64 alfa, u64 beta) = 0;										// check the spin current extensive
-	virtual cpx av_spin_current(u64 alfa, u64 beta, std::vector<int> sites) = 0;		// check the spin current at given sites
-
-
 	// ---------------------------------- USING PHYSICAL QUANTITES FOR PARAMTER RANGES, ETC. ----------------------------------
-	static void operator_av_in_eigenstates(double (IsingModel::* op)(int, int), IsingModel& A, int site, \
-		std::string name = "operator_averaged.txt", string separator = "\t\t");
-	static arma::vec operator_av_in_eigenstates_return(double (IsingModel::* op)(int, int), IsingModel& A, int site);
-	static double spectrum_repulsion(double (IsingModel::* op)(int, int), IsingModel& A, int site);
 
 	virtual arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators) const = 0;
 	virtual arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) const = 0;
@@ -291,7 +263,6 @@ public:
 
 	//--------------------------------------------------------- dummy functions
 	virtual arma::vec get_non_interacting_energies() = 0;
-	virtual arma::vec first_interacting_correction() = 0;
 };
 
 inline void normaliseOp(arma::sp_cx_mat& op) {
@@ -362,22 +333,6 @@ public:
 
 	friend std::pair<u64, cpx> find_rep_and_sym_eigval(u64 base_idx, \
 		const IsingModel_sym& sector_alfa, cpx normalisation_beta);																				// returns the index and the value of the minimum representative
-
-	// MATRICES & OPERATORS
-	double av_sigma_z(u64 alfa, u64 beta) override;											// check the sigma_z matrix element extensive
-	double av_sigma_z(u64 alfa, u64 beta, int corr_len) override;							// check the sigma_z matrix element with correlation length extensive
-	double av_sigma_z(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the matrix element of sigma_z elements sites correlation
-
-	double av_sigma_x(u64 alfa, u64 beta) override;											// check the sigma_z matrix element extensive
-	double av_sigma_x(u64 alfa, u64 beta, int corr_len) override;							// check the sigma_z matrix element with correlation length extensive
-	double av_sigma_x(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the matrix element of sigma_x elements sites correlation
-
-	double av_spin_flip(u64 alfa, u64 beta) override;										// check the spin flip element extensive
-	double av_spin_flip(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the spin flip element at input sites (up to 2)
-
-	cpx av_spin_current(u64 alfa, u64 beta) override;										// check the extensive spin current
-	cpx av_spin_current(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the spin current at given sites
-
 	
 	static std::string set_info(int L, double J, double g, double h, int k_sym, bool p_sym, bool x_sym, std::vector<std::string> skip = {}, std::string sep = "_") {
 		std::string name = sep + "L=" + std::to_string(L) + \
@@ -403,13 +358,6 @@ public:
 		return tmp_str;
 	}
 
-	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::vector<int> sites);					// calculates the matrix element of operator at given site
-	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op);											// calculates the matrix element of operator at given site in extensive form (a sum)
-	friend cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, int corr_len);							// calculates the matrix element of operator at given site in extensive form (a sum) with corr_len
-
-	friend cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, u64 base_vec, u64 k, \
-		const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::vector<int> sites);
-
 	arma::sp_cx_mat symmetryRotation() const;
 	arma::cx_vec symmetryRotation(const arma::cx_vec& state) const;
 
@@ -428,7 +376,6 @@ public:
 
 	//--------------------------------------------------------- dummy functions
 	virtual arma::vec get_non_interacting_energies() override;
-	virtual arma::vec first_interacting_correction() override;
 };
 //-------------------------------------------------------------------------------------------------------------------------------
 /// <summary>
@@ -462,21 +409,7 @@ public:
 		return sqrt(L) / (chi * N) * sqrt(J * J + h * h + g * g + (w * w + g0 * g0 + J0 * J0) / 3.);
 	}
 
-	// MATRICES & OPERATORS
-	double av_sigma_z(u64 alfa, u64 beta) override;											// check the sigma_z matrix element extensive
-	double av_sigma_z(u64 alfa, u64 beta, int corr_len) override;							// check the sigma_z matrix element with correlation length
-	double av_sigma_z(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the matrix element of sigma_z elements sites correlation
-
-	double av_sigma_x(u64 alfa, u64 beta) override;											// check the sigma_z matrix element extensive
-	double av_sigma_x(u64 alfa, u64 beta, int corr_len) override;							// check the sigma_z matrix element with correlation length
-	double av_sigma_x(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the matrix element of sigma_x elements sites correlation
-
-	double av_spin_flip(u64 alfa, u64 beta) override;										// check the spin flip element extensive
-	double av_spin_flip(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the spin flip element at input sites (up to 2)
-
-	cpx av_spin_current(u64 alfa, u64 beta) override;										// check the extensive spin current
-	cpx av_spin_current(u64 alfa, u64 beta, std::vector<int> sites) override;		// check the spin current at given sites
-
+	
 	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators) const override;
 	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) const override;
 	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const override;
@@ -518,18 +451,10 @@ public:
 
 	//--------------------------------------------------------- dummy functions
 	virtual arma::vec get_non_interacting_energies() override;
-	virtual arma::vec first_interacting_correction() override;
 };
 // ---------------------------------- HELPERS ----------------------------------
 template <typename _type>
 _type overlap(const IsingModel<_type>& A, const IsingModel<_type>& B, int n_a, int n_b);								// creates the overlap between two eigenstates
-
-// ---------------------------------- PROBABILITY DISTRIBUTORS ----------------------------------
-
-void probability_distribution(std::string dir, std::string name, const arma::vec& data, int n_bins = -1);	// creates the probability distribution on a given data and saves it to a directory
-arma::vec probability_distribution_with_return(const arma::vec& data, int n_bins = -1);						// creates the probability distribution on a given data and returns a vector with it
-arma::vec data_fluctuations(const arma::vec& data, int mu = 10);											// removes the average from the given data based on small buckets of size mu
-arma::vec statistics_average(const arma::vec& data, int num_of_outliers = 3);								// takes the average from the vector and the outliers
 
 /// <summary>
 /// Mapping original energies and matches them by indices
@@ -560,4 +485,10 @@ std::unordered_map<uint64_t, uint64_t> mapping_sym_to_original(uint64_t _min, ui
 	return map;
 };
 
+
+
+
+
+using IsingSym 		= std::unique_ptr<IsingModel_sym>;
+using IsingDisorder = std::unique_ptr<IsingModel_disorder>;
 #endif

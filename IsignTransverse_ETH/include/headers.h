@@ -115,14 +115,15 @@ namespace fs = std::experimental::filesystem;
 #define __builtin_popcountll _mm_popcnt_u64
 #endif
 
-#if !defined(USE_HEISENBERG)
-	//#define USE_HEISENBERG
+#if defined(MY_MAC) && !defined(HEISENBERG)
+	//#define HEISENBERG
 #endif
 
 extern std::random_device rd;
 extern std::mt19937::result_type seed_global;
 extern std::mt19937_64 gen;
 typedef size_t u64;
+
 // ----------------------------------------------------------------------------- namespaces -----------------------------------------------------------------------------
 using namespace std;
 using clk = std::chrono::system_clock;

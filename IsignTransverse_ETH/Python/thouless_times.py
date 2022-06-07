@@ -3,6 +3,7 @@ from os import sep as kPSep
 from numpy import array
 from numpy import loadtxt
 from numpy import exp
+from numpy import float as npfloat
 import helper_functions as hfun
 import config as cf
 importlib.reload(cf)
@@ -70,15 +71,15 @@ def load() :
     param_copy = cf.params_arr
 
     #--- SET SCALING RANGES AND DATA
-    x0 = 0.2
-    xend = 1.95
+    x0 = 0.1
+    xend = 1.5
     dx = 0.1
 
     length = int((xend-x0) / dx) + 1
     #--- prepare scaling - axis
     vals = []
     if user_settings['scaling_idx'] == 0:
-        vals = range(12, 17)
+        vals = range(10, 17)
     elif cf.model and user_settings['scaling_idx'] == 4:
         vals = range(0, cf.params_arr[0])
     else :
@@ -130,8 +131,6 @@ def plot(axis1, axis2, new_settings = None) :
 
     def key_title(x):
         return user_settings['scaling'] + (f"=%d"%(vals[i]) if user_settings['scaling_idx'] == 0 else f"=%.2f"%(vals[i]))
-    def xform(x) :
-        return x if user_settings['rescaleX'] == 0 else 1. / x**user_settings['nu']
 
     #--- load data 
     vals, xvals, tau, gap_ratio = load()
@@ -139,12 +138,28 @@ def plot(axis1, axis2, new_settings = None) :
     
     #--- plot first panel with thouless times
     marker_style = [];  face_colors = [];   ec = []
+    y_min = 1.0e10
+    y_max = -1.0e10
+    x_min = 1.0e10
+    x_max = -1.0e10
+
+    rescale_by_Lsquare = 1
+
     for i in range(0, num_of_plots):
         yvals = tau[i]
-        if(user_settings['scaling_idx'] == 0):   yvals = yvals / exp(0.01*vals[i]**2)
-        p = axis1.plot(xform(xvals[i]), yvals, label=key_title(vals[i]))
+        if rescale_by_Lsquare and user_settings['vs_idx'] > 0 : yvals = yvals / (vals[i]**2 if user_settings['scaling_idx'] == 0 else cf.L**2)
+        yvals = cf.plot_settings.rescale(yvals, 'y')
+        xx = cf.plot_settings.rescale(xvals[i], 'x')
+        p = axis1.plot(xx, yvals, label=key_title(vals[i]))
         m = []; fc = [];    ec.append(p[0].get_color())
         
+        #-- xy-ranges
+        min = yvals.min();  max = yvals.max()
+        if min < y_min: y_min = min
+        if max > y_max: y_max = max
+        min = xx.min();  max = xx.max()
+        if min < x_min: x_min = min
+        if max > x_max: x_max = max
         #--- plot markers with additional legend according to level spacing:
         # ~0.3865   -   filled squares
         # < 0.45    -   empty sqaures
@@ -154,15 +169,17 @@ def plot(axis1, axis2, new_settings = None) :
             m.append( 's' if r <= 0.46 else 'o')
             fc.append( p[0].get_color() if ( abs(r-0.53) <= 0.01 or abs(r-0.3865) <= 0.02 ) else 'none' )
         for j in range(0, len(tau[i])) :
-            axis1.scatter(xform(xvals[i][j]), yvals[j], edgecolors=ec[i], marker=m[j], s=50, facecolor=fc[j])
+            axis1.scatter(cf.plot_settings.rescale(xvals[i][j], 'x'), yvals[j], edgecolors=ec[i], marker=m[j], s=50, facecolor=fc[j])
         
         # save markers for gap_ratio plot
         marker_style.append(m); face_colors.append(fc)
 
     #-- set panel1 details
-    yrange = (8e-1, 1e3) if user_settings['physical_units'] else (1e-5, 1e0)
-    xlab = r"$1\ /\ %s^{%.d}$"%(user_settings['vs'], user_settings['nu']) if user_settings['rescaleX'] else user_settings['vs']
-    hfun.set_plot_elements(axis = axis1, xlim = [xform(xvals[0][0]), xform(xvals[0][len(xvals[0])-1])], ylim = yrange, xlabel = xlab, ylabel = 'tau', settings=user_settings)
+    print(x_min, x_max, y_min, y_max, user_settings['vs_idx'], user_settings['scaling_idx'])
+    yrange = (0.9*y_min, 1.1*y_max)
+    ylab = "\\tau/L^2" if rescale_by_Lsquare and user_settings['vs_idx'] > 0 else "\\tau"
+    hfun.set_plot_elements(axis = axis1, xlim = (0.98*x_min, 1.02*x_max), 
+                                ylim = yrange, ylabel = ylab, settings=user_settings)
     axis1.grid()
     axis1.legend()
     axis1.title.set_text(hfun.remove_info(hfun.info_param(cf.params_arr), user_settings['vs'], user_settings['scaling']))
