@@ -2014,7 +2014,7 @@ void user_interface::set_default_msg(T &value, string option, string message, co
 void isingUI::ui::printAllOptions() const
 {
 	stout << "------------------------------CHOSEN MODEL:" << std::endl;
-	#ifdef USE_HEISENBERG
+	#ifdef HEISENBERG
 		std::cout << "HEISENBERG:\n\t\t" << "H = \u03A3_i J_i(\u03C3^x_i \u03C3^x_i+1 + \u03C3^y_i \u03C3^y_i+1) + g_i \u03C3^z_i\u03C3^z_i+1 + h_i \u03C3^x_i" << std::endl << std::endl;
 	#else
 		std::cout << "ISING:\n\t\t" << "H = \u03A3_i J_i \u03C3^z_i \u03C3^z_i+1 + g_i \u03C3^x_i + h_i \u03C3^x_i" << std::endl << std::endl;

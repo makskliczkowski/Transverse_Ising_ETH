@@ -16,14 +16,14 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 		",h=" + to_string_prec(this->h, 2) + \
 		",w=" + to_string_prec(this->w, 2);
 	this->set_neighbors();
-	#ifndef USE_HEISENBERG
+	#ifndef HEISENBERG
 		if(this->g == 0 && this->g0 == 0)
 			generate_mapping();
 	#else
 		generate_mapping();
 	#endif
 		
-	#ifdef USE_HEISENBERG
+	#ifdef HEISENBERG
 		this->hamiltonian_heisenberg();
 	#else
 		this->hamiltonian();
@@ -39,7 +39,7 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 /// <returns>index</returns>
 u64 IsingModel_disorder::map(u64 index) const {
 	if (index < 0 || index >= std::pow(2, L)) throw "Element out of range\n No such index in map\n";
-	#ifndef USE_HEISENBERG
+	#ifndef HEISENBERG
 		return (this->g == 0? mapping[index] : index);
 	#else
 		return mapping[index];
