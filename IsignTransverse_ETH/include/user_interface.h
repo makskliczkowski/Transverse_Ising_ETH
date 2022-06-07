@@ -142,7 +142,11 @@ namespace isingUI
 		// ----------------------------------- SIMULATION
 		void make_sim() override;														// make default simulation
 		
+
+
+
 		//-------------------------------------------------------------------------- GENERAL ROUTINES
+
 		void diagonalize();
 		//void diag_sparse(int num, bool get_eigenvectors = false, const char* form = "sa");	// diagonalize for limited number (set as num) of eigevals using form as choosing subset
 		void diag_sparse(int num, bool get_eigenvectors = false, double sigma = 0.0);		// diagonalize for limited number (set as num) of eigevals starting at sigma and higher eigvals
@@ -152,6 +156,7 @@ namespace isingUI
 
 		//<! comvbine .hdf5 files seperated
 		void combine_spectra();
+
 		// --------------- COMPARISONS
 		void compare_energies();
 		void compare_matrix_elements(op_type op, int k_alfa, int k_beta, int p_alfa = 1, int p_beta = 1, int x_alfa = 1, int x_beta = 1);
@@ -173,40 +178,35 @@ namespace isingUI
 		void relaxationTimesFromFiles();
 		void intSpecFun_from_timeEvol();
 	
-		//<! spectral form factor calculated from eigenvalues in file or diagonalize matrix
-		void spectral_form_factor();
-		
-		//<! find thouless time with various method as function of h,g,J
-		void thouless_times();
 		
 		//<! analyze spectra with unfolding, DOS and level spacing distribution --  all to file
 		void analyze_spectra();
 
 		//-------------------------------------------------------------------------- ADIABATIC GAUGE POTENTIALS
-		//void adiabaticGaugePotential_sym(bool SigmaZ = 0, bool avSymSectors = 0);
-		//void adiabaticGaugePotential_dis();
-		//void combineAGPfiles();
+		void adiabatic_gauge_potential();
 
 
 
 		//-------------------------------------------------------------------------- STATISTICS
-		void level_spacing_from_distribution();
+		//<! gap ratio map
 		void level_spacing();
+
+		//<! spectral form factor calculated from eigenvalues in file or diagonalize matrix
+		void spectral_form_factor();
+		
+		//<! find thouless time with various method as function of h,g,J
+		void thouless_times();
 
 		void smoothen_data(const std::string& dir, const std::string& name, int mu = -1);
 
-		//-------------------------------------------------------------------------- AVERAGE OVER REALISATIONS
+		//-------------------------------------------------------------------------- AVERAGE RAW DATA OVER REALISATIONS
 		//<! average data over disorder realisations
 		void average_SFF();
 
+
+
 		//-------------------------------------------------------------------------- FUNCTIONS TO CALL IN FUN-DEFAULT MODE
-		/// <summary>
-		/// saves matrix elements for using in the autoencoder
-		/// </summary>
-		/// <param name="operators"> inializer list of different local operators and also their global friend </param>
-		/// <param name="names"> names of operators set in input, must be equal size as operators</param>
-		void saveDataForAutoEncoder_disorder(std::initializer_list<op_type> operators, std::initializer_list<std::string> names);
-		void saveDataForAutoEncoder_symmetries(std::initializer_list<op_type> operators, std::initializer_list<std::string> names);
+		
 
 		//-------------------------------------------------------------------------- GENERAL LAMBDA'S
 		//<! generate random product state (random orientation of spins on the bloch sphere)
