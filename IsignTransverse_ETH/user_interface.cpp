@@ -36,7 +36,7 @@ void isingUI::ui::make_sim()
 		benchmark();
 		break;
 	case 6:
-		//adiabaticGaugePotential_dis();
+		adiabatic_gauge_potential();
 		break;
 	case 7:
 		level_spacing();
@@ -266,7 +266,7 @@ void isingUI::ui::diagonalize(){
 			eigenvalues = alfa.get_eigenvalues();
 		}
 		stout << "\t\t	--> finished diagonalizing for " << info + _suffix<< " - in time : " << tim_s(start) << "s" << std::endl;
-
+		
 		std::string name = dir + info + _suffix + ".hdf5";
 		eigenvalues.save(arma::hdf5_name(name, "eigenvalues/", arma::hdf5_opts::append));
 		stout << "\t\t	--> finished saving eigenvalues for " << info + _suffix << " - in time : " << tim_s(start) << "s" << std::endl;
@@ -1131,7 +1131,274 @@ void isingUI::ui::intSpecFun_from_timeEvol()
 	map_g.close();
 	map_h.close();
 }
+		
+//<! analyze spectra with unfolding, DOS and level spacing distribution --  all to file
+void isingUI::ui::analyze_spectra(){
 
+	//-------PREAMBLE
+	const Ising_params par = Ising_params::h;
+
+	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
+					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
+
+	std::string dir_spacing 	= this->saving_dir + "LevelSpacingDistribution" + kPSep;
+	std::string dir_DOS 		= this->saving_dir + "DensityOfStates" + kPSep;
+	std::string dir_unfolding 	= this->saving_dir + "Unfolding" + kPSep;
+	std::string dir_gap 		= this->saving_dir + "LevelSpacing" + kPSep + "distribution" + kPSep;
+	createDirs(dir_DOS, dir_spacing, dir_unfolding, dir_gap);
+
+	size_t N = ULLPOW(this->L);
+	if(this->m){
+		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
+								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+		N = alfa->get_hilbert_size();
+	}
+	const u64 num = 0.6 * N;
+	double wH 				= 0.0;
+	double wH_typ 			= 0.0;
+	double wH_typ_unfolded 	= 0.0;
+
+	arma::vec energies_all, energies_unfolded_all;
+	arma::vec spacing, spacing_unfolded, spacing_log, spacing_unfolded_log;
+	arma::vec gap_ratio, gap_ratio_unfolded;
+	//-------SET KERNEL
+	int counter_realis = 0;
+	auto lambda_average = [&]
+		(int realis, double x){
+		arma::vec eigenvalues;
+		std::string dir = this->saving_dir + "DIAGONALIZATION" + kPSep;
+		std::string _suffix = "_real=" + std::to_string(realis);
+		std::string name = dir + info + _suffix + ".hdf5";
+		bool loaded;
+		#pragma omp critical
+		{
+			loaded = eigenvalues.load(arma::hdf5_name(name, "eigenvalues/dataset"));
+		}
+		if(!loaded) return;
+		try{
+			if(eigenvalues.empty()) return;
+
+			//------------------- Unfolding, cdf and fit	
+			//if(realis == 0)
+			//{
+			//	arma::vec cdf(eigenvalues.size(), arma::fill::zeros);
+    		//	std::iota(cdf.begin(), cdf.end(), 0);
+    		//	auto p1 = arma::polyfit(eigenvalues, cdf, 3);			arma::vec res1 = arma::polyval(p1, eigenvalues);
+			//	auto p2 = arma::polyfit(eigenvalues, cdf, 6);			arma::vec res2 = arma::polyval(p2, eigenvalues);
+			//	auto p3 = arma::polyfit(eigenvalues, cdf, this->L);		arma::vec res3 = arma::polyval(p3, eigenvalues);
+			//	auto p4 = arma::polyfit(eigenvalues, cdf, this->L + 5);	arma::vec res4 = arma::polyval(p4, eigenvalues);
+			//	std::ofstream file;
+			//	openFile(file, dir_unfolding + info + ".dat", std::ios::out);
+			//	for(int k = 0; k < cdf.size(); k++)
+			//		printSeparated(file, "\t", 14, true, eigenvalues(k), cdf(k), res1(k), res2(k), res3(k), res4(k));
+			//	file.close();
+			//}
+			arma::vec energies_unfolded = statistics::unfolding(eigenvalues, this->L);
+			//------------------- Get 50% spectrum
+			double E_av = arma::trace(eigenvalues) / double(N);
+			auto i = min_element(begin(eigenvalues), end(eigenvalues), [=](double x, double y) {
+				return abs(x - E_av) < abs(y - E_av);
+				});
+			u64 E_av_idx = i - eigenvalues.begin();
+			const long E_min = E_av_idx - num / 2.;
+			const long E_max = E_av_idx + num / 2. + 1;
+
+			double epsilon = sqrt(g*g + (h+w)*(h+w));
+			arma::vec energies = this->ch? exctract_vector_between_values(eigenvalues, -0.5 * epsilon, 0.5 * epsilon) : 
+											exctract_vector(eigenvalues, E_min, E_max);
+			arma::vec energies_unfolded_cut = this->ch? statistics::unfolding(energies, this->L) :
+														 exctract_vector(energies_unfolded, E_min, E_max);
+			
+			//------------------- Level Spacings
+			arma::vec level_spacings(energies.size() - 1, arma::fill::zeros);
+			arma::vec level_spacings_unfolded(energies.size() - 1, arma::fill::zeros);
+			for(int i = 0; i < energies.size() - 1; i++){
+				const double delta 			= energies(i+1) 				- energies(i);
+				const double delta_unfolded = energies_unfolded_cut(i+1) 	- energies_unfolded_cut(i);
+
+				wH 				 += delta / double(energies.size()-1);
+				wH_typ  		 += log(abs(delta)) / double(energies.size()-1);
+				wH_typ_unfolded  += log(abs(delta_unfolded)) / double(energies.size()-1);
+
+				level_spacings(i) 			= delta;
+				level_spacings_unfolded(i) 	= delta_unfolded;
+			}
+			arma::vec gap = statistics::eigenlevel_statistics_return(eigenvalues);
+			arma::vec gap_unfolded = statistics::eigenlevel_statistics_return(energies_unfolded);
+
+			//------------------- Combine realisations
+		#pragma omp critical
+			{
+				energies_all = arma::join_cols(energies_all, energies);
+				energies_unfolded_all = arma::join_cols(energies_unfolded_all, energies_unfolded_cut);
+				
+				spacing = arma::join_cols(spacing, level_spacings);
+				spacing_log = arma::join_cols(spacing_log, arma::log10(level_spacings));
+				spacing_unfolded = arma::join_cols(spacing_unfolded, level_spacings_unfolded);
+				spacing_unfolded_log = arma::join_cols(spacing_unfolded_log, arma::log10(level_spacings_unfolded));
+				
+				gap_ratio = arma::join_cols(gap_ratio, gap);
+				gap_ratio_unfolded = arma::join_cols(gap_ratio_unfolded, gap_unfolded);
+				counter_realis++;
+			}
+		}
+		catch (const std::exception& err) {
+			stout << "Exception:\t" << err.what() << "\n";
+			exit(1);
+			//std::cout << "Caught some error, but current spectrum is:" << std::endl;
+			//std::cout << eigenvalues.t() << std::endl;
+		}
+		catch (...) {
+			stout << "Unknown error...!" << "\n";
+			assert(false);
+		}
+	};
+
+	//------CALCULATE FOR MODEL
+	double norm;
+	if(this->m){
+		int counter = 0;
+		for(int k = 1; k < this->L; k++)
+		{
+			if(k == this->L / 2) continue;
+			this->symmetries.k_sym = k;
+			average_over_realisations<par>(false, lambda_average);
+			counter++;
+		}
+		norm = counter_realis * counter;
+	} else{
+		average_over_realisations<par>(false, lambda_average);
+		norm = counter_realis;
+	}
+	if(spacing.is_empty() || spacing_log.is_empty() || spacing_unfolded.is_empty() || spacing_unfolded_log.is_empty()
+							 || energies_all.is_empty() || energies_unfolded_all.is_empty()) return;
+	if(spacing.is_zero() || spacing_log.is_zero() || spacing_unfolded.is_zero() || spacing_unfolded_log.is_zero()
+							 || energies_all.is_zero() || energies_unfolded_all.is_zero()) return;
+
+	wH /= norm;	wH_typ /= norm;	wH_typ_unfolded /= norm;
+	std:string prefix = this->ch ? "oneband" : "";
+	statistics::probability_distribution(dir_spacing, prefix + info, spacing, -1, exp(wH_typ_unfolded), wH, exp(wH_typ));
+	statistics::probability_distribution(dir_spacing, prefix + "_log" + info, spacing_log, -1, wH_typ_unfolded, wH, wH_typ);
+	statistics::probability_distribution(dir_spacing, prefix + "unfolded" + info, spacing_unfolded, -1, exp(wH_typ_unfolded), wH, exp(wH_typ));
+	statistics::probability_distribution(dir_spacing, prefix + "unfolded_log" + info, spacing_unfolded_log, -1, wH_typ_unfolded, wH, wH_typ);
+	
+	statistics::probability_distribution(dir_DOS, prefix + info, energies_all, -1);
+	statistics::probability_distribution(dir_DOS, prefix + "unfolded" + info, energies_unfolded_all, -1);
+
+	statistics::probability_distribution(dir_gap, info, gap_ratio, -1);
+	statistics::probability_distribution(dir_gap, info, gap_ratio_unfolded, -1);
+}
+
+//--------------------------------------------------------------------- ADIABATIC GAUGE POTENTIAL
+void isingUI::ui::adiabatic_gauge_potential(){
+
+	//----- PREAMBLE
+	int counter = 0;
+	double 	 
+			 AGP = 0.0,	//<! adiabatic gauge potential
+		typ_susc = 0.0,	//<! typical fidelity susceptibility
+			susc = 0.0,	//<! fidelity susceptibility
+	   diag_norm = 0.0,	//<! diagonal normalisation factor
+	   	 entropy = 0.0,	//<! half-chain entropy
+	  		 ipr = 0.0,	//<! inverse participation ratio
+	info_entropy = 0.0,	//<! information entropy in eigenstates
+	info_ent_rnd = 0.0,	//<! information entropy of random state in eigenbasis
+	   gap_ratio = 0.0,	//<! gap ratio
+	   		  wH = 0.0,	//<! mean level spacing
+	   	  wH_typ = 0.0;	//<! typical level spacing
+	std::string info;
+	const long num_ent = L >= 10? 100 : 20;
+	
+
+	//---- KERNEL LAMBDA
+	auto kernel = [&](auto& alfa, int realis, const arma::sp_cx_mat& opMat)
+	{
+		const u64 N = alfa.get_hilbert_size();
+		const double omegaH = alfa.mean_level_spacing_analytical();
+		const double rescale = (double)N * omegaH * omegaH / (double)L;
+		this->mu = long(0.5 * N);
+		info = alfa.get_info();
+
+		long int E_min = alfa.E_av_idx - long(mu / 2);
+		long int E_max = alfa.E_av_idx + long(mu / 2);
+		const arma::Mat<decltype(alfa.type_var)> U = alfa.get_eigenvectors();
+		const arma::vec E = alfa.get_eigenvalues();
+		arma::cx_mat mat_elem = U.t() * opMat * U;
+
+		auto [AGP_local, typ_susc_local, susc_local] = adiabatics::gauge_potential(mat_elem, E, this->L);
+		typ_susc += typ_susc_local;
+		AGP += AGP_local;
+		susc += susc_local;
+
+		double wH_typ_local = 0.0;
+		for(int i = 0; i < N; i++){
+			diag_norm += abs(mat_elem(i,i) * conj(mat_elem(i,i)));
+			if(i >= E_min && i < E_max){
+				const double gap1 = E(i) - E(i - 1);
+				const double gap2 = E(i + 1) - E(i);
+				const double min = std::min(gap1, gap2);
+				const double max = std::max(gap1, gap2);
+				wH += gap2;
+				wH_typ_local += std::log(gap2);
+        		if (abs(gap1) <= 1e-15 || abs(gap2) <= 1e-15){ 
+        		    std::cout << "Index: " << i << std::endl;
+        		    assert(false && "Degeneracy!!!\n");
+        		}
+				gap_ratio += min / max;
+	
+				const arma::Col<decltype(alfa.type_var)> state = U.col(i);
+				ipr += statistics::inverse_participation_ratio(state);
+				info_entropy += statistics::information_entropy(state);
+				if(i >= alfa.E_av_idx - num_ent / 2. && i <= alfa.E_av_idx + num_ent / 2.)
+					entropy += entropy::vonNeumann(state, this->L / 2, this->L);
+			}
+		}
+		wH_typ += std::exp(wH_typ_local / double(this->mu));
+
+		auto state = this->set_init_state(N, 0);
+		info_ent_rnd += statistics::information_entropy(state);
+		counter++;
+	};
+
+	//---- START COMPUTATION
+	if(this->m){
+		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
+								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+		arma::sp_cx_mat opMat = alfa->chooseOperator(this->op, this->site);
+		average_over_realisations<Ising_params::h>(*alfa, true, kernel, opMat);
+	} else{
+		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+		arma::sp_cx_mat opMat = alfa->chooseOperator(this->op, this->site);
+		average_over_realisations<Ising_params::h>(*alfa, true, kernel, opMat);
+	}
+
+	auto [opName, str] = IsingModel_disorder::opName(this->ch, this->site);
+	std::string dir = this->saving_dir + "STATISTICS" + kPSep;
+	std::string dir_agp = this->saving_dir + "AGP" + kPSep + opName + kPSep;
+	createDirs(dir_agp);
+	std::ofstream file;
+
+	openFile(file, dir + info + "_jobid=" + std::to_string(jobid) + ".dat");
+	printSeparated(file, "\t", 25, true, "gap ratio", 			   				gap_ratio / double(this->mu * counter));
+	printSeparated(file, "\t", 25, true, "ipr", 						 			  ipr / double(this->mu * counter));
+	printSeparated(file, "\t", 25, true, "information entropy", 			 info_entropy / double(this->mu * counter));
+	printSeparated(file, "\t", 25, true, "information entropy random state", info_ent_rnd / double(counter));
+	printSeparated(file, "\t", 25, true, "entropy in ~100 states at E=0", 	  	  entropy / double(num_ent * counter));
+	printSeparated(file, "\t", 25, true, "mean level spacing", 			  			   wH / double(this->mu * counter));
+	printSeparated(file, "\t", 25, true, "typical level spacing", 	  			   wH_typ / double(counter));
+	file.close();
+
+	openFile(file, dir_agp + info + "_jobid=" + std::to_string(jobid) + ".dat");
+	printSeparated(file, "\t", 25, true, "adiabatic gauge potential", 	 			  AGP / double(counter));
+	printSeparated(file, "\t", 25, true, "typical fidelity susceptibility", 	 typ_susc / double(counter));
+	printSeparated(file, "\t", 25, true, "fidelity susceptibility", 			 	 susc / double(counter));
+	printSeparated(file, "\t", 25, true, "diagonal normalisation factor", 		diag_norm / double(counter));
+
+	file.close();
+}
+
+
+//-------------------------------------------------------------------------- STATISTICS
 //<! spectral form factor calculated from eigenvalues in file or diagonalize matrix
 void isingUI::ui::spectral_form_factor(){
 	// always unfolding!
@@ -1487,7 +1754,7 @@ void isingUI::ui::thouless_times()
 	std::ofstream map;
 	openFile(map, dir + "_all" + info + ".dat", ios::out);
 	for (int size = Lmin; size < Lmax; size += this->Ls){
-		for(double Jx = this->J; Jx <= 1.05; Jx += 0.05){
+		for(double Jx = this->J; Jx <= 1.55; Jx += 0.05){
 			for (auto &gx : gx_list){
 				for (auto &hx : hx_list){
 					for(auto& x : _list){	// either disorder w (m=0) or symmetry sector k (m=1)
@@ -1523,192 +1790,8 @@ void isingUI::ui::thouless_times()
 		}
 	}
 }
-		
-//<! analyze spectra with unfolding, DOS and level spacing distribution --  all to file
-void isingUI::ui::analyze_spectra(){
-
-	//-------PREAMBLE
-	const Ising_params par = Ising_params::h;
-
-	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
-					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
-
-	std::string dir_spacing 	= this->saving_dir + "LevelSpacingDistribution" + kPSep;
-	std::string dir_DOS 		= this->saving_dir + "DensityOfStates" + kPSep;
-	std::string dir_unfolding 	= this->saving_dir + "Unfolding" + kPSep;
-	std::string dir_gap 		= this->saving_dir + "LevelSpacing" + kPSep + "distribution" + kPSep;
-	createDirs(dir_DOS, dir_spacing, dir_unfolding, dir_gap);
-
-	size_t N = ULLPOW(this->L);
-	if(this->m){
-		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
-								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-		N = alfa->get_hilbert_size();
-	}
-	const u64 num = 0.6 * N;
-	double wH 				= 0.0;
-	double wH_typ 			= 0.0;
-	double wH_typ_unfolded 	= 0.0;
-
-	arma::vec energies_all, energies_unfolded_all;
-	arma::vec spacing, spacing_unfolded, spacing_log, spacing_unfolded_log;
-	arma::vec gap_ratio, gap_ratio_unfolded;
-	//-------SET KERNEL
-	int counter_realis = 0;
-	auto lambda_average = [&]
-		(int realis, double x){
-		arma::vec eigenvalues;
-		std::string dir = this->saving_dir + "DIAGONALIZATION" + kPSep;
-		std::string _suffix = "_real=" + std::to_string(realis);
-		std::string name = dir + info + _suffix + ".hdf5";
-		bool loaded;
-		#pragma omp critical
-		{
-			loaded = eigenvalues.load(arma::hdf5_name(name, "eigenvalues/dataset"));
-		}
-		if(!loaded) return;
-		try{
-			if(eigenvalues.empty()) return;
-
-			//------------------- Unfolding, cdf and fit	
-			//if(realis == 0)
-			//{
-			//	arma::vec cdf(eigenvalues.size(), arma::fill::zeros);
-    		//	std::iota(cdf.begin(), cdf.end(), 0);
-    		//	auto p1 = arma::polyfit(eigenvalues, cdf, 3);			arma::vec res1 = arma::polyval(p1, eigenvalues);
-			//	auto p2 = arma::polyfit(eigenvalues, cdf, 6);			arma::vec res2 = arma::polyval(p2, eigenvalues);
-			//	auto p3 = arma::polyfit(eigenvalues, cdf, this->L);		arma::vec res3 = arma::polyval(p3, eigenvalues);
-			//	auto p4 = arma::polyfit(eigenvalues, cdf, this->L + 5);	arma::vec res4 = arma::polyval(p4, eigenvalues);
-			//	std::ofstream file;
-			//	openFile(file, dir_unfolding + info + ".dat", std::ios::out);
-			//	for(int k = 0; k < cdf.size(); k++)
-			//		printSeparated(file, "\t", 14, true, eigenvalues(k), cdf(k), res1(k), res2(k), res3(k), res4(k));
-			//	file.close();
-			//}
-			arma::vec energies_unfolded = statistics::unfolding(eigenvalues, this->L);
-			//------------------- Get 50% spectrum
-			double E_av = arma::trace(eigenvalues) / double(N);
-			auto i = min_element(begin(eigenvalues), end(eigenvalues), [=](double x, double y) {
-				return abs(x - E_av) < abs(y - E_av);
-				});
-			u64 E_av_idx = i - eigenvalues.begin();
-			const long E_min = E_av_idx - num / 2.;
-			const long E_max = E_av_idx + num / 2. + 1;
-
-			double epsilon = sqrt(g*g + (h+w)*(h+w));
-			arma::vec energies = this->ch? exctract_vector_between_values(eigenvalues, -0.5 * epsilon, 0.5 * epsilon) : 
-											exctract_vector(eigenvalues, E_min, E_max);
-			arma::vec energies_unfolded_cut = this->ch? statistics::unfolding(energies, this->L) :
-														 exctract_vector(energies_unfolded, E_min, E_max);
-			
-			//------------------- Level Spacings
-			arma::vec level_spacings(energies.size() - 1, arma::fill::zeros);
-			arma::vec level_spacings_unfolded(energies.size() - 1, arma::fill::zeros);
-			for(int i = 0; i < energies.size() - 1; i++){
-				const double delta 			= energies(i+1) 				- energies(i);
-				const double delta_unfolded = energies_unfolded_cut(i+1) 	- energies_unfolded_cut(i);
-
-				wH 				 += delta / double(energies.size()-1);
-				wH_typ  		 += log(abs(delta)) / double(energies.size()-1);
-				wH_typ_unfolded  += log(abs(delta_unfolded)) / double(energies.size()-1);
-
-				level_spacings(i) 			= delta;
-				level_spacings_unfolded(i) 	= delta_unfolded;
-			}
-			arma::vec gap = statistics::eigenlevel_statistics_return(eigenvalues);
-			arma::vec gap_unfolded = statistics::eigenlevel_statistics_return(energies_unfolded);
-
-			//------------------- Combine realisations
-		#pragma omp critical
-			{
-				energies_all = arma::join_cols(energies_all, energies);
-				energies_unfolded_all = arma::join_cols(energies_unfolded_all, energies_unfolded_cut);
-				
-				spacing = arma::join_cols(spacing, level_spacings);
-				spacing_log = arma::join_cols(spacing_log, arma::log10(level_spacings));
-				spacing_unfolded = arma::join_cols(spacing_unfolded, level_spacings_unfolded);
-				spacing_unfolded_log = arma::join_cols(spacing_unfolded_log, arma::log10(level_spacings_unfolded));
-				
-				gap_ratio = arma::join_cols(gap_ratio, gap);
-				gap_ratio_unfolded = arma::join_cols(gap_ratio_unfolded, gap_unfolded);
-				counter_realis++;
-			}
-		}
-		catch (const std::exception& err) {
-			stout << "Exception:\t" << err.what() << "\n";
-			exit(1);
-			//std::cout << "Caught some error, but current spectrum is:" << std::endl;
-			//std::cout << eigenvalues.t() << std::endl;
-		}
-		catch (...) {
-			stout << "Unknown error...!" << "\n";
-			assert(false);
-		}
-	};
-
-	//------CALCULATE FOR MODEL
-	double norm;
-	if(this->m){
-		int counter = 0;
-		for(int k = 1; k < this->L; k++)
-		{
-			if(k == this->L / 2) continue;
-			this->symmetries.k_sym = k;
-			average_over_realisations<par>(false, lambda_average);
-			counter++;
-		}
-		norm = counter_realis * counter;
-	} else{
-		average_over_realisations<par>(false, lambda_average);
-		norm = counter_realis;
-	}
-	if(spacing.is_empty() || spacing_log.is_empty() || spacing_unfolded.is_empty() || spacing_unfolded_log.is_empty()
-							 || energies_all.is_empty() || energies_unfolded_all.is_empty()) return;
-	if(spacing.is_zero() || spacing_log.is_zero() || spacing_unfolded.is_zero() || spacing_unfolded_log.is_zero()
-							 || energies_all.is_zero() || energies_unfolded_all.is_zero()) return;
-
-	wH /= norm;	wH_typ /= norm;	wH_typ_unfolded /= norm;
-	std:string prefix = this->ch ? "oneband" : "";
-	statistics::probability_distribution(dir_spacing, prefix + info, spacing, -1, exp(wH_typ_unfolded), wH, exp(wH_typ));
-	statistics::probability_distribution(dir_spacing, prefix + "_log" + info, spacing_log, -1, wH_typ_unfolded, wH, wH_typ);
-	statistics::probability_distribution(dir_spacing, prefix + "unfolded" + info, spacing_unfolded, -1, exp(wH_typ_unfolded), wH, exp(wH_typ));
-	statistics::probability_distribution(dir_spacing, prefix + "unfolded_log" + info, spacing_unfolded_log, -1, wH_typ_unfolded, wH, wH_typ);
-	
-	statistics::probability_distribution(dir_DOS, prefix + info, energies_all, -1);
-	statistics::probability_distribution(dir_DOS, prefix + "unfolded" + info, energies_unfolded_all, -1);
-
-	statistics::probability_distribution(dir_gap, info, gap_ratio, -1);
-	statistics::probability_distribution(dir_gap, info, gap_ratio_unfolded, -1);
-}
-
-//--------------------------------------------------------------------- ADIABATIC GAUGE POTENTIAL
-void isingUI::ui::adiabatic_gauge_potential(){
-
-	//----- PREAMBLE
 
 
-
-	//---- KERNEL LAMBDA
-	auto kernel = [&](auto& alfa, int realis){
-
-	};
-
-	//---- START COMPUTATION
-	if(this->m){
-		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
-								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-		average_over_realisations<Ising_params::h>(*alfa, true, kernel);
-	} else{
-		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-		average_over_realisations<Ising_params::h>(*alfa, true, kernel);
-	}
-
-
-
-}
-
-
-//-------------------------------------------------------------------------- STATISTICS
 void isingUI::ui::level_spacing(){
 	clk::time_point start = std::chrono::system_clock::now();
 	
@@ -1829,7 +1912,6 @@ void isingUI::ui::level_spacing(){
 	}
 }
 
-
 void isingUI::ui::smoothen_data(const std::string& dir, const std::string& name, int bucket_size){
 	if(bucket_size < 0)
 		bucket_size = this->mu;
@@ -1857,6 +1939,90 @@ void isingUI::ui::smoothen_data(const std::string& dir, const std::string& name,
 }
 
 
+void isingUI::ui::calculate_statistics(){
+	//----- PREAMBLE
+	int counter = 0;
+	double 	 
+	   	 entropy = 0.0,	//<! half-chain entropy
+	  		 ipr = 0.0,	//<! inverse participation ratio
+	info_entropy = 0.0,	//<! information entropy in eigenstates
+	info_ent_rnd = 0.0,	//<! information entropy of random state in eigenbasis
+	   gap_ratio = 0.0,	//<! gap ratio
+	   		  wH = 0.0,	//<! mean level spacing
+	   	  wH_typ = 0.0;	//<! typical level spacing
+	std::string info;
+	
+	const long num_ent = L >= 10? 100 : 20;
+
+	//---- KERNEL LAMBDA
+	auto kernel = [&](auto& alfa, int realis)
+	{
+		const u64 N = alfa.get_hilbert_size();
+		const double omegaH = alfa.mean_level_spacing_analytical();
+		const double rescale = (double)N * omegaH * omegaH / (double)L;
+		this->mu = long(0.5 * N);
+	
+		info = alfa.get_info();
+
+		long int E_min = alfa.E_av_idx - long(mu / 2);
+		long int E_max = alfa.E_av_idx + long(mu / 2);
+		const arma::Mat<decltype(alfa.type_var)> U = alfa.get_eigenvectors();
+		const arma::vec E = alfa.get_eigenvalues();
+
+		double wH_typ_local = 0.0;
+		for(int i = 0; i < N; i++){
+			if(i >= E_min && i < E_max){
+				const double gap1 = E(i) - E(i - 1);
+				const double gap2 = E(i + 1) - E(i);
+				const double min = std::min(gap1, gap2);
+				const double max = std::max(gap1, gap2);
+				wH += gap2;
+				wH_typ_local += std::log(gap2);
+        		if (abs(gap1) <= 1e-15 || abs(gap2) <= 1e-15){ 
+        		    std::cout << "Index: " << i << std::endl;
+        		    assert(false && "Degeneracy!!!\n");
+        		}
+				gap_ratio += min / max;
+	
+				const arma::Col<decltype(alfa.type_var)> state = U.col(i);
+				ipr += statistics::inverse_participation_ratio(state);
+				info_entropy += statistics::information_entropy(state);
+				if(i >= alfa.E_av_idx - num_ent / 2. && i <= alfa.E_av_idx + num_ent / 2.)
+					entropy += entropy::vonNeumann(state, this->L / 2, this->L);
+			}
+		}
+		wH_typ += std::exp(wH_typ_local / double(this->mu));
+
+		auto state = this->set_init_state(N);
+		info_ent_rnd += statistics::information_entropy(state);
+		counter++;
+	};
+
+	//---- START COMPUTATION
+	if(this->m){
+		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
+								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+		average_over_realisations<Ising_params::h>(*alfa, true, kernel);
+	} else{
+		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+		average_over_realisations<Ising_params::h>(*alfa, true, kernel);
+	}
+
+	std::string dir = this->saving_dir + "STATISTICS" + kPSep;
+	createDirs(dir);
+	std::ofstream file;
+	openFile(file, dir + info + "_jobid=" + std::to_string(jobid) + ".dat");
+
+	printSeparated(file, "\t", 25, true, "gap ratio", 			   				gap_ratio / double(this->mu * counter));
+	printSeparated(file, "\t", 25, true, "ipr", 						 			  ipr / double(this->mu * counter));
+	printSeparated(file, "\t", 25, true, "information entropy", 			 info_entropy / double(this->mu * counter));
+	printSeparated(file, "\t", 25, true, "information entropy random state", info_ent_rnd / double(counter));
+	printSeparated(file, "\t", 25, true, "entropy in ~100 states at E=0", 	  	  entropy / double(num_ent * counter));
+	printSeparated(file, "\t", 25, true, "mean level spacing", 			  			   wH / double(this->mu * counter));
+	printSeparated(file, "\t", 25, true, "typical level spacing", 	  			   wH_typ / double(counter));
+
+	file.close();
+}
 
 
 
@@ -1900,6 +2066,9 @@ void print_help(){
 		"	3 -- Sz_q\n"
 		"	4 -- Sx_q\n"
 		"	5 -- Hq\n"
+		"	6 -- I+_n - TFIM LIOMs ordered by locality\n"
+		"	7 -- I-_n - TFIM LIOMs ordered by locality\n"
+		"	8 -- A_i - non-interacting (J=0) LIOMs\n"
 		"	  -- to get sum of local Sz or Sx take Sz_q or Sx_q with -s=0\n"
 		"	  -- i or q are set to site (flag -s); (default 0)\n"
 		""

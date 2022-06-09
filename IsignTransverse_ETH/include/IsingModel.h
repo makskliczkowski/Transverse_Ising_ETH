@@ -53,6 +53,7 @@ protected:
 	virtual u64 map(u64 index) const = 0;					// function returning either the mapping(symmetries) or the input index (no-symmetry: 1to1 correspondance)
 
 public:
+	_type type_var = _type(0);
 	u64 E_av_idx = -1;										// average energy
 	/* MODEL BASED PARAMETERS */
 	int L = 8;												// chain length
@@ -219,6 +220,10 @@ public:
 			case 5: op = this->createHq(site); break;
 			case 6: op = this->create_tfim_liom_plus(site); break;
 			case 7: op = this->create_tfim_liom_minus(site); break;
+			case 8: 
+				op = this->g * this->create_operator({ IsingModel::sigma_z }, std::vector<int>({ site })) 
+						+ this->h * this->create_operator({ IsingModel::sigma_x }, std::vector<int>({ site }));
+				break;
 			default:
 				stout << "No operator chosen!\nReturning empty matrix\n\n";
 		}
@@ -237,6 +242,7 @@ public:
 		case 5: name = "H_q="	   	  		+ std::to_string(site);	break;
 		case 6: name = "TFIM_LIOM_plus_n="  + std::to_string(site);	break;
 		case 7: name = "TFIM_LIOM_minus_n=" + std::to_string(site);	break;
+		case 8: name = "SigXZ_j=" 			+ std::to_string(site);	break;
 		default:
 			stout << "Bad input! Operator -op 0-7 only";
 			exit(1);
