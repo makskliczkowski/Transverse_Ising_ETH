@@ -8,6 +8,7 @@
 #include "statistics.hpp"
 #include "statistics_dist.hpp"
 #include "entaglement.hpp"
+#include "adiabatic_gauges.hpp"
 
 const arma::vec down = { 0, 1 };
 const arma::vec up	 = { 1, 0 };
@@ -189,6 +190,9 @@ namespace isingUI
 
 
 		//-------------------------------------------------------------------------- STATISTICS
+		//<! calculate all statistics for given input parameters -- averaged
+		void calculate_statistics();
+
 		//<! gap ratio map
 		void level_spacing();
 
@@ -225,11 +229,13 @@ namespace isingUI
 			return init_state;
 		};
 
-		//<! generate initial state given by -op flag: random, FM, AFM, ...
-		arma::cx_vec set_init_state(size_t N)
+		//<! generate initial state given by input (user control) or -op flag (default): random, FM, AFM, ...
+		arma::cx_vec set_init_state(size_t N, int choose = -1)
 		{
+			if(choose < 0)
+				choose = this->op;
 			arma::cx_vec init_state(N, arma::fill::zeros);
-			switch (this->op) {
+			switch (choose) {
 			case 0: // random product state
 			{
 				init_state = this->random_product_state(this->L); 

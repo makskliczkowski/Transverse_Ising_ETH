@@ -71,7 +71,7 @@ def load() :
     param_copy = cf.params_arr
 
     #--- SET SCALING RANGES AND DATA
-    x0 = 0.1
+    x0 = 0.2
     xend = 1.5
     dx = 0.1
 
