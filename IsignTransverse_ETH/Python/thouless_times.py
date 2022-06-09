@@ -194,4 +194,4 @@ def plot(axis1, axis2, new_settings = None) :
     axis2.axhline(y=0.5307, ls='--', color='black', label='GOE')
     axis2.axhline(y=0.3863, ls='--', color='red', label='Poisson')
     axis2.legend()
-    axis2.title.set_text(hfun.info())
+    axis2.title.set_text(hfun.remove_info(hfun.info_param(cf.params_arr), user_settings['vs'], user_settings['scaling']))

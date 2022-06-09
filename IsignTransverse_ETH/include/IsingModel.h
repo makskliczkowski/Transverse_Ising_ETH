@@ -256,19 +256,12 @@ public:
 
 	auto time_evolve_state(const arma::cx_vec& state, double time) -> arma::cx_vec; 	//<! stationary time evolution
 	void time_evolve_state_ns(arma::cx_vec& state, double dt, int order = 3); 			// non-stationary time evolution (time-dependent model)
-	// entanglement entropy based on the density matrices
-	virtual arma::cx_mat reduced_density_matrix(const arma::cx_vec& state, int A_size) const  = 0;
-
-	double entaglement_entropy(	const arma::cx_vec& state, int A_size)						const;
-	double reyni_entropy(		const arma::cx_vec& state, int A_size, unsigned alfa = 2)	const;
-	double shannon_entropy(		const arma::cx_vec& state, int A_size)						const;
-
-	arma::vec entaglement_entropy(const arma::cx_vec& state) const;
-
+	
 	void set_coefficients(const arma::cx_vec& initial_state);
 
 	//--------------------------------------------------------- dummy functions
 	virtual arma::vec get_non_interacting_energies() = 0;
+	virtual arma::cx_vec get_state_in_full_Hilbert(const arma::cx_vec& state) = 0;
 };
 
 inline void normaliseOp(arma::sp_cx_mat& op) {
@@ -377,11 +370,12 @@ public:
 	arma::sp_cx_mat createHlocal(int k) const override { stout << "Not implemented yet!!\n\n"; return arma::sp_cx_mat(); };
 	arma::sp_cx_mat fourierTransform(op_type op, int q) const override;
 
-	arma::cx_mat reduced_density_matrix(const arma::cx_vec& state, int A_size) const override;
 	arma::mat correlation_matrix(u64 state_id) const override;
 
 	//--------------------------------------------------------- dummy functions
 	virtual arma::vec get_non_interacting_energies() override;
+	virtual arma::cx_vec get_state_in_full_Hilbert(const arma::cx_vec& state) override
+		{ return symmetryRotation(state); };
 };
 //-------------------------------------------------------------------------------------------------------------------------------
 /// <summary>
@@ -429,8 +423,6 @@ public:
 	cpx av_operator(u64 alfa, u64 beta, op_type op);							// calculates the matrix element of operator at given site in extensive form (a sum)
 	cpx av_operator(u64 alfa, u64 beta, op_type op, int corr_len);
 
-	arma::cx_mat reduced_density_matrix(const arma::cx_vec& state, int A_size) const override;
-
 	static std::string set_info(int L, double J, double J0, double g, double g0, double h, double w, std::vector<std::string> skip = {}, std::string sep = "_") {
 		std::string name = sep + "L=" + std::to_string(L) + \
 			",J=" + to_string_prec(J, 2) + \
@@ -457,6 +449,10 @@ public:
 
 	//--------------------------------------------------------- dummy functions
 	virtual arma::vec get_non_interacting_energies() override;
+	virtual arma::cx_vec get_state_in_full_Hilbert(const arma::cx_vec& state) override
+		{ return state; };
+	arma::vec get_state_in_full_Hilbert(const arma::vec& state)
+		{ return state; };
 };
 // ---------------------------------- HELPERS ----------------------------------
 template <typename _type>

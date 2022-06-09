@@ -377,22 +377,3 @@ arma::vec IsingModel_sym::get_non_interacting_energies(){
 	return energies;
 }
 
-// ----------------------------------------------------------------------------- ENTAGLEMENT -----------------------------------------------------------------------------
-auto IsingModel_sym::reduced_density_matrix(const arma::cx_vec& state, int A_size) const -> arma::cx_mat {
-	// set subsytsems size
-	const long long dimA    = ULLPOW(A_size);
-	const long long dimB    = ULLPOW((this->L - A_size));
-	const long long dim_tot = ULLPOW(this->L);
-	arma::cx_mat rho(dimA, dimA, arma::fill::zeros);
-	const arma::cx_vec state_full_hilbert = this->symmetryRotation(state);
-	for (long long n = 0; n < dim_tot; n++) {							// loop over whole configurational basis
-		long long counter = 0;
-		for (long long m = n % dimB; m < dim_tot; m += dimB) {			// pick out state with same B side (last L-A_size bits)
-			long idx = n / dimB;										// find index of state with same B-side (by dividing the last bits are discarded)
-			rho(idx, counter) += conj(state_full_hilbert(n)) * state_full_hilbert(m);
-			counter++;													// increase counter to move along reduced basis
-		}
-	}
-	return rho;
-}
-

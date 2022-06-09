@@ -358,19 +358,3 @@ arma::vec IsingModel_disorder::get_non_interacting_energies(){
 	return energies;
 }
 
-// ----------------------------------------------------------------------------- ENTAGLEMENT -----------------------------------------------------------------------------
-auto IsingModel_disorder::reduced_density_matrix(const arma::cx_vec& state, int A_size) const -> arma::cx_mat {
-	// set subsytsems size
-	const long long dimA = ULLPOW(A_size);
-	const long long dimB = ULLPOW((L - A_size));
-	arma::cx_mat rho(dimA, dimA, arma::fill::zeros);
-	for (long long n = 0; n < this->N; n++) {						// loop over configurational basis
-		long long counter = 0;
-		for (long long m = n % dimB; m < this->N; m += dimB) {			// pick out state with same B side (last L-A_size bits)
-			long idx = n / dimB;							// find index of state with same B-side (by dividing the last bits are discarded)
-			rho(idx, counter) += conj(state(n)) * state(m);
-			counter++;										// increase counter to move along reduced basis
-		}
-	}
-	return rho;	
-}

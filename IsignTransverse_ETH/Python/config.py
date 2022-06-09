@@ -6,7 +6,7 @@ importlib.reload(ps)
 model = 0   # chooses model: 0-disorder / 1-symmetries
 BC = 1     # boundaary condition: 0 - OBC / 1 - PBC
 
-L = 16                          # system size
+L = 15                          # system size
 J = 1.00                        # spin exchange (Ising-like)
 g = 0.90                        # trasnverse magnetic field (z-axis)
 h = 0.80                        # longitudal magnetic field (x-axis)
@@ -24,7 +24,7 @@ General settings for all plots
 """
 plot_settings_dict = {
     'vs':             'J',          # set parameter on x-axis
-    'scaling':        'w',          # set scaling parameter (changing in legend)
+    'scaling':        'L',          # set scaling parameter (changing in legend)
 
     'x_scale':      'linear',       
     'y_scale':      'log',          

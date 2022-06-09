@@ -120,68 +120,6 @@ for(this->J = 0.05; this->J <= 1.5; this->J += 0.05)
 					
 					}
 					continue;
-
-					//std::string _dir = this->saving_dir + "SpectralFormFactor" + kPSep;
-					//smoothen_data(_dir, name);
-					//continue;
-					alfa->diagonalization();
-					
-					stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
-							  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
-					
-					const double tH = 1. / alfa->mean_level_spacing_analytical();
-					int t_max = (int)std::ceil(std::log10(tH));
-					t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
-
-					auto range1 = arma::regspace(0.01 * this->dt, 0.01 * this->dt, 0.3 * this->dt);
-					auto range2 = arma::regspace(0.4 * this->dt, 0.10 * this->dt, 10.0 * this->dt);
-					double omega_max = alfa->get_eigenEnergy(alfa->get_hilbert_size() - 1) - alfa->get_eigenEnergy(0);
-						auto times = this->scale ? arma::logspace(-2, t_max, 500) : arma::join_cols(range1, range2, arma::regspace(11.0 * this->dt, this->dt, 2e2));
-							
-							alfa->reset_random(this->seed);
-							stout << "\t\t	-->set random generators for " << name
-								  << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
-							arma::vec entropy(times.size(), arma::fill::zeros);
-							arma::vec entropy_lanczos(times.size(), arma::fill::zeros);
-							
-							lanczosParams params(this->mu, 1, true, false);
-							lanczos::Lanczos lancz(alfa->get_hamiltonian(), std::move(params));
-							//lancz.diagonalization();
-							auto to_ave_time = [this, &times, &N, &lancz, &entropy, &entropy_lanczos](auto& alfa, int realis)
-							{
-								const auto start_real = std::chrono::system_clock::now();
-								const arma::cx_vec init_state = this->set_init_state(N);
-								arma::cx_vec state2 = init_state;
-								alfa.set_coefficients(init_state);
-								if(this->scale) 
-									lancz.diagonalization(init_state);
-								stout << "\n\t\tfinished preparing for evolutin: - in time : " << tim_s(start_real) << "s" << std::endl;
-								for (int i = 0; i < times.size(); i++)
-								{
-									auto t = times(i);
-									arma::cx_vec state = alfa.time_evolve_state(init_state, t);
-									if(this->scale)
-										state2 = lancz.time_evolution_stationary(init_state, t);
-									else
-										lancz.time_evolution_non_stationary(state2, t - (i == 0 ? 0.0 : times(i - 1)), this->mu);
-									entropy(i) += alfa.entaglement_entropy(state, this->L / 2);
-									entropy_lanczos(i) += alfa.entaglement_entropy(state2, this->L / 2);
-								}
-								stout << "\t\tfinished realisation realisation: " << realis << " - in time : " << tim_s(start_real) << "s" << std::endl;
-							};
-							average_over_realisations<Ising_params::h>(*alfa, false, to_ave_time);
-							entropy /= double(this->realisations);
-							entropy_lanczos /= double(this->realisations);
-							std::ofstream file;
-							openFile(file, dir + "TimeEvolution" + name + ".dat");
-							for (int j = 0; j < times.size(); j++)
-							{
-								double diff = entropy(j) - entropy_lanczos(j);
-								printSeparated(file, "\t", 16, true, times(j), entropy(j), entropy_lanczos(j), diff);
-								//if(abs(diff) > 1e-8)
-									printSeparated(std::cout, "\t", 16, true, times(j), entropy(j), entropy_lanczos(j), diff);
-							}
-							file.close();
 				}
 			}
 		}
@@ -523,7 +461,7 @@ void isingUI::ui::compare_entaglement()
 	alfa3->diagonalization();
 	stout << "\t\t	--> finished diagonalizing for w=1e-4,1e-3,1e-2 and  " << alfa1->get_info({"w"}) << " - in time : " << tim_s(start) << "s" << std::endl;
 
-	auto beta1 = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, 0, 1, 1, this->boundary_conditions);
+	auto beta1 = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, this->L / 2, 1, 1, this->boundary_conditions);
 	auto beta2 = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, 1, 1, 1, this->boundary_conditions);
 	stout << "\n\t\t--> finished creating model for k=0,1; p=1,x=1 and " << beta1->get_info({"k", "p", "x"}) << " - in time : " << tim_s(start) << "s" << std::endl;
 	beta1->diagonalization();
@@ -545,12 +483,12 @@ void isingUI::ui::compare_entaglement()
 		double entropy_dis1 = 0.0, entropy_dis2 = 0.0, entropy_dis3 = 0.0;
 		for (long k = E_min; k < E_max; k++)
 		{
-			auto state = arma::cx_vec(alfa1->get_eigenState(k), arma::vec(dim, arma::fill::zeros));
-			entropy_dis1 += alfa1->entaglement_entropy(state, i);
-			state = arma::cx_vec(alfa2->get_eigenState(k), arma::vec(dim, arma::fill::zeros));
-			entropy_dis2 += alfa2->entaglement_entropy(state, i);
-			state = arma::cx_vec(alfa3->get_eigenState(k), arma::vec(dim, arma::fill::zeros));
-			entropy_dis3 += alfa3->entaglement_entropy(state, i);
+			auto state = alfa1->get_state_in_full_Hilbert(arma::cx_vec(alfa1->get_eigenState(k), arma::vec(dim, arma::fill::zeros)));
+			entropy_dis1 += entropy::vonNeumann(state, i, alfa1->L);
+			state = alfa2->get_state_in_full_Hilbert(arma::cx_vec(alfa2->get_eigenState(k), arma::vec(dim, arma::fill::zeros)));
+			entropy_dis2 += entropy::vonNeumann(state, i, alfa2->L);
+			state = alfa3->get_state_in_full_Hilbert(arma::cx_vec(alfa3->get_eigenState(k), arma::vec(dim, arma::fill::zeros)));
+			entropy_dis3 += entropy::vonNeumann(state, i, alfa3->L);
 		}
 		entropy_dis1 /= double(this->mu);
 		entropy_dis2 /= double(this->mu);
@@ -562,8 +500,8 @@ void isingUI::ui::compare_entaglement()
 		double entropy_sym1 = 0.0;
 		for (long k = E_min; k < E_max; k++)
 		{
-			auto state = beta1->get_eigenState(k);
-			entropy_sym1 += beta1->entaglement_entropy(state, i);
+			auto state = beta1->get_state_in_full_Hilbert(beta1->get_eigenState(k));
+			entropy_sym1 += entropy::vonNeumann(state, i, this->L);
 		}
 		entropy_sym1 /= double(this->mu);
 
@@ -573,8 +511,8 @@ void isingUI::ui::compare_entaglement()
 		double entropy_sym2 = 0.0;
 		for (long k = E_min; k < E_max; k++)
 		{
-			auto state = beta2->get_eigenState(k);
-			entropy_sym2 += beta2->entaglement_entropy(state, i);
+			auto state = beta2->get_state_in_full_Hilbert(beta2->get_eigenState(k));
+			entropy_sym2 += entropy::vonNeumann(state, i, this->L);
 		}
 		entropy_sym2 /= double(this->mu);
 
@@ -814,6 +752,7 @@ void isingUI::ui::entropy_evolution(){
 		int t_max = (int)std::ceil(std::log10(tH));
 		t_max = (t_max / std::log10(tH) < 1.5) ? t_max + 1 : t_max;
 
+		const int division = this->site == 0? this->L / 2 : this->site;
 		// ----------- predefinitions
 		arma::vec times, entropy, entropy_stddev;
 		double dt_new = 1e-2;
@@ -851,7 +790,7 @@ void isingUI::ui::entropy_evolution(){
 							state = lancz.time_evolution_stationary(init_state, t);
 						else
 							lancz.time_evolution_non_stationary(state, t - (i == 0 ? 0.0 : times(i - 1)), this->mu);
-						double ent = alfa.entaglement_entropy(state, this->site == 0? this->L / 2 : this->site);
+						double ent = entropy::vonNeumann(alfa.get_state_in_full_Hilbert(state), division, this->L);
 						entropy(i) += ent;
 						entropy_stddev(i) += ent * ent;
 					}
@@ -872,7 +811,7 @@ void isingUI::ui::entropy_evolution(){
 					{
 						auto t = times(i);
 						arma::cx_vec state = alfa.time_evolve_state(init_state, t);
-						double ent = alfa.entaglement_entropy(state, this->site == 0? this->L / 2 : this->site);
+						double ent = entropy::vonNeumann(alfa.get_state_in_full_Hilbert(state), division, this->L);
 						entropy(i) += ent;
 						entropy_stddev(i) += ent * ent;
 					}
@@ -1350,7 +1289,7 @@ void isingUI::ui::adiabatic_gauge_potential(){
 				ipr += statistics::inverse_participation_ratio(state);
 				info_entropy += statistics::information_entropy(state);
 				if(i >= alfa.E_av_idx - num_ent / 2. && i <= alfa.E_av_idx + num_ent / 2.)
-					entropy += entropy::vonNeumann(state, this->L / 2, this->L);
+					entropy += entropy::vonNeumann(cast_cx_vec(state), this->L / 2, this->L);
 			}
 		}
 		wH_typ += std::exp(wH_typ_local / double(this->mu));
@@ -1375,7 +1314,7 @@ void isingUI::ui::adiabatic_gauge_potential(){
 	auto [opName, str] = IsingModel_disorder::opName(this->ch, this->site);
 	std::string dir = this->saving_dir + "STATISTICS" + kPSep;
 	std::string dir_agp = this->saving_dir + "AGP" + kPSep + opName + kPSep;
-	createDirs(dir_agp);
+	createDirs(dir, dir_agp);
 	std::ofstream file;
 
 	openFile(file, dir + info + "_jobid=" + std::to_string(jobid) + ".dat");
@@ -1984,7 +1923,7 @@ void isingUI::ui::calculate_statistics(){
 				ipr += statistics::inverse_participation_ratio(state);
 				info_entropy += statistics::information_entropy(state);
 				if(i >= alfa.E_av_idx - num_ent / 2. && i <= alfa.E_av_idx + num_ent / 2.)
-					entropy += entropy::vonNeumann(state, this->L / 2, this->L);
+					entropy += entropy::vonNeumann(cast_cx_vec(state), this->L / 2, this->L);
 			}
 		}
 		wH_typ += std::exp(wH_typ_local / double(this->mu));
