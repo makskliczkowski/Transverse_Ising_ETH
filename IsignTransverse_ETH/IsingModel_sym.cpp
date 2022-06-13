@@ -117,7 +117,11 @@ cpx IsingModel_sym::get_symmetry_normalization(u64 base_idx) const {
 /// <param name="_id"> identificator for a given thread </param>
 void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id){
 	for (u64 j = start; j < stop; j++) {
-		if (this->g == 0 && __builtin_popcountll(j) != this->L / 2.) continue;
+		#ifdef HEISENBERG
+			if (__builtin_popcountll(j) != this->L / 2.) continue;
+		#else
+			if (this->g == 0 && __builtin_popcountll(j) != this->L / 2.) continue;
+		#endif
 		auto [SEC, some_value] = find_SEC_representative(j);
 		if (SEC == j) {
 			cpx N = get_symmetry_normalization(j);					// normalisation condition -- check wether state in basis
@@ -358,9 +362,6 @@ arma::sp_cx_mat IsingModel_sym::fourierTransform(op_type op, int q) const {
 	return U.t() * fullMatrix * U;
 }
 
-arma::mat IsingModel_sym::correlation_matrix(u64 state_id) const {
-	return arma::mat();
-}
 
 // ----------------------------------------------------------------------------- INTEGRABLE SOLUTIONS -----------------------------------------------------------------------------
 arma::vec IsingModel_sym::get_non_interacting_energies(){
@@ -375,24 +376,5 @@ arma::vec IsingModel_sym::get_non_interacting_energies(){
 			energies(counter++) = -(this->L - 2 * k) * epsilon;
 	}
 	return energies;
-}
-
-// ----------------------------------------------------------------------------- ENTAGLEMENT -----------------------------------------------------------------------------
-auto IsingModel_sym::reduced_density_matrix(const arma::cx_vec& state, int A_size) const -> arma::cx_mat {
-	// set subsytsems size
-	const long long dimA    = ULLPOW(A_size);
-	const long long dimB    = ULLPOW((this->L - A_size));
-	const long long dim_tot = ULLPOW(this->L);
-	arma::cx_mat rho(dimA, dimA, arma::fill::zeros);
-	const arma::cx_vec state_full_hilbert = this->symmetryRotation(state);
-	for (long long n = 0; n < dim_tot; n++) {							// loop over whole configurational basis
-		long long counter = 0;
-		for (long long m = n % dimB; m < dim_tot; m += dimB) {			// pick out state with same B side (last L-A_size bits)
-			long idx = n / dimB;										// find index of state with same B-side (by dividing the last bits are discarded)
-			rho(idx, counter) += conj(state_full_hilbert(n)) * state_full_hilbert(m);
-			counter++;													// increase counter to move along reduced basis
-		}
-	}
-	return rho;
 }
 

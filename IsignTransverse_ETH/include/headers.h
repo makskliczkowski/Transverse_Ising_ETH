@@ -116,7 +116,7 @@ namespace fs = std::experimental::filesystem;
 #endif
 
 #if defined(MY_MAC) && !defined(HEISENBERG)
-	//#define HEISENBERG
+	#define HEISENBERG
 #endif
 
 extern std::random_device rd;
@@ -301,6 +301,7 @@ inline u64 binary_search(const std::vector<T>& arr, u64 l_point, u64 r_point, T 
 		else if (arr[middle] < element) return binary_search(arr, middle + 1, r_point, element);
 		else return binary_search(arr, l_point, middle - 1, element);
 	}
+	std::cout << "Element not found" << std::endl;
 	return -1;
 }
 
@@ -429,6 +430,12 @@ inline u64 binary_to_int(const vector<bool>& vec, const v_1d<u64>& powers) {
 	return val;
 }
 
+
+inline u64 binomial(int n, int k) {
+   if (k == 0 || k == n)
+   return 1;
+   return binomial(n - 1, k - 1) + binomial(n - 1, k);
+}
 // ----------------------------------------------------------------------------- VECTORS HANDLING -----------------------------------------------------------------------------
 
 /// <summary>
