@@ -848,6 +848,18 @@ arma::Col<std::complex<_ty>> cpx_imag_vec(const arma::subview_col<_ty>& input) {
 	size_t size = input.n_elem;
 	return arma::Col<std::complex<_ty>>(arma::Col<_ty>(size, arma::fill::zeros), input);
 }
+
+
+template <typename _type>
+inline
+arma::cx_vec cast_cx_vec(const arma::Col<_type>& state);
+
+template <>
+inline arma::cx_vec cast_cx_vec(const arma::vec& state)
+	{ return cpx_real_vec(state); }
+template <>
+inline arma::cx_vec cast_cx_vec(const arma::cx_vec& state)
+	{ return state; }
 //! -------------------------------------------------------- dot product for different input types (cpx and non-cpx)
 
  template <typename _ty, 

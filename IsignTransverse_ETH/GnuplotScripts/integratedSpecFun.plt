@@ -21,7 +21,7 @@ set xtics mirror;\
 set ytics mirror;"
 @FORMAT
 x_log = 1; 
-y_log = 1;
+y_log = 0;
 SCALE = x_log? "unset logscale xy; set logscale x; set format x '10^{%L}'; " : "set format x '%g'"
 SCALE = SCALE.(y_log? "set logscale y; set format y '10^{%L}'" : "set format y '%g'")
 @SCALE
@@ -51,10 +51,10 @@ x_range_min=1e-4
 integrated_by_hand = 0 #integrated time evolution?
 if(integrated_by_hand) cd '.\integrated'
 rescale = 0				# rescale the spectral function by f(w, L)?
-site = 5				# site at which the operator acts
-scaling = 3				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
+site = 1				# site at which the operator acts
+scaling = 0				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
 q_vs_j = 0				# =1 - evolution of Sz_q, else ecol of Sz_j
-operator = 0	 		# 1-SigmaZ , 0-Hq :local
+operator = 4	 		# 1-SigmaZ , 0-Hq :local
 
 two_panels = 0			# plot integrated spectral function next to respons function
 smoothed = 0			# smoothed derivative?
@@ -85,6 +85,7 @@ if(operator == 0) {op = "H"; }
 if(operator == 1) {op = "SigmaZ";}
 if(operator == 2) {op = "TFIM_LIOM_plus";}
 if(operator == 3) {op = "TFIM_LIOM_minus";}
+if(operator == 4) {op = "SigXZ";}
 
 _str(x) = (q_vs_j? "q" : "j").sprintf("=%d",x);
 if(operator > 1){ _str(x) = "n".sprintf("=%d",x); }
@@ -97,7 +98,7 @@ if(scaling == 3) { str(x) = _str(x) }
 	_name(x) = 0; _key_title(x) = 0;
 	i0 = 0; iend = 0; di = 1;
 		if(scaling == 0){
-			_name(x) = op.sprintf("_".str(site)."_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J, J0, g, g_knot, 0.01*x, w);	_key_title(x) = sprintf("h=%.2f", x/100.)
+			_name(x) = op.sprintf("_"."j".sprintf("=%d",site)."_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, 0.01*x, J0, g, g_knot, h, w);	_key_title(x) = sprintf("J=%.2f", x/100.)
 			i0 = h0; iend = hend; di = dh; 	out_dir = out_dir."h_scaling/";
 			output_name = output_name.op.sprintf("_".str(site)."_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,w=%.2f", L, J, J0, g, g_knot, w);
 		}else{

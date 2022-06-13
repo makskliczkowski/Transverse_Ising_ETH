@@ -2,7 +2,7 @@
 // set externs
 std::uniform_real_distribution<> theta	= std::uniform_real_distribution<>(0.0, pi);
 std::uniform_real_distribution<> fi		= std::uniform_real_distribution<>(0.0, pi);
-int outer_threads = 32;
+int outer_threads = 1;
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
 {
@@ -56,7 +56,7 @@ void isingUI::ui::make_sim()
 					this->g = gx;
 					this->h = hx;
 					const auto start_loop = std::chrono::system_clock::now();
-for(this->J = 0.05; this->J <= 1.5; this->J += 0.05)
+//for(this->J = 0.05; this->J <= 1.5; this->J += 0.05)
 {
 	//if(this->L > 10) this->realisations = 1000;
 
@@ -70,15 +70,15 @@ for(this->J = 0.05; this->J <= 1.5; this->J += 0.05)
 	//continue;
 					// ----------------------
 					//this->diagonalize(); continue;
-					//for(this->w = 0.1; this->w <= 0.7; this->w += 0.1)
+					for(this->w = 0.05; this->w <= 1.7; this->w += 0.05)
 					{
 						std::cout << this->w << std::endl;
-						for(this->site = 0; this->site < this->L; this->site++)
-							calculate_spectrals();
+						//calculate_spectrals();
+						//adiabatic_gauge_potential();
 						//diagonalize();
 						//spectral_form_factor();
 						//analyze_spectra();
-						//average_SFF();
+						average_SFF();
 					}
 					continue;
 					average_SFF(); continue;
@@ -707,7 +707,7 @@ void isingUI::ui::calculate_spectrals()
 	const double wH = sqrt(this->L) / (chi * N) * sqrt(this->J * this->J + this->h * this->h + this->g * this->g
 												 + ( this->m? 0.0 : (this->w * this->w + this->g0 * this->g0 + this->J0 * this->J0) / 3. ));
 	double tH = 1. / wH;
-	int num_of_points = 3000;
+	int num_of_points = 1000;
 	int time_end = (int)std::ceil(std::log10(3 * tH));
 	time_end = (time_end / std::log10(tH) < 2.0) ? time_end + 1 : time_end;
 	auto times = arma::logspace(-2, time_end, num_of_points);
@@ -1350,7 +1350,7 @@ void isingUI::ui::adiabatic_gauge_potential(){
 				ipr += statistics::inverse_participation_ratio(state);
 				info_entropy += statistics::information_entropy(state);
 				if(i >= alfa.E_av_idx - num_ent / 2. && i <= alfa.E_av_idx + num_ent / 2.)
-					entropy += entropy::vonNeumann(state, this->L / 2, this->L);
+					entropy += entropy::vonNeumann(cast_cx_vec(state), this->L / 2, this->L);
 			}
 		}
 		wH_typ += std::exp(wH_typ_local / double(this->mu));
@@ -1375,7 +1375,7 @@ void isingUI::ui::adiabatic_gauge_potential(){
 	auto [opName, str] = IsingModel_disorder::opName(this->ch, this->site);
 	std::string dir = this->saving_dir + "STATISTICS" + kPSep;
 	std::string dir_agp = this->saving_dir + "AGP" + kPSep + opName + kPSep;
-	createDirs(dir_agp);
+	createDirs(dir, dir_agp);
 	std::ofstream file;
 
 	openFile(file, dir + info + "_jobid=" + std::to_string(jobid) + ".dat");
@@ -1988,7 +1988,7 @@ void isingUI::ui::calculate_statistics(){
 				ipr += statistics::inverse_participation_ratio(state);
 				info_entropy += statistics::information_entropy(state);
 				if(i >= alfa.E_av_idx - num_ent / 2. && i <= alfa.E_av_idx + num_ent / 2.)
-					entropy += entropy::vonNeumann(state, this->L / 2, this->L);
+					entropy += entropy::vonNeumann(cast_cx_vec(state), this->L / 2, this->L);
 			}
 		}
 		wH_typ += std::exp(wH_typ_local / double(this->mu));
