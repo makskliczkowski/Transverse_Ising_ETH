@@ -117,7 +117,11 @@ cpx IsingModel_sym::get_symmetry_normalization(u64 base_idx) const {
 /// <param name="_id"> identificator for a given thread </param>
 void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id){
 	for (u64 j = start; j < stop; j++) {
-		if (this->g == 0 && __builtin_popcountll(j) != this->L / 2.) continue;
+		#ifdef HEISENBERG
+			if (__builtin_popcountll(j) != this->L / 2.) continue;
+		#else
+			if (this->g == 0 && __builtin_popcountll(j) != this->L / 2.) continue;
+		#endif
 		auto [SEC, some_value] = find_SEC_representative(j);
 		if (SEC == j) {
 			cpx N = get_symmetry_normalization(j);					// normalisation condition -- check wether state in basis
@@ -358,9 +362,6 @@ arma::sp_cx_mat IsingModel_sym::fourierTransform(op_type op, int q) const {
 	return U.t() * fullMatrix * U;
 }
 
-arma::mat IsingModel_sym::correlation_matrix(u64 state_id) const {
-	return arma::mat();
-}
 
 // ----------------------------------------------------------------------------- INTEGRABLE SOLUTIONS -----------------------------------------------------------------------------
 arma::vec IsingModel_sym::get_non_interacting_energies(){

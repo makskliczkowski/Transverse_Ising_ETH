@@ -258,7 +258,7 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 			eigenvalues = alfa.get_non_interacting_energies();
 		} 
 		else {
-			//#undef MY_MAC
+			#undef MY_MAC
 			#if defined(MY_MAC)
 				std::cout << "Failed to load energies, returning empty array" << std::endl;
 			#else
@@ -1352,7 +1352,11 @@ void isingUI::ui::spectral_form_factor(){
 					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
 
 	const double chi = 0.341345;
-	size_t dim = ULLPOW(this->L);
+	#ifdef HEISENBERG
+		size_t dim = binomial(this->L, this->L / 2.);
+	#else
+		size_t dim = ULLPOW(this->L);
+	#endif
 	if(this->m){
 		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
@@ -1468,7 +1472,7 @@ void isingUI::ui::spectral_form_factor(){
 	wH_mean /= norm;
 	wH_typ /= norm;
 	
-	if(true || this->jobid > 0) return;
+	if(this->jobid > 0) return;
 	std::ofstream lvl;
 	openFile(lvl, dir2 + info + ".dat", std::ios::out);
 	printSeparated(lvl, "\t", 16, true, r1, r2);
@@ -1505,7 +1509,11 @@ void isingUI::ui::average_SFF(){
 					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
 
 	const double chi = 0.341345;
-	size_t dim = ULLPOW(this->L);
+	#ifdef HEISENBERG
+		size_t dim = binomial(this->L, this->L / 2.);
+	#else
+		size_t dim = ULLPOW(this->L);
+	#endif
 	if(this->m){
 		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
@@ -1611,7 +1619,7 @@ void isingUI::ui::average_SFF(){
 		delta *= delta;
 		if(delta < delta_min){
 			delta_min = delta;
-			thouless_time = times_fold(i); 
+			thouless_time_fold = times_fold(i); 
 		}
 		if(times_fold(i) >= 2.5 * tH) break;
 	}
@@ -1748,7 +1756,11 @@ void isingUI::ui::level_spacing(){
 		std::string info = this->m? IsingModel_sym::set_info(Lx, this->J, gx, hx, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
 				: IsingModel_disorder::set_info(Lx, this->J, this->J0, gx, this->g0, hx, this->w);
 
+	#ifdef HEISENBERG
+		size_t dim = binomial(Lx, Lx / 2.);
+	#else
 		size_t dim = ULLPOW(Lx);
+	#endif
 		if(this->m){
 			auto alfa = std::make_unique<IsingModel_sym>(Lx, this->J, gx, hx,
 									 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
@@ -2421,7 +2433,11 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv)
 		break;
 	}
 
-	std::string folder = saving_dir + str_model;
+	#ifdef HEISENBERG
+		std::string folder = saving_dir + "HEISENBERG" + kPSep + str_model;
+	#else
+		std::string folder = saving_dir + str_model;
+	#endif
 	if (!argv[argc - 1].empty() && argc % 2 != 0) {
 		// only if the last command is non-even
 		folder = argv[argc - 1] + str_model;

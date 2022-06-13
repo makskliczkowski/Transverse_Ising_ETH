@@ -72,14 +72,14 @@ def load() :
 
     #--- SET SCALING RANGES AND DATA
     x0 = 0.2
-    xend = 1.5
+    xend = 1.2
     dx = 0.1
 
     length = int((xend-x0) / dx) + 1
     #--- prepare scaling - axis
     vals = []
     if user_settings['scaling_idx'] == 0:
-        vals = range(10, 17)
+        vals = range(10, 15)
     elif cf.model and user_settings['scaling_idx'] == 4:
         vals = range(0, cf.params_arr[0])
     else :
@@ -143,7 +143,7 @@ def plot(axis1, axis2, new_settings = None) :
     x_min = 1.0e10
     x_max = -1.0e10
 
-    rescale_by_Lsquare = 1
+    rescale_by_Lsquare = 0
 
     for i in range(0, num_of_plots):
         yvals = tau[i]

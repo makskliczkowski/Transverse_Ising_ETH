@@ -100,6 +100,8 @@ double eigenlevel_statistics(
 		
         if (abs(delta_n) <= 1e-15){ 
             std::cout << "Index: " << it << std::endl;
+            for (auto it = first; it != last; ++it)
+                std::cout << *it << std::endl; 
             assert(false && "Degeneracy!!!\n");
         }
 		r += min / max;

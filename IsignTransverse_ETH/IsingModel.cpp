@@ -66,18 +66,6 @@ template <typename T> void IsingModel<T>::diagonalization(bool get_eigenvectors,
 	this->E_av_idx = i - begin(eigenvalues);
 }
 
-/// <summary>
-/// calculates the total spin from the correlation matrix
-/// </summary>
-/// <param name="corr_mat"> spin correlation matrix </param>
-/// <returns></returns>
-template <typename T> double IsingModel<T>::total_spin(const arma::mat& corr_mat) {
-	double S2 = arma::accu(corr_mat);
-	if (S2 < -0.25) return 0;
-	return (sqrt(1 + 4 * S2) - 1.0) / 2.0;
-}
-
-
 // ----------------------------------------------------------- OPERATORS AND AVERAGES -------------------------------------------------------
 
 
@@ -268,8 +256,6 @@ template void IsingModel<cpx>::set_neighbors();
 template void IsingModel<cpx>::diagonalization(bool, const char*);
 template void IsingModel<double>::diagonalization(bool, const char*);
 template double overlap(const IsingModel<double>&, const IsingModel<double>&, int, int);
-template double IsingModel<cpx>::total_spin(const arma::mat&);
-template double IsingModel<double>::total_spin(const arma::mat&);
 
 template arma::sp_cx_mat IsingModel<cpx>::create_tfim_liom_plus(int) const;
 template arma::sp_cx_mat IsingModel<double>::create_tfim_liom_plus(int) const;
