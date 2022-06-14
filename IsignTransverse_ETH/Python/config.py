@@ -12,7 +12,7 @@ g = 0.90                        # trasnverse magnetic field (z-axis)
 h = 0.80                        # longitudal magnetic field (x-axis)
 #---- DISORDER PARAMETERS
 w = 0.00                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
-J0 = 0.2                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
+J0 = 0.0                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
 g0 = 0.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 #---- SYMETRY PARAMETERS
 k_sym = 0                       # translational symmetry sector

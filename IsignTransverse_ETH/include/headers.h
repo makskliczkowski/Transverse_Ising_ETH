@@ -88,6 +88,7 @@ DISABLE_WARNING_POP
 #include <thread>
 #include <future>
 #include <mutex>
+#include <bitset>
 //#include <condition_variable>
 #include <functional>
 #include <type_traits>
@@ -116,7 +117,7 @@ namespace fs = std::experimental::filesystem;
 #endif
 
 #if defined(MY_MAC) && !defined(HEISENBERG)
-	#define HEISENBERG
+	//#define HEISENBERG
 #endif
 
 extern std::random_device rd;
@@ -273,8 +274,9 @@ std::vector<std::string> split_str(std::string s, std::string delimiter);
 template <typename T>
 std::string to_string_prec(const T a_value, const int n = 3) {
 	std::ostringstream outie;
+	T a_value_new = int(a_value * std::pow(10, n)) / std::pow(10, n); // cut later digits, cause precision(n) is fucked up
 	outie.precision(n);
-	outie << std::fixed << a_value;
+	outie << std::fixed << a_value_new;
 	return outie.str();
 }
 

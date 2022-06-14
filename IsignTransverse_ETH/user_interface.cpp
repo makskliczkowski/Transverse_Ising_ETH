@@ -6,7 +6,6 @@ int outer_threads = 1;
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
 {
-	
 	printAllOptions();
 	gen = std::mt19937_64(this->seed);
 
@@ -70,11 +69,23 @@ void isingUI::ui::make_sim()
 	//continue;
 					// ----------------------
 					//this->diagonalize(); continue;
-					for(this->w = 0.05; this->w <= 1.7; this->w += 0.05)
+					for(this->w = 1.0; this->w <= 2.5; this->w += 0.1)
 					{
 						std::cout << this->w << std::endl;
-						//calculate_spectrals();
-						//adiabatic_gauge_potential();
+						arma::vec loc_length(this->L, arma::fill::zeros), energy;
+					#pragma omp parallel for
+						for(int r = 0; r < this->realisations; r++){
+							auto [E, loc] = anderson::get_localisation_length(this->L, this->J, this->w);
+							#pragma omp critical
+							{
+								energy = E;
+								loc_length += loc;
+							}
+						}
+						save_to_file(this->saving_dir + "LocLengthDist_" + to_string_prec(this->w, 2) + ".dat", energy, loc_length / double(this->realisations)); 
+						
+						//for(this->site = 0; this->site < this->L; this->site++)
+						//	calculate_spectrals();
 						//diagonalize();
 						//spectral_form_factor();
 						//analyze_spectra();

@@ -59,9 +59,10 @@ u64 IsingModel_disorder::find_in_map(u64 index) const {
 /// </summary>
 void IsingModel_disorder::generate_mapping() {
 	this->mapping = std::vector<u64>();
-	for (u64 j = 0; j < (ULLPOW(this->L)); j++)
+	for (u64 j = 0; j < (ULLPOW(this->L)); j++){
 		if (__builtin_popcountll(j) == this->L / 2.)
 			this->mapping.push_back(j);
+	}
 	this->N = this->mapping.size();
 }
 
@@ -82,9 +83,9 @@ void IsingModel_disorder::setHamiltonianElem(u64 k, double value, u64 new_idx) {
 		#endif
 	} 
 	catch (const std::exception& err) {
-		//stout << "Exception:\t" << err.what() << "\n";
-		//stout << "SHit ehhh..." << std::endl;
-		//printSeparated(std::cout, "\t", 14, true, new_idx, idx, k, value);
+		stout << "Exception:\t" << err.what() << "\n";
+		stout << "SHit ehhh..." << std::endl;
+		printSeparated(std::cout, "\t", 14, true, new_idx, idx, k, value);
 	}
 
 }
@@ -150,14 +151,17 @@ void IsingModel_disorder::hamiltonian_heisenberg(){
 				if(s_i < 0 && s_j > 0){
 					u64 new_idx =  flip(base_state, BinaryPowers[this->L - 1 - nei], this->L - 1 - nei);
 					new_idx =  flip(new_idx, BinaryPowers[this->L - 1 - j], this->L - 1 - j);
-					setHamiltonianElem(k, 0.25 * (this->J + this->dJ(j)), new_idx);
+					// 0.5 cause flip 0.5*(S+S- + S-S+)
+					setHamiltonianElem(k, 0.5 * (this->J + this->dJ(j)), new_idx);
 				}
 				
 				/* Ising-like spin correlation */
 				H(k, k) += (this->g + this->dg(j)) * s_i * s_j;
 			}
 		}
+		//std::cout << std::bitset<4>(base_state) << "\t";
 	}
+	//std::cout << std::endl << arma::mat(this->H) << std::endl;
 }
 // ----------------------------------------------------------------------------- PHYSICAL QUANTITES -----------------------------------------------------------------------------
 
