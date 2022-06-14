@@ -9,6 +9,8 @@
 #include "statistics_dist.hpp"
 #include "entaglement.hpp"
 #include "adiabatic_gauges.hpp"
+#include "ThomasAlgorithm.hpp"
+#include "anderson.hpp"
 
 const arma::vec down = { 0, 1 };
 const arma::vec up	 = { 1, 0 };

@@ -6,7 +6,6 @@ int outer_threads = 1;
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
 {
-	
 	printAllOptions();
 	gen = std::mt19937_64(this->seed);
 
@@ -56,7 +55,7 @@ void isingUI::ui::make_sim()
 					this->g = gx;
 					this->h = hx;
 					const auto start_loop = std::chrono::system_clock::now();
-for(this->J = 0.05; this->J <= 1.5; this->J += 0.05)
+//for(this->J = 0.05; this->J <= 1.5; this->J += 0.05)
 {
 	//if(this->L > 10) this->realisations = 1000;
 
@@ -70,11 +69,23 @@ for(this->J = 0.05; this->J <= 1.5; this->J += 0.05)
 	//continue;
 					// ----------------------
 					//this->diagonalize(); continue;
-					//for(this->w = 0.1; this->w <= 0.7; this->w += 0.1)
+					for(this->w = 1.0; this->w <= 2.5; this->w += 0.1)
 					{
 						std::cout << this->w << std::endl;
-						for(this->site = 0; this->site < this->L; this->site++)
-							calculate_spectrals();
+						arma::vec loc_length(this->L, arma::fill::zeros), energy;
+					#pragma omp parallel for
+						for(int r = 0; r < this->realisations; r++){
+							auto [E, loc] = anderson::get_localisation_length(this->L, this->J, this->w);
+							#pragma omp critical
+							{
+								energy = E;
+								loc_length += loc;
+							}
+						}
+						save_to_file(this->saving_dir + "LocLengthDist_" + to_string_prec(this->w, 2) + ".dat", energy, loc_length / double(this->realisations)); 
+						
+						//for(this->site = 0; this->site < this->L; this->site++)
+						//	calculate_spectrals();
 						//diagonalize();
 						//spectral_form_factor();
 						//analyze_spectra();
