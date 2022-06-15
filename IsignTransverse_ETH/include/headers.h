@@ -88,6 +88,7 @@ DISABLE_WARNING_POP
 #include <thread>
 #include <future>
 #include <mutex>
+#include <bitset>
 //#include <condition_variable>
 #include <functional>
 #include <type_traits>
@@ -115,14 +116,15 @@ namespace fs = std::experimental::filesystem;
 #define __builtin_popcountll _mm_popcnt_u64
 #endif
 
-#if !defined(USE_HEISENBERG)
-	//#define USE_HEISENBERG
+#if defined(MY_MAC) && !defined(HEISENBERG)
+	//#define HEISENBERG
 #endif
 
 extern std::random_device rd;
 extern std::mt19937::result_type seed_global;
 extern std::mt19937_64 gen;
 typedef size_t u64;
+
 // ----------------------------------------------------------------------------- namespaces -----------------------------------------------------------------------------
 using namespace std;
 using clk = std::chrono::system_clock;
@@ -272,8 +274,9 @@ std::vector<std::string> split_str(std::string s, std::string delimiter);
 template <typename T>
 std::string to_string_prec(const T a_value, const int n = 3) {
 	std::ostringstream outie;
+	T a_value_new = int(a_value * std::pow(10, n)) / std::pow(10, n); // cut later digits, cause precision(n) is fucked up
 	outie.precision(n);
-	outie << std::fixed << a_value;
+	outie << std::fixed << a_value_new;
 	return outie.str();
 }
 
@@ -300,6 +303,7 @@ inline u64 binary_search(const std::vector<T>& arr, u64 l_point, u64 r_point, T 
 		else if (arr[middle] < element) return binary_search(arr, middle + 1, r_point, element);
 		else return binary_search(arr, l_point, middle - 1, element);
 	}
+	std::cout << "Element not found" << std::endl;
 	return -1;
 }
 
@@ -428,6 +432,12 @@ inline u64 binary_to_int(const vector<bool>& vec, const v_1d<u64>& powers) {
 	return val;
 }
 
+
+inline u64 binomial(int n, int k) {
+   if (k == 0 || k == n)
+   return 1;
+   return binomial(n - 1, k - 1) + binomial(n - 1, k);
+}
 // ----------------------------------------------------------------------------- VECTORS HANDLING -----------------------------------------------------------------------------
 
 /// <summary>
@@ -847,6 +857,18 @@ arma::Col<std::complex<_ty>> cpx_imag_vec(const arma::subview_col<_ty>& input) {
 	size_t size = input.n_elem;
 	return arma::Col<std::complex<_ty>>(arma::Col<_ty>(size, arma::fill::zeros), input);
 }
+
+
+template <typename _type>
+inline
+arma::cx_vec cast_cx_vec(const arma::Col<_type>& state);
+
+template <>
+inline arma::cx_vec cast_cx_vec(const arma::vec& state)
+	{ return cpx_real_vec(state); }
+template <>
+inline arma::cx_vec cast_cx_vec(const arma::cx_vec& state)
+	{ return state; }
 //! -------------------------------------------------------- dot product for different input types (cpx and non-cpx)
 
  template <typename _ty, 

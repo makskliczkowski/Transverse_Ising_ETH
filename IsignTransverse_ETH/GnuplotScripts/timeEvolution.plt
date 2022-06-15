@@ -20,7 +20,7 @@ set xtics mirror;\
 set ytics mirror;"
 @FORMAT
 x_log = 1; 
-y_log = 1;
+y_log = 0;
 SCALE = x_log? "unset logscale xy; set logscale x; set format x '10^{%L}'; " : "set format x '%g'"
 SCALE = SCALE.(y_log? "set logscale y; set format y '10^{%L}'" : "set format y '%g'")
 @SCALE
@@ -40,18 +40,19 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 13; 
-g = 0.8;
+L = 10;
+J=0.05 
+g = 0.9;
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
-w = 0.01;
+w = 0.3;
 rescale = 0				# rescale the spectral function by f(w, L)?
 power = 0.5				# power in scaling with omega
-operator = 1	 		# 1-SigmaZ , 0-Hq :local
+operator = 0	 		# 1-SigmaZ , 0-Hq :local
 site = 2				# site at which the operator acts
 cor = 0					# correlations
-scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
-q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
+scaling = 3				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
+q_vs_j = 0				# =1 - evolution of Sz_q, else ecol of Sz_j
 compare = 0
 smoothed_data = 0		# plot smoothed data?
 plot_exponent = 0		# plot exponent to find relaxation time
@@ -109,43 +110,43 @@ output_name = ""
 _name(x) = 0; _key_title(x) = 0;
 i0 = 0; iend = 0; di = 1;
 		if(scaling == 0){
-			_name(x) = dir.str(site).'/'.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, 0.01*x, w);	_key_title(x) = sprintf("h=%.2f", x/100.)
+			_name(x) = dir.str(site).'/'.op.sprintf("_".str(site)."_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J, J0, g, g_knot, 0.01*x, w);	_key_title(x) = sprintf("h=%.2f", x/100.)
 			i0 = h0; iend = hend; di = dh; 	out_dir = out_dir."h_scaling/";
-			output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,w=%.2f", L, J0, g, g_knot, w);
+			output_name = output_name.op.sprintf("_".str(site)."_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,w=%.2f", L, J, J0, g, g_knot, w);
 		}else{
 			if(scaling == 1){
 				__str(x) = site == -1 ? str(x/2) : str(site)
-				_name(x) = dir.__str(x).'/'.op.sprintf("_".__str(x)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", x, J0, g, g_knot, h, w);	_key_title(x) = sprintf("L=%d",x);
+				_name(x) = dir.__str(x).'/'.op.sprintf("_".__str(x)."_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", x, J0, g, g_knot, h, w);	_key_title(x) = sprintf("L=%d",x);
 				i0 = L0; iend = Lend; di = dL; 	out_dir = out_dir."size_scaling/"
-				output_name = output_name.op.sprintf("_".str(site)."_J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", J0, g, g_knot, h, w);
+				output_name = output_name.op.sprintf("_".str(site)."_J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", J, J0, g, g_knot, h, w);
 			} else{
 				if(scaling == 2){
-					_name(x) = dir.str(site).'/'.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, 0.01*x, g_knot, h, w); 
+					_name(x) = dir.str(site).'/'.op.sprintf("_".str(site)."_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J, J0, 0.01*x, g_knot, h, w); 
 					_key_title(x) = sprintf("g=%.2f",0.01*x)
 					i0 = g0; iend = gend; di = dg; 	out_dir = out_dir."g_scaling/"
-					output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J0, g_knot, h, w);
+					output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J, J0, g_knot, h, w);
 				} else{
 					if(scaling == 3){
-						_name(x) = dir.str(x).'/'.op."_".str(x).sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);
+						_name(x) = dir.str(x).'/'.op."_".str(x).sprintf("_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J, J0, g, g_knot, h, w);
 						_key_title(x) = q_vs_j && operator < 2? sprintf("q/{/Symbol p}=%.2f", 2*x/(L+0.0))\
 								: (operator > 1? sprintf("n=%d", x) :  sprintf("j=%d", x) ) 
 						i0 = 0; iend = q_vs_j? L / 2 : L-1; di=1; if(operator > 1){ iend = 6;} 
 						out_dir = out_dir.(q_vs_j? "q" : "j")."_scaling/"
-						output_name = output_name.op.sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J0, g, g_knot, h, w);
+						output_name = output_name.op.sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J, J0, g, g_knot, h, w);
 					} else{
 						if(scaling == 4){
 							_dir(x) = dir.str(site).'/realisation='.sprintf("%d",x).'/';
-							_name(x) = _dir(x).op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);
+							_name(x) = _dir(x).op.sprintf("_".str(site)."_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J, J0, g, g_knot, h, w);
 							_key_title(x) = sprintf("r=%d",x);
 							i0 = 0; iend = 9; di=1; 	out_dir = out_dir."realisation_scaling/"
-							output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J0, g, g_knot, h, w);
+							output_name = output_name.op.sprintf("_".str(site)."_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J, J0, g, g_knot, h, w);
 						} else{
-							_name(x) = x==i0? dir.str(site).'/'.op.sprintf("_q=%d_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", site, L, J0, g, g_knot, h, w)\
-									: dir.sprintf("j=%d", x-1).'/'.op.sprintf("_j=%d_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", x - 1, L, J0, g, g_knot, h, w);
+							_name(x) = x==i0? dir.str(site).'/'.op.sprintf("_q=%d_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", site, L, J0, g, g_knot, h, w)\
+									: dir.sprintf("j=%d", x-1).'/'.op.sprintf("_j=%d_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", x - 1, L, J0, g, g_knot, h, w);
 							_key_title(x) = x==i0? "{/Symbol s}^z_{q=1}" : sprintf("{/Symbol s}_{j=L/2}", x-1)
 							i0=0; iend = site; di=site
 							out_dir = out_dir."compare_scales/"
-							output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J0, g, g_knot, h, w);
+							output_name = output_name.op.sprintf("_".str(site)."_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J, J0, g, g_knot, h, w);
 						}
 					}
 				}

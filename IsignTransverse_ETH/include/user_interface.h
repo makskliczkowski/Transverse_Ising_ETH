@@ -7,6 +7,10 @@
 #include "thermodynamics.hpp"
 #include "statistics.hpp"
 #include "statistics_dist.hpp"
+#include "entaglement.hpp"
+#include "adiabatic_gauges.hpp"
+#include "ThomasAlgorithm.hpp"
+#include "anderson.hpp"
 
 const arma::vec down = { 0, 1 };
 const arma::vec up	 = { 1, 0 };
@@ -142,7 +146,11 @@ namespace isingUI
 		// ----------------------------------- SIMULATION
 		void make_sim() override;														// make default simulation
 		
+
+
+
 		//-------------------------------------------------------------------------- GENERAL ROUTINES
+
 		void diagonalize();
 		//void diag_sparse(int num, bool get_eigenvectors = false, const char* form = "sa");	// diagonalize for limited number (set as num) of eigevals using form as choosing subset
 		void diag_sparse(int num, bool get_eigenvectors = false, double sigma = 0.0);		// diagonalize for limited number (set as num) of eigevals starting at sigma and higher eigvals
@@ -152,6 +160,7 @@ namespace isingUI
 
 		//<! comvbine .hdf5 files seperated
 		void combine_spectra();
+
 		// --------------- COMPARISONS
 		void compare_energies();
 		void compare_matrix_elements(op_type op, int k_alfa, int k_beta, int p_alfa = 1, int p_beta = 1, int x_alfa = 1, int x_beta = 1);
@@ -173,40 +182,38 @@ namespace isingUI
 		void relaxationTimesFromFiles();
 		void intSpecFun_from_timeEvol();
 	
-		//<! spectral form factor calculated from eigenvalues in file or diagonalize matrix
-		void spectral_form_factor();
-		
-		//<! find thouless time with various method as function of h,g,J
-		void thouless_times();
 		
 		//<! analyze spectra with unfolding, DOS and level spacing distribution --  all to file
 		void analyze_spectra();
 
 		//-------------------------------------------------------------------------- ADIABATIC GAUGE POTENTIALS
-		void adiabaticGaugePotential_sym(bool SigmaZ = 0, bool avSymSectors = 0);
-		void adiabaticGaugePotential_dis();
-		void combineAGPfiles();
+		void adiabatic_gauge_potential();
 
 
 
 		//-------------------------------------------------------------------------- STATISTICS
-		void level_spacing_from_distribution();
+		//<! calculate all statistics for given input parameters -- averaged
+		void calculate_statistics();
+
+		//<! gap ratio map
 		void level_spacing();
+
+		//<! spectral form factor calculated from eigenvalues in file or diagonalize matrix
+		void spectral_form_factor();
+		
+		//<! find thouless time with various method as function of h,g,J
+		void thouless_times();
 
 		void smoothen_data(const std::string& dir, const std::string& name, int mu = -1);
 
-		//-------------------------------------------------------------------------- AVERAGE OVER REALISATIONS
+		//-------------------------------------------------------------------------- AVERAGE RAW DATA OVER REALISATIONS
 		//<! average data over disorder realisations
 		void average_SFF();
 
+
+
 		//-------------------------------------------------------------------------- FUNCTIONS TO CALL IN FUN-DEFAULT MODE
-		/// <summary>
-		/// saves matrix elements for using in the autoencoder
-		/// </summary>
-		/// <param name="operators"> inializer list of different local operators and also their global friend </param>
-		/// <param name="names"> names of operators set in input, must be equal size as operators</param>
-		void saveDataForAutoEncoder_disorder(std::initializer_list<op_type> operators, std::initializer_list<std::string> names);
-		void saveDataForAutoEncoder_symmetries(std::initializer_list<op_type> operators, std::initializer_list<std::string> names);
+		
 
 		//-------------------------------------------------------------------------- GENERAL LAMBDA'S
 		//<! generate random product state (random orientation of spins on the bloch sphere)
@@ -224,11 +231,13 @@ namespace isingUI
 			return init_state;
 		};
 
-		//<! generate initial state given by -op flag: random, FM, AFM, ...
-		arma::cx_vec set_init_state(size_t N)
+		//<! generate initial state given by input (user control) or -op flag (default): random, FM, AFM, ...
+		arma::cx_vec set_init_state(size_t N, int choose = -1)
 		{
+			if(choose < 0)
+				choose = this->op;
 			arma::cx_vec init_state(N, arma::fill::zeros);
-			switch (this->op) {
+			switch (choose) {
 			case 0: // random product state
 			{
 				init_state = this->random_product_state(this->L); 
@@ -274,45 +283,68 @@ namespace isingUI
 			}
 		}
 
+
+		enum class Ising_params{ J, h, g }; //<! choose which of these parameters
+
 		//<! loop over disorder realisations and call lambda each time
-		template <typename _ty, typename callable, typename... _types> 
+		template <
+			Ising_params par, 		//<! parameter to average over in non-disordered case
+			typename _ty, 			//<! type of model (double-> disorder, cpx-> sym)
+			typename callable, 		//<! type of callable lambda
+			typename... _types		//<! input types for lambda
+		> 
 		void average_over_realisations(
 			IsingModel<_ty>& model,		//!< input model (symmetric model has to have average over external random stuff)
 			bool with_diagonalization,	//!< checked if each realisation should diagonalize a new matrix
 			callable& lambda, 			//!< callable function
 			_types... args				//!< arguments passed to callable interface lambda
 		) {
-			model.reset_random();
+			double x = 0.0;
+				switch (par)
+				{
+					case Ising_params::J: x = this->J;	break;
+					case Ising_params::h: x = this->h;	break;
+					case Ising_params::g: x = this->g;	break;
+				default:				  x = 0.0;		break;
+				}
 			if(this->m){
-				arma::vec g_vec = model.g + create_random_vec(this->realisations, model.g / 50.);
-			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
-				for(int r = 0; r < g_vec.size(); r++){
-					if(this->realisations > 1) model.g = g_vec(r);
+				arma::vec _vec = x + create_random_vec(this->realisations, x / 50.);
+				stout << _vec << std::endl;
+				for(int r = 0; r < _vec.size(); r++){
+					if(this->realisations > 1){
+						switch (par)
+						{
+							case Ising_params::J: model.J = _vec(r);	break;
+							case Ising_params::h: model.h = _vec(r);	break;
+							case Ising_params::g: model.g = _vec(r);	break;
+						default: 
+							std::cout << "No default mode, average only performed over J, g, h" << std::endl;	
+							break;
+						}
+					}
 					if (with_diagonalization) {
 						model.hamiltonian();
 						model.diagonalization();
 					}
 					auto dummy_lambda = [&lambda](IsingModel<_ty>& modello, int real, auto... args){
-						lambda(modello, real, std::forward<_types>(args)...);
+						lambda(modello, real, args...);
 					};
-					dummy_lambda(model, r, std::forward<_types>(args)...);
+					dummy_lambda(model, r, args...);
 				}
-			} else{
-			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
+			} else {
 				for (int r = 0; r < this->realisations; r++) {
 					if (with_diagonalization) {
 						model.hamiltonian();
 						model.diagonalization();
 					}
 					auto dummy_lambda = [&lambda](IsingModel<_ty>& modello, int real, auto... args){
-						lambda(modello, real, std::forward<_types>(args)...);
+						lambda(modello, real, args...);
 					};
-					dummy_lambda(model, r, std::forward<_types>(args)...);
+					dummy_lambda(model, r, args...);
 				}
 			}
 		};
 
-		enum class Ising_params{ J, h, g }; //<! choose which of these parameters
 		template <
 			Ising_params par,	//<! which parameter to average over for symmetric case
 			typename callable,	//<! callable lambda function
@@ -337,17 +369,17 @@ namespace isingUI
 			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 				for(int r = 0; r < _vec.size(); r++){
 					auto dummy_lambda = [&lambda](int real, double x, auto... args){
-						lambda(real, x, std::forward<_types>(args)...);
+						lambda(real, x, args...);
 					};
-					dummy_lambda(r, _vec(r), std::forward<_types>(args)...);
+					dummy_lambda(r, _vec(r), args...);
 				}
 			} else{
 			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 				for (int r = 0; r < this->realisations; r++) {
 					auto dummy_lambda = [&lambda](int real, double x, auto... args){
-						lambda(real, x, std::forward<_types>(args)...);
+						lambda(real, x, args...);
 					};
-					dummy_lambda(r, x, std::forward<_types>(args)...);
+					dummy_lambda(r, x, args...);
 				}
 			}
 		};
