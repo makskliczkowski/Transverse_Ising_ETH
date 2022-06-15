@@ -214,6 +214,14 @@ void IsingModel_sym::hamiltonian() {
 		std::cout << "Memory exceeded" << e.what() << "\n";
 		assert(false);
 	}
+	#ifdef HEISENBERG
+		this->hamiltonian_heisenberg();
+	#else
+		this->hamiltonian_Ising();
+	#endif
+}
+
+void IsingModel_sym::hamiltonian_Ising(){
 	for (long int k = 0; k < this->N; k++) {
 		double s_i;
 		double s_j;
@@ -235,39 +243,30 @@ void IsingModel_sym::hamiltonian() {
 		}
 	}
 }
-
 void IsingModel_sym::hamiltonian_heisenberg() {
-	try {
-		this->H = arma::sp_cx_mat(this->N, this->N); //hamiltonian
-		//this->H = arma::conv_to<arma::Mat<double>>::from(this->H);
-	}
-	catch (const bad_alloc& e) {
-		std::cout << "Memory exceeded" << e.what() << "\n";
-		assert(false);
-	}
-	for (long int kk = 0; kk < this->N; kk++) {
-		double s_i;
-		double s_j;
-		int k = this->mapping[kk];
-		for (int j = 0; j <= this->L - 1; j++) { 
-			s_i = checkBit(k, L - 1 - j) ? 0.5 : -0.5;	// true - spin up, false - spin down
-			
-			/* longitudal field */
-			H(kk, kk) += this->h * s_i;                             // diagonal elements setting
+	for (long int k = 0; k < N; k++) {
+		double s_i, s_j;
+		int base_state = map(k);
+		for (int j = 0; j <= L - 1; j++) {
+			s_i = checkBit(base_state, L - 1 - j) ? 0.5 : -0.5;							 // true - spin up, false - spin down
+			/* disorder */
+			H(k, k) += this->h * s_i;                             // diagonal elements setting
 
-			if (nearest_neighbors[j] >= 0) {
-				auto [value_x, new_idx_x] = IsingModel_disorder::sigma_x(k, this->L, {j, nearest_neighbors[j]});
-				setHamiltonianElem(kk, 0.25 * this->J, new_idx_x);
-				
-				auto [value_y, new_idx_y] = IsingModel_disorder::sigma_y(k, this->L, {j, nearest_neighbors[j]});
-				setHamiltonianElem(kk, 0.25 * real(value_y) * (this->J), new_idx_y);
-
+			int nei = this->nearest_neighbors[j];
+			if (nei >= 0) {
+				s_j = checkBit(base_state, L - 1 - nei) ? 0.5 : -0.5;
+				if(s_i * s_j < 0){
+					u64 new_idx =  flip(base_state, BinaryPowers[this->L - 1 - nei], this->L - 1 - nei);
+					new_idx =  flip(new_idx, BinaryPowers[this->L - 1 - j], this->L - 1 - j);
+					setHamiltonianElem(k, 0.5 * this->J, new_idx);
+				}
 				/* Ising-like spin correlation */
-				auto [value_z, new_idx_z] = IsingModel_disorder::sigma_z(k, this->L, {j, nearest_neighbors[j]});
-				setHamiltonianElem(kk, 0.25 * real(value_z) * (this->g), new_idx_z);
+				H(k, k) += this->g * s_i * s_j;
 			}
 		}
+		//std::cout << std::bitset<4>(base_state) << "\t";
 	}
+	//std::cout << std::endl << arma::mat(this->H) << std::endl;
 }
 
 // ------------------------------------------------------------------------------------------------ PHYSICAL QUANTITTIES ------------------------------------------------------------------------------------------------

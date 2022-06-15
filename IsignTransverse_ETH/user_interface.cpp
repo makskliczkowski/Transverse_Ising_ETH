@@ -59,7 +59,6 @@ void isingUI::ui::make_sim()
 {
 	//if(this->L > 10) this->realisations = 1000;
 
-					printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h);
 	//auto model = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 	//model->diagonalization();
 	//auto E = model->first_interacting_correction();
@@ -69,9 +68,11 @@ void isingUI::ui::make_sim()
 	//continue;
 					// ----------------------
 					//this->diagonalize(); continue;
-					for(this->w = 1.0; this->w <= 2.5; this->w += 0.1)
+					for(this->w = 0.1; this->w <= 3.0; this->w += 0.1)
 					{
-						std::cout << this->w << std::endl;
+						printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
+						calculate_statistics(); continue;
+
 						arma::vec loc_length(this->L, arma::fill::zeros), energy;
 					#pragma omp parallel for
 						for(int r = 0; r < this->realisations; r++){
@@ -1909,9 +1910,11 @@ void isingUI::ui::calculate_statistics(){
 	   		  wH = 0.0,	//<! mean level spacing
 	   	  wH_typ = 0.0;	//<! typical level spacing
 	std::string info;
-	
-	const long num_ent = L >= 10? 100 : 20;
-
+	#ifdef HEISENBERG
+		const long num_ent = L >= 12? 100 : 20;
+	#else
+		const long num_ent = L >= 10? 100 : 20;
+	#endif
 	//---- KERNEL LAMBDA
 	auto kernel = [&](auto& alfa, int realis)
 	{
@@ -1945,8 +1948,8 @@ void isingUI::ui::calculate_statistics(){
 				const arma::Col<decltype(alfa.type_var)> state = U.col(i);
 				ipr += statistics::inverse_participation_ratio(state);
 				info_entropy += statistics::information_entropy(state);
-				if(i >= alfa.E_av_idx - num_ent / 2. && i <= alfa.E_av_idx + num_ent / 2.)
-					entropy += entropy::vonNeumann(cast_cx_vec(state), this->L / 2, this->L);
+				//if(i >= alfa.E_av_idx - num_ent / 2. && i <= alfa.E_av_idx + num_ent / 2.)
+				//	entropy += entropy::vonNeumann(cast_cx_vec(state), this->L / 2, this->L);
 			}
 		}
 		wH_typ += std::exp(wH_typ_local / double(this->mu));
@@ -1954,6 +1957,7 @@ void isingUI::ui::calculate_statistics(){
 		auto state = this->set_init_state(N);
 		info_ent_rnd += statistics::information_entropy(state);
 		counter++;
+		std::cout << counter << std::endl;
 	};
 
 	//---- START COMPUTATION

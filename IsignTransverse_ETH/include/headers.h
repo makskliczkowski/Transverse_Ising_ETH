@@ -117,7 +117,7 @@ namespace fs = std::experimental::filesystem;
 #endif
 
 #if defined(MY_MAC) && !defined(HEISENBERG)
-	//#define HEISENBERG
+	#define HEISENBERG
 #endif
 
 extern std::random_device rd;

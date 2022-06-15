@@ -41,6 +41,7 @@ def remove_info(info_str, *args):
             continue
     info_str = info_str[0 : info_str.index('.dat') :]
     return info_str
+    
 #-------------------------- PRETTY PRINT
 def print_vars(arr_vals, names):
     for i in range(0,len(arr_vals)) :
