@@ -21,13 +21,8 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 			generate_mapping();
 	#else
 		generate_mapping();
-	#endif
-		
-	#ifdef HEISENBERG
-		this->hamiltonian_heisenberg();
-	#else
-		this->hamiltonian();
-	#endif
+	#endif	
+	this->hamiltonian();
 }
 
 // ----------------------------------------------------------------------------- BASE GENERATION AND RAPPING -----------------------------------------------------------------------------
@@ -110,6 +105,14 @@ void IsingModel_disorder::hamiltonian() {
 	}
 	//this->dh.zeros();
 	//dh(1) = 0.165; dh(4) = -0.24;
+	#ifdef HEISENBERG
+		this->hamiltonian_heisenberg();
+	#else
+		this->hamiltonian_Ising();
+	#endif
+}
+
+void IsingModel_disorder::hamiltonian_Ising() {
 	for (long int k = 0; k < N; k++) {
 		double s_i, s_j;
 		for (int j = 0; j <= L - 1; j++) {
@@ -129,14 +132,7 @@ void IsingModel_disorder::hamiltonian() {
 		}
 	}
 }
-
 void IsingModel_disorder::hamiltonian_heisenberg(){
-	this->H = arma::sp_mat(N, N); 
-
-	this->dh = create_random_vec(L, this->w);                               // creates random disorder vector
-	this->dJ = create_random_vec(L, this->J0);                              // creates random exchange vector
-	this->dg = create_random_vec(L, this->g0);                              // creates random transverse field vector
-	
 	for (long int k = 0; k < N; k++) {
 		double s_i, s_j;
 		int base_state = map(k);

@@ -75,15 +75,15 @@ def load() :
     param_copy = cf.params_arr
 
     #--- SET SCALING RANGES AND DATA
-    x0 = 0.05
-    xend = 0.5
-    dx = 0.05
+    x0 = 0.1
+    xend = 0.9
+    dx = 0.1
 
     length = int((xend-x0) / dx) + 1
     #--- prepare scaling - axis
     vals = []
     if user_settings['scaling_idx'] == 0:
-        vals = range(10, 15)
+        vals = range(11, 15)
     elif cf.model and user_settings['scaling_idx'] == 4:
         vals = range(0, cf.params_arr[0])
     else :
@@ -102,7 +102,6 @@ def load() :
         cf.params_arr[user_settings['scaling_idx']] = x
         if user_settings['scaling_idx'] == 3 and cf.J0 == 0 and cf.g0 == 0:
             cf.params_arr[4] = int(100 * x / 2.) / 100.
-        print(cf.params_arr)
         new_x, new_tau, new_gap = get_tau_data(tau_data)
         if new_tau.size > 1 :
             xvals.append(new_x)
@@ -188,7 +187,13 @@ def plot(axis1, axis2, new_settings = None) :
                                 ylim = yrange, ylabel = ylab, settings=user_settings)
     axis1.grid()
     axis1.legend()
-    axis1.title.set_text(hfun.remove_info(hfun.info_param(cf.params_arr), user_settings['vs'], user_settings['scaling']))
+    title = ""
+    if (user_settings['vs_idx'] == 3 or user_settings['scaling_idx'] == 3) and cf.J0 == 0 and cf.g0 == 0:
+        title = hfun.remove_info(hfun.info_param(cf.params_arr), user_settings['vs'], user_settings['scaling'], 'w') + ',w=0.5h'
+    else :
+        title = hfun.remove_info(hfun.info_param(cf.params_arr), user_settings['vs'], user_settings['scaling'])
+    
+    axis1.title.set_text(title)
 
 
 
@@ -214,4 +219,4 @@ def plot(axis1, axis2, new_settings = None) :
     axis2.axhline(y=0.5307, ls='--', color='black', label='GOE')
     axis2.axhline(y=0.3863, ls='--', color='red', label='Poisson')
     axis2.legend()
-    axis2.title.set_text(hfun.remove_info(hfun.info_param(cf.params_arr), user_settings['vs'], user_settings['scaling']))
+    axis2.title.set_text(title)

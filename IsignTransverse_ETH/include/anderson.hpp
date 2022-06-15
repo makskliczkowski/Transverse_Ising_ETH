@@ -3,6 +3,7 @@
 //<! anderson model
 namespace anderson{
 
+    //<! main diagonalisation scheme for 1D chain
     inline
     auto get_orbitals(
         int system_size, 
@@ -27,6 +28,7 @@ namespace anderson{
         return std::make_pair(energies, orbitals);
     }
 
+    //<! calculating localisation length for each anderson orbital
     inline
     auto get_localisation_length(
         int system_size,
