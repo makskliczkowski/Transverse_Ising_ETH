@@ -105,6 +105,7 @@ public:
 	void diagonalization(bool get_eigenvectors = true, const char* method = "dc");				// diagonalize the Hamiltonian
 
 	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
+	virtual void hamiltonian_Ising() = 0;														// pure virtual Ising Hamiltonian creator
 	virtual void hamiltonian_heisenberg() = 0;													// pure virtual heisenberg hamiltonian creator
 	virtual void setHamiltonianElem(u64 k, double value, u64 new_idx) = 0;						// sets the Hamiltonian elements in a virtual way
 	void reset_random(size_t new_seed = seed_global) const {
@@ -297,8 +298,10 @@ public:
 	v_1d<cpx> get_norm() const { return this->normalisation; }
 	v_1d<std::function<u64(u64, int)>> get_sym_group() const { return this->symmetry_group; }
 	v_1d<cpx> get_sym_eigVal() const { return this->symmetry_eigVal; }
+	
 	// OVERRIDES OF THE MODEL METHODS
 	void hamiltonian() override;
+	void hamiltonian_Ising() override;
 	void hamiltonian_heisenberg() override;
 	void setHamiltonianElem(u64 k, double value, u64 new_idx) override;
 	double mean_level_spacing_analytical() const override {
@@ -377,6 +380,7 @@ private:
 public:
 	// METHODS
 	void hamiltonian() override;
+	void hamiltonian_Ising() override;
 	void hamiltonian_heisenberg() override;
 	void setHamiltonianElem(u64 k, double value, u64 new_idx) override;
 	double mean_level_spacing_analytical() const override {

@@ -21,17 +21,17 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 model = 0       # 1=symmetries and 0=disorder
 heisenberg=0
 
-w = 0.0
+w = 0.5
 g = 0.9
-L = 14
-h = 0.1
+L = 13
+h = 0.8
 J = 1.00
-Jdis = 0.0
+Jdis = 0.2
 gdis = 0.0
 k=1
-J_knot = 0.; g_knot = 0.; 
-scaling = 0     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
-smoothed = 1        # smoothed ?
+
+scaling = 4     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
+smoothed = 0        # smoothed ?
 plot_der_GOE = 0	 # plot deriviation from GOE value
 zoom_in = 0          # zoom in to collapse on GOE
 find_Thouless = 1    # find thouless time?
@@ -51,7 +51,7 @@ if(plot_der_GOE){ zoom_in = 0;}
 	g0 = 5;    gend = 150;		dg = 5;
     J0 = 5;    Jend = 150;     dJ = 5
 	L0 = 10;	    Lend = 14; 		dL = 1;
-	w0 = 60;		wend = 200;			dw = 5;
+	w0 = 2;		wend = 30;			dw = 2;
 	w_num = (wend-w0)/dw + 1;	array w_list[w_num];
 	do for[i=1:w_num]{ w_list[i] = 0.01*w0 + 0.01*dw*(i-1);}
     h_list = '0.20 0.60 1.20 1.40 1.60 1.80 2.40 3.00 3.60'
@@ -84,25 +84,25 @@ i0 = 0; iend = 0; di = 1;
 			_name(x) = _name_long(L, J, 0.01 * x, g, (Jdis == 0? 0.01 * x / 2 : w));    _key_title(x) = sprintf("h=%.2f", x / 100.)
 			if(Jdis == 0){ set key title "w=h/2";}
 			i0 = h0; iend = hend; di = dh; 	out_dir = out_dir."h_scaling/";
-			output_name = sprintf("_L=%d,J0%.2f,J0=%.2f,g=%.2f,g0=%.2f,w=%.2f", L, J, J_knot, g, g_knot, w);
+			output_name = sprintf("_L=%d,J0%.2f,J0=%.2f,g=%.2f,g0=%.2f,w=%.2f", L, J, Jdis, g, gdis, w);
 			_rescale_times(x, i) = x * exp(-1. / (0.01*i)**nu)
 		}else{
 			if(scaling == 1){
 				_name(x) = _name_long(x, J, h, g, w);	_key_title(x) = sprintf("L=%d",x);
 				i0 = L0; iend = Lend; di = dL; 	out_dir = out_dir."size_scaling/"
-				output_name = sprintf("_J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", J, J_knot, g, g_knot, h, w);
+				output_name = sprintf("_J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", J, Jdis, g, gdis, h, w);
 				_rescale_times(x, i) = x*exp(0.3*i)
 			} else{
 				if(scaling == 2){
 					_name(x) = _name_long(L, J, h, 0.01 * x, w);    _key_title(x) = sprintf("g=%.2f",0.01*x)
 					i0 = g0; iend = gend; di = dg; 	out_dir = out_dir."g_scaling/"
-					output_name = sprintf("_L=%d,J=%.2f,J0=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J, J_knot, g_knot, h, w);
+					output_name = sprintf("_L=%d,J=%.2f,J0=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J, Jdis, gdis, h, w);
 					_rescale_times(x, i) = x * exp(10*(0.01*i)**nu)
 				} else{
 					if(scaling == 3){
 						_name(x) = _name_long(L, 0.01 * x, h, g, w);    _key_title(x) = sprintf("J=%.2f", x / 100.)
 						i0 = J0; iend = Jend; di = dJ; out_dir = out_dir."J_scaling/"
-						output_name = sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J_knot, g, g_knot, h, w);
+						output_name = sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, Jdis, g, gdis, h, w);
 						_rescale_times(x, i) = x * exp(-2*(0.01*i)**nu)
 					} else{
 						if(scaling == 4){
@@ -120,7 +120,7 @@ i0 = 0; iend = 0; di = 1;
 						} else{
 							_name(x) = _name_long(L, J, h, g);    _key_title(x) = sprintf("L=%d,J=%.2f,g=%.2f,h=%.2f", L, J, g, h)
 							i0 = 0; iend = 0; di = 1; out_dir = out_dir."single_plots/"
-							output_name = sprintf("_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J, J_knot, g, g_knot, h, w);
+							output_name = sprintf("_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J, Jdis, g, gdis, h, w);
 					}}}}}
 if(!rescale_times){ _rescale_times(x,i)=x;}
 #---------------------------- EXTRACT DATA - STATS
@@ -168,7 +168,7 @@ if(zoom_in) { unset logscale y; set format y '%g'; set key bottom right font ",2
 x_max = 98
 if(real_units){ x_min = 1e3*x_min;	x_max = x_max * 1e3;	}
 print x_min, y_min
-RANGE=zoom_in? "set xrange[1e-3:20]; set yrange[0:1.2];"\
+RANGE=zoom_in? sprintf("set xrange[%.6f:20]; set yrange[%.10f:1.2];", x_min, 0.8 * y_min)\
                     : sprintf("set xrange[%.6f:%.6f]; set yrange[%.10f:%.2f];", x_min, x_max, 0.8 * y_min, 0.5*(scaling == 1? 2**Lend : 2**L))
 MARGIN = "set lmargin at screen 0.10; set rmargin at screen 0.95; set bmargin at screen 0.10; set tmargin at screen 0.99;"
 MARGIN_inset = "set lmargin at screen 0.52; set rmargin at screen 0.92; set bmargin at screen 0.62; set tmargin at screen 0.97;"

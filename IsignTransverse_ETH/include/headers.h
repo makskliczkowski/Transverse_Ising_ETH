@@ -117,7 +117,7 @@ namespace fs = std::experimental::filesystem;
 #endif
 
 #if defined(MY_MAC) && !defined(HEISENBERG)
-	//#define HEISENBERG
+	#define HEISENBERG
 #endif
 
 extern std::random_device rd;
@@ -302,7 +302,7 @@ inline u64 binary_search(const std::vector<T>& arr, u64 l_point, u64 r_point, T 
 		else if (arr[middle] < element) return binary_search(arr, middle + 1, r_point, element);
 		else return binary_search(arr, l_point, middle - 1, element);
 	}
-	std::cout << "Element not found" << std::endl;
+	//std::cout << "Element not found" << std::endl;
 	return -1;
 }
 
@@ -530,7 +530,7 @@ template <typename T>
 inline bool openFile(T& file, std::string filename, std::ios_base::openmode mode = std::ios::out) {
 	file.open(filename, mode);
 	if (!file.is_open()) {
-		//stout << "couldn't open a file: " + filename << std::endl;
+		stout << "couldn't open a file: " + filename << std::endl;
 		return false;
 	}
 	return true;
