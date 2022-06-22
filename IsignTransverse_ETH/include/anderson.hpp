@@ -20,8 +20,9 @@ namespace anderson{
         arma::mat anderson_hamiltonian(system_size, system_size, arma::fill::zeros);
         for(int j = 0; j < system_size; j++){
             anderson_hamiltonian(j, j) = disorder(j);
-            anderson_hamiltonian(j, (j + 1) % system_size) = J;
-            anderson_hamiltonian((j + 1) % system_size, j) = J;
+            anderson_hamiltonian(j, (j + 1) % system_size) = J / 2.;
+            anderson_hamiltonian((j + 1) % system_size, j) = J / 2.;
+            
         }
         
         arma::eig_sym(energies, orbitals, anderson_hamiltonian);
@@ -40,17 +41,33 @@ namespace anderson{
         arma::mat orbitals;
         std::tie(energies, orbitals) = anderson::get_orbitals(system_size, J, h);
         arma::vec loc_length(system_size, arma::fill::zeros);
-
     //#pragma omp parallel
         for(int i = 0; i < system_size; i++){
             auto orbital_i = orbitals.col(i);
 
-            arma::vec func_to_fit(system_size / 2, arma::fill::zeros);
-            for(int k = 0; k < system_size / 2; k++)
-                for(int j = 0; j < system_size; j++)
-                    func_to_fit(k) += abs(orbital_i(j) * orbital_i( (j + k) % system_size ) );
-            func_to_fit = arma::log(func_to_fit);
-            arma::vec p = arma::polyfit(arma::linspace(0, system_size / 2 - 1, system_size / 2), func_to_fit, 1);
+            arma::vec func_to_fit(system_size, arma::fill::zeros);
+            for(int k = -system_size / 2.; k < system_size / 2.; k++){
+                double val = 0;
+                for(int j = 0; j < system_size; j++){
+                    long idx = (j + k) % system_size;
+                    if(idx < 0) idx += system_size;
+                    val += abs(orbital_i(j) * orbital_i(idx) );
+                }
+                func_to_fit(k + system_size / 2.) = log(val);
+            }
+            arma::vec r_vals  = arma::linspace(-system_size / 2., system_size / 2., func_to_fit.size());
+            if(i == system_size / 2.)
+                save_to_file("./results/HEISENBERG/disorder/PBC/ObitalCorr_n=" + std::to_string(i) + "_w=" + to_string_prec(h, 2) + ".dat", r_vals, func_to_fit);
+                
+            for(int k = -system_size / 2.; k < 0; k++){
+                func_to_fit(k + system_size / 2.) = 2 * func_to_fit(func_to_fit.size() / 2) - func_to_fit(k + system_size / 2.);
+            }
+
+
+            func_to_fit = exctract_vector_between_values(func_to_fit, -20.0, 1.0);
+            r_vals  = arma::linspace(0, func_to_fit.size(), func_to_fit.size());
+            arma::vec p = arma::polyfit(r_vals, func_to_fit, 1);
+            
             loc_length(i) = -1. / p(0);
         }
         return std::make_pair(energies, loc_length);

@@ -76,9 +76,12 @@ def mscatter(x,y,ax=None, m=None, fc=None, **kw):
 def set_plot_elements(axis, xlim =[], ylim=[], xlabel = None, ylabel = 'y', settings = None, set_legend = True, font_size = 10):
     if settings == None:
         settings = user_settings
+    
+    xlab = list(settings['func_x_name'])
     if xlabel == None :
-        xlab = list(settings['func_x_name'])
         xlab[xlab.index('Q')] = settings['vs']
+    else :
+        xlab[xlab.index('Q')] = xlabel
     ylab = list(settings['func_y_name'])
     ylab[ylab.index('Q')] = ylabel
     
