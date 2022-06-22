@@ -40,7 +40,7 @@ YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
 L = 10;
-J=0.05 
+J=0.1 
 g = 0.9
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
@@ -51,10 +51,10 @@ x_range_min=1e-4
 integrated_by_hand = 0 #integrated time evolution?
 if(integrated_by_hand) cd '.\integrated'
 rescale = 0				# rescale the spectral function by f(w, L)?
-site = 1				# site at which the operator acts
-scaling = 0				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
+site = 0				# site at which the operator acts
+scaling = 1				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
 q_vs_j = 0				# =1 - evolution of Sz_q, else ecol of Sz_j
-operator = 4	 		# 1-SigmaZ , 0-Hq :local
+operator = 0	 		# 1-SigmaZ , 0-Hq :local
 
 two_panels = 0			# plot integrated spectral function next to respons function
 smoothed = 0			# smoothed derivative?
@@ -71,7 +71,7 @@ if(scaling != 1) rescale = 0;
 LIOM = 0				# plot LIOMs?
 local = 0
 
-	h0 = 10;	hend = 150;		dh = 10;
+	h0 = 10;	hend = 100;		dh = 10;
 	g0 = 10;	gend = 150;		dg = 10;
 	L0 = 10;	Lend = 15; 		dL = 1;
 

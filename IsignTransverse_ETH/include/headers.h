@@ -221,8 +221,8 @@ inline void handle_exception(std::exception_ptr eptr, std::string message) {
 // ----------------------------------------------------------------------------- TIME FUNCTIONS -----------------------------------------------------------------------------
 
 inline double tim_s(clk::time_point start) {
-	return double(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration(\
-		std::chrono::system_clock::now() - start)).count()) / 1000.0;
+	return double(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::duration(\
+		std::chrono::system_clock::now() - start)).count()) / 1.0e6;
 }
 // ----------------------------------------------------------------------------- TOOLS -----------------------------------------------------------------------------
 enum class coordinate {
@@ -274,9 +274,8 @@ std::vector<std::string> split_str(std::string s, std::string delimiter);
 template <typename T>
 std::string to_string_prec(const T a_value, const int n = 3) {
 	std::ostringstream outie;
-	T a_value_new = int(a_value * std::pow(10, n)) / std::pow(10, n); // cut later digits, cause precision(n) is fucked up
 	outie.precision(n);
-	outie << std::fixed << a_value_new;
+	outie << std::fixed << a_value;
 	return outie.str();
 }
 
