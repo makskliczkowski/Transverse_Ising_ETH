@@ -2,7 +2,7 @@
 // set externs
 std::uniform_real_distribution<> theta	= std::uniform_real_distribution<>(0.0, pi);
 std::uniform_real_distribution<> fi		= std::uniform_real_distribution<>(0.0, pi);
-int outer_threads = 1;
+int outer_threads = 64;
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
 {
@@ -68,29 +68,16 @@ void isingUI::ui::make_sim()
 	//continue;
 					// ----------------------
 					//this->diagonalize(); continue;
-					for(this->w = 0.1; this->w <= 3.0; this->w += 0.1)
+					for(this->w = 0.01; this->w <= 2.0; this->w += 0.01)
 					{
 						printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
-						calculate_statistics(); continue;
-
-						arma::vec loc_length(this->L, arma::fill::zeros), energy;
-					#pragma omp parallel for
-						for(int r = 0; r < this->realisations; r++){
-							auto [E, loc] = anderson::get_localisation_length(this->L, this->J, this->w);
-							#pragma omp critical
-							{
-								energy = E;
-								loc_length += loc;
-							}
-						}
-						save_to_file(this->saving_dir + "LocLengthDist_" + to_string_prec(this->w, 2) + ".dat", energy, loc_length / double(this->realisations)); 
-						
+						//calculate_statistics(); continue;
 						//for(this->site = 0; this->site < this->L; this->site++)
 						//	calculate_spectrals();
 						//diagonalize();
 						//spectral_form_factor();
 						//analyze_spectra();
-						//average_SFF();
+						average_SFF();
 					}
 					continue;
 					average_SFF(); continue;
@@ -1360,7 +1347,7 @@ void isingUI::ui::spectral_form_factor(){
 	std::string dir2 = this->saving_dir + "LevelSpacing" + kPSep + "raw_data" + kPSep;
 	createDirs(dir, dir2);
 	//------- PREAMBLE
-	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"k", "x", "p"}) 
+	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
 					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
 
 	const double chi = 0.341345;
@@ -1483,7 +1470,9 @@ void isingUI::ui::spectral_form_factor(){
 	sff = sff / Z;
 	wH_mean /= norm;
 	wH_typ /= norm;
-	
+	if(this->m) info = IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"k", "x", "p"});
+					
+
 	if(this->jobid > 0) return;
 	std::ofstream lvl;
 	openFile(lvl, dir2 + info + ".dat", std::ios::out);
@@ -1946,7 +1935,7 @@ void isingUI::ui::calculate_statistics(){
 				gap_ratio += min / max;
 	
 				const arma::Col<decltype(alfa.type_var)> state = U.col(i);
-				ipr += statistics::inverse_participation_ratio(state);
+				ipr += statistics::inverse_participation_ratio(state) / double(N);
 				info_entropy += statistics::information_entropy(state);
 				//if(i >= alfa.E_av_idx - num_ent / 2. && i <= alfa.E_av_idx + num_ent / 2.)
 				//	entropy += entropy::vonNeumann(cast_cx_vec(state), this->L / 2, this->L);

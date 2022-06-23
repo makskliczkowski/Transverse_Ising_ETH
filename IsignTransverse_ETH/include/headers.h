@@ -274,9 +274,8 @@ std::vector<std::string> split_str(std::string s, std::string delimiter);
 template <typename T>
 std::string to_string_prec(const T a_value, const int n = 3) {
 	std::ostringstream outie;
-	T a_value_new = int(a_value * std::pow(10, n)) / std::pow(10, n); // cut later digits, cause precision(n) is fucked up
 	outie.precision(n);
-	outie << std::fixed << a_value_new;
+	outie << std::fixed << a_value;
 	return outie.str();
 }
 
@@ -303,7 +302,7 @@ inline u64 binary_search(const std::vector<T>& arr, u64 l_point, u64 r_point, T 
 		else if (arr[middle] < element) return binary_search(arr, middle + 1, r_point, element);
 		else return binary_search(arr, l_point, middle - 1, element);
 	}
-	std::cout << "Element not found" << std::endl;
+	//std::cout << "Element not found" << std::endl;
 	return -1;
 }
 
