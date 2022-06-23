@@ -4,7 +4,10 @@ from numpy import array
 from numpy import loadtxt
 from numpy import exp
 from numpy import sqrt
+from numpy import log
 from numpy import float as npfloat
+#from scipy.special import binom as binomial
+import scipy
 import helper_functions as hfun
 import config as cf
 importlib.reload(cf)
@@ -75,15 +78,16 @@ def load() :
     param_copy = cf.params_arr
 
     #--- SET SCALING RANGES AND DATA
-    x0 = 0.1
-    xend = 0.9
+    x0 = 0.2
+    xend = 1.0
     dx = 0.1
 
     length = int((xend-x0) / dx) + 1
     #--- prepare scaling - axis
     vals = []
     if user_settings['scaling_idx'] == 0:
-        vals = range(11, 15)
+        if cf.hamiltonian: vals = range(10, 19, 2)
+        else: vals = range(10, 17, 1)
     elif cf.model and user_settings['scaling_idx'] == 4:
         vals = range(0, cf.params_arr[0])
     else :
@@ -198,11 +202,13 @@ def plot(axis1, axis2, new_settings = None) :
 
 
 
-    rescale_by_L = 0
+    rescale_by_L = 1
     #--- plot second panel with gap ratios
     x_min = 1.0e10;     x_max = -1.0e10;
     for i in range(0, num_of_plots):
-        norm = float(vals[i] if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0)
+        norm = float(1. / sqrt(scipy.special.binom(vals[i], vals[i] / 2.) / sqrt(vals[i])) ) if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0
+        #norm = float(exp(-log(2)/2*vals[i]) if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0)
+        #norm = float(vals[i] if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0)
         xpoints = xvals[i] / norm
 
         min = xpoints.min();  max = xpoints.max()
@@ -211,10 +217,15 @@ def plot(axis1, axis2, new_settings = None) :
         axis2.plot(xpoints, gap_ratio[i], label=key_title(vals[i]))
         for j in range(0, len(tau[i])) :
             axis2.scatter(xpoints[j], gap_ratio[i][j], edgecolors=ec[i], marker=marker_style[i][j], s=50, facecolor=face_colors[i][j])
-    new_set = user_settings;
-    new_set['y_scale'] = 'linear';  new_set['x_scale'] = 'linear'
+    new_set_class = cf.plot_settings;
+    new_set_class.set_x_rescale(rescale=0)
+    new_set = getattr(new_set_class, 'settings')
+    #new_set['y_scale'] = 'linear';  new_set['x_scale'] = 'log'
+    #xlab = new_set['vs'] + (" \\cdot L" if rescale_by_L else "")
+    #xlab = new_set['vs'] + (" \\cdot e^{\\frac{ln2}{2}L}" if rescale_by_L else "")
+    xlab = new_set['vs'] + (" \\cdot D^{-1/2}L^{-1/4}" if rescale_by_L else "")
     hfun.set_plot_elements(axis = axis2, xlim = (0.98*x_min, 1.02*x_max), 
-                                ylim = (0.37, 0.54), ylabel = 'r', settings=new_set)
+                                ylim = (0.37, 0.54), xlabel = xlab, ylabel = 'r', settings=new_set)
     #--- additional lines on plot
     axis2.axhline(y=0.5307, ls='--', color='black', label='GOE')
     axis2.axhline(y=0.3863, ls='--', color='red', label='Poisson')
