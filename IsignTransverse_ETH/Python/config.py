@@ -3,16 +3,17 @@ from os import sep as kPSep
 import plot_settings as ps
 importlib.reload(ps)
 #---------------------------------------------------- MODEL PARAMETERS
-model = 0   # chooses model: 0-disorder / 1-symmetries
-BC = 1     # boundaary condition: 0 - OBC / 1 - PBC
+model = 0           # chooses model: 0-disorder / 1-symmetries
+hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
+BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
 
-L = 15                          # system size
+L = 16                          # system size
 J = 1.00                        # spin exchange (Ising-like)
-g = 0.90                        # trasnverse magnetic field (z-axis)
-h = 0.80                        # longitudal magnetic field (x-axis)
+g = 1.00                        # trasnverse magnetic field (z-axis)
+h = 0.00                        # longitudal magnetic field (x-axis)
 #---- DISORDER PARAMETERS
 w = 1.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
-J0 = 0.2                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
+J0 = 0.0                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
 g0 = 0.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 #---- SYMETRY PARAMETERS
 k_sym = 0                       # translational symmetry sector
@@ -56,7 +57,9 @@ names = ps.options
 names.extend(['p','x','J0','x0'])
 
 #---- DIR
-base_directory = f"..{kPSep}results{kPSep}" + (f"symmetries{kPSep}" if model else f"disorder{kPSep}") + (f"PBC{kPSep}" if BC else f"OBC{kPSep}") 
+base_directory = f"..{kPSep}results{kPSep}" + (f"Heisenberg{kPSep}" if hamiltonian else f"Ising{kPSep}")\
+                                             + (f"symmetries{kPSep}" if model else f"disorder{kPSep}") \
+                                              + (f"PBC{kPSep}" if BC else f"OBC{kPSep}") 
 
 #---- INSTANCE OF PLOT SETTINGS CLASS --> plot_settings.py
 plot_settings = ps.plot_settings_class(plot_settings_dict)
