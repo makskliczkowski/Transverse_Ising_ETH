@@ -2603,7 +2603,7 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv)
 	#ifdef HEISENBERG
 		std::string folder = saving_dir + "HEISENBERG" + kPSep + str_model;
 	#else
-		std::string folder = saving_dir + str_model;
+		std::string folder = saving_dir + "ISING" + kPSep + str_model;
 	#endif
 	if (!argv[argc - 1].empty() && argc % 2 != 0) {
 		// only if the last command is non-even

@@ -19,14 +19,14 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 
 #---------------------------- PARAMETERS
 model = 0       # 1=symmetries and 0=disorder
-heisenberg=0
+heisenberg=1
 
 w = 0.5
-g = 0.9
-L = 13
-h = 0.8
+g = 0.55
+L = 18
+h = 0.0
 J = 1.00
-Jdis = 0.2
+Jdis = 0.0
 gdis = 0.0
 k=1
 
@@ -48,10 +48,10 @@ if(scaling < 0 || scaling > 4 || zoom_in == 1) add_gap_ratio = 0;
 if(plot_der_GOE){ zoom_in = 0;}
 
 	h0 = 5;     hend = 50;		dh = 5;
-	g0 = 5;    gend = 150;		dg = 5;
+	g0 = 5;    gend = 120;		dg = 5;
     J0 = 5;    Jend = 150;     dJ = 5
-	L0 = 10;	    Lend = 14; 		dL = 1;
-	w0 = 2;		wend = 30;			dw = 2;
+	L0 = 10;	    Lend = 18; 		dL = 2;
+	w0 = 2;		wend = 50;			dw = 2;
 	w_num = (wend-w0)/dw + 1;	array w_list[w_num];
 	do for[i=1:w_num]{ w_list[i] = 0.01*w0 + 0.01*dw*(i-1);}
     h_list = '0.20 0.60 1.20 1.40 1.60 1.80 2.40 3.00 3.60'
@@ -63,7 +63,7 @@ eps = 8e-2
 ADD=plot_der_GOE? sprintf("%f w l ls 1 dt (3,5,10,5) lc rgb 'black' lw 2 notitle", eps)\
          : "GOE(x) w l ls 1 dt (3,5,10,5) lc rgb 'black' lw 2 t 'GOE', (x < 0.2? NaN : 1.0) w l ls 1 dt (3,5,10,5) lc rgb 'black' lw 2 notitle"		 
 if(real_units){ ADD = ""; };
-dir_base = '../results/'.(heisenberg? 'HEISENBERG/' : '').(model? 'symmetries' : 'disorder').'/PBC/SpectralFormFactor/'
+dir_base = '../results/'.(heisenberg? 'HEISENBERG/' : 'ISING/').(model? 'symmetries' : 'disorder').'/PBC/SpectralFormFactor/'
 if(smoothed){ dir_base = dir_base.'smoothed/';}
 
 #---------------------------- SET PLOT DATA
@@ -74,7 +74,7 @@ LINE = scaling == 4 && model == 0? "unset logscale y; set format x '10^{%L}'; se
 load './gnuplot-colorbrewer-master/diverging/RdYlGn.plt'
 out_dir = 'SpectralFormFactor/'
 _name_long(Lx, Jx, hx, gx, dis) = dir_base.(use_folded? "folded" : "").(\
-								model? sprintf("_L=%d,J=%.2f,g=%.2f,h=%.2f.dat", Lx, Jx, gx, hx) :\
+								model? sprintf("_L=%d,J=%.2f,g=%.2f,h=%.2f,k=%d,p=1,x=1.dat",Lx, Jx, gx, hx, k) :\
                         			   sprintf("_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", Lx, Jx, Jdis, gx, gdis, hx, dis));
 
 _name(x) = 0; _key_title(x) = 0;
