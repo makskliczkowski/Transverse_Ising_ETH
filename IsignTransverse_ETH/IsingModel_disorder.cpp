@@ -157,7 +157,7 @@ void IsingModel_disorder::hamiltonian_heisenberg(){
 		}
 		//std::cout << std::bitset<4>(base_state) << "\t";
 	}
-	std::cout << std::endl << arma::mat(this->H) << std::endl;
+	//std::cout << std::endl << arma::mat(this->H) << std::endl;
 }
 // ----------------------------------------------------------------------------- PHYSICAL QUANTITES -----------------------------------------------------------------------------
 

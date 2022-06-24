@@ -19,18 +19,18 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 
 #---------------------------- PARAMETERS
 model = 0       # 1=symmetries and 0=disorder
-heisenberg=1
+heisenberg=0
 
-w = 0.5
-g = 0.55
-L = 18
-h = 0.0
-J = 1.00
+w = 0.1
+g = 0.9
+L = 14
+h = 0.8
+J = 0.05
 Jdis = 0.0
 gdis = 0.0
 k=1
 
-scaling = 4     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
+scaling = 3     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
 smoothed = 0        # smoothed ?
 plot_der_GOE = 0	 # plot deriviation from GOE value
 zoom_in = 0          # zoom in to collapse on GOE
@@ -48,9 +48,9 @@ if(scaling < 0 || scaling > 4 || zoom_in == 1) add_gap_ratio = 0;
 if(plot_der_GOE){ zoom_in = 0;}
 
 	h0 = 5;     hend = 50;		dh = 5;
-	g0 = 5;    gend = 120;		dg = 5;
+	g0 = 80;    gend = 200;		dg = 4;
     J0 = 5;    Jend = 150;     dJ = 5
-	L0 = 10;	    Lend = 18; 		dL = 2;
+	L0 = 10;	    Lend = 18; 		dL = 1;
 	w0 = 2;		wend = 50;			dw = 2;
 	w_num = (wend-w0)/dw + 1;	array w_list[w_num];
 	do for[i=1:w_num]{ w_list[i] = 0.01*w0 + 0.01*dw*(i-1);}

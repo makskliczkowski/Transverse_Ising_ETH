@@ -1741,6 +1741,7 @@ void isingUI::ui::average_SFF(){
 void isingUI::ui::thouless_times()
 {
 	const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
+	auto Jx_list = arma::linspace(this->J, this->J + this->Js * (this->Jn - 1), this->Jn);
 	auto gx_list = arma::linspace(this->g, this->g + this->gs * (this->gn - 1), this->gn);
 	auto hx_list = arma::linspace(this->h, this->h + this->hs * (this->hn - 1), this->hn);
 	auto wx_list = arma::linspace(this->w, this->w + this->ws * (this->wn - 1), this->wn);
@@ -1805,7 +1806,7 @@ void isingUI::ui::thouless_times()
 	std::ofstream map;
 	openFile(map, dir + "_all" + info + ".dat", ios::out);
 	for (int size = Lmin; size < Lmax; size += this->Ls){
-		for(double Jx = this->J; Jx <= 1.55; Jx += 0.05){
+		for(auto& Jx : Jx_list){
 			for (auto &gx : gx_list){
 				for (auto &hx : hx_list){
 					for(auto& x : _list){	// either disorder w (m=0) or symmetry sector k (m=1)
