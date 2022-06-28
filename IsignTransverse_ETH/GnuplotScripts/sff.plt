@@ -19,18 +19,18 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 
 #---------------------------- PARAMETERS
 model = 0       # 1=symmetries and 0=disorder
-heisenberg=0
+heisenberg=1
 
-w = 0.1
+w = 1.2
 g = 0.9
-L = 14
-h = 0.8
-J = 0.05
+L = 16
+h = 0.0
+J = 1.0
 Jdis = 0.0
 gdis = 0.0
 k=1
 
-scaling = 3     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
+scaling = 2     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
 smoothed = 0        # smoothed ?
 plot_der_GOE = 0	 # plot deriviation from GOE value
 zoom_in = 0          # zoom in to collapse on GOE
@@ -48,7 +48,7 @@ if(scaling < 0 || scaling > 4 || zoom_in == 1) add_gap_ratio = 0;
 if(plot_der_GOE){ zoom_in = 0;}
 
 	h0 = 5;     hend = 50;		dh = 5;
-	g0 = 80;    gend = 200;		dg = 4;
+	g0 = 12;    gend = 150;		dg = 4;
     J0 = 5;    Jend = 150;     dJ = 5
 	L0 = 10;	    Lend = 18; 		dL = 1;
 	w0 = 2;		wend = 50;			dw = 2;
@@ -132,7 +132,7 @@ if(!rescale_times){ _rescale_times(x,i)=x;}
 		idx = (i-i0)/di+1
 		name = _name(i)
 		tau[idx] = 0.0; y_vals[idx] = NaN;	gap_ratio[idx] = NaN;
-		print name;
+		#print name;
 		if(fileexist(name)){
             f(x,y) = x > 2.5? NaN : ((log10( y / GOE(x) )) - eps)**2
 			stats name u 1 nooutput; bool = STATS_min;

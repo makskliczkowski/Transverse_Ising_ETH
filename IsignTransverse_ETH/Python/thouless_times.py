@@ -155,8 +155,8 @@ def plot(axis1, axis2, new_settings = None) :
     y_min = 1.0e10;     y_max = -1.0e10;
     x_min = 1.0e10;     x_max = -1.0e10;
 
-    rescale_by_L_nu = 0
-    nu = 4
+    rescale_by_L_nu = 1
+    nu = 2
     for i in range(0, num_of_plots):
         yvals = tau[i]
         if rescale_by_L_nu and user_settings['vs_idx'] > 0 : yvals = yvals / (vals[i]**nu if user_settings['scaling_idx'] == 0 else cf.L**nu)
@@ -213,14 +213,14 @@ def plot(axis1, axis2, new_settings = None) :
 
 
 
-    rescale_by_L = 0
+    rescale_by_L = 1
     #--- plot second panel with gap ratios
     x_min = 1.0e10;     x_max = -1.0e10;
     for i in range(0, num_of_plots):
         D = scipy.special.binom(vals[i], vals[i] / 2.)
         #norm = float(sqrt(D / sqrt(vals[i])) ) if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0
-        norm = float(exp(log(2)/4*vals[i]) if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0)
-        #norm = float(vals[i] if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0)
+        #norm = float(exp(log(2)/4*vals[i]) if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0)
+        norm = float(vals[i] if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0)
         xpoints = xvals[i] * norm
 
         min = xpoints.min();  max = xpoints.max()
@@ -233,9 +233,9 @@ def plot(axis1, axis2, new_settings = None) :
     new_set_class.set_x_rescale(rescale=0)
     new_set = getattr(new_set_class, 'settings')
     new_set['y_scale'] = 'linear';  #new_set['x_scale'] = 'log'
-    #xlab = new_set['vs'] + (" \\cdot L" if rescale_by_L else "")
+    xlab = new_set['vs'] + (" \\cdot L" if rescale_by_L else "")
     #xlab = new_set['vs'] + (" \\cdot e^{\\frac{ln2}{2}L}" if rescale_by_L else "")
-    xlab = new_set['vs'] + (" \\cdot D^{1/2}L^{1/4}" if rescale_by_L else "")
+    #xlab = new_set['vs'] + (" \\cdot D^{1/2}L^{1/4}" if rescale_by_L else "")
     hfun.set_plot_elements(axis = axis2, xlim = (0.98*x_min, 1.02*x_max), 
                                 ylim = (0.37, 0.54), xlabel = xlab, ylabel = 'r', settings=new_set)
     #--- additional lines on plot
