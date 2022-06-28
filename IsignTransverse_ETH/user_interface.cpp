@@ -2,17 +2,20 @@
 // set externs
 std::uniform_real_distribution<> theta	= std::uniform_real_distribution<>(0.0, pi);
 std::uniform_real_distribution<> fi		= std::uniform_real_distribution<>(0.0, pi);
-int outer_threads = 64;
+int outer_threads = 1;
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
 {
 	printAllOptions();
 	gen = std::mt19937_64(this->seed);
 
+
 	clk::time_point start = std::chrono::system_clock::now();
-	const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
-	const double gmin = this->g, gmax = this->g + this->gn * this->gs;
-	const double hmin = this->h, hmax = this->h + this->hn * this->hs;
+	auto L_list = this->get_params_array(Ising_params::L);
+	auto J_list = this->get_params_array(Ising_params::J);
+	auto g_list = this->get_params_array(Ising_params::g);
+	auto h_list = this->get_params_array(Ising_params::h);
+	auto w_list = this->get_params_array(Ising_params::w);
 	//generate_statistic_map(Ising_params::w, Ising_params::g);	return;
 	
 	switch (this->fun)
@@ -46,123 +49,79 @@ void isingUI::ui::make_sim()
 		break;
 	default:
 		printSeparated(std::cout, "\t", 16, true, "L", "J", "g", "h", "w");
-		for (int system_size = Lmin; system_size < Lmax; system_size += this->Ls)
-		{
-			for (double gx = gmin; gx < gmax; gx += this->gs)
-			{
-				for (double hx = hmin; hx < hmax; hx += this->hs)
-				{
-					this->L = system_size;
-					this->g = gx;
-					this->h = hx;
-					const auto start_loop = std::chrono::system_clock::now();
-//for(this->J = 0.05; this->J <= 1.5; this->J += 0.05)
-{
-	//if(this->L > 10) this->realisations = 1000;
-
-	//auto model = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-	//model->diagonalization();
-	//auto E = model->first_interacting_correction();
-	//for(int i = 0; i < E.size(); i++)
-	//	printSeparated(std::cout, "\t", 16, true, E(i), model->get_eigenEnergy(i), abs(E(i) - model->get_eigenEnergy(i)));
-	//stout << "----------------------------------" << std::endl;
-	//continue;
-					// ----------------------
-					//this->diagonalize(); continue;
-<<<<<<< HEAD
-					for(this->w = 0.01; this->w <= 2.0; this->w += 0.01)
-					{
-						printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
-						//calculate_statistics(); continue;
-=======
-					for(this->w = 0.2; this->w <= 1.0; this->w += 0.1)
-					{
-						printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
-						//auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
-						//		 	this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-						//alfa->diagonalization();
-						//arma::vec E = alfa->get_eigenvalues();
-						//const size_t N = alfa->get_hilbert_size();
-						//auto op = alfa->chooseOperator(3, 0);
-						//auto op2 = alfa->chooseOperator(4, 0);
-						//arma::cx_vec av_sigma_x(N), av_sigma_z(N);
-						//for(int i = 0; i < N; i++){
-						//	auto state = alfa->get_eigenState(i);
-						//	av_sigma_x(i) = arma::cdot(state, op2 * state);
-						//	av_sigma_z(i) = arma::cdot(state, op * state);
-						//}
-						//auto [opname, strunjan] = IsingModel_disorder::opName(3, 0);
-						//auto [op2name, strrrrata2] = IsingModel_disorder::opName(4, 0);
-						//std::string dir = this->saving_dir + "DiagonalMatrixElements" + kPSep;
-						//createDirs(dir);
-						//save_to_file<double>(dir + opname  + alfa->get_info() + ".dat", E / double(this->L), arma::real(av_sigma_x), arma::imag(av_sigma_x), N);
-						//save_to_file<double>(dir + op2name + alfa->get_info() + ".dat", E / double(this->L), arma::real(av_sigma_z), arma::imag(av_sigma_z), N);
-						//continue;
-
-						arma::vec loc_length(this->L, arma::fill::zeros), energy;
-					#pragma omp parallel for
-						for(int r = 0; r < this->realisations; r++){
-							auto [E, loc] = anderson::get_localisation_length(this->L, this->J, this->w);
-							#pragma omp critical
-							{
-								energy = E;
-								loc_length += loc;
-							}
-						}
-						save_to_file(this->saving_dir + "LocLengthDist_" + to_string_prec(this->w, 2) + ".dat", energy / (this->J + this->w), loc_length / double(this->realisations)); 
-						
->>>>>>> origin/Rafal_main
-						//for(this->site = 0; this->site < this->L; this->site++)
-						//	calculate_spectrals();
-						//diagonalize();
-						//spectral_form_factor();
-						//analyze_spectra();
-						average_SFF();
-					}
-					continue;
-					average_SFF(); continue;
-					//combine_spectra(); 
-					analyze_spectra(); continue;
-					thouless_times(); continue;
-					spectral_form_factor(); continue;
-					std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
-					smoothen_data(this->saving_dir + "SpectralFormFactor" + kPSep, info + ".dat"); continue;
-} continue;
-					std::string dir = this->saving_dir + "Entropy" + kPSep;// + "Lanczos" + kPSep;
-
-					auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-					////auto alfa = std::make_unique<IsingModel_sym>(this->L, -this->J, -this->g, -this->h,
-					////			 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-					const std::string name = alfa->get_info();
-					const size_t N = alfa->get_hilbert_size();
-					stout << "\n\t\t--> finished creating model for " << name << " - in time : " << tim_s(start) << "s" << std::endl;
-
-					for(this->site = 0; this->site <= this->L / 2.; this->site++){
-
-					auto [opName, dir_suffix] = IsingModel_disorder::opName(this->op, this->site);
-					dir = this->saving_dir + "timeEvolution" + kPSep + dir_suffix + "=" + std::to_string(this->site) + kPSep;
-					std::string dir2 = dir + "Exponent" + kPSep;
-					//std::string dir2 = this->saving_dir + "TimeEvolution" + kPSep + "Quench" + kPSep;
-					createDirs(dir, dir2);
-					
-					smoothen_data(dir, opName + name + ".dat");
-					std::ifstream input;
-					auto data = readFromFile(input, dir + "smoothed" + kPSep + opName + name + ".dat");
-					if(data.empty()) continue;
-					arma::vec exponent_exp 		 = non_uniform_derivative(data[0], data[1]);
-					arma::vec exponent_power_law = log_derivative(data[0], data[1]);
-					std::ofstream output;
-					openFile(output, dir2 + opName + name + ".dat", std::ios::out);
-					for(int j = 0; j < exponent_exp.size(); j++)
-						printSeparated(output, "\t", 16, true, data[0](j), (data[1](j) - data[3](0)) / exponent_exp(j), exponent_power_law(j));
-					output.close();
-					
-					}
-					continue;
-				}
+		for (auto& system_size : L_list){
+			for (auto& gx : g_list){
+				for (auto& hx : h_list){
+					for(auto& Jx : J_list){
+						for(auto& wx : w_list){
+							this->L = system_size;
+							this->g = gx;
+							this->h = hx;
+							this->J = Jx;
+							this->w = wx;
+							const auto start_loop = std::chrono::system_clock::now();
+							
+							stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
+							printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
+								auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+	const u64 N = alfa->get_hilbert_size();
+	arma::sp_cx_mat op = alfa->create_operator({IsingModel_disorder::sigma_x}, 1);
+	
+	auto set_E = [&](){
+		alfa->hamiltonian();
+		auto H = alfa->get_hamiltonian();
+		arma::vec eigenvaluess(N);
+		for(int i = 0; i < N; i++)
+			eigenvaluess(i) = H(i,i);
+		return eigenvaluess;
+	};
+	std::vector<double> delta;
+	double wH = 0;
+	for(int r = 0; r < this->realisations; r++){
+		arma::vec eigenvalues = set_E();
+		const u64 E_av_idx = spectrals::get_mean_energy_index(eigenvalues);
+		const double E_av = eigenvalues(E_av_idx);
+		wH += statistics::mean_level_spacing(eigenvalues.begin() + u64(E_av_idx - 0.25 * N), eigenvalues.begin() + u64(E_av_idx + 0.25 * N));
+	#pragma omp parallel for
+		for(long i = 0; i < N; i++){
+			for(int j = i + 1; j < N; j++){
+				cpx val = op(i, j);
+				const double w_nm = abs(eigenvalues(j) - eigenvalues(i));
+				if( abs( (eigenvalues(j) + eigenvalues(i)) / 2. - E_av) > 0.1 * this->L / 2. ) continue;
+				if( abs(val) == 0.0) continue;
+			#pragma omp critical
+				delta.push_back(w_nm);
 			}
 		}
 	}
+	wH /= double(this->realisations);
+	
+	//double tH = 1. / wH;
+	//int time_end = (int)std::ceil(std::log10(3 * tH));
+	//time_end = (time_end / std::log10(tH) < 2.0) ? time_end + 1 : time_end;
+	//auto bins = arma::logspace(-time_end, 2, 1000);
+	//arma::vec spec_fun(bins.size(), arma::fill::zeros);
+	arma::vec energy_diff = arma::log(arma::vec(delta));
+	long n_bins = 1 + 2 * long(3.322 * log(energy_diff.size()));
+	n_bins = 300;
+	const double _min = arma::min(energy_diff);
+	const double _max = arma::max(energy_diff);
+	arma::vec spec_fun = arma::conv_to<arma::vec>::from(
+            arma::hist(energy_diff, n_bins)
+            );
+	spec_fun = normalise_dist(arma::square(arma::abs(spec_fun)), _min, _max);
+	auto omega = arma::linspace(_min, _max, spec_fun.size());
+    save_to_file<double>(this->saving_dir + "IntegrableLimit_g=0" + alfa->get_info() + ".dat", omega, spec_fun, wH);
+	smoothen_data(this->saving_dir, "IntegrableLimit_g=0" + alfa->get_info() + ".dat");
+	//statistics::probability_distribution(this->saving_dir, "IntegrableLimit_g=0" + alfa->get_info(), energy_diff, -1);
+continue;
+							
+							average_SFF(); continue;
+
+							//combine_spectra(); 
+							analyze_spectra(); continue;
+							spectral_form_factor(); continue;
+						}}}}}}
 	stout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - " << std::endl; // simulation end
 }
 
