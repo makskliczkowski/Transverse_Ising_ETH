@@ -35,16 +35,16 @@ fileexist(name)=system("[ -f '".name."' ] && echo '1' || echo '0'") + 0#int(syst
 MARGIN = "set lmargin at screen 0.10; set rmargin at screen 0.99; set bmargin at screen 0.10; set tmargin at screen 0.99;"
 UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset border;"
 #---------------------------- PARAMETERS
-model = 0       # 1=symmetries and 0=disorder
+model = 1       # 1=symmetries and 0=disorder
 w = 0.3
-g = 0.4
+g = 0.9
 L = 14
 h = 0.8
 J = 1.0
 
 what = 1                    # 0 - DOS / 1 - Lvl-spacing Distribution / 2 - unfolding analysis
 plot_typical_wH = 0         # plot only the scaling of wH_typical
-scaling = 3                 # 0 - J scaling / 1 - L scaling / 2 - w scaling
+scaling = 0                 # 0 - J scaling / 1 - L scaling / 2 - w scaling
 
 use_unfolded = 1            # use unfolded energies for DOS
 use_logarithmic = 0         # use low(w) distribution

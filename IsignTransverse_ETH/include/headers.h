@@ -92,6 +92,7 @@ DISABLE_WARNING_POP
 //#include <condition_variable>
 #include <functional>
 #include <type_traits>
+#include <concepts>
 //#include <execution>
 #ifdef __has_include
 #  if __has_include(<filesystem>)
@@ -117,7 +118,7 @@ namespace fs = std::experimental::filesystem;
 #endif
 
 #if defined(MY_MAC) && !defined(HEISENBERG)
-	#define HEISENBERG
+	//#define HEISENBERG
 #endif
 
 extern std::random_device rd;
@@ -164,7 +165,7 @@ using v_1d = std::vector<T>;																	// 1d double vector
 #define R4(n) R2(n), R2(n + 2*16), R2(n + 1*16), R2(n + 3*16)
 #define R6(n) R4(n), R4(n + 2*4 ), R4(n + 1*4 ), R4(n + 3*4 )
 #define REVERSE_BITS R6(0), R6(2), R6(1), R6(3)
-#define ULLPOW(k) 1ULL << k
+#define ULLPOW(k) (1ULL << k)
 #define RETURNS(...) -> decltype((__VA_ARGS__)) { return (__VA_ARGS__); }
 // ----------------------------------------------------------------------------- lookup table to store the reverse of each index of the table -----------------------------------------------------------------------------
 // The macro `REVERSE_BITS` generates the table
@@ -177,7 +178,15 @@ const v_1d<u64> BinaryPowers = { ULLPOW(0), ULLPOW(1), ULLPOW(2), ULLPOW(3),
 								ULLPOW(16), ULLPOW(17), ULLPOW(18), ULLPOW(19),
 								ULLPOW(20), ULLPOW(21), ULLPOW(22), ULLPOW(23),
 								ULLPOW(24), ULLPOW(25), ULLPOW(26), ULLPOW(27),
-								ULLPOW(28), ULLPOW(29), ULLPOW(30), ULLPOW(31) }; // vector containing powers of 2 from 2^0 to 2^(L-1)
+								ULLPOW(28), ULLPOW(29), ULLPOW(30), ULLPOW(31),
+								ULLPOW(32), ULLPOW(33), ULLPOW(34), ULLPOW(35),
+								ULLPOW(36), ULLPOW(37), ULLPOW(38), ULLPOW(39),
+								ULLPOW(40), ULLPOW(41), ULLPOW(42), ULLPOW(43),
+								ULLPOW(44), ULLPOW(45), ULLPOW(46), ULLPOW(47),
+								ULLPOW(48), ULLPOW(49), ULLPOW(50), ULLPOW(51),
+								ULLPOW(52), ULLPOW(53), ULLPOW(54), ULLPOW(55),
+								ULLPOW(56), ULLPOW(57), ULLPOW(58), ULLPOW(59),
+								ULLPOW(60), ULLPOW(61), ULLPOW(62), ULLPOW(63) }; // vector containing powers of 2 from 2^0 to 2^(L-1)
 
 // ----------------------------------------------------------------------------- CONSTANTS -----------------------------------------------------------------------------
 extern int num_of_threads;													// number of threads
@@ -447,6 +456,20 @@ inline u64 binomial(int n, int k) {
 inline arma::vec create_random_vec(u64 N, double h = 1.0) {
 	arma::vec random_vec(N, arma::fill::zeros);
 	std::uniform_real_distribution<double> distribute(-h, h);
+	// create random vector from middle to always append new disorder at lattice endpoint
+	for (u64 j = 0; j <= N / 2.; j++) {
+		u64 idx = N / (long)2 - j;
+		random_vec(idx) = distribute(gen);
+		idx += 2 * j;
+		if (idx < N) random_vec(idx) = distribute(gen);
+	}
+	return random_vec;
+}
+
+template <typename _type>
+inline arma::Col<_type> create_random_vec(u64 N, _type _min, _type _max) {
+	arma::Col<_type> random_vec(N, arma::fill::zeros);
+	std::uniform_real_distribution<_type> distribute(_min, _max);
 	// create random vector from middle to always append new disorder at lattice endpoint
 	for (u64 j = 0; j <= N / 2.; j++) {
 		u64 idx = N / (long)2 - j;

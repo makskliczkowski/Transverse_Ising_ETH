@@ -17,7 +17,8 @@ void isingUI::ui::make_sim()
 	auto h_list = this->get_params_array(Ising_params::h);
 	auto w_list = this->get_params_array(Ising_params::w);
 	//generate_statistic_map(Ising_params::w, Ising_params::g);	return;
-	
+
+
 	switch (this->fun)
 	{
 	case 0: 
@@ -60,7 +61,10 @@ void isingUI::ui::make_sim()
 							this->J = Jx;
 							this->w = wx;
 							const auto start_loop = std::chrono::system_clock::now();
+<<<<<<< HEAD
 							
+=======
+>>>>>>> origin/Rafal_main
 							stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
 							printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
 								auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
@@ -377,7 +381,7 @@ arma::vec isingUI::ui::get_params_array(Ising_params par){
 void isingUI::ui::compare_energies()
 {
 	// handle disorder
-	auto Hamil = std::make_unique<IsingModel_disorder>(L, J, 0, g, 0, h, 0, boundary_conditions);
+	auto Hamil = std::make_unique<IsingModel_disorder>(L, J, this->J0, g, this->g0, h, this->w, boundary_conditions);
 	Hamil->diagonalization();
 	const arma::vec E_dis = Hamil->get_eigenvalues();
 	Hamil.release();
@@ -744,13 +748,13 @@ void isingUI::ui::calculate_spectrals()
 		
 		stout << "\t\t	--> finished diagonalizing for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 		auto U = alfa.get_eigenvectors();
-		
+		arma::vec E = alfa.get_eigenvalues();
 		stout << "\t\t	--> got eigenvectors for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 		arma::cx_mat mat_elem = U.t() * op * U;
 		normaliseMat(mat_elem);
 		stout << "\t\t	--> set matrix elements for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 
-		auto [op_tmp, LTA_tmp] = spectrals::autocorrelation_function(alfa, mat_elem, times);
+		auto [op_tmp, LTA_tmp] = spectrals::autocorrelation_function(mat_elem, E, times);
 		save_to_file(tdir_realisation + opName + info + ".dat", times, op_tmp, tH, LTA_tmp);
 		stout << "\t\t	--> finished time evolution for " << info
 			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n\tNEXT: spectral function" << std::endl;
@@ -760,7 +764,7 @@ void isingUI::ui::calculate_spectrals()
 		stout << "\t\t	--> finished spectral function for " << info
 			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n\tNEXT: integrated spectral function" << std::endl;
 		
-		auto res = spectrals::integratedSpectralFunction(alfa, mat_elem, omegas);
+		auto res = spectrals::integratedSpectralFunction(mat_elem, E, omegas);
 		save_to_file(intdir_realisation + opName + info + ".dat", omegas, res, 1. / tH, LTA_tmp);
 		stout << "\t\t	--> finished integrated spectral function for " << info
 			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
@@ -1479,14 +1483,9 @@ void isingUI::ui::spectral_form_factor(){
 		if(eigenvalues.empty()) return;
 		const u64 N = eigenvalues.size();
 		// ------------------------------------- calculate gap ratio
-			double E_av = arma::trace(eigenvalues) / double(N);
+			u64 E_av_idx = spectrals::get_mean_energy_index(eigenvalues);
 			const u64 num = this->L <= 9? 0.25 * N : 0.5 * N;
 			const u64 num2 = this->L <= 10? 50 : 500;
-
-			auto i = min_element(begin(eigenvalues), end(eigenvalues), [=](double x, double y) {
-				return abs(x - E_av) < abs(y - E_av);
-				});
-			u64 E_av_idx = i - eigenvalues.begin();
 
 		// ------------------------------------- calculate level statistics
 			double r1_tmp = statistics::eigenlevel_statistics((E_av_idx - num / 2) + eigenvalues.begin(), (E_av_idx + num / 2) + eigenvalues.begin());
@@ -1709,6 +1708,7 @@ void isingUI::ui::average_SFF(){
 void isingUI::ui::thouless_times()
 {
 	const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
+	auto Jx_list = arma::linspace(this->J, this->J + this->Js * (this->Jn - 1), this->Jn);
 	auto gx_list = arma::linspace(this->g, this->g + this->gs * (this->gn - 1), this->gn);
 	auto hx_list = arma::linspace(this->h, this->h + this->hs * (this->hn - 1), this->hn);
 	auto wx_list = arma::linspace(this->w, this->w + this->ws * (this->wn - 1), this->wn);
@@ -1773,10 +1773,11 @@ void isingUI::ui::thouless_times()
 	std::ofstream map;
 	openFile(map, dir + "_all" + info + ".dat", ios::out);
 	for (int size = Lmin; size < Lmax; size += this->Ls){
-		for(double Jx = this->J; Jx <= 1.55; Jx += 0.05){
+		for(auto& Jx : Jx_list){
 			for (auto &gx : gx_list){
 				for (auto &hx : hx_list){
 					for(auto& x : _list){	// either disorder w (m=0) or symmetry sector k (m=1)
+						printSeparated(std::cout, "\t", 16, true, size, Jx, gx, hx, x);
 						kernel(size, Jx, gx, hx, x, map, size, Jx, gx, hx, x);
 		}}}}}
 	map.close();
