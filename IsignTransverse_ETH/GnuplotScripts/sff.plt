@@ -21,19 +21,19 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 model = 0       # 1=symmetries and 0=disorder
 heisenberg=1
 
-w = 0.5
+w = 2.2
 g = 0.55
-L = 18
+L = 16
 h = 0.0
-J = 1.00
+J = 1.0
 Jdis = 0.0
 gdis = 0.0
 k=1
 
-scaling = 4     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
+scaling = 1     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
 smoothed = 0        # smoothed ?
 plot_der_GOE = 0	 # plot deriviation from GOE value
-zoom_in = 0          # zoom in to collapse on GOE
+zoom_in = 1          # zoom in to collapse on GOE
 find_Thouless = 1    # find thouless time?
 add_gap_ratio = 1	 # add gap ratio
 rescale_times = 0	 # rescale times by size or parameter
@@ -48,10 +48,10 @@ if(scaling < 0 || scaling > 4 || zoom_in == 1) add_gap_ratio = 0;
 if(plot_der_GOE){ zoom_in = 0;}
 
 	h0 = 5;     hend = 50;		dh = 5;
-	g0 = 5;    gend = 120;		dg = 5;
-    J0 = 5;    Jend = 150;     dJ = 5
-	L0 = 10;	    Lend = 18; 		dL = 2;
-	w0 = 2;		wend = 50;			dw = 2;
+	g0 = 4;    gend = 150;		dg = 4;
+    J0 = 2;    Jend = 100;     dJ = 2
+	L0 = 10;	    Lend = 18; 		dL = 1;
+	w0 = 160;		wend = 300;			dw = 10;
 	w_num = (wend-w0)/dw + 1;	array w_list[w_num];
 	do for[i=1:w_num]{ w_list[i] = 0.01*w0 + 0.01*dw*(i-1);}
     h_list = '0.20 0.60 1.20 1.40 1.60 1.80 2.40 3.00 3.60'
@@ -132,7 +132,7 @@ if(!rescale_times){ _rescale_times(x,i)=x;}
 		idx = (i-i0)/di+1
 		name = _name(i)
 		tau[idx] = 0.0; y_vals[idx] = NaN;	gap_ratio[idx] = NaN;
-		print name;
+		#print name;
 		if(fileexist(name)){
             f(x,y) = x > 2.5? NaN : ((log10( y / GOE(x) )) - eps)**2
 			stats name u 1 nooutput; bool = STATS_min;

@@ -10,6 +10,7 @@ from numpy import float as npfloat
 import scipy
 import helper_functions as hfun
 import config as cf
+import copy
 importlib.reload(cf)
 
 #--- Global
@@ -79,7 +80,7 @@ def load() :
 
     #--- SET SCALING RANGES AND DATA
     x0 = 0.2
-    xend = 1.0
+    xend = 2.0
     dx = 0.1
 
     length = int((xend-x0) / dx) + 1
@@ -140,7 +141,10 @@ def plot(axis1, axis2, new_settings = None) :
         user_settings = new_settings
 
     def key_title(x):
-        return user_settings['scaling'] + (f"=%d"%(vals[i]) if user_settings['scaling_idx'] == 0 else f"=%.2f"%(vals[i]))
+        scaling_str = user_settings['scaling']
+        if user_settings['scaling_idx'] == 2:
+            scaling_str = hfun.var_name
+        return scaling_str + (f"=%d"%(vals[i]) if user_settings['scaling_idx'] == 0 else f"=%.2f"%(vals[i]))
 
     #--- load data 
     vals, xvals, tau, gap_ratio = load()
@@ -151,13 +155,14 @@ def plot(axis1, axis2, new_settings = None) :
     y_min = 1.0e10;     y_max = -1.0e10;
     x_min = 1.0e10;     x_max = -1.0e10;
 
-    rescale_by_Lsquare = 0
-
+    rescale_by_L_nu = 0
+    nu = 2
     for i in range(0, num_of_plots):
         yvals = tau[i]
-        if rescale_by_Lsquare and user_settings['vs_idx'] > 0 : yvals = yvals / (vals[i]**2 if user_settings['scaling_idx'] == 0 else cf.L**2)
+        if rescale_by_L_nu and user_settings['vs_idx'] > 0 : yvals = yvals / (vals[i]**nu if user_settings['scaling_idx'] == 0 else cf.L**nu)
         yvals = cf.plot_settings.rescale(yvals, 'y')
         xx = cf.plot_settings.rescale(xvals[i], 'x')
+        #if cf.hamiltonian and (user_settings['vs_idx'] == 0): xx = log(scipy.special.binom(xx, xx / 2)) / log(2)
         p = axis1.plot(xx, yvals, label=key_title(vals[i]))
         m = []; fc = [];    ec.append(p[0].get_color())
         
@@ -178,7 +183,7 @@ def plot(axis1, axis2, new_settings = None) :
             m.append( 's' if r <= 0.46 else 'o')
             fc.append( p[0].get_color() if ( abs(r-0.53) <= 0.01 or abs(r-0.3865) <= 0.01 ) else 'none' )
         for j in range(0, len(tau[i])) :
-            axis1.scatter(cf.plot_settings.rescale(xvals[i][j], 'x'), yvals[j], edgecolors=ec[i], marker=m[j], s=50, facecolor=fc[j])
+            axis1.scatter(xx[j], yvals[j], edgecolors=ec[i], marker=m[j], s=50, facecolor=fc[j])
         
         # save markers for gap_ratio plot
         marker_style.append(m); face_colors.append(fc)
@@ -186,9 +191,13 @@ def plot(axis1, axis2, new_settings = None) :
     #-- set panel1 details
     print(x_min, x_max, y_min, y_max, user_settings['vs_idx'], user_settings['scaling_idx'])
     yrange = (0.9*y_min, 1.1*y_max)
-    ylab = "\\tau/L^2" if rescale_by_Lsquare and user_settings['vs_idx'] > 0 else "\\tau"
+    ylab = "\\tau/L^{%d}"%nu if rescale_by_L_nu and user_settings['vs_idx'] > 0 else "\\tau"
+    vs_str = user_settings['vs']
+    if user_settings['vs_idx'] == 2:
+        vs_str = hfun.var_name
+
     hfun.set_plot_elements(axis = axis1, xlim = (0.98*x_min, 1.02*x_max), 
-                                ylim = yrange, ylabel = ylab, settings=user_settings)
+                                ylim = yrange, ylabel = ylab, xlabel = vs_str, settings=user_settings)
     axis1.grid()
     axis1.legend()
     title = ""
@@ -196,7 +205,12 @@ def plot(axis1, axis2, new_settings = None) :
         title = hfun.remove_info(hfun.info_param(cf.params_arr), user_settings['vs'], user_settings['scaling'], 'w') + ',w=0.5h'
     else :
         title = hfun.remove_info(hfun.info_param(cf.params_arr), user_settings['vs'], user_settings['scaling'])
-    
+    if user_settings['vs_idx'] != 2 :
+        try : 
+            title = list(title);    title[title.index('g')] = hfun.var_name;   title = "".join(title) # g
+            title = list(title);    title[title.index('g')] = hfun.var_name;   title = "".join(title) # g0
+        except ValueError:
+                print("not found")
     axis1.title.set_text(title)
 
 
@@ -206,10 +220,11 @@ def plot(axis1, axis2, new_settings = None) :
     #--- plot second panel with gap ratios
     x_min = 1.0e10;     x_max = -1.0e10;
     for i in range(0, num_of_plots):
-        norm = float(1. / sqrt(scipy.special.binom(vals[i], vals[i] / 2.) / sqrt(vals[i])) ) if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0
-        #norm = float(exp(-log(2)/2*vals[i]) if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0)
-        #norm = float(vals[i] if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0)
-        xpoints = xvals[i] / norm
+        D = scipy.special.binom(vals[i], vals[i] / 2.)
+        #norm = float(sqrt(D / sqrt(vals[i])) ) if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0
+        #norm = float(exp(log(2)/4*vals[i]) if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0)
+        norm = float(vals[i] if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0)
+        xpoints = xvals[i] * norm
 
         min = xpoints.min();  max = xpoints.max()
         if min < x_min: x_min = min
@@ -217,13 +232,13 @@ def plot(axis1, axis2, new_settings = None) :
         axis2.plot(xpoints, gap_ratio[i], label=key_title(vals[i]))
         for j in range(0, len(tau[i])) :
             axis2.scatter(xpoints[j], gap_ratio[i][j], edgecolors=ec[i], marker=marker_style[i][j], s=50, facecolor=face_colors[i][j])
-    new_set_class = cf.plot_settings;
+    new_set_class = copy.deepcopy(cf.plot_settings)
     new_set_class.set_x_rescale(rescale=0)
     new_set = getattr(new_set_class, 'settings')
-    #new_set['y_scale'] = 'linear';  new_set['x_scale'] = 'log'
-    #xlab = new_set['vs'] + (" \\cdot L" if rescale_by_L else "")
+    new_set['y_scale'] = 'linear';  new_set['x_scale'] = 'linear'
+    xlab = new_set['vs'] + (" \\cdot L" if rescale_by_L else "")
     #xlab = new_set['vs'] + (" \\cdot e^{\\frac{ln2}{2}L}" if rescale_by_L else "")
-    xlab = new_set['vs'] + (" \\cdot D^{-1/2}L^{-1/4}" if rescale_by_L else "")
+    #xlab = new_set['vs'] + (" \\cdot D^{1/2}L^{1/4}" if rescale_by_L else "")
     hfun.set_plot_elements(axis = axis2, xlim = (0.98*x_min, 1.02*x_max), 
                                 ylim = (0.37, 0.54), xlabel = xlab, ylabel = 'r', settings=new_set)
     #--- additional lines on plot

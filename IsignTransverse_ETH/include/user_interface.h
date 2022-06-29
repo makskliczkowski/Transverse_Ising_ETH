@@ -3,10 +3,10 @@
 #define UI
 //#include "headers.h"
 #include "IsingModel.h"
-#include "spectrals.hpp"
-#include "thermodynamics.hpp"
 #include "statistics.hpp"
 #include "statistics_dist.hpp"
+#include "spectrals.hpp"
+#include "thermodynamics.hpp"
 #include "entaglement.hpp"
 #include "adiabatic_gauges.hpp"
 #include "ThomasAlgorithm.hpp"

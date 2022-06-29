@@ -17,8 +17,8 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 		",w=" + to_string_prec(this->w, 2);
 	this->set_neighbors();
 	#ifndef HEISENBERG
-		if(this->g == 0 && this->g0 == 0)
-			generate_mapping();
+		//if(this->g == 0 && this->g0 == 0)
+		//	generate_mapping();
 	#else
 		generate_mapping();
 	#endif	
@@ -35,6 +35,7 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 u64 IsingModel_disorder::map(u64 index) const {
 	if (index < 0 || index >= std::pow(2, L)) throw "Element out of range\n No such index in map\n";
 	#ifndef HEISENBERG
+		return index;
 		return (this->g == 0 && this->g0 == 0? mapping[index] : index);
 	#else
 		return mapping[index];
@@ -45,6 +46,7 @@ u64 IsingModel_disorder::find_in_map(u64 index) const {
 	#ifdef HEISENBERG
 		return binary_search(this->mapping, 0, this->N - 1, index);
 	#else
+		return index;
 		return (this->g == 0 && this->g0 == 0)? binary_search(this->mapping, 0, this->N - 1, index) : index;
 	#endif
 }
@@ -113,29 +115,31 @@ void IsingModel_disorder::hamiltonian() {
 }
 
 void IsingModel_disorder::hamiltonian_Ising() {
-	for (long int k = 0; k < N; k++) {
+	for (u64 k = 0; k < N; k++) {
 		double s_i, s_j;
+		u64 base_state = map(k);
 		for (int j = 0; j <= L - 1; j++) {
-			s_i = checkBit(k, L - 1 - j) ? 1.0 : -1.0;;							 // true - spin up, false - spin down
+			s_i = checkBit(base_state, L - 1 - j) ? 1.0 : -1.0;;							 // true - spin up, false - spin down
 
-			u64 new_idx = flip(k, BinaryPowers[this->L - 1 - j], this->L - 1 - j);
-			setHamiltonianElem(k, this->g + this->dg(j), new_idx);
-
+			if( this->g != 0 || this->dg(j) != 0){
+				u64 new_idx = flip(base_state, BinaryPowers[this->L - 1 - j], this->L - 1 - j);
+				setHamiltonianElem(k, this->g + this->dg(j), new_idx);
+			}
 			/* disorder */
 			H(k, k) += (this->h + dh(j)) * s_i;                             // diagonal elements setting
 
 			if (nearest_neighbors[j] >= 0) {
 				/* Ising-like spin correlation */
-				s_j = checkBit(k, this->L - 1 - nearest_neighbors[j]) ? 1.0 : -1.0;
+				s_j = checkBit(base_state, this->L - 1 - nearest_neighbors[j]) ? 1.0 : -1.0;
 				this->H(k, k) += (this->J + this->dJ(j)) * s_i * s_j;		// setting the neighbors elements
 			}
 		}
 	}
 }
 void IsingModel_disorder::hamiltonian_heisenberg(){
-	for (long int k = 0; k < N; k++) {
+	for (u64 k = 0; k < N; k++) {
 		double s_i, s_j;
-		int base_state = map(k);
+		u64 base_state = map(k);
 		for (int j = 0; j <= L - 1; j++) {
 			s_i = checkBit(base_state, L - 1 - j) ? 0.5 : -0.5;							 // true - spin up, false - spin down
 			/* disorder */
@@ -157,7 +161,7 @@ void IsingModel_disorder::hamiltonian_heisenberg(){
 		}
 		//std::cout << std::bitset<4>(base_state) << "\t";
 	}
-	std::cout << std::endl << arma::mat(this->H) << std::endl;
+	//std::cout << std::endl << arma::mat(this->H) << std::endl;
 }
 // ----------------------------------------------------------------------------- PHYSICAL QUANTITES -----------------------------------------------------------------------------
 
@@ -166,10 +170,12 @@ arma::sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_ty
 	arma::sp_cx_mat opMatrix(this->N, this->N);
 #pragma omp parallel for
 	for (long int k = 0; k < N; k++) {
+		u64 base_state = map(k);
 		for (auto& op : operators) {
 			cpx value; u64 new_idx;
-			std::tie(value, new_idx) = op(k, this->L, sites);
+			std::tie(value, new_idx) = op(base_state, this->L, sites);
 			u64 idx = find_in_map(new_idx);
+			if(idx > this->N) continue;
 		#pragma omp critical
 			opMatrix(idx, k) += value;
 		}
@@ -180,11 +186,13 @@ arma::sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_ty
 	arma::sp_cx_mat opMatrix(this->N, this->N);
 #pragma omp parallel for
 	for (long int k = 0; k < N; k++) {
+		u64 base_state = map(k);
 		for (int j = 0; j < this->L; j++) {
 			for (auto& op : operators) {
 				cpx value; u64 new_idx;
-				std::tie(value, new_idx) = op(k, this->L, { j });
+				std::tie(value, new_idx) = op(base_state, this->L, { j });
 				u64 idx = find_in_map(new_idx);
+				if(idx > this->N) continue;
 			#pragma omp critical
 				opMatrix(idx, k) += value;
 			}
@@ -197,13 +205,15 @@ arma::sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_ty
 	auto neis = get_neigh_vector(this->_BC, this->L, corr_len);
 #pragma omp parallel for
 	for (long int k = 0; k < N; k++) {
+		u64 base_state = map(k);
 		for (int j = 0; j < this->L; j++) {
 			const int nei = neis[j];
 			if (nei < 0) continue;
 			for (auto& op : operators) {
 				cpx value; u64 new_idx;
-				std::tie(value, new_idx) = op(k, this->L, { j, nei });
+				std::tie(value, new_idx) = op(base_state, this->L, { j, nei });
 				u64 idx = find_in_map(new_idx);
+				if(idx > this->N) continue;
 			#pragma omp critical
 				opMatrix(idx, k) += value;
 			}
@@ -222,10 +232,11 @@ arma::sp_cx_mat IsingModel_disorder::fourierTransform(op_type op, int k) const {
 	}
 #pragma omp parallel for
 	for (long int n = 0; n < N; n++) {
+		u64 base_state = map(N);
 		cpx value = 0.0;
 		u64 new_idx = 0;
 		for (int j = 0; j < this->L; j++) {
-			std::tie(value, new_idx) = op(n, this->L, { j });
+			std::tie(value, new_idx) = op(base_state, this->L, { j });
 			u64 idx = find_in_map(new_idx);
 		#pragma omp critical
 			{
@@ -243,27 +254,28 @@ arma::sp_cx_mat IsingModel_disorder::createHq(int k) const {
 		k_exp[j] = std::cos(q * double(j + 1));
 #pragma omp parallel for
 	for (long int n = 0; n < this->N; n++) {
+		u64 base_state = map(N);
 		cpx __2 = 0.0, __3 = 0.0;
 		u64 new_idx1 = 0, new_idx2 = 0;
 		for (int j = 0; j < this->L; j++) {
 			auto nei = this->nearest_neighbors[j];			
-			auto [s_i, __1] = IsingModel_disorder::sigma_z(n, this->L, { j });
+			auto [s_i, __1] = IsingModel_disorder::sigma_z(base_state, this->L, { j });
 			opMatrix(n, n) += this->h / 2. * s_i * k_exp[j];
 
-			std::tie(__2, new_idx1) = IsingModel_disorder::sigma_x(n, this->L, { j });
+			std::tie(__2, new_idx1) = IsingModel_disorder::sigma_x(base_state, this->L, { j });
 			u64 idx1 = find_in_map(new_idx1);
 		#pragma omp critical
 			{
 				opMatrix(idx1, n) += this->g / 2. * k_exp[j];
 			}
 			if (nei >= 0) {
-				std::tie(__3, new_idx2) = IsingModel_disorder::sigma_x(n, this->L, { nei });
+				std::tie(__3, new_idx2) = IsingModel_disorder::sigma_x(base_state, this->L, { nei });
 				u64 idx2 = find_in_map(new_idx2);
 			#pragma omp critical
 				{
 					opMatrix(idx2, n) += this->g / 2. * k_exp[j];
 				}
-				auto [s_j, __4] = IsingModel_disorder::sigma_z(n, this->L, { nei });
+				auto [s_j, __4] = IsingModel_disorder::sigma_z(base_state, this->L, { nei });
 
 				opMatrix(n, n) += (this->J * s_i + this->h / 2.) * s_j * k_exp[j];
 			}
@@ -275,26 +287,27 @@ arma::sp_cx_mat IsingModel_disorder::createHlocal(int k) const {
 	arma::sp_cx_mat opMatrix(this->N, this->N);
 #pragma omp parallel for
 	for (long int n = 0; n < this->N; n++) {
+		u64 base_state = map(n);
 		cpx __2 = 0.0, __3 = 0.0;
 		u64 new_idx1 = 0, new_idx2 = 0;
 		auto nei = this->nearest_neighbors[k];
-		auto [s_i, __1] = IsingModel_disorder::sigma_z(n, this->L, { k });
+		auto [s_i, __1] = IsingModel_disorder::sigma_z(base_state, this->L, { k });
 		opMatrix(n, n) += this->h / 2. * s_i;
 
-		std::tie(__2, new_idx1) = IsingModel_disorder::sigma_x(n, this->L, { k });
+		std::tie(__2, new_idx1) = IsingModel_disorder::sigma_x(base_state, this->L, { k });
 		u64 idx1 = find_in_map(new_idx1);
 	#pragma omp critical
 		{
 			opMatrix(idx1, n) += this->g / 2.;
 		}
 		if (nei >= 0) {
-			std::tie(__3, new_idx2) = IsingModel_disorder::sigma_x(n, this->L, { nei });
+			std::tie(__3, new_idx2) = IsingModel_disorder::sigma_x(base_state, this->L, { nei });
 			u64 idx2 = find_in_map(new_idx2);
 		#pragma omp critical
 			{
 				opMatrix(idx2, n) += this->g / 2.;
 			}
-			auto [s_j, __4] = IsingModel_disorder::sigma_z(n, this->L, { nei });
+			auto [s_j, __4] = IsingModel_disorder::sigma_z(base_state, this->L, { nei });
 
 			opMatrix(n, n) += (this->J * s_i + this->h / 2.) * s_j;
 		}
