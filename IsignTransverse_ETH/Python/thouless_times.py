@@ -155,7 +155,7 @@ def plot(axis1, axis2, new_settings = None) :
     y_min = 1.0e10;     y_max = -1.0e10;
     x_min = 1.0e10;     x_max = -1.0e10;
 
-    rescale_by_L_nu = 1
+    rescale_by_L_nu = 0
     nu = 2
     for i in range(0, num_of_plots):
         yvals = tau[i]
@@ -205,9 +205,12 @@ def plot(axis1, axis2, new_settings = None) :
         title = hfun.remove_info(hfun.info_param(cf.params_arr), user_settings['vs'], user_settings['scaling'], 'w') + ',w=0.5h'
     else :
         title = hfun.remove_info(hfun.info_param(cf.params_arr), user_settings['vs'], user_settings['scaling'])
-    try : idx = title.index('g='); title = list(title);    title[idx] = r"$%s=$"%vs_str;   title = "".join(title)
-    except ValueError:
-            print("not found")
+    if user_settings['vs_idx'] != 2 :
+        try : 
+            title = list(title);    title[title.index('g')] = hfun.var_name;   title = "".join(title) # g
+            title = list(title);    title[title.index('g')] = hfun.var_name;   title = "".join(title) # g0
+        except ValueError:
+                print("not found")
     axis1.title.set_text(title)
 
 
@@ -232,7 +235,7 @@ def plot(axis1, axis2, new_settings = None) :
     new_set_class = copy.deepcopy(cf.plot_settings)
     new_set_class.set_x_rescale(rescale=0)
     new_set = getattr(new_set_class, 'settings')
-    new_set['y_scale'] = 'linear';  #new_set['x_scale'] = 'log'
+    new_set['y_scale'] = 'linear';  new_set['x_scale'] = 'linear'
     xlab = new_set['vs'] + (" \\cdot L" if rescale_by_L else "")
     #xlab = new_set['vs'] + (" \\cdot e^{\\frac{ln2}{2}L}" if rescale_by_L else "")
     #xlab = new_set['vs'] + (" \\cdot D^{1/2}L^{1/4}" if rescale_by_L else "")

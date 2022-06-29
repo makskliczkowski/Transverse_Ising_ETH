@@ -175,6 +175,7 @@ arma::sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_ty
 			cpx value; u64 new_idx;
 			std::tie(value, new_idx) = op(base_state, this->L, sites);
 			u64 idx = find_in_map(new_idx);
+			if(idx > this->N) continue;
 		#pragma omp critical
 			opMatrix(idx, k) += value;
 		}
@@ -191,6 +192,7 @@ arma::sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_ty
 				cpx value; u64 new_idx;
 				std::tie(value, new_idx) = op(base_state, this->L, { j });
 				u64 idx = find_in_map(new_idx);
+				if(idx > this->N) continue;
 			#pragma omp critical
 				opMatrix(idx, k) += value;
 			}

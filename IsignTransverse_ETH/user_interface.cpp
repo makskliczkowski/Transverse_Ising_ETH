@@ -63,58 +63,63 @@ void isingUI::ui::make_sim()
 							const auto start_loop = std::chrono::system_clock::now();
 							stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
 							printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
-								auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-	const u64 N = alfa->get_hilbert_size();
-	arma::sp_cx_mat op = alfa->create_operator({IsingModel_disorder::sigma_x}, 1);
-	
-	auto set_E = [&](){
-		alfa->hamiltonian();
-		auto H = alfa->get_hamiltonian();
-		arma::vec eigenvaluess(N);
-		for(int i = 0; i < N; i++)
-			eigenvaluess(i) = H(i,i);
-		return eigenvaluess;
-	};
-	std::vector<double> delta;
-	double wH = 0;
-	for(int r = 0; r < this->realisations; r++){
-		arma::vec eigenvalues = set_E();
-		const u64 E_av_idx = spectrals::get_mean_energy_index(eigenvalues);
-		const double E_av = eigenvalues(E_av_idx);
-		wH += statistics::mean_level_spacing(eigenvalues.begin() + u64(E_av_idx - 0.25 * N), eigenvalues.begin() + u64(E_av_idx + 0.25 * N));
-	#pragma omp parallel for
-		for(long i = 0; i < N; i++){
-			for(int j = i + 1; j < N; j++){
-				cpx val = op(i, j);
-				const double w_nm = abs(eigenvalues(j) - eigenvalues(i));
-				if( abs( (eigenvalues(j) + eigenvalues(i)) / 2. - E_av) > 0.1 * this->L / 2. ) continue;
-				if( abs(val) == 0.0) continue;
-			#pragma omp critical
-				delta.push_back(w_nm);
-			}
-		}
-	}
-	wH /= double(this->realisations);
-	
-	//double tH = 1. / wH;
-	//int time_end = (int)std::ceil(std::log10(3 * tH));
-	//time_end = (time_end / std::log10(tH) < 2.0) ? time_end + 1 : time_end;
-	//auto bins = arma::logspace(-time_end, 2, 1000);
-	//arma::vec spec_fun(bins.size(), arma::fill::zeros);
-	arma::vec energy_diff = arma::log(arma::vec(delta));
-	long n_bins = 1 + 2 * long(3.322 * log(energy_diff.size()));
-	n_bins = 300;
-	const double _min = arma::min(energy_diff);
-	const double _max = arma::max(energy_diff);
-	arma::vec spec_fun = arma::conv_to<arma::vec>::from(
-            arma::hist(energy_diff, n_bins)
-            );
-	spec_fun = normalise_dist(arma::square(arma::abs(spec_fun)), _min, _max);
-	auto omega = arma::linspace(_min, _max, spec_fun.size());
-    save_to_file<double>(this->saving_dir + "IntegrableLimit_g=0" + alfa->get_info() + ".dat", omega, spec_fun, wH);
-	smoothen_data(this->saving_dir, "IntegrableLimit_g=0" + alfa->get_info() + ".dat");
-	//statistics::probability_distribution(this->saving_dir, "IntegrableLimit_g=0" + alfa->get_info(), energy_diff, -1);
-continue;
+							
+							auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+							const u64 N = alfa->get_hilbert_size();
+							arma::sp_cx_mat op = alfa->create_operator({IsingModel_disorder::sigma_x}, std::vector<int>({ this->L / 2}));
+							
+							auto set_E = [&](){
+								arma::vec dh = create_random_vec(L, this->w);                               // creates random disorder vector
+								arma::vec eigenvaluess(N, arma::fill::zeros);
+								for (u64 k = 0; k < N; k++) {
+									double s_i, s_j;
+									for (int j = 0; j <= L - 1; j++) {
+										s_i = checkBit(k, L - 1 - j) ? 1.0 : -1.0;;							 // true - spin up, false - spin down
+
+										/* disorder */
+										eigenvaluess(k) += (this->h + dh(j)) * s_i;                             // diagonal elements setting
+										int nei = (j + 1) % this->L;
+
+										/* Ising-like spin correlation */
+										s_j = checkBit(k, this->L - 1 - nei) ? 1.0 : -1.0;
+										eigenvaluess(k) += this->J * s_i * s_j;		// setting the neighbors elements
+									}
+								}
+								return eigenvaluess;
+							};
+							std::vector<double> delta;
+							
+						#pragma omp parallel for
+							for(int r = 0; r < this->realisations; r++){
+								arma::vec eigenvalues = set_E();
+								const u64 E_av_idx = spectrals::get_mean_energy_index(eigenvalues);
+								const double E_av = eigenvalues(E_av_idx);
+								for(u64 i = 0; i < N; i++){
+									for(u64 j = i + 1; j < N; j++){
+										cpx val = op(i, j);
+										const double w_nm = abs(eigenvalues(j) - eigenvalues(i));
+										//if( abs( (eigenvalues(j) + eigenvalues(i)) / 2. - E_av) > 0.1 * this->L / 2. ) continue;
+										if( abs(val) == 0.0) continue;
+									#pragma omp critical
+										delta.push_back(w_nm);
+									}
+								}
+							}
+							arma::vec energy_diff = arma::log(arma::vec(delta));
+							long n_bins = 1 + 2 * long(3.322 * log(energy_diff.size()));
+							n_bins = 300;
+							const double _min = arma::min(energy_diff);
+							const double _max = arma::max(energy_diff);
+							arma::vec spec_fun = arma::conv_to<arma::vec>::from(
+    						        arma::hist(energy_diff, n_bins)
+    						        );
+							spec_fun = normalise_dist(arma::square(arma::abs(spec_fun)), _min, _max);
+							auto omega = arma::linspace(_min, _max, spec_fun.size());
+    						save_to_file(this->saving_dir + "SigmaX_j=" + std::to_string(L / 2) + alfa->get_info() + ".dat", omega, spec_fun);
+							smoothen_data(this->saving_dir, "SigmaX_j=" + std::to_string(L / 2) + alfa->get_info() + ".dat");
+							//statistics::probability_distribution(this->saving_dir, "IntegrableLimit_g=0" + alfa->get_info(), energy_diff, -1);
+							
+							continue;
 							
 							average_SFF(); continue;
 
@@ -1771,7 +1776,7 @@ void isingUI::ui::thouless_times()
 			for (auto &gx : gx_list){
 				for (auto &hx : hx_list){
 					for(auto& x : _list){	// either disorder w (m=0) or symmetry sector k (m=1)
-						printSeparated(std::cout, "\t", 16, true, size, Jx, gx, hx, x);
+						//printSeparated(std::cout, "\t", 16, true, size, Jx, gx, hx, x);
 						kernel(size, Jx, gx, hx, x, map, size, Jx, gx, hx, x);
 		}}}}}
 	map.close();
