@@ -201,6 +201,8 @@ public:
 				op = this->g * this->create_operator({ IsingModel::sigma_z }, std::vector<int>({ site })) 
 						+ this->h * this->create_operator({ IsingModel::sigma_x }, std::vector<int>({ site }));
 				break;
+			case 9: op = this->create_operator({IsingModel::sigma_x}); break;
+			case 10: op = this->create_operator({IsingModel::sigma_z}); break;
 			default:
 				stout << "No operator chosen!\nReturning empty matrix\n\n";
 		}
@@ -209,7 +211,7 @@ public:
 	static auto opName(int choose, int site) 
 		-> std::pair<std::string, std::string>
 	{
-		std::string name, dir_suffix;
+		std::string name, subdir;
 		switch (choose) {
 		case 0: name = "SigmaZ_j=" 	  		+ std::to_string(site);	break;
 		case 1: name = "SigmaX_j=" 	  		+ std::to_string(site);	break;
@@ -220,14 +222,17 @@ public:
 		case 6: name = "TFIM_LIOM_plus_n="  + std::to_string(site);	break;
 		case 7: name = "TFIM_LIOM_minus_n=" + std::to_string(site);	break;
 		case 8: name = "SigXZ_j=" 			+ std::to_string(site);	break;
+		case 9: name = "SigmaX";									break;
+		case 10: name = "SigmaZ";									break;
 		default:
 			stout << "Bad input! Operator -op 0-7 only";
 			exit(1);
 		}
-		if(choose < 3) 						dir_suffix = "j";
-		else if(choose >=3 && choose < 6) 	dir_suffix = "q";
-		else 								dir_suffix = "n";
-		return std::make_pair(name, dir_suffix);
+		if(choose >=3 && choose < 6) 		subdir = "q=" +  std::to_string(site);
+		else if(choose >= 6 && choose < 8)	subdir = "n=" +  std::to_string(site);
+		else if(choose < 3)					subdir = "j=" +  std::to_string(site);
+		else 								subdir = "EXTENSIVE";
+		return std::make_pair(name, subdir);
 	}
 
 

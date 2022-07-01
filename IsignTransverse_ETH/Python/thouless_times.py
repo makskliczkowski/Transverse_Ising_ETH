@@ -6,6 +6,7 @@ from numpy import exp
 from numpy import sqrt
 from numpy import log
 from numpy import float as npfloat
+from numpy import isfinite as isfin
 #from scipy.special import binom as binomial
 import scipy
 import helper_functions as hfun
@@ -52,7 +53,7 @@ def get_tau_data(tau_data) :
             lists = sorted(taus.items())
             x, data = zip(*lists)
             for j in range(0, len(x)) : 
-                tau.append(data[j][0]); gap.append(data[j][1]); x_float.append(float(x[j]))
+                tau.append(data[j][0]); gap.append(data[j][1]); x_float.append(float(x[j]) - cf.parameter_critical)
         return array(x_float), array(tau), array(gap)
 
 
@@ -168,11 +169,11 @@ def plot(axis1, axis2, new_settings = None) :
         
         #-- xy-ranges
         min = yvals.min();  max = yvals.max();
-        if min < y_min: y_min = min
-        if max > y_max: y_max = max
+        if min < y_min and isfin(min): y_min = min
+        if max > y_max and isfin(max): y_max = max
         min = xx.min();  max = xx.max();
-        if min < x_min: x_min = min
-        if max > x_max: x_max = max
+        if min < x_min and isfin(min): x_min = min
+        if max > x_max and isfin(max): x_max = max
         
         #--- plot markers with additional legend according to level spacing:
         # ~0.3865   -   filled squares
@@ -217,30 +218,33 @@ def plot(axis1, axis2, new_settings = None) :
 
 
     rescale_by_L = 1
+    size_exp=1.5
     #--- plot second panel with gap ratios
     x_min = 1.0e10;     x_max = -1.0e10;
     for i in range(0, num_of_plots):
         D = scipy.special.binom(vals[i], vals[i] / 2.)
         #norm = float(sqrt(D / sqrt(vals[i])) ) if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0
-        #norm = float(exp(log(2)/4*vals[i]) if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0)
-        norm = float(vals[i] if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0)
-        xpoints = xvals[i] * norm
-
+        #norm = float(exp(log(2)/2*abs(vals[i])) if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0)
+        norm = float(vals[i]**size_exp if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0)
+        xpoints = (xvals[i]) * norm
+        
         min = xpoints.min();  max = xpoints.max()
-        if min < x_min: x_min = min
-        if max > x_max: x_max = max
-        axis2.plot(xpoints, gap_ratio[i], label=key_title(vals[i]))
+        if min < x_min and isfin(min): x_min = min
+        if max > x_max and isfin(max): x_max = max
+        #axis2.plot(xpoints, gap_ratio[i], label=key_title(vals[i]))
         for j in range(0, len(tau[i])) :
             axis2.scatter(xpoints[j], gap_ratio[i][j], edgecolors=ec[i], marker=marker_style[i][j], s=50, facecolor=face_colors[i][j])
     new_set_class = copy.deepcopy(cf.plot_settings)
     new_set_class.set_x_rescale(rescale=0)
     new_set = getattr(new_set_class, 'settings')
     new_set['y_scale'] = 'linear';  new_set['x_scale'] = 'linear'
-    xlab = new_set['vs'] + (" \\cdot L" if rescale_by_L else "")
-    #xlab = new_set['vs'] + (" \\cdot e^{\\frac{ln2}{2}L}" if rescale_by_L else "")
+    xlab = "(" + new_set['vs'] + (" - " + new_set['vs'] + "_c) \\cdot L^{\\nu}" if rescale_by_L else "")
+    #xlab = "(" + new_set['vs'] + (" - " + new_set['vs'] + "_c) \\cdot e^{\\frac{ln2}{2}L}" if rescale_by_L else "")
     #xlab = new_set['vs'] + (" \\cdot D^{1/2}L^{1/4}" if rescale_by_L else "")
     hfun.set_plot_elements(axis = axis2, xlim = (0.98*x_min, 1.02*x_max), 
                                 ylim = (0.37, 0.54), xlabel = xlab, ylabel = 'r', settings=new_set)
+    axis2.annotate(r"$" + new_set['vs'] + "_c=%.2f$"%cf.parameter_critical, (0.65*x_max, 0.41), color='black', size=20)
+    axis2.annotate(r"$\nu=%.2f$"%size_exp, (0.65*x_max, 0.40), color='black', size=20)
     #--- additional lines on plot
     axis2.axhline(y=0.5307, ls='--', color='black', label='GOE')
     axis2.axhline(y=0.3863, ls='--', color='red', label='Poisson')

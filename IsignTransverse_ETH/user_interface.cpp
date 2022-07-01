@@ -64,10 +64,13 @@ void isingUI::ui::make_sim()
 							stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
 							printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
 							
-							auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-							const u64 N = alfa->get_hilbert_size();
-							arma::sp_cx_mat op = alfa->create_operator({IsingModel_disorder::sigma_x}, std::vector<int>({ this->L / 2}));
-							
+							//auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+							//const u64 N = alfa->get_hilbert_size();
+							//arma::sp_cx_mat op = alfa->create_operator({IsingModel_disorder::sigma_x}, std::vector<int>({ this->L / 2}));
+							//
+
+							std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
+							const u64 N = ULLPOW(this->L);
 							auto set_E = [&](){
 								arma::vec dh = create_random_vec(L, this->w);                               // creates random disorder vector
 								arma::vec eigenvaluess(N, arma::fill::zeros);
@@ -87,24 +90,85 @@ void isingUI::ui::make_sim()
 								}
 								return eigenvaluess;
 							};
-							std::vector<double> delta;
-							
-						#pragma omp parallel for
-							for(int r = 0; r < this->realisations; r++){
-								arma::vec eigenvalues = set_E();
-								const u64 E_av_idx = spectrals::get_mean_energy_index(eigenvalues);
-								const double E_av = eigenvalues(E_av_idx);
-								for(u64 i = 0; i < N; i++){
-									for(u64 j = i + 1; j < N; j++){
-										cpx val = op(i, j);
-										const double w_nm = abs(eigenvalues(j) - eigenvalues(i));
-										//if( abs( (eigenvalues(j) + eigenvalues(i)) / 2. - E_av) > 0.1 * this->L / 2. ) continue;
-										if( abs(val) == 0.0) continue;
-									#pragma omp critical
-										delta.push_back(w_nm);
+
+							auto get_energy = [this](u64 state, const arma::vec& dh){
+									double E = 0;
+									for (int j = 0; j <= L - 1; j++) {
+										double s_i = checkBit(state, L - 1 - j) ? 1.0 : -1.0;							 // true - spin up, false - spin down
+
+										/* disorder */
+										E += (this->h + dh(j)) * s_i;                             // diagonal elements setting
+										int nei = (j + 1) % this->L;
+
+										/* Ising-like spin correlation */
+										double s_j = checkBit(state, this->L - 1 - nei) ? 1.0 : -1.0;
+										E += this->J * s_i * s_j;		// setting the neighbors elements
 									}
+									return E;
+							};
+
+
+
+							const double chi = 0.341345;
+							const double wH = sqrt(this->L) / (chi * N) * sqrt(this->J * this->J + this->h * this->h + this->g * this->g
+																		 + ( this->m? 0.0 : (this->w * this->w + this->g0 * this->g0 + this->J0 * this->J0) / 3. ));
+							
+							const int num_of_points = 200;
+							arma::vec eigenvalues = set_E();
+							spectrals::preset_omega set_omegas(eigenvalues, 100*L, arma::trace(eigenvalues) / double(N));
+							
+							const int size = set_omegas.get_size();
+							const long M = int(size / double(num_of_points));
+							int num = int(size / double(M)) + 1;
+							arma::vec omegas = set_omegas.set_omega_bins();
+							num = omegas.size();
+
+							arma::vec spec_fun_av(num, arma::fill::zeros);
+							
+							std::string base_dir = this->saving_dir + "ResponseFunction" + kPSep;
+							std::string extensive_dir = base_dir + "EXTENSIVE" + kPSep;
+							createDirs(base_dir, extensive_dir);
+
+							for(int site = 0; site < this->L; site++)
+							{
+								auto [opname, str] = IsingModel_disorder::opName(1, site);
+								std::string dir = base_dir + str + "=" + std::to_string(site) + kPSep;
+								createDirs(dir);
+
+								arma::vec spec_fun(num, arma::fill::zeros);
+							
+							#pragma omp parallel for
+								for(int r = 0; r < this->realisations; r++){
+									arma::vec dh = create_random_vec(L, this->w);
+									std::vector<double> delta; 
+									for(u64 state = 0; state < N; state++){
+										double E_i = get_energy(state, dh);
+										//for(int site = 0; site < this->L; site++)
+										{
+											if(checkBit(state, L - 1 - site)) continue; // only flip 0's to avoid double counting
+											u64 new_state = flip(state, BinaryPowers[this->L - 1 - site], this->L - 1 - site);
+											double E_j = get_energy(new_state, dh);
+											delta.push_back(abs(E_j - E_i));
+											delta.push_back(abs(E_i - E_j));
+										}
+										
+									}
+									arma::vec energy_diff = arma::vec(delta);
+									arma::vec spec_fun_realis = arma::conv_to<arma::vec>::from(
+    							        arma::histc(energy_diff, omegas)
+    							        );
+									#pragma omp critical
+										spec_fun += spec_fun_realis;
 								}
+								spec_fun /= double(this->realisations);
+								spec_fun_av += spec_fun;
+								
+								save_to_file(dir + opname + info + ".dat", omegas, spec_fun, wH, 0.0);	// sum of diagonals = 0 in computational basis
+								smoothen_data(dir, opname + info + ".dat", 20);
+    							//save_to_file(dir + "SigmaX_ext" + info + ".dat", omega, spec_fun_av / double(this->L));
+								//smoothen_data(dir, "SigmaX_ext" + info + ".dat");
 							}
+<<<<<<< HEAD
 <<<<<<< HEAD
 						}
 						save_to_file(this->saving_dir + "LocLengthDist_" + to_string_prec(this->w, 2) + ".dat", energy / (this->J + this->w), loc_length / double(this->realisations)); 
@@ -174,9 +238,12 @@ void isingUI::ui::make_sim()
     						save_to_file(this->saving_dir + "SigmaX_j=" + std::to_string(L / 2) + alfa->get_info() + ".dat", omega, spec_fun);
 							smoothen_data(this->saving_dir, "SigmaX_j=" + std::to_string(L / 2) + alfa->get_info() + ".dat");
 							//statistics::probability_distribution(this->saving_dir, "IntegrableLimit_g=0" + alfa->get_info(), energy_diff, -1);
+=======
+							save_to_file(extensive_dir + "SigmaXav" + info + ".dat", omegas, spec_fun_av / double(this->L), wH, 0.0);
+							smoothen_data(extensive_dir, "SigmaXav" + info + ".dat", 20);
+>>>>>>> Rafal_main
 							
 							continue;
-							
 							average_SFF(); continue;
 
 							//combine_spectra(); 
@@ -760,17 +827,18 @@ void isingUI::ui::benchmark()
 void isingUI::ui::calculate_spectrals()
 {
 	const clk::time_point start = std::chrono::system_clock::now();
-	// {"k", "x", "p"}
+	//---------------- DIRECTORIES & INFO
 	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
 					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
 
-	auto [opName_tup, str] = IsingModel_disorder::opName(this->op, this->site);
+	auto [opName_tup, subdir] = IsingModel_disorder::opName(this->op, this->site);
 	std::string opName = opName_tup;
-	std::string timeDir = this->saving_dir + "timeEvolution" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
-	std::string specDir = this->saving_dir + "ResponseFunction" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
-	std::string intDir = this->saving_dir + "IntegratedResponseFunction" + kPSep + str + "=" + std::to_string(this->site) + kPSep;
+	std::string timeDir = this->saving_dir + "timeEvolution" + kPSep + subdir + kPSep;
+	std::string specDir = this->saving_dir + "ResponseFunction" + kPSep + subdir + kPSep;
+	std::string intDir = this->saving_dir + "IntegratedResponseFunction" + kPSep + subdir + kPSep;
 	createDirs(timeDir, specDir, intDir);
 
+	//---------------- PREAMBLE
 	const double chi = 0.341345;
 	size_t N = ULLPOW(this->L);
 	if(this->m){
@@ -791,13 +859,13 @@ void isingUI::ui::calculate_spectrals()
 	arma::vec opIntSpec(omegas.size(), arma::fill::zeros);
 	arma::vec opSpecFun(N, arma::fill::zeros);
 	arma::vec omega_spec(N, arma::fill::zeros);
-	double Z = 0.0;
+	
+	//---------------- SET KERNEL
 	double LTA = 0;
 	arma::sp_cx_mat op;
 	auto start_loop = std::chrono::system_clock::now();
 	auto kernel = [&](
-		auto& alfa, int r, 											//<! main parameters required by average_over_realisations
-		const spectrals::preset_omega& set_omegas, const int M	//<! additional params for setting omega on logscale
+		auto& alfa, int r
 		){
 		std::string tdir_realisation = timeDir + "realisation=" + std::to_string(r) + kPSep;
 		std::string intdir_realisation = intDir + "realisation=" + std::to_string(r) + kPSep;
@@ -807,6 +875,8 @@ void isingUI::ui::calculate_spectrals()
 		stout << "\t\t	--> finished diagonalizing for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 		auto U = alfa.get_eigenvectors();
 		arma::vec E = alfa.get_eigenvalues();
+		spectrals::preset_omega set_omega(E, 1 * alfa.L, E(alfa.E_av_idx));
+
 		stout << "\t\t	--> got eigenvectors for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 		arma::cx_mat mat_elem = U.t() * op * U;
 		normaliseMat(mat_elem);
@@ -815,12 +885,12 @@ void isingUI::ui::calculate_spectrals()
 		auto [op_tmp, LTA_tmp] = spectrals::autocorrelation_function(mat_elem, E, times);
 		save_to_file(tdir_realisation + opName + info + ".dat", times, op_tmp, tH, LTA_tmp);
 		stout << "\t\t	--> finished time evolution for " << info
-			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n\tNEXT: spectral function" << std::endl;
+			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 
-		auto [omega_spec_r, specfun_r] = spectrals::spectralFunction(mat_elem, set_omegas, M);
-		save_to_file(specdir_realisation + opName + info + ".dat", omega_spec_r, specfun_r, 1. / tH, LTA_tmp);
+		auto specfun_r = spectrals::spectralFunction(mat_elem, set_omega, omega_spec);
+		save_to_file(specdir_realisation + opName + info + ".dat", omega_spec, specfun_r, 1. / tH, LTA_tmp);
 		stout << "\t\t	--> finished spectral function for " << info
-			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s\n\tNEXT: integrated spectral function" << std::endl;
+			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 		
 		auto res = spectrals::integratedSpectralFunction(mat_elem, E, omegas);
 		save_to_file(intdir_realisation + opName + info + ".dat", omegas, res, 1. / tH, LTA_tmp);
@@ -831,36 +901,32 @@ void isingUI::ui::calculate_spectrals()
 		opEvol += op_tmp;
 		opIntSpec += res;
 		opSpecFun += specfun_r;
-		omega_spec = omega_spec_r;
 		
 		start_loop = std::chrono::system_clock::now();
 	};
 	
-	// ----------- choose model and run kernel
-	spectrals::preset_omega set_omega;
+	//---------------- SIMULATION FOR INPUT MODEL
+	
 	int M;
 	auto prefix_kernel = [&](auto& alfa){
 		alfa.diagonalization();
 		auto E = alfa.get_eigenvalues();
-		set_omega = spectrals::preset_omega(E, 0.1 * alfa.L, E(alfa.E_av_idx));
-		const int size = set_omega.get_size();
-		M = int(size / double(num_of_points));
-		int num = int(size / double(M));
-		opSpecFun.resize(num + 1);
-		omega_spec.resize(num + 1);
-
+		spectrals::preset_omega set_omega(E, 1 * alfa.L, E(alfa.E_av_idx));
+		omega_spec = set_omega.set_omega_bins(num_of_points);
+		opSpecFun.resize(omega_spec.size());
+		omega_spec.resize(omega_spec.size());
 		op = alfa.chooseOperator(this->op, this->site);
-		stout << "\n\t\t--> finished generating operator for " << info << " - in time : " << tim_s(start) << "s" << std::endl;;	
+		stout << "\n\t\t--> finished generating operator and omega bins for " << info << " - in time : " << tim_s(start) << "s" << std::endl;;	
 	};
 	if(this->m){
 		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 		prefix_kernel(*alfa);
-		average_over_realisations<Ising_params::h>(*alfa, true, kernel, set_omega, M);
+		average_over_realisations<Ising_params::h>(*alfa, true, kernel);
 	} else{
 		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 		prefix_kernel(*alfa);
-		average_over_realisations<Ising_params::h>(*alfa, true, kernel, set_omega, M);
+		average_over_realisations<Ising_params::h>(*alfa, true, kernel);
 	}
 
 	if(this->jobid > 0) return;

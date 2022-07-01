@@ -644,7 +644,7 @@ inline void save_to_file(std::string name, const arma::vec& x, const arma::vec& 
 	openFile(file, name, ios::out);
 	for (int i = 0; i < x.size(); i++) {
 		if (i == 0) printSeparated(file, "\t", 12, true, x(i), y(i), args...);
-		else		printSeparated(file, "\t", 12, true, x(i), y(i));
+		else		printSeparated(file, "\t", 12, true, x(i), y(i), args...);
 	}
 	file.close();
 }
