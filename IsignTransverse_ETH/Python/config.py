@@ -3,15 +3,16 @@ from os import sep as kPSep
 import plot_settings as ps
 importlib.reload(ps)
 #---------------------------------------------------- MODEL PARAMETERS
-model = 0   # chooses model: 0-disorder / 1-symmetries
-BC = 1     # boundaary condition: 0 - OBC / 1 - PBC
+model = 0           # chooses model: 0-disorder / 1-symmetries
+hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
+BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
 
-L = 14                          # system size
+L = 12                          # system size
 J = 1.00                        # spin exchange (Ising-like)
-g = 0.90                        # trasnverse magnetic field (z-axis)
-h = 0.80                        # longitudal magnetic field (x-axis)
+g = 1.00                       # trasnverse magnetic field (z-axis)
+h = 0.00                        # longitudal magnetic field (x-axis)
 #---- DISORDER PARAMETERS
-w = 0.30                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
+w = 1.2                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 J0 = 0.0                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
 g0 = 0.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 #---- SYMETRY PARAMETERS
@@ -23,7 +24,7 @@ x_sym = 1                       # spin-flip symmetry sector (only when h=0)
 General settings for all plots
 """
 plot_settings_dict = {
-    'vs':             'g',          # set parameter on x-axis
+    'vs':             'J',          # set parameter on x-axis
     'scaling':        'L',          # set scaling parameter (changing in legend)
 
     'x_scale':      'linear',       
@@ -34,10 +35,10 @@ plot_settings_dict = {
 #---- rescaling y-data
     'rescaleY':         0,      
     'func_y':       'log',           # rescale function -> function(x, nu) (power-law = 1 / x^nu)    
-    'nu_y':             3,           # power of inversion
+    'nu_y':             -1,           # power of inversion
     
 #---- rescaling x-axis
-    'rescaleX':         1,          
+    'rescaleX':         0,          
     'func_x':       'power-law',     # rescale function -> function(x, nu) (power-law = 1 / x^nu)    
     'nu_x':             -1,           # power of inversion
     
@@ -56,7 +57,9 @@ names = ps.options
 names.extend(['p','x','J0','x0'])
 
 #---- DIR
-base_directory = f"..{kPSep}results{kPSep}" + (f"symmetries{kPSep}" if model else f"disorder{kPSep}") + (f"PBC{kPSep}" if BC else f"OBC{kPSep}") 
+base_directory = f"..{kPSep}results{kPSep}" + (f"Heisenberg{kPSep}" if hamiltonian else f"Ising{kPSep}")\
+                                             + (f"symmetries{kPSep}" if model else f"disorder{kPSep}") \
+                                              + (f"PBC{kPSep}" if BC else f"OBC{kPSep}") 
 
 #---- INSTANCE OF PLOT SETTINGS CLASS --> plot_settings.py
 plot_settings = ps.plot_settings_class(plot_settings_dict)

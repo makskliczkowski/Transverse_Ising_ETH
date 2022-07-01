@@ -3,10 +3,14 @@
 #define UI
 //#include "headers.h"
 #include "IsingModel.h"
-#include "spectrals.hpp"
-#include "thermodynamics.hpp"
 #include "statistics.hpp"
 #include "statistics_dist.hpp"
+#include "spectrals.hpp"
+#include "thermodynamics.hpp"
+#include "entaglement.hpp"
+#include "adiabatic_gauges.hpp"
+#include "ThomasAlgorithm.hpp"
+#include "anderson.hpp"
 
 const arma::vec down = { 0, 1 };
 const arma::vec up	 = { 1, 0 };
@@ -65,7 +69,11 @@ namespace isingUI
 	std::unordered_map <std::string, std::string> const table{
 		{"f",""},						// file to read from directory
 		{"J","1.0"},					// spin coupling
+		{"Jn","1"},						// spin coupling step
+		{"Js","0.0"},					// spin coupling num of points
 		{"J0","0.0"},					// spin coupling randomness maximum (-J0 to J0)
+		{"J0n","1"},					// spin coupling disorder step
+		{"J0s","0.0"},					// spin coupling disorder num of points
 		{"h","0.1"},					// perpendicular magnetic field constant
 		{"hn","1"},						// longitudal magnetic field sweep number
 		{"hs","0.1"},					// longitudal magnetic field sweep step
@@ -106,8 +114,8 @@ namespace isingUI
 	protected:
 		// MODEL PARAMETERS
 		double J, h, g;										// external fields
-		int hn, gn, wn, g0n;								// external fields number of points
-		double hs, gs, ws, g0s;								// external fields step
+		int Jn, hn, gn, wn, J0n, g0n;						// external fields number of points
+		double Js, hs, gs, ws, J0s, g0s;					// external fields step
 		double w, g0, J0;									// disorder strengths
 		int L, Ls, Ln, m;									// lattice params
 		bool p, q, ch;										// boolean values
@@ -145,6 +153,24 @@ namespace isingUI
 
 
 
+		enum class Ising_params{ L, J, J0, g, g0, h, w, k, p, x }; //<! choose which of these parameters
+		auto get_params_name(Ising_params par){
+			std::string name;
+			switch(par){
+				case Ising_params::L : 	name = "L"; 	break;
+				case Ising_params::J : 	name = "J"; 	break;
+				case Ising_params::J0 : name = "J0"; 	break;
+				case Ising_params::g : 	name = "g"; 	break;
+				case Ising_params::g0 : name = "g0"; 	break;
+				case Ising_params::h : 	name = "h"; 	break;
+				case Ising_params::w : 	name = "w"; 	break;
+				default:
+					std::cout << "No option found, choosing g_array" << std::endl;
+					name = "";
+			}
+			return name;
+		}
+		
 		//-------------------------------------------------------------------------- GENERAL ROUTINES
 
 		void diagonalize();
@@ -188,6 +214,10 @@ namespace isingUI
 
 
 		//-------------------------------------------------------------------------- STATISTICS
+		//<! calculate all statistics for given input parameters -- averaged
+		void calculate_statistics();
+		void generate_statistic_map(Ising_params varname1, Ising_params varname2);
+
 		//<! gap ratio map
 		void level_spacing();
 
@@ -208,51 +238,17 @@ namespace isingUI
 		//-------------------------------------------------------------------------- FUNCTIONS TO CALL IN FUN-DEFAULT MODE
 		
 
-		//-------------------------------------------------------------------------- GENERAL LAMBDA'S
+		//-------------------------------------------------------------------------- INITIALIZERS
 		//<! generate random product state (random orientation of spins on the bloch sphere)
-		arma::cx_vec random_product_state(int system_size)
-		{
-			auto the = theta(gen);
-			arma::cx_vec init_state = std::cos(the / 2.) * up
-				+ std::exp(im * fi(gen)) * std::sin(the / 2.) * down;
-			for (int j = 1; j < system_size; j++)
-			{
-				the = theta(gen);
-				init_state = arma::kron(init_state, std::cos(the / 2.) * up
-					+ std::exp(im * fi(gen)) * std::sin(the / 2.) * down);
-			}
-			return init_state;
-		};
+		arma::cx_vec random_product_state(int system_size);
 
-		//<! generate initial state given by -op flag: random, FM, AFM, ...
-		arma::cx_vec set_init_state(size_t N)
-		{
-			arma::cx_vec init_state(N, arma::fill::zeros);
-			switch (this->op) {
-			case 0: // random product state
-			{
-				init_state = this->random_product_state(this->L); 
-				break;
-			}
-			case 1: // ferromagnetically polarised
-			{
-				u64 idx = (ULLPOW(this->L)) - 1;
-				init_state(idx) = cpx(1.0, 0.0); // 1111111
-				break;
-			}
-			case 2: // anti-ferromagnetically polarised: 1010 + 0101
-			{
-				u64 idx = ((ULLPOW(this->L)) - 1) / 3;
-				init_state(						idx) = cpx(1.0, 0.0); // 10101010
-				init_state((ULLPOW(this->L)) -	idx) = cpx(1.0, 0.0); // 01010101
-				break;
-			}
-			default:
-				init_state = random_product_state(this->L); 
-			}
-			return arma::normalise(init_state);
-		}
+		//<! generate initial state given by input (user control) or -op flag (default): random, FM, AFM, ...
+		arma::cx_vec set_init_state(size_t N, int choose = -1);
 
+		//<! get parameter array from UI and input option
+		arma::vec get_params_array(Ising_params par);
+
+		//-------------------------------------------------------------------------- GENERAL LAMBDA'S
 		//<! loop over all symmetry sectors
 		template <typename... _types> void loopSymmetrySectors(
 			std::function<void(int,int,int,_types...args)> lambda, //!< callable function
@@ -273,9 +269,6 @@ namespace isingUI
 				}
 			}
 		}
-
-
-		enum class Ising_params{ J, h, g }; //<! choose which of these parameters
 
 		//<! loop over disorder realisations and call lambda each time
 		template <

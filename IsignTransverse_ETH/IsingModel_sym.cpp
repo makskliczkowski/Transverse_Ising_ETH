@@ -117,7 +117,11 @@ cpx IsingModel_sym::get_symmetry_normalization(u64 base_idx) const {
 /// <param name="_id"> identificator for a given thread </param>
 void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id){
 	for (u64 j = start; j < stop; j++) {
-		if (this->g == 0 && __builtin_popcountll(j) != this->L / 2.) continue;
+		#ifdef HEISENBERG
+			if (__builtin_popcountll(j) != this->L / 2.) continue;
+		#else
+			if (this->g == 0 && __builtin_popcountll(j) != this->L / 2.) continue;
+		#endif
 		auto [SEC, some_value] = find_SEC_representative(j);
 		if (SEC == j) {
 			cpx N = get_symmetry_normalization(j);					// normalisation condition -- check wether state in basis
@@ -210,6 +214,14 @@ void IsingModel_sym::hamiltonian() {
 		std::cout << "Memory exceeded" << e.what() << "\n";
 		assert(false);
 	}
+	#ifdef HEISENBERG
+		this->hamiltonian_heisenberg();
+	#else
+		this->hamiltonian_Ising();
+	#endif
+}
+
+void IsingModel_sym::hamiltonian_Ising(){
 	for (long int k = 0; k < this->N; k++) {
 		double s_i;
 		double s_j;
@@ -231,39 +243,30 @@ void IsingModel_sym::hamiltonian() {
 		}
 	}
 }
-
 void IsingModel_sym::hamiltonian_heisenberg() {
-	try {
-		this->H = arma::sp_cx_mat(this->N, this->N); //hamiltonian
-		//this->H = arma::conv_to<arma::Mat<double>>::from(this->H);
-	}
-	catch (const bad_alloc& e) {
-		std::cout << "Memory exceeded" << e.what() << "\n";
-		assert(false);
-	}
-	for (long int kk = 0; kk < this->N; kk++) {
-		double s_i;
-		double s_j;
-		int k = this->mapping[kk];
-		for (int j = 0; j <= this->L - 1; j++) { 
-			s_i = checkBit(k, L - 1 - j) ? 0.5 : -0.5;	// true - spin up, false - spin down
-			
-			/* longitudal field */
-			H(kk, kk) += this->h * s_i;                             // diagonal elements setting
+	for (long int k = 0; k < N; k++) {
+		double s_i, s_j;
+		int base_state = map(k);
+		for (int j = 0; j <= L - 1; j++) {
+			s_i = checkBit(base_state, L - 1 - j) ? 0.5 : -0.5;							 // true - spin up, false - spin down
+			/* disorder */
+			H(k, k) += this->h * s_i;                             // diagonal elements setting
 
-			if (nearest_neighbors[j] >= 0) {
-				auto [value_x, new_idx_x] = IsingModel_disorder::sigma_x(k, this->L, {j, nearest_neighbors[j]});
-				setHamiltonianElem(kk, 0.25 * this->J, new_idx_x);
-				
-				auto [value_y, new_idx_y] = IsingModel_disorder::sigma_y(k, this->L, {j, nearest_neighbors[j]});
-				setHamiltonianElem(kk, 0.25 * real(value_y) * (this->J), new_idx_y);
-
+			int nei = this->nearest_neighbors[j];
+			if (nei >= 0) {
+				s_j = checkBit(base_state, L - 1 - nei) ? 0.5 : -0.5;
+				if(s_i * s_j < 0){
+					u64 new_idx =  flip(base_state, BinaryPowers[this->L - 1 - nei], this->L - 1 - nei);
+					new_idx =  flip(new_idx, BinaryPowers[this->L - 1 - j], this->L - 1 - j);
+					setHamiltonianElem(k, 0.5 * this->J, new_idx);
+				}
 				/* Ising-like spin correlation */
-				auto [value_z, new_idx_z] = IsingModel_disorder::sigma_z(k, this->L, {j, nearest_neighbors[j]});
-				setHamiltonianElem(kk, 0.25 * real(value_z) * (this->g), new_idx_z);
+				H(k, k) += this->g * s_i * s_j;
 			}
 		}
+		//std::cout << std::bitset<4>(base_state) << "\t";
 	}
+	//std::cout << std::endl << arma::mat(this->H) << std::endl;
 }
 
 // ------------------------------------------------------------------------------------------------ PHYSICAL QUANTITTIES ------------------------------------------------------------------------------------------------
@@ -358,9 +361,6 @@ arma::sp_cx_mat IsingModel_sym::fourierTransform(op_type op, int q) const {
 	return U.t() * fullMatrix * U;
 }
 
-arma::mat IsingModel_sym::correlation_matrix(u64 state_id) const {
-	return arma::mat();
-}
 
 // ----------------------------------------------------------------------------- INTEGRABLE SOLUTIONS -----------------------------------------------------------------------------
 arma::vec IsingModel_sym::get_non_interacting_energies(){
@@ -375,24 +375,5 @@ arma::vec IsingModel_sym::get_non_interacting_energies(){
 			energies(counter++) = -(this->L - 2 * k) * epsilon;
 	}
 	return energies;
-}
-
-// ----------------------------------------------------------------------------- ENTAGLEMENT -----------------------------------------------------------------------------
-auto IsingModel_sym::reduced_density_matrix(const arma::cx_vec& state, int A_size) const -> arma::cx_mat {
-	// set subsytsems size
-	const long long dimA    = ULLPOW(A_size);
-	const long long dimB    = ULLPOW((this->L - A_size));
-	const long long dim_tot = ULLPOW(this->L);
-	arma::cx_mat rho(dimA, dimA, arma::fill::zeros);
-	const arma::cx_vec state_full_hilbert = this->symmetryRotation(state);
-	for (long long n = 0; n < dim_tot; n++) {							// loop over whole configurational basis
-		long long counter = 0;
-		for (long long m = n % dimB; m < dim_tot; m += dimB) {			// pick out state with same B side (last L-A_size bits)
-			long idx = n / dimB;										// find index of state with same B-side (by dividing the last bits are discarded)
-			rho(idx, counter) += conj(state_full_hilbert(n)) * state_full_hilbert(m);
-			counter++;													// increase counter to move along reduced basis
-		}
-	}
-	return rho;
 }
 

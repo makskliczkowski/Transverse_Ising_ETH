@@ -50,9 +50,10 @@ protected:
 	std::vector<u64> mapping;							// mapping for the reduced Hilbert space
 	std::vector<cpx> normalisation;						// used for normalization in the symmetry case
 
-	virtual u64 map(u64 index) const = 0;					// function returning either the mapping(symmetries) or the input index (no-symmetry: 1to1 correspondance)
+	virtual u64 map(u64 index) const = 0;				// function returning either the mapping(symmetries) or the input index (no-symmetry: 1to1 correspondance)
 
 public:
+	_type type_var = _type(0);
 	u64 E_av_idx = -1;										// average energy
 	/* MODEL BASED PARAMETERS */
 	int L = 8;												// chain length
@@ -104,6 +105,7 @@ public:
 	void diagonalization(bool get_eigenvectors = true, const char* method = "dc");				// diagonalize the Hamiltonian
 
 	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
+	virtual void hamiltonian_Ising() = 0;														// pure virtual Ising Hamiltonian creator
 	virtual void hamiltonian_heisenberg() = 0;													// pure virtual heisenberg hamiltonian creator
 	virtual void setHamiltonianElem(u64 k, double value, u64 new_idx) = 0;						// sets the Hamiltonian elements in a virtual way
 	void reset_random(size_t new_seed = seed_global) const {
@@ -135,9 +137,6 @@ public:
 			proper.push_back(this->properSite(s));
 		return proper;
 	}
-	// ---------------------------------- VIRTUALS ----------------------------------
-	virtual arma::mat correlation_matrix(u64 state_id) const = 0;											// create the spin correlation matrix at a given state
-	static double total_spin(const arma::mat& corr_mat);												// the diagonal part of a spin correlation matrix
 
 	// ---------------------------------- PHYSICAL QUANTITIES ----------------------------------
 	virtual double mean_level_spacing_analytical() const = 0;										// mean level spacing from analytical formula calcula
@@ -169,28 +168,7 @@ public:
 		}
 		return std::make_pair(val, base_vec);
 	};
-	static std::pair<cpx, u64> spin_flip(u64 base_vec, int L, std::vector<int> sites) {
-		if (sites.size() > 2) throw "Not implemented such exotic operators, choose 1 or 2 sites\n";
-		auto tmp = base_vec;
-		cpx val = 0.0;
-		auto it = sites.begin() + 1;
-		auto it2 = sites.begin();
-		if (!(checkBit(base_vec, L - 1 - *it))) {
-			NO_OVERFLOW(tmp = flip(tmp, BinaryPowers[L - 1 - *it], L - 1 - *it);)
-			val = 2.0;
-			if (sites.size() > 1) {
-				if (checkBit(base_vec, L - 1 - *it2)) {
-					NO_OVERFLOW(tmp = flip(tmp, BinaryPowers[L - 1 - *it2], L - 1 - *it2);)
-					val *= 2.0;
-				}
-				else val = 0.0;
-			}
-		}
-		else val = 0.0;
-		return std::make_pair(val, tmp);
-	};
-
-
+	
 	// ---------------------------------- USING PHYSICAL QUANTITES FOR PARAMTER RANGES, ETC. ----------------------------------
 
 	virtual arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators) const = 0;
@@ -219,6 +197,10 @@ public:
 			case 5: op = this->createHq(site); break;
 			case 6: op = this->create_tfim_liom_plus(site); break;
 			case 7: op = this->create_tfim_liom_minus(site); break;
+			case 8: 
+				op = this->g * this->create_operator({ IsingModel::sigma_z }, std::vector<int>({ site })) 
+						+ this->h * this->create_operator({ IsingModel::sigma_x }, std::vector<int>({ site }));
+				break;
 			default:
 				stout << "No operator chosen!\nReturning empty matrix\n\n";
 		}
@@ -237,6 +219,7 @@ public:
 		case 5: name = "H_q="	   	  		+ std::to_string(site);	break;
 		case 6: name = "TFIM_LIOM_plus_n="  + std::to_string(site);	break;
 		case 7: name = "TFIM_LIOM_minus_n=" + std::to_string(site);	break;
+		case 8: name = "SigXZ_j=" 			+ std::to_string(site);	break;
 		default:
 			stout << "Bad input! Operator -op 0-7 only";
 			exit(1);
@@ -250,19 +233,12 @@ public:
 
 	auto time_evolve_state(const arma::cx_vec& state, double time) -> arma::cx_vec; 	//<! stationary time evolution
 	void time_evolve_state_ns(arma::cx_vec& state, double dt, int order = 3); 			// non-stationary time evolution (time-dependent model)
-	// entanglement entropy based on the density matrices
-	virtual arma::cx_mat reduced_density_matrix(const arma::cx_vec& state, int A_size) const  = 0;
-
-	double entaglement_entropy(	const arma::cx_vec& state, int A_size)						const;
-	double reyni_entropy(		const arma::cx_vec& state, int A_size, unsigned alfa = 2)	const;
-	double shannon_entropy(		const arma::cx_vec& state, int A_size)						const;
-
-	arma::vec entaglement_entropy(const arma::cx_vec& state) const;
-
+	
 	void set_coefficients(const arma::cx_vec& initial_state);
 
 	//--------------------------------------------------------- dummy functions
 	virtual arma::vec get_non_interacting_energies() = 0;
+	virtual arma::cx_vec get_state_in_full_Hilbert(const arma::cx_vec& state) = 0;
 };
 
 inline void normaliseOp(arma::sp_cx_mat& op) {
@@ -322,8 +298,10 @@ public:
 	v_1d<cpx> get_norm() const { return this->normalisation; }
 	v_1d<std::function<u64(u64, int)>> get_sym_group() const { return this->symmetry_group; }
 	v_1d<cpx> get_sym_eigVal() const { return this->symmetry_eigVal; }
+	
 	// OVERRIDES OF THE MODEL METHODS
 	void hamiltonian() override;
+	void hamiltonian_Ising() override;
 	void hamiltonian_heisenberg() override;
 	void setHamiltonianElem(u64 k, double value, u64 new_idx) override;
 	double mean_level_spacing_analytical() const override {
@@ -371,11 +349,10 @@ public:
 	arma::sp_cx_mat createHlocal(int k) const override { stout << "Not implemented yet!!\n\n"; return arma::sp_cx_mat(); };
 	arma::sp_cx_mat fourierTransform(op_type op, int q) const override;
 
-	arma::cx_mat reduced_density_matrix(const arma::cx_vec& state, int A_size) const override;
-	arma::mat correlation_matrix(u64 state_id) const override;
-
 	//--------------------------------------------------------- dummy functions
 	virtual arma::vec get_non_interacting_energies() override;
+	virtual arma::cx_vec get_state_in_full_Hilbert(const arma::cx_vec& state) override
+		{ return symmetryRotation(state); };
 };
 //-------------------------------------------------------------------------------------------------------------------------------
 /// <summary>
@@ -397,11 +374,13 @@ public:
 
 private:
 	void generate_mapping();
+	u64 find_in_map(u64 index) const;			// method to binary search state in reduced basis
 	u64 map(u64 index) const override;
 
 public:
 	// METHODS
 	void hamiltonian() override;
+	void hamiltonian_Ising() override;
 	void hamiltonian_heisenberg() override;
 	void setHamiltonianElem(u64 k, double value, u64 new_idx) override;
 	double mean_level_spacing_analytical() const override {
@@ -417,13 +396,10 @@ public:
 	arma::sp_cx_mat createHq(int k) const override;
 	arma::sp_cx_mat createHlocal(int k) const override;
 	arma::sp_cx_mat fourierTransform(op_type op, int q) const override;
-	arma::mat correlation_matrix(u64 state_id) const override;
 
 	cpx av_operator(u64 alfa, u64 beta, op_type op, std::vector<int> sites);	// calculates the matrix element of operator at given site
 	cpx av_operator(u64 alfa, u64 beta, op_type op);							// calculates the matrix element of operator at given site in extensive form (a sum)
 	cpx av_operator(u64 alfa, u64 beta, op_type op, int corr_len);
-
-	arma::cx_mat reduced_density_matrix(const arma::cx_vec& state, int A_size) const override;
 
 	static std::string set_info(int L, double J, double J0, double g, double g0, double h, double w, std::vector<std::string> skip = {}, std::string sep = "_") {
 		std::string name = sep + "L=" + std::to_string(L) + \
@@ -451,6 +427,10 @@ public:
 
 	//--------------------------------------------------------- dummy functions
 	virtual arma::vec get_non_interacting_energies() override;
+	virtual arma::cx_vec get_state_in_full_Hilbert(const arma::cx_vec& state) override
+		{ return state; };
+	arma::vec get_state_in_full_Hilbert(const arma::vec& state)
+		{ return state; };
 };
 // ---------------------------------- HELPERS ----------------------------------
 template <typename _type>

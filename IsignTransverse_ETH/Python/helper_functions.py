@@ -8,12 +8,13 @@ importlib.reload(cf)
 model = 0   # chooses model: 0-disorder / 1-symmetries
 BC = 1     # boundaary condition: 0 - OBC / 1 - PBC
 user_settings = getattr(cf.plot_settings, 'settings')
+var_name = "\\Delta" if cf.hamiltonian else "g"
 
 #-------------------------- SET INFO
 def info_sym(L, J, g, h, k, p, x):
-    return "_L=%d,J=%.2f,g=%.2f,h=%.2f,k=%d,p=%d,x=%d.dat"%(L, J, g, h, k, p, x)
+    return r"$_L=%d,J=%.2f,g=%.2f,h=%.2f,k=%d,p=%d,x=%d$.dat"%(L, J, g, h, k, p, x)
 def info_dis(L, J, J0, g, g0, h, w):
-    return "_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat"%(L, J, J0, g, g0, h, w)
+    return r"$_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f$.dat"%(L, J, J0, g, g0, h, w)
 
 def info(_L = cf.params_arr[0], _J = cf.params_arr[1], _J0 = cf.params_arr[8], 
             _g = cf.params_arr[2], _g0 = cf.params_arr[9], 
@@ -41,6 +42,7 @@ def remove_info(info_str, *args):
             continue
     info_str = info_str[0 : info_str.index('.dat') :]
     return info_str
+    
 #-------------------------- PRETTY PRINT
 def print_vars(arr_vals, names):
     for i in range(0,len(arr_vals)) :
@@ -75,9 +77,12 @@ def mscatter(x,y,ax=None, m=None, fc=None, **kw):
 def set_plot_elements(axis, xlim =[], ylim=[], xlabel = None, ylabel = 'y', settings = None, set_legend = True, font_size = 10):
     if settings == None:
         settings = user_settings
+    
+    xlab = list(settings['func_x_name'])
     if xlabel == None :
-        xlab = list(settings['func_x_name'])
         xlab[xlab.index('Q')] = settings['vs']
+    else :
+        xlab[xlab.index('Q')] = xlabel
     ylab = list(settings['func_y_name'])
     ylab[ylab.index('Q')] = ylabel
     
