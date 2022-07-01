@@ -19,21 +19,21 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 
 #---------------------------- PARAMETERS
 model = 0       # 1=symmetries and 0=disorder
-heisenberg=1
+heisenberg=0
 
-w = 2.2
-g = 0.55
-L = 16
-h = 0.0
+w = 1.0
+g = 0.40
+L = 14
+h = 0.8
 J = 1.0
 Jdis = 0.0
 gdis = 0.0
 k=1
 
-scaling = 1     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
-smoothed = 0        # smoothed ?
+scaling = 2     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
+smoothed = 1        # smoothed ?
 plot_der_GOE = 0	 # plot deriviation from GOE value
-zoom_in = 1          # zoom in to collapse on GOE
+zoom_in = 0          # zoom in to collapse on GOE
 find_Thouless = 1    # find thouless time?
 add_gap_ratio = 1	 # add gap ratio
 rescale_times = 0	 # rescale times by size or parameter
@@ -48,7 +48,7 @@ if(scaling < 0 || scaling > 4 || zoom_in == 1) add_gap_ratio = 0;
 if(plot_der_GOE){ zoom_in = 0;}
 
 	h0 = 5;     hend = 50;		dh = 5;
-	g0 = 4;    gend = 150;		dg = 4;
+	g0 = 1;    gend = 120;		dg = 1;
     J0 = 2;    Jend = 100;     dJ = 2
 	L0 = 10;	    Lend = 18; 		dL = 1;
 	w0 = 160;		wend = 300;			dw = 10;
@@ -168,6 +168,7 @@ if(zoom_in) { unset logscale y; set format y '%g'; set key bottom right font ",2
 x_max = 98
 if(real_units){ x_min = 1e3*x_min;	x_max = x_max * 1e3;	}
 print x_min, y_min
+#y_min=1e-1
 RANGE=zoom_in? sprintf("set xrange[%.6f:20]; set yrange[%.10f:1.2];", x_min, 0.8 * y_min)\
                     : sprintf("set xrange[%.6f:%.6f]; set yrange[%.10f:%.2f];", x_min, x_max, 0.8 * y_min, 0.5*(scaling == 1? 2**Lend : 2**L))
 MARGIN = "set lmargin at screen 0.10; set rmargin at screen 0.95; set bmargin at screen 0.10; set tmargin at screen 0.99;"
