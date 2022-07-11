@@ -9,7 +9,7 @@ namespace spectrals{
 		{
 			const u64 N = eigenvalues.size();
 			double E_av = arma::trace(eigenvalues) / double(N);
-
+			
 			auto i = min_element(begin(eigenvalues), end(eigenvalues), [=](double x, double y) {
 				return abs(x - E_av) < abs(y - E_av);
 				});
@@ -63,6 +63,29 @@ namespace spectrals{
 			apply_permutation(this->idx_alfa, permut);
 		}
 
+
+		//<! set omega bins
+		auto set_omega_bins(int num_of_points = 1000) const -> arma::vec 
+		{
+			long int size = (int)this->energy_diferences.size();
+			long int M = int(size / double(num_of_points));
+			long int bucket_num = int(size / (double)M);
+			arma::vec omegas(bucket_num + 1, arma::fill::zeros);
+			for (int k = 0; k <= bucket_num; k++)
+			{
+				double omega = 0;
+				long p_end = (k == bucket_num)? size : (k + 1) * M;
+				int counter = 0;
+				for (long int p = k * M; p < p_end; p++){
+					omega += this->energy_diferences[p];
+					counter++;
+				}
+				omegas(k) = omega / (double)counter;
+			}
+			return omegas;
+		}
+
+		//--------------------------- GETTERS
 		//<! get all elements
 		auto get_elements() const
 			{ return std::make_tuple(this->energy_diferences, this->idx_alfa, this->idx_beta); }
@@ -70,6 +93,10 @@ namespace spectrals{
 		//<! get number of energy differences
 		auto get_size() const
 			{ return this->energy_diferences.size(); }
+
+		//<! get eigenvalues
+		auto get_eigenvalues() const
+			{ return this->eigenvalues; }
 	};
 
 	//<! calculate response function for input model on self-built 'log' scale 
@@ -78,42 +105,33 @@ namespace spectrals{
 	inline 
 	auto spectralFunction(
 	    const matrix &mat_elem,				//<! input calculated matrix elements for any operator
-		const preset_omega& input_omegas,	//<! input omegas and indices as tuple
-		int M								//<! number of matrix elements in omega bucket
-	    ) -> std::pair<arma::vec, arma::vec>
+		const preset_omega& input_omegas,	//<! input energy differences and indices as tuple
+	    const arma::vec& omegas	        	//<! omega range to caluclate data on
+	    ) -> arma::vec
 		{
-			
-			auto [energy_diff, idx_alfa, idx_beta] = input_omegas.get_elements();
+			std::vector<double> energy_diff;
+			std::vector<size_t> idx_alfa, idx_beta;
+			std::tie(energy_diff, idx_alfa, idx_beta) = input_omegas.get_elements();
 			long int size = (int)energy_diff.size();
-			long int bucket_num = int(size / (double)M);
-			arma::vec response_fun(bucket_num + 1, arma::fill::zeros);
-			arma::vec omegas(bucket_num + 1, arma::fill::zeros);
-			for (int k = 0; k < bucket_num; k++)
+
+			arma::vec response_fun(omegas.size(), arma::fill::zeros);
+			arma::vec counter(omegas.size(), arma::fill::zeros);
+		#pragma omp parallel for
+			for (long int p = 0; p < size; p++)
 			{
-				double element = 0;
-				double omega = 0;
-				for (long int p = k * M; p < (k + 1) * M; p++)
+				double element = abs(mat_elem(idx_alfa[p], idx_beta[p]) * conj(mat_elem(idx_alfa[p], idx_beta[p])));
+
+				u64 idx = min_element(begin(omegas), end(omegas), [=](double x, double y) {
+				return abs(x - energy_diff[p]) < abs(y - energy_diff[p]);
+				}) - omegas.begin();
+				#pragma omp critical
 				{
-					cpx overlap = mat_elem(idx_alfa[p], idx_beta[p]);
-					element += abs(overlap * overlap);
-					omega += energy_diff[p];
+					response_fun(idx) += element;
+					counter(idx)++;
 				}
-				response_fun(k) = element / double(M);
-				omegas(k) = omega / double(M);
 			}
-			double element = 0;
-			double omega = 0;
-			int counter = 0;
-			for (long int p = bucket_num * M; p < size; p++)
-			{
-				cpx overlap = mat_elem(idx_alfa[p], idx_beta[p]);
-				element += abs(overlap * overlap);
-				omega += energy_diff[p];
-				counter++;
-			}
-			response_fun(bucket_num) = element / double(counter);
-			omegas(bucket_num) = omega / (double)counter;
-			return std::make_pair(omegas, response_fun);
+			counter.elem( arma::find(counter == 0) ).ones();
+			return response_fun / counter;
 		}
 
 	//<! calculate response function for input model on self-built 'log' scale 
@@ -212,11 +230,11 @@ namespace spectrals{
 	    {
 		const u64 N = eigenvalues.size();
 		arma::vec intSpec(omegas.size());
+	#pragma omp parallel for
 		for (int i = 0; i < omegas.size(); i++)
 		{
 			const double w = omegas(i);
 			double overlap = 0.;
-	#pragma omp parallel for reduction(+: overlap)
 			for (long int n = 0; n < N; n++)
 				for (long int m = 0; m < N; m++)
 					if (w >= abs(eigenvalues(n) - eigenvalues(m)))
@@ -310,11 +328,11 @@ namespace spectrals{
 		}
 		LTA /= double(N);
 		arma::vec timeEv(times.size(), arma::fill::zeros);
+	#pragma omp parallel for
 		for (long int k = 0; k < times.size(); k++)
 		{
 			auto t = times(k);
 			double overlap = 0.;
-	#pragma omp parallel for reduction(+: overlap)
 			for (long int n = 0; n < N; n++)
 			{
 				overlap += abs(mat_elem(n, n) * conj(mat_elem(n, n)));

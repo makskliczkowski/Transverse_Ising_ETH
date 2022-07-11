@@ -37,22 +37,22 @@ YTICS = "set format y '%g';"
 L = 10; 
 g = 0.9; 
 h = 0.8;
-J=0.05
+J=1.0
 J0 = 0.; g_knot = 0.; 
-w = 0.3;
+w = 0.8;
 
 SigX_or_SigZ = 1	 	# 0-SigX , 1-SigZ :local
 operator_sum = 0		# is the operator a sum
 site = 0				# site at which the operator acts
 cor = 0					# correlations
-scaling = 3				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or 4-realisations or 5-M scaling or 6-compare
+scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or 4-realisations or 5-M scaling or 6-compare
 q_vs_j = 0				# =1 - evolution of Sz_q, else ecol of Sz_j
-operator = 0	 		# 1-SigmaZ , 0-Hq :local
+operator = 1	 		# 1-SigmaZ , 0-Hq :local
 compare = 0
-smoothed = 1;
+smoothed = 0;
 use_derivative = 0		# use derivative of integrated spectral function
 if(use_derivative){ compare = 0; smoothed = 0;};
-add_thouless_time = 1	# add thouless time from sff
+add_thouless_time = 0	# add thouless time from sff
 
 LIOM = 0				# plot LIOMs?
 local = 0
@@ -61,7 +61,7 @@ rescale=0				# rescale S_A by power law to find const region
 add_line=1				# draw power-law: a/omega^n
 a0=8e-5			# value of power-law plot at x=1
 	h0 = 10;	hend = 90;		dh = 10;
-	g0 = 30;	gend = 80;		dg = 10;
+	g0 = 10;	gend = 90;		dg = 10;
 	L0 = 10;	Lend = 15; 		dL = 1;
 
 
@@ -87,8 +87,8 @@ if(use_derivative){ a0 = 1e-3}
 nu=2.0
 fun(x, y, i) = scaling==1? x**nu*2**i*y : x**nu*2**L*y
 	
-dir_base='../results/disorder/PBC/'
-dir = dir_base.(use_derivative? 'IntegratedResponseFunction/DERIVATIVE/' : 'ResponseFunction/')
+dir_base='../results/ISING/disorder/PBC/'
+dir = dir_base.(use_derivative? 'IntegratedResponseFunction/DERIVATIVE/' : 'ResponseFunction/DERIVATIVE/')
 out_dir = 'Spectral_Function/'
 	#------------------------------------ GRAPHICS
 	set border back

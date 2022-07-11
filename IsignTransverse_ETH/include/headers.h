@@ -644,7 +644,7 @@ inline void save_to_file(std::string name, const arma::vec& x, const arma::vec& 
 	openFile(file, name, ios::out);
 	for (int i = 0; i < x.size(); i++) {
 		if (i == 0) printSeparated(file, "\t", 12, true, x(i), y(i), args...);
-		else		printSeparated(file, "\t", 12, true, x(i), y(i));
+		else		printSeparated(file, "\t", 12, true, x(i), y(i), args...);
 	}
 	file.close();
 }
@@ -663,7 +663,8 @@ inline void save_to_file(std::string name, const arma::vec& x, const arma::vec& 
 /// <summary>
 /// Sorts the vector and saves the permutation with a lambda like function compare
 /// </summary>
-template <typename T, typename Compare> inline std::vector<std::size_t> sort_permutation(const std::vector<T>& vec, Compare compare) {
+template <typename T, typename Compare> 
+inline std::vector<std::size_t> sort_permutation(const T& vec, Compare compare) {
 	std::vector<std::size_t> p(vec.size());
 	std::iota(p.begin(), p.end(), 0);
 	std::sort(p.begin(), p.end(),
@@ -676,7 +677,8 @@ template <typename T, typename Compare> inline std::vector<std::size_t> sort_per
 /// <summary>
 /// Applies permutation on a given vector
 /// </summary>
-template <typename T> inline void apply_permutation(std::vector<T>& vec, const std::vector<std::size_t>& p) {
+template <typename T> 
+inline void apply_permutation(T& vec, const std::vector<std::size_t>& p) {
 	std::vector<bool> done(vec.size());
 	for (std::size_t i = 0; i < vec.size(); ++i) {
 		if (done[i]) continue;
