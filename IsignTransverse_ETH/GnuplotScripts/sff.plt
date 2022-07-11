@@ -22,16 +22,16 @@ model = 0       # 1=symmetries and 0=disorder
 heisenberg=0
 
 w = 1.0
-g = 0.40
-L = 14
-h = 0.8
+g = 0.9
+L = 13
+h = 1.0
 J = 1.0
 Jdis = 0.0
 gdis = 0.0
 k=1
 
 scaling = 2     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
-smoothed = 1        # smoothed ?
+smoothed = 0        # smoothed ?
 plot_der_GOE = 0	 # plot deriviation from GOE value
 zoom_in = 0          # zoom in to collapse on GOE
 find_Thouless = 1    # find thouless time?
@@ -47,11 +47,11 @@ compare_folded_to_unfolded = 0
 if(scaling < 0 || scaling > 4 || zoom_in == 1) add_gap_ratio = 0;
 if(plot_der_GOE){ zoom_in = 0;}
 
-	h0 = 5;     hend = 50;		dh = 5;
-	g0 = 1;    gend = 120;		dg = 1;
+	h0 = 5;     hend = 150;		dh = 5;
+	g0 = 4;    gend = 100;		dg = 4;
     J0 = 2;    Jend = 100;     dJ = 2
 	L0 = 10;	    Lend = 18; 		dL = 1;
-	w0 = 160;		wend = 300;			dw = 10;
+	w0 = 10;		wend = 100;			dw = 1;
 	w_num = (wend-w0)/dw + 1;	array w_list[w_num];
 	do for[i=1:w_num]{ w_list[i] = 0.01*w0 + 0.01*dw*(i-1);}
     h_list = '0.20 0.60 1.20 1.40 1.60 1.80 2.40 3.00 3.60'
@@ -77,17 +77,20 @@ _name_long(Lx, Jx, hx, gx, dis) = dir_base.(use_folded? "folded" : "").(\
 								model? sprintf("_L=%d,J=%.2f,g=%.2f,h=%.2f,k=%d,p=1,x=1.dat",Lx, Jx, gx, hx, k) :\
                         			   sprintf("_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", Lx, Jx, Jdis, gx, gdis, hx, dis));
 
+wvalue(Lx) = Lx == 10? 1.45 : (Lx == 12? 1.55 : (Lx == 14? 1.70 : 1.90))
+
 _name(x) = 0; _key_title(x) = 0;
 _rescale_times(x, i) = 0;
 i0 = 0; iend = 0; di = 1;
 		if(scaling == 0){
-			_name(x) = _name_long(L, J, 0.01 * x, g, (Jdis == 0? 0.01 * x / 2 : w));    _key_title(x) = sprintf("h=%.2f", x / 100.)
+			_name(x) = _name_long(L, J, 0.01 * x, g, w);    _key_title(x) = sprintf("h=%.2f", x / 100.)
 			if(Jdis == 0){ set key title "w=h/2";}
 			i0 = h0; iend = hend; di = dh; 	out_dir = out_dir."h_scaling/";
 			output_name = sprintf("_L=%d,J0%.2f,J0=%.2f,g=%.2f,g0=%.2f,w=%.2f", L, J, Jdis, g, gdis, w);
 			_rescale_times(x, i) = x * exp(-1. / (0.01*i)**nu)
 		}else{
 			if(scaling == 1){
+
 				_name(x) = _name_long(x, J, h, g, w);	_key_title(x) = sprintf("L=%d",x);
 				i0 = L0; iend = Lend; di = dL; 	out_dir = out_dir."size_scaling/"
 				output_name = sprintf("_J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", J, Jdis, g, gdis, h, w);

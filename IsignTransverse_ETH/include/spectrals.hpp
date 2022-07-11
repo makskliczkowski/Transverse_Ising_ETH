@@ -75,9 +75,12 @@ namespace spectrals{
 			{
 				double omega = 0;
 				long p_end = (k == bucket_num)? size : (k + 1) * M;
-				for (long int p = k * M; p < p_end; p++)
+				int counter = 0;
+				for (long int p = k * M; p < p_end; p++){
 					omega += this->energy_diferences[p];
-				omegas(k) = omega / (double)M;
+					counter++;
+				}
+				omegas(k) = omega / (double)counter;
 			}
 			return omegas;
 		}
@@ -121,8 +124,11 @@ namespace spectrals{
 				u64 idx = min_element(begin(omegas), end(omegas), [=](double x, double y) {
 				return abs(x - energy_diff[p]) < abs(y - energy_diff[p]);
 				}) - omegas.begin();
-				response_fun(idx) += element;
-				counter(idx)++;
+				#pragma omp critical
+				{
+					response_fun(idx) += element;
+					counter(idx)++;
+				}
 			}
 			counter.elem( arma::find(counter == 0) ).ones();
 			return response_fun / counter;

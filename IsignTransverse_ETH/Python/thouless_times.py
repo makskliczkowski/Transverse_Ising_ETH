@@ -1,18 +1,16 @@
 import importlib
+from math import perm
 from os import sep as kPSep
-from numpy import array
-from numpy import loadtxt
-from numpy import exp
-from numpy import sqrt
-from numpy import log
-from numpy import float as npfloat
-from numpy import isfinite as isfin
-#from scipy.special import binom as binomial
-import scipy
+from pickle import STACK_GLOBAL
+import numpy as np
+
+import costfun.costfun as cost
 import helper_functions as hfun
 import config as cf
 import copy
 importlib.reload(cf)
+importlib.reload(cost)
+importlib.reload(hfun)
 
 #--- Global
 user_settings = getattr(cf.plot_settings, 'settings')
@@ -24,8 +22,8 @@ def load_taus():
     """
 
     name = f"{cf.base_directory}ThoulessTime{kPSep}" + "_all" + ( ",p=%d,x=%d.dat"%(cf.p_sym, cf.x_sym) if cf.model else ",J0=%.2f,g0=%.2f.dat"%(cf.J0, cf.g0) )
-    tau_data = loadtxt(name, unpack=True)
-    return array(tau_data)
+    tau_data = np.loadtxt(name, unpack=True)
+    return np.array(tau_data)
 
 #--- compare all parameters except the scaling and vs one
 def compare_params(tau_data, row):
@@ -42,23 +40,20 @@ def compare_params(tau_data, row):
 
 #--- get tau data according to scaling in plot_settings
 def get_tau_data(tau_data) : 
-        vs_column = array(tau_data[user_settings['vs_idx']])
+        vs_column = np.array(tau_data[user_settings['vs_idx']])
         taus = {}
         for i in range(0, len(vs_column)): 
             if(compare_params(tau_data, i)):
                 par = vs_column[i]
+                #if par <= 0.4 and par >= 0.1:
                 taus[f"%.5f"%(par)] = (tau_data[5][i] * (tau_data[6][i] if user_settings['physical_units'] else 1.0), tau_data[7][i])
         x_float = [];   tau = [];   gap = []
         if taus:
             lists = sorted(taus.items())
             x, data = zip(*lists)
             for j in range(0, len(x)) : 
-                tau.append(data[j][0]); gap.append(data[j][1]); x_float.append(float(x[j]) - cf.parameter_critical)
-        return array(x_float), array(tau), array(gap)
-
-
-
-
+                tau.append(data[j][0]); gap.append(data[j][1]); x_float.append(float(x[j]))
+        return np.array(x_float), np.array(tau), np.array(gap)
 
 
 
@@ -75,27 +70,27 @@ def load() :
 
     plot_settings:  dictionary with plot settings, see config.py
     """
-    print(user_settings)
-    hfun.print_vars(cf.params_arr, cf.names)
+    #print(user_settings)
+    #hfun.print_vars(cf.params_arr, cf.names)
     param_copy = cf.params_arr
 
     #--- SET SCALING RANGES AND DATA
-    x0 = 0.2
-    xend = 2.0
+    x0 = 0.0
+    xend = 1.0
     dx = 0.1
 
     length = int((xend-x0) / dx) + 1
     #--- prepare scaling - axis
     vals = []
     if user_settings['scaling_idx'] == 0:
-        if cf.hamiltonian: vals = range(10, 19, 2)
-        else: vals = range(10, 17, 1)
+        if cf.hamiltonian: vals = range(12, 19, 2)
+        else: vals = range(11, 17, 1)
     elif cf.model and user_settings['scaling_idx'] == 4:
         vals = range(0, cf.params_arr[0])
     else :
         for x in range(0, length) :
             vals.append(x0 + x * dx)
-    vals = array(vals)
+    vals = np.array(vals)
 
     #----- find data
     tau = []
@@ -110,30 +105,19 @@ def load() :
             cf.params_arr[4] = int(100 * x / 2.) / 100.
         new_x, new_tau, new_gap = get_tau_data(tau_data)
         if new_tau.size > 1 :
-            xvals.append(new_x)
-            tau.append(new_tau)
-            gap_ratio.append(new_gap)
-            new_vals.append(x)
+            xvals.append(np.array(new_x))
+            tau.append(np.array(new_tau))
+            gap_ratio.append(np.array(new_gap))
+            new_vals.append(np.array(x))
 
-    vals = array(new_vals)
-
-    xvals = array(xvals)
-    tau = array(tau)
-    gap_ratio = array(gap_ratio)
-    
     #--- reset defaults
     cf.params_arr = param_copy
-    return vals, xvals, tau, gap_ratio
-
-
-
-
-
+    return np.array(new_vals), np.array(xvals), np.array(tau), np.array(gap_ratio)
 
 
 
 #--- Function to plot thouless data given by plot_settings
-def plot(axis1, axis2, new_settings = None) :
+def plot(axis1, axis2, new_settings = None, use_scaling_ansatz = 0, scaling_ansatz=None, crit_fun=None) :
     """
     Plotter of Thouless times with plot_settings defining x-axis and scaling
     """
@@ -145,35 +129,67 @@ def plot(axis1, axis2, new_settings = None) :
         scaling_str = user_settings['scaling']
         if user_settings['scaling_idx'] == 2:
             scaling_str = hfun.var_name
-        return scaling_str + (f"=%d"%(vals[i]) if user_settings['scaling_idx'] == 0 else f"=%.2f"%(vals[i]))
+        return r"$" + (scaling_str + (f"=%d"%(vals[i]) if user_settings['scaling_idx'] == 0 else f"=%.2f"%(vals[i]))) + "$"
 
     #--- load data 
     vals, xvals, tau, gap_ratio = load()
-    num_of_plots = len(tau)
     
+    num_of_plots = len(tau)
+
+    rescale_by_L_nu = 0
+
+    #cost functinon
+    if scaling_ansatz is None: scaling_ansatz='classic'
+    if crit_fun is None: crit_fun='const'
+    params = [0,0,0,0,0,0]
+    x_max=None
+    for x in xvals: 
+        for _x_ in x: 
+            if x_max is None or _x_ > x_max: x_max = _x_
+    if user_settings['scaling_idx'] == 0 and use_scaling_ansatz:
+        bounds = [ (0.0, 5.0), (0, x_max)]
+        num_of_param = 0
+        if crit_fun == 'free': num_of_param = len(vals) - 1
+        elif crit_fun == 'power_law': num_of_param = 3
+        else: num_of_param = 3
+        for i in range(num_of_param): bounds.append((0, x_max))
+        params, cost_fun = cost.cost_func_minization(x=xvals, y=gap_ratio, sizes=vals, 
+                                        scale_func=scaling_ansatz, 
+                                        crit_func=crit_fun,
+                                        bnds=bounds,
+                                        population_size=1e2,
+                                        maxiterarions=1e3, workers=10, realisations=10
+                                    )
+        print(scaling_ansatz + ": ", cost_fun)
+    par = params[0]
+    crit_pars = np.array(params[1:])
+    rescale_fun = cost.resc_functions_dict[scaling_ansatz]
+    critical_fun = cost.crit_functions_dict[crit_fun]
+
     #--- plot first panel with thouless times
     marker_style = [];  face_colors = [];   ec = []
     y_min = 1.0e10;     y_max = -1.0e10;
     x_min = 1.0e10;     x_max = -1.0e10;
 
-    rescale_by_L_nu = 0
     nu = 2
     for i in range(0, num_of_plots):
         yvals = tau[i]
         if rescale_by_L_nu and user_settings['vs_idx'] > 0 : yvals = yvals / (vals[i]**nu if user_settings['scaling_idx'] == 0 else cf.L**nu)
         yvals = cf.plot_settings.rescale(yvals, 'y')
-        xx = cf.plot_settings.rescale(xvals[i], 'x')
+        temp = xvals[i] - critical_fun(vals[i], *crit_pars) if user_settings['scaling_idx'] == 0 and use_scaling_ansatz else xvals[i] 
+        #scaling_ansatz(x=xvals[i], par_crit=crit_par, L=vals[i], par=mu) if use_scaling_ansatz else xvals[i]
+        xx = cf.plot_settings.rescale(temp if user_settings['scaling_idx'] == 0 else xvals[i] , 'x')
         #if cf.hamiltonian and (user_settings['vs_idx'] == 0): xx = log(scipy.special.binom(xx, xx / 2)) / log(2)
         p = axis1.plot(xx, yvals, label=key_title(vals[i]))
         m = []; fc = [];    ec.append(p[0].get_color())
         
         #-- xy-ranges
         min = yvals.min();  max = yvals.max();
-        if min < y_min and isfin(min): y_min = min
-        if max > y_max and isfin(max): y_max = max
+        if min < y_min and np.isfinite(min): y_min = min
+        if max > y_max and np.isfinite(max): y_max = max
         min = xx.min();  max = xx.max();
-        if min < x_min and isfin(min): x_min = min
-        if max > x_max and isfin(max): x_max = max
+        if min < x_min and np.isfinite(min): x_min = min
+        if max > x_max and np.isfinite(max): x_max = max
         
         #--- plot markers with additional legend according to level spacing:
         # ~0.3865   -   filled squares
@@ -190,15 +206,15 @@ def plot(axis1, axis2, new_settings = None) :
         marker_style.append(m); face_colors.append(fc)
 
     #-- set panel1 details
-    print(x_min, x_max, y_min, y_max, user_settings['vs_idx'], user_settings['scaling_idx'])
     yrange = (0.9*y_min, 1.1*y_max)
     ylab = "\\tau/L^{%d}"%nu if rescale_by_L_nu and user_settings['vs_idx'] > 0 else "\\tau"
     vs_str = user_settings['vs']
     if user_settings['vs_idx'] == 2:
         vs_str = hfun.var_name
 
-    hfun.set_plot_elements(axis = axis1, xlim = (0.98*x_min, 1.02*x_max), 
-                                ylim = yrange, ylabel = ylab, xlabel = vs_str, settings=user_settings)
+    xlab = (vs_str + (" - " + vs_str + "_c") if use_scaling_ansatz and (user_settings['scaling_idx'] == 0) else vs_str)
+    hfun.set_plot_elements(axis = axis1, xlim = (x_min - np.sign(x_min) * 0.02*x_min, 1.02*x_max), 
+                                ylim = yrange, ylabel = ylab, xlabel = xlab, settings=user_settings)
     axis1.grid()
     axis1.legend()
     title = ""
@@ -208,43 +224,47 @@ def plot(axis1, axis2, new_settings = None) :
         title = hfun.remove_info(hfun.info_param(cf.params_arr), user_settings['vs'], user_settings['scaling'])
     if user_settings['vs_idx'] != 2 :
         try : 
-            title = list(title);    title[title.index('g')] = hfun.var_name;   title = "".join(title) # g
-            title = list(title);    title[title.index('g')] = hfun.var_name;   title = "".join(title) # g0
+            title = list(title);
+            idx=title.index('g')    
+            title.remove('g')
+            dummy=list(hfun.var_name)
+            for i in range(0,len(dummy)):
+                title.insert(i + idx, dummy[i]) 
+            title = "".join(title) # g
+            #title = list(title);    title[title.index('g')] = hfun.var_name;   title = "".join(title) # g0
         except ValueError:
                 print("not found")
     axis1.title.set_text(title)
 
 
 
-
-    rescale_by_L = 1
-    size_exp=1.5
+    xlab = ("(" + vs_str + (" - " + vs_str + "_c) \\cdot L^{\\nu}") if use_scaling_ansatz and (user_settings['scaling_idx'] == 0) else vs_str)
+    xlab = ("(" + vs_str + (" - " + vs_str + "_c)^{\\nu} \\cdot e^{\\frac{ln2}{2}L}") if use_scaling_ansatz and (user_settings['scaling_idx'] == 0) else vs_str)
+    xlab = cost.scale_ansatz_label[scaling_ansatz](vs_str)
     #--- plot second panel with gap ratios
     x_min = 1.0e10;     x_max = -1.0e10;
     for i in range(0, num_of_plots):
-        D = scipy.special.binom(vals[i], vals[i] / 2.)
-        #norm = float(sqrt(D / sqrt(vals[i])) ) if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0
-        #norm = float(exp(log(2)/2*abs(vals[i])) if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0)
-        norm = float(vals[i]**size_exp if (rescale_by_L and user_settings['scaling_idx'] == 0) else 1.0)
-        xpoints = (xvals[i]) * norm
-        
+        xpoints = rescale_fun(xvals[i], vals[i], critical_fun, 
+                    par, *crit_pars) if user_settings['scaling_idx'] == 0 and use_scaling_ansatz else xvals[i] 
+
         min = xpoints.min();  max = xpoints.max()
-        if min < x_min and isfin(min): x_min = min
-        if max > x_max and isfin(max): x_max = max
+        if np.isfinite(min) and min < x_min: x_min = min
+        if np.isfinite(max) and max > x_max: x_max = max
         #axis2.plot(xpoints, gap_ratio[i], label=key_title(vals[i]))
         for j in range(0, len(tau[i])) :
             axis2.scatter(xpoints[j], gap_ratio[i][j], edgecolors=ec[i], marker=marker_style[i][j], s=50, facecolor=face_colors[i][j])
     new_set_class = copy.deepcopy(cf.plot_settings)
     new_set_class.set_x_rescale(rescale=0)
     new_set = getattr(new_set_class, 'settings')
-    new_set['y_scale'] = 'linear';  new_set['x_scale'] = 'linear'
-    xlab = "(" + new_set['vs'] + (" - " + new_set['vs'] + "_c) \\cdot L^{\\nu}" if rescale_by_L else "")
-    #xlab = "(" + new_set['vs'] + (" - " + new_set['vs'] + "_c) \\cdot e^{\\frac{ln2}{2}L}" if rescale_by_L else "")
-    #xlab = new_set['vs'] + (" \\cdot D^{1/2}L^{1/4}" if rescale_by_L else "")
+    new_set['y_scale'] = 'linear'; new_set['x_scale'] = 'linear'
+    
+    print(x_min, x_max, y_min, y_max, user_settings['vs_idx'], user_settings['scaling_idx'])
     hfun.set_plot_elements(axis = axis2, xlim = (0.98*x_min, 1.02*x_max), 
-                                ylim = (0.37, 0.54), xlabel = xlab, ylabel = 'r', settings=new_set)
-    axis2.annotate(r"$" + new_set['vs'] + "_c=%.2f$"%cf.parameter_critical, (0.65*x_max, 0.41), color='black', size=20)
-    axis2.annotate(r"$\nu=%.2f$"%size_exp, (0.65*x_max, 0.40), color='black', size=20)
+                                ylim = (0.37, 0.54), xlabel = xlab, ylabel = 'r', settings=new_set, set_legend=False)
+    if new_set['scaling_idx'] == 0:
+        axis2.annotate(r"$\nu=%.2f$"%par, xy=(320, 300), xycoords='axes points', color='black', size=20)
+        for i in range(0, len(params)-1):
+            axis2.annotate(r"$x_{%d}=%.4f$"%(i,params[i+1]), xy=(320, 280 - 20*i), xycoords='axes points', color='black', size=20)  
     #--- additional lines on plot
     axis2.axhline(y=0.5307, ls='--', color='black', label='GOE')
     axis2.axhline(y=0.3863, ls='--', color='red', label='Poisson')
