@@ -17,8 +17,8 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 		",w=" + to_string_prec(this->w, 2);
 	this->set_neighbors();
 	#ifndef HEISENBERG
-		//if(this->g == 0 && this->g0 == 0)
-		//	generate_mapping();
+		if(this->g == 0 && this->g0 == 0)
+			generate_mapping();
 	#else
 		generate_mapping();
 	#endif	
@@ -182,8 +182,10 @@ arma::sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_ty
 	}
 	return opMatrix;
 }
-arma::sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators) const {
+arma::sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators, arma::cx_vec prefactors) const {
 	arma::sp_cx_mat opMatrix(this->N, this->N);
+	arma::cx_vec pre = prefactors.is_empty()? arma::cx_vec(this->L, arma::fill::ones) : prefactors;
+	assert(pre.size() == this->L && "Input array of different size than system size!");
 #pragma omp parallel for
 	for (long int k = 0; k < N; k++) {
 		u64 base_state = map(k);
@@ -194,15 +196,17 @@ arma::sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_ty
 				u64 idx = find_in_map(new_idx);
 				if(idx > this->N) continue;
 			#pragma omp critical
-				opMatrix(idx, k) += value;
+				opMatrix(idx, k) += value * pre(j);
 			}
 		}
 	}
 	return opMatrix / sqrt(this->L);
 }
-arma::sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators, int corr_len) const {
+arma::sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators, int corr_len, arma::cx_vec prefactors) const {
 	arma::sp_cx_mat opMatrix(this->N, this->N);
 	auto neis = get_neigh_vector(this->_BC, this->L, corr_len);
+	arma::cx_vec pre = prefactors.is_empty()? arma::cx_vec(this->L, arma::fill::ones) : prefactors;
+	assert(pre.size() == this->L && "Input array of different size than system size!");
 #pragma omp parallel for
 	for (long int k = 0; k < N; k++) {
 		u64 base_state = map(k);
@@ -215,7 +219,7 @@ arma::sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_ty
 				u64 idx = find_in_map(new_idx);
 				if(idx > this->N) continue;
 			#pragma omp critical
-				opMatrix(idx, k) += value;
+				opMatrix(idx, k) += value * pre(j);
 			}
 		}
 	}

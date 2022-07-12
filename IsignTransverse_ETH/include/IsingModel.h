@@ -171,8 +171,8 @@ public:
 	
 	// ---------------------------------- USING PHYSICAL QUANTITES FOR PARAMTER RANGES, ETC. ----------------------------------
 
-	virtual arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators) const = 0;
-	virtual arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) const = 0;
+	virtual arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, arma::cx_vec prefactors = arma::cx_vec()) const = 0;
+	virtual arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len, arma::cx_vec prefactors = arma::cx_vec()) const = 0;
 	virtual arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const = 0;
 	// transverse-field Ising LIOMs operator densities
 	//arma::sp_cx_mat create_StringOperator(coordinate alfa, coordinate beta, int j, int k) [[expects: k > 0]];
@@ -345,10 +345,10 @@ public:
 	arma::cx_vec symmetryRotation(const arma::cx_vec& state) const;
 
 	//friend sp_cx_mat create_operatorDistinctSectors()
-	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators) const override;													
-	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) const override;
+	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, arma::cx_vec prefactors = arma::cx_vec()) const override;													
+	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len, arma::cx_vec prefactors = arma::cx_vec()) const override;
 	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const override;
-	void set_OperatorElem(std::vector<op_type> operators, std::vector<int> sites, arma::sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx) const;
+	void set_OperatorElem(std::vector<op_type> operators, cpx prefactor, std::vector<int> sites, arma::sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx) const;
 	
 	arma::sp_cx_mat createHq(int k) const override { stout << "Not implemented yet!!\n\n"; return arma::sp_cx_mat(); };
 	arma::sp_cx_mat createHlocal(int k) const override { stout << "Not implemented yet!!\n\n"; return arma::sp_cx_mat(); };
@@ -394,8 +394,8 @@ public:
 	}
 
 	
-	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators) const override;
-	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) const override;
+	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, arma::cx_vec prefactors = arma::cx_vec()) const override;
+	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len, arma::cx_vec prefactors = arma::cx_vec()) const override;
 	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const override;
 
 	arma::sp_cx_mat createHq(int k) const override;

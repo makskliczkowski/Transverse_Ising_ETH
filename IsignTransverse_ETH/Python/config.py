@@ -4,7 +4,7 @@ import plot_settings as ps
 importlib.reload(ps)
 #---------------------------------------------------- MODEL PARAMETERS
 model = 0           # chooses model: 0-disorder / 1-symmetries
-hamiltonian = 0     # which hamiltonian?: 0-Ising / 1-Heisenberg
+hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
 BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
 
 L = 14                          # system size
