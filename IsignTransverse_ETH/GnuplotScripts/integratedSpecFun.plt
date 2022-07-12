@@ -1,4 +1,4 @@
-dir_base='../results/disorder/PBC/'
+dir_base='../results/ISING/disorder/PBC/'
 dir = dir_base.'IntegratedResponseFunction/'
 out_dir = 'Integrated_Spectral_Function/'
 reset 
@@ -40,11 +40,11 @@ YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
 L = 10;
-J=0.1 
+J=1.0 
 g = 0.9
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
-w = 0.3;
+w = 1.0;
 
 x_range_min=1e-4
 
@@ -52,17 +52,17 @@ integrated_by_hand = 0 #integrated time evolution?
 if(integrated_by_hand) cd '.\integrated'
 rescale = 0				# rescale the spectral function by f(w, L)?
 site = 0				# site at which the operator acts
-scaling = 1				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
+scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
 q_vs_j = 0				# =1 - evolution of Sz_q, else ecol of Sz_j
-operator = 0	 		# 1-SigmaZ , 0-Hq :local
+operator = 1	 		# 1-SigmaZ , 0-Hq :local
 
-two_panels = 0			# plot integrated spectral function next to respons function
-smoothed = 0			# smoothed derivative?
+two_panels = 1			# plot integrated spectral function next to respons function
+smoothed = 1			# smoothed derivative?
 #-- IntegratedSpecFun
 plot_normalized = 0		# plot renormalized to 1st peak
 plot_exponent = 0;	# plot as integrated response function
 #-- SpectralFun
-plot_derivative = 0		# use derivative as integrated spectal function
+plot_derivative = 1		# use derivative as integrated spectal function
 substract_LTA = 0
 
 rescale = 0
@@ -71,8 +71,8 @@ if(scaling != 1) rescale = 0;
 LIOM = 0				# plot LIOMs?
 local = 0
 
-	h0 = 10;	hend = 100;		dh = 10;
-	g0 = 10;	gend = 150;		dg = 10;
+	h0 = 10;	hend = 150;		dh = 10;
+	g0 = 10;	gend = 100;		dg = 10;
 	L0 = 10;	Lend = 15; 		dL = 1;
 
 use_fit = 0

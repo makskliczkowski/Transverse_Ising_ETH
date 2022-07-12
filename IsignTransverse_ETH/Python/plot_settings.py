@@ -57,11 +57,11 @@ class plot_settings_class:
         for ss in dumm:
             is_int = (self.settings['nu_'+ss] - int(self.settings['nu_'+ss])) == 0
             if self.settings['rescale' + ('X' if ss == 'x' else 'Y')]:
-                if self.settings['func_' + ss] == 'exp':           self.settings['func_' + ss + '_name'] = r"$exp(Q^{%d})$"%self.settings['nu_'+ss] if is_int else r"$exp(Q^{%.2f})$"%self.settings['nu_'+ss]
-                elif self.settings['func_' + ss] == 'exp_inv':     self.settings['func_' + ss + '_name'] = r"$exp(-Q^{%d})$"%self.settings['nu_'+ss] if is_int else r"$exp(-Q^{%.2f})$"%self.settings['nu_'+ss]
-                elif self.settings['func_' + ss] == 'log':         self.settings['func_' + ss + '_name'] = r"$log_{%d}\ Q$"%self.settings['nu_'+ss] if is_int else r"$log_{%.2f}\ Q$"%self.settings['nu_'+ss]
-                elif self.settings['func_' + ss] == 'log_inv':     self.settings['func_' + ss + '_name'] = r"$log^{-1}_{%d}\ Q$"%self.settings['nu_'+ss] if is_int else r"$log^{-1}_{%.2f}\ Q$"%self.settings['nu_'+ss]
-                elif self.settings['func_' + ss] == 'power-law':   self.settings['func_' + ss + '_name'] = r"$Q^{%d}$"%self.settings['nu_'+ss] if is_int else r"$Q^{%.2f}$"%self.settings['nu_'+ss]
+                if self.settings['func_' + ss] == 'exp':           self.settings['func_' + ss + '_name'] = r"$exp(\left(Q\right)^{%d})$"%self.settings['nu_'+ss] if is_int else r"$exp(\left(Q\right)^{%.2f})$"%self.settings['nu_'+ss]
+                elif self.settings['func_' + ss] == 'exp_inv':     self.settings['func_' + ss + '_name'] = r"$exp(-\left(Q\right)^{%d})$"%self.settings['nu_'+ss] if is_int else r"$exp(-\left(Q\right)^{%.2f})$"%self.settings['nu_'+ss]
+                elif self.settings['func_' + ss] == 'log':         self.settings['func_' + ss + '_name'] = r"$log_{%d}\left(Q\right)$"%self.settings['nu_'+ss] if is_int else r"$log_{%.2f}\ \left(Q\right)$"%self.settings['nu_'+ss]
+                elif self.settings['func_' + ss] == 'log_inv':     self.settings['func_' + ss + '_name'] = r"$log^{-1}_{%d}\left(Q\right)$"%self.settings['nu_'+ss] if is_int else r"$log^{-1}_{%.2f}\left(Q\right)$"%self.settings['nu_'+ss]
+                elif self.settings['func_' + ss] == 'power-law':   self.settings['func_' + ss + '_name'] = r"$\left(Q\right)^{%d}$"%self.settings['nu_'+ss] if is_int else r"$\left(Q\right)^{%.2f}$"%self.settings['nu_'+ss]
                 else: self.settings['func_' + ss + '_name'] = r"$Q$"
             else : 
                 self.settings['func_' + ss + '_name'] = r"$Q$"
