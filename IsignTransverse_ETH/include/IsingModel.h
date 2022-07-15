@@ -30,6 +30,12 @@
 * the work has been done, while staying in Ljubljana, Slovenia.					 *
 * ---------------------------------------------------------------------------------- */
 
+#ifdef HEISENBERG
+	const double S = 0.5;
+#else
+	const double S = 1.0;
+#endif
+
 template <typename _type>
 class IsingModel {
 protected:
@@ -138,6 +144,7 @@ public:
 		return proper;
 	}
 
+
 	// ---------------------------------- PHYSICAL QUANTITIES ----------------------------------
 	virtual double mean_level_spacing_analytical() const = 0;										// mean level spacing from analytical formula calcula
 	
@@ -147,14 +154,14 @@ public:
 			//site = properSite(site);
 			base_vec = flip(base_vec, BinaryPowers[L - 1 - site], L - 1 - site);
 		}
-		return std::make_pair(1.0, base_vec);
+		return std::make_pair(S, base_vec);
 	};
 	static std::pair<cpx, u64> sigma_y(u64 base_vec, int L, std::vector<int> sites) {
 		auto tmp = base_vec;
 		cpx val = 1.0;
 		for (auto& site : sites) {
 			//site = properSite(site);
-			val *= checkBit(tmp, L - 1 - site) ? im : -im;
+			val *= S * (checkBit(tmp, L - 1 - site) ? im : -im);
 			tmp = flip(tmp, BinaryPowers[L - 1 - site], L - 1 - site);
 		}
 		return std::make_pair(val, tmp);
@@ -164,21 +171,22 @@ public:
 		double val = 1.0;
 		for (auto& site : sites) {
 			//site = properSite(site);
-			val *= checkBit(tmp, L - 1 - site) ? 1.0 : -1.0;
+			val *= checkBit(tmp, L - 1 - site) ? S : -S;
 		}
 		return std::make_pair(val, base_vec);
 	};
 	
 	// ---------------------------------- USING PHYSICAL QUANTITES FOR PARAMTER RANGES, ETC. ----------------------------------
 
-	virtual arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators) const = 0;
-	virtual arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) const = 0;
+	virtual arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, arma::cx_vec prefactors = arma::cx_vec()) const = 0;
+	virtual arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len, arma::cx_vec prefactors = arma::cx_vec()) const = 0;
 	virtual arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const = 0;
 	// transverse-field Ising LIOMs operator densities
 	//arma::sp_cx_mat create_StringOperator(coordinate alfa, coordinate beta, int j, int k) [[expects: k > 0]];
 	//arma::sp_cx_mat create_LIOMoperator_densities(int n, int ell) const;
 	arma::sp_cx_mat create_tfim_liom_plus(int n) const;
 	arma::sp_cx_mat create_tfim_liom_minus(int n) const;
+	virtual arma::sp_cx_mat spin_current() const = 0;
 	
 	virtual arma::sp_cx_mat createHq(int k) const = 0;
 	virtual arma::sp_cx_mat createHlocal(int k) const = 0;
@@ -197,12 +205,13 @@ public:
 			case 5: op = this->createHq(site); break;
 			case 6: op = this->create_tfim_liom_plus(site); break;
 			case 7: op = this->create_tfim_liom_minus(site); break;
-			case 8: 
-				op = this->g * this->create_operator({ IsingModel::sigma_z }, std::vector<int>({ site })) 
-						+ this->h * this->create_operator({ IsingModel::sigma_x }, std::vector<int>({ site }));
-				break;
+			case 8: op = this->spin_current(); break;
 			case 9: op = this->create_operator({IsingModel::sigma_x}); break;
 			case 10: op = this->create_operator({IsingModel::sigma_z}); break;
+			case 11: op = this->create_operator({IsingModel::sigma_x}, int(1)); break;
+			case 12: op = this->create_operator({IsingModel::sigma_z}, int(1)); break;
+			case 13: op = this->create_operator({IsingModel::sigma_x}, int(2)); break;
+			case 14: op = this->create_operator({IsingModel::sigma_z}, int(2)); break;
 			default:
 				stout << "No operator chosen!\nReturning empty matrix\n\n";
 		}
@@ -221,9 +230,13 @@ public:
 		case 5: name = "H_q="	   	  		+ std::to_string(site);	break;
 		case 6: name = "TFIM_LIOM_plus_n="  + std::to_string(site);	break;
 		case 7: name = "TFIM_LIOM_minus_n=" + std::to_string(site);	break;
-		case 8: name = "SigXZ_j=" 			+ std::to_string(site);	break;
+		case 8: name = "SpinCurrent"; 								break;
 		case 9: name = "SigmaX";									break;
 		case 10: name = "SigmaZ";									break;
+		case 11: name = "SigmaX_near_neigh";						break;
+		case 12: name = "SigmaZ_near_neigh";						break;
+		case 13: name = "SigmaX_next_neigh";						break;
+		case 14: name = "SigmaZ_next_neigh";						break;
 		default:
 			stout << "Bad input! Operator -op 0-7 only";
 			exit(1);
@@ -295,6 +308,15 @@ private:
 	void mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id);							// multithreaded mapping
 	void generate_mapping();																													// utilizes the mapping kernel
 
+	static auto generate_full_map(int system_size, bool use_Sz_sym = 0){	
+		std::vector<u64> full_map;
+		for (u64 j = 0; j < (ULLPOW(system_size)); j++){
+			if (__builtin_popcountll(j) == system_size / 2.)
+				full_map.push_back(j);
+		}
+		return full_map;
+	}
+
 	u64 map(u64 index) const override;																												// finds a map corresponding to index (for inheritance purpose)
 public:
 	bool get_k_sector() const { return this->k_sector; }
@@ -342,13 +364,14 @@ public:
 	}
 
 	arma::sp_cx_mat symmetryRotation() const;
-	arma::cx_vec symmetryRotation(const arma::cx_vec& state) const;
+	arma::cx_vec symmetryRotation(const arma::cx_vec& state, const std::vector<u64>& full_map = std::vector<u64>()) const;
 
 	//friend sp_cx_mat create_operatorDistinctSectors()
-	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators) const override;													
-	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) const override;
+	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, arma::cx_vec prefactors = arma::cx_vec()) const override;													
+	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len, arma::cx_vec prefactors = arma::cx_vec()) const override;
 	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const override;
-	void set_OperatorElem(std::vector<op_type> operators, std::vector<int> sites, arma::sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx) const;
+	void set_OperatorElem(std::vector<op_type> operators, cpx prefactor, std::vector<int> sites, arma::sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx) const;
+	arma::sp_cx_mat spin_current() const override;
 	
 	arma::sp_cx_mat createHq(int k) const override { stout << "Not implemented yet!!\n\n"; return arma::sp_cx_mat(); };
 	arma::sp_cx_mat createHlocal(int k) const override { stout << "Not implemented yet!!\n\n"; return arma::sp_cx_mat(); };
@@ -379,10 +402,11 @@ public:
 
 private:
 	void generate_mapping();
-	u64 find_in_map(u64 index) const;			// method to binary search state in reduced basis
 	u64 map(u64 index) const override;
+	u64 find_in_map(u64 index) const;			// method to binary search state in reduced basis
 
 public:
+
 	// METHODS
 	void hamiltonian() override;
 	void hamiltonian_Ising() override;
@@ -394,10 +418,11 @@ public:
 	}
 
 	
-	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators) const override;
-	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len) const override;
+	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, arma::cx_vec prefactors = arma::cx_vec()) const override;
+	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, int corr_len, arma::cx_vec prefactors = arma::cx_vec()) const override;
 	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const override;
 
+	arma::sp_cx_mat spin_current() const override;
 	arma::sp_cx_mat createHq(int k) const override;
 	arma::sp_cx_mat createHlocal(int k) const override;
 	arma::sp_cx_mat fourierTransform(op_type op, int q) const override;

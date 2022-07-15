@@ -45,7 +45,7 @@ def get_tau_data(tau_data) :
         for i in range(0, len(vs_column)): 
             if(compare_params(tau_data, i)):
                 par = vs_column[i]
-                #if par <= 0.4 and par >= 0.1:
+                #if par >= 0.7:
                 taus[f"%.5f"%(par)] = (tau_data[5][i] * (tau_data[6][i] if user_settings['physical_units'] else 1.0), tau_data[7][i])
         x_float = [];   tau = [];   gap = []
         if taus:
@@ -147,18 +147,19 @@ def plot(axis1, axis2, new_settings = None, use_scaling_ansatz = 0, scaling_ansa
         for _x_ in x: 
             if x_max is None or _x_ > x_max: x_max = _x_
     if user_settings['scaling_idx'] == 0 and use_scaling_ansatz:
-        bounds = [ (0.0, 5.0), (0, x_max)]
+        x_min = 0 if crit_fun == 'free' else -x_max
+        bounds = [ (0.0, 5.0), (x_min, x_max)]
         num_of_param = 0
         if crit_fun == 'free': num_of_param = len(vals) - 1
         elif crit_fun == 'power_law': num_of_param = 3
         else: num_of_param = 3
-        for i in range(num_of_param): bounds.append((0, x_max))
+        for i in range(num_of_param): bounds.append((x_min, x_max))
         params, cost_fun = cost.cost_func_minization(x=xvals, y=gap_ratio, sizes=vals, 
                                         scale_func=scaling_ansatz, 
                                         crit_func=crit_fun,
                                         bnds=bounds,
                                         population_size=1e2,
-                                        maxiterarions=1e3, workers=10, realisations=10
+                                        maxiterarions=1e3, workers=10, realisations=2
                                     )
         print(scaling_ansatz + ": ", cost_fun)
     par = params[0]

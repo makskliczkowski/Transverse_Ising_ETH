@@ -5,7 +5,7 @@ std::uniform_real_distribution<> fi		= std::uniform_real_distribution<>(0.0, pi)
 int outer_threads = 1;
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
-{
+{	
 	#if defined(MY_MAC)
 		this->seed = static_cast<long unsigned int>(time(0));
 	#endif
@@ -20,7 +20,6 @@ void isingUI::ui::make_sim()
 	auto h_list = this->get_params_array(Ising_params::h);
 	auto w_list = this->get_params_array(Ising_params::w);
 	//generate_statistic_map(Ising_params::w, Ising_params::g);	return;
-
 
 	switch (this->fun)
 	{
@@ -52,8 +51,15 @@ void isingUI::ui::make_sim()
 		thouless_times();
 		break;
 	default:
+		std::string opname = this->scale? "SigmaZ_nn_av" : "SigmaZ_nn";
+		//std::string opname = std::get<0>(IsingModel_sym::opName(this->op, this->site));
+		std::string dir = this->saving_dir + "Hybrydization" + kPSep;
+		createDirs(dir);
 		std::ofstream file;
-		openFile(file, this->saving_dir + "ScalingQuantity" + IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, {"L"}, ",") + ".dat");
+		//std::string filename = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, {"L"}, ",");
+		std::string filename = this->ch? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"L", "k", "p", "x"}, "," )
+										: IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"L"}, "," );	
+		openFile(file, dir + "Scaling_" + opname + "_delta" + filename + ".dat");
 		printSeparated(std::cout, "\t", 16, true, "L", "J", "g", "h", "w");
 		for (auto& system_size : L_list){
 			for (auto& gx : g_list){
@@ -66,6 +72,7 @@ void isingUI::ui::make_sim()
 							this->J = Jx;
 							this->w = wx;
 							const auto start_loop = std::chrono::system_clock::now();
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 							
@@ -128,98 +135,99 @@ continue;
 =======
 							//stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
 							//printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
+=======
+							stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
+							printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
+>>>>>>> origin/Rafal_main
 							
-							//auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-							//const u64 N = alfa->get_hilbert_size();
-							//arma::sp_cx_mat op = alfa->create_operator({IsingModel_disorder::sigma_x}, std::vector<int>({ this->L / 2}));
-							//
-							calculate_spectrals(); continue;
+								double mean = 0.0, typical = 0.0;
+								int counter = 0;
+								std::vector<double> values, values_log;
+								std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
 
-
-							std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
-							const u64 N = ULLPOW(this->L);
-							auto set_E = [&](){
-								arma::vec dh = create_random_vec(this->L, this->w);                               // creates random disorder vector
-								arma::vec eigenvaluess(N, arma::fill::zeros);
-								for (u64 k = 0; k < N; k++) {
-									double s_i, s_j;
-									for (int j = 0; j <= this->L - 1; j++) {
-										s_i = checkBit(k, this->L - 1 - j) ? 1.0 : -1.0;;							 // true - spin up, false - spin down
-
-										/* disorder */
-										eigenvaluess(k) += (this->h + dh(j)) * s_i;                             // diagonal elements setting
-										int nei = (j + 1) % this->L;
-
-										/* Ising-like spin correlation */
-										s_j = checkBit(k, this->L - 1 - nei) ? 1.0 : -1.0;
-										eigenvaluess(k) += this->J * s_i * s_j;		// setting the neighbors elements
-									}
-								}
-								return eigenvaluess;
-							};
-
-							auto get_energy = [this](u64 state, const arma::vec& dh){
-									double E = 0;
-									for (int j = 0; j <= L - 1; j++) {
-										double s_i = checkBit(state, L - 1 - j) ? 1.0 : -1.0;							 // true - spin up, false - spin down
-
-										/* disorder */
-										E += (this->h + dh(j)) * s_i;                             // diagonal elements setting
-										int nei = (j + 1) % this->L;
-
-										/* Ising-like spin correlation */
-										double s_j = checkBit(state, this->L - 1 - nei) ? 1.0 : -1.0;
-										E += this->J * s_i * s_j;		// setting the neighbors elements
-									}
-									return E;
-							};
-
-							this->mu = 0.5 * N;
-							double mean = 0.0, typical = 0.0;
-							int counter = 0;
-							std::vector<double> values, values_log;
-						#pragma omp parallel for
+					std::function<void(int,int,int)> loop_sym_sectors = [&](int k, int p, int x){
+						
+						//if(k == 0 || k == this->L / 2) return;
+						#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 							for(int r = 0; r < this->realisations; r++){
-								arma::vec eigenvalues = set_E();
-								arma::uvec index = arma::stable_sort_index(eigenvalues);
-								eigenvalues = arma::sort(eigenvalues);
+								//std::ifstream readFile;
+								//auto data = readFromFile(readFile, dir + "realisations" + kPSep + "SigmaZ_nn" + info + "_r=" + std::to_string(r) + ".dat");
+								//if(data.empty()) continue;
+								//for(double val : data[0]){
+								//	if(val == val){
+								//		counter++;
+								//		mean += val;
+								//		typical += std::log(val);
+								//		values_log.push_back(std::log10(val));	
+								//		if(val >= 5e2) val = 5e2;
+								//			values.push_back(val);
+								//	}
+								//}
+								//continue;
+								auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, k, p, x, this->boundary_conditions);
+								//auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+								arma::sp_cx_mat op = alfa->create_operator({IsingModel_disorder::sigma_z}, 1);
+								//assert(op.n_nonzero > 0 && "Empty operator, check if symmetries not causing this like sigma_z operator");
+								if(op.n_nonzero == 0) {
+									std::cout << "Empty operator for sector (k, p, x) = (" << k << ", " << p << ", " << x << " )" << std::endl;
+									continue;
+								}
+								const u64 N = alfa->get_hilbert_size();
+								alfa->diagonalization();
+								arma::vec E = alfa->get_eigenvalues();
+								auto U = alfa->get_eigenvectors();
+							
 
-								auto E_av_idx = spectrals::get_mean_energy_index(eigenvalues);
+								this->mu = 0.5 * N;
+								arma::cx_mat mat_elem = U.t() * op * U; normaliseMat(mat_elem);
+								
+								auto E_av_idx = alfa->E_av_idx;
+
 								long _min = E_av_idx - 0.5 * this->mu;
 								long _max = E_av_idx + 0.5 * this->mu;
+								#pragma omp parallel for
 								for(int i = _min; i < _max; i++){
-									double mean_loc = 0;
-									for(int site = 0; site < this->L; site++)
+									cpx value = 0;
+									int j = i + 1;
+									int mini_count = 0;
+									int min2 = this->scale? ((i - 50 < 0)? 0 : i - 50) : i + 1; 
+									int max2 = this->scale? ((i + 50) >= N? N : i + 50) : i + 2;
+									
+									//for(j = min2; j < max2 && j != i; j++)
+									//for(k = 1; k < N  - i - 1; k++)
 									{
-										u64 new_state = flip(index(i), BinaryPowers[this->L - 1 - site], this->L - 1 - site);
-										for(int j = i - 50; j < i + 50; j++){
-											if(new_state == index(j) && abs(eigenvalues(j) - eigenvalues(i)) > 1e-13){
-												mean_loc += 1.0 / abs(eigenvalues(j) - eigenvalues(i));
-											}
-										}
+										//if(abs(mat_elem(i, i + k)) > 0) j = i + k;
+										//else if(abs(mat_elem(i, i - k)) > 0) j = i - k;
+										//else continue;
+										value += (mat_elem(i, j)) / (E(j) - E(i));
+										mini_count++;
+										//break;
 									}
-									mean_loc /= 100.0 * std::sqrt(this->L);
+									if(abs(value) <= 1e-16) std::cout << "zero, bitch" << std::endl;
+									value /= double(mini_count);
+									double val = abs(value);
 									#pragma omp critical
 									{
-										values.push_back(mean_loc);
-										if(abs(mean_loc) < 1e-15)
-											mean_loc = 1e-5;
-										values_log.push_back(std::log10(mean_loc));
-										mean += mean_loc;
-										//if(mat_elem > 0)	typical += std::log(mat_elem / omega);
 										counter++;
+										mean += val;
+										typical += std::log(val);
+										values.push_back(val);
+										values_log.push_back(std::log10(val));
+										info = this->ch? alfa->get_info({"k", "p", "x"}) : alfa->get_info();
 									}
 								}
 							}
+						};
+							if(this->ch)	loopSymmetrySectors(loop_sym_sectors, this->h, this->L);	
+							else 			loop_sym_sectors(this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym);
 							mean /= double(counter);
 							typical = std::exp(typical / double(counter));
 							printSeparated(std::cout, "\t", 16, true, this->L, mean, typical);
 							printSeparated(file, "\t", 16, true, this->L, mean, typical);
-							statistics::probability_distribution(this->saving_dir, "Distribution" + IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w), values, -1);
-							statistics::probability_distribution(this->saving_dir, "Distribution_log" + IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w), values_log, -1);
-							
-							continue;
+							statistics::probability_distribution(dir, "Dist_" + opname + "_delta" + info, values, -1);
+							statistics::probability_distribution(dir, "Dist_" + opname + "_delta_log" + info, values_log, -1);
 
+<<<<<<< HEAD
 							const double chi = 0.341345;
 							const double wH = sqrt(this->L) / (chi * N) * sqrt(this->J * this->J + this->h * this->h + this->g * this->g
 																		 + ( this->m? 0.0 : (this->w * this->w + this->g0 * this->g0 + this->J0 * this->J0) / 3. ));
@@ -293,6 +301,8 @@ continue;
 							//save_to_file(extensive_dir + "SigmaXav" + info + ".dat", omegas, spec_fun_av / double(this->L), wH, 0.0);
 							//smoothen_data(extensive_dir, "SigmaXav" + info + ".dat", 10);
 							
+=======
+>>>>>>> origin/Rafal_main
 							continue;
 							average_SFF(); continue;
 
@@ -1036,20 +1046,8 @@ void isingUI::ui::calculate_spectrals()
 		average_over_realisations<Ising_params::h>(*alfa, true, kernel);
 	}
 
-	if(this->jobid > 0) return;
-	opEvol /= double(this->realisations);
-	LTA /= double(this->realisations);
-	opIntSpec /= double(this->realisations);
-	opSpecFun /= double(this->realisations);
-	wH /= double(counter);
-	save_to_file(timeDir + opName + info + ".dat", times, opEvol, 1.0 / wH, LTA);		smoothen_data(timeDir, opName + info + ".dat", 10);
-	save_to_file(intDir + opName + info + ".dat", omegas, opIntSpec, wH, LTA);			smoothen_data(intDir,  opName + info + ".dat", 10);
-	//save_to_file(specDir + opName + info + ".dat", omega_spec, opSpecFun, wH, LTA);		smoothen_data(specDir, opName + info + ".dat");
-	arma::vec specfun = non_uniform_derivative(omegas, opIntSpec);
-	save_to_file(specDir_der + opName + info + ".dat", omega_spec, specfun, wH, LTA);	smoothen_data(specDir_der, opName + info + ".dat", 10);
-	
-	std::string dir = this->saving_dir + "STATISTICS" + kPSep;
-	std::string dir_agp = this->saving_dir + "AGP" + kPSep + opName + kPSep;
+	std::string dir = this->saving_dir + "STATISTICS" + kPSep + "raw_data" + kPSep;
+	std::string dir_agp = this->saving_dir + "AGP" + kPSep + opName + kPSep + "raw_data" + kPSep;
 	createDirs(dir, dir_agp);
 	std::ofstream file;
 
@@ -1069,6 +1067,18 @@ void isingUI::ui::calculate_spectrals()
 	printSeparated(file, "\t", 25, true, "'diagonal normalisation factor'", 	   LTA);
 
 	file.close();
+
+	opEvol /= double(this->realisations);
+	LTA /= double(this->realisations);
+	opIntSpec /= double(this->realisations);
+	opSpecFun /= double(this->realisations);
+	wH /= double(counter);
+	
+	std::string filename = opName + info + "_jobid=" + std::to_string(jobid) + ".dat";
+	save_to_file(timeDir + filename, times, opEvol, 1.0 / wH, LTA);		//smoothen_data(timeDir, opName + info + ".dat", 10);
+	save_to_file(intDir + filename, omegas, opIntSpec, wH, LTA);		//smoothen_data(intDir,  opName + info + ".dat", 10);
+	//save_to_file(specDir + opName + info + ".dat", omega_spec, opSpecFun, wH, LTA);		smoothen_data(specDir, opName + info + ".dat");
+	
 	stout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - \n"
 			  << std::endl; // simulation end
 }
@@ -1645,8 +1655,8 @@ void isingUI::ui::adiabatic_gauge_potential(){
 	}
 
 	auto [opName, str] = IsingModel_disorder::opName(this->ch, this->site);
-	std::string dir = this->saving_dir + "STATISTICS" + kPSep;
-	std::string dir_agp = this->saving_dir + "AGP" + kPSep + opName + kPSep;
+	std::string dir = this->saving_dir + "STATISTICS" + kPSep + "raw_data" + kPSep;
+	std::string dir_agp = this->saving_dir + "AGP" + kPSep + opName + kPSep + "raw_data" + kPSep;
 	createDirs(dir, dir_agp);
 	std::ofstream file;
 
@@ -2290,7 +2300,7 @@ void isingUI::ui::calculate_statistics(){
 		average_over_realisations<Ising_params::h>(*alfa, true, kernel);
 	}
 
-	std::string dir = this->saving_dir + "STATISTICS" + kPSep;
+	std::string dir = this->saving_dir + "STATISTICS" + kPSep + "raw_data" + kPSep;
 	createDirs(dir);
 	std::ofstream file;
 	openFile(file, dir + info + "_jobid=" + std::to_string(jobid) + ".dat");
@@ -2386,7 +2396,13 @@ void print_help(){
 		"	5 -- Hq\n"
 		"	6 -- I+_n - TFIM LIOMs ordered by locality\n"
 		"	7 -- I-_n - TFIM LIOMs ordered by locality\n"
-		"	8 -- A_i - non-interacting (J=0) LIOMs\n"
+		"	8 -- J    - spin current\n"
+		"	9 -- Sx    - global X-magnetization\n"
+		"	10 -- Sz   - global Z-magnetization\n"
+		"	11 -- sum_i Sx_i Sx_i+1   - nearest neighbour X\n"
+		"	12 -- sum_i Sz_i Sz_i+1   - nearest neighbour Z\n"
+		"	13 -- sum_i Sx_i Sx_i+2   - next nearest neighbour X\n"
+		"	14 -- sum_i Sz_i Sz_i+2   - next nearest neighbour Z\n"
 		"	  -- to get sum of local Sz or Sx take Sz_q or Sx_q with -s=0\n"
 		"	  -- i or q are set to site (flag -s); (default 0)\n"
 		""
@@ -2536,7 +2552,9 @@ void isingUI::ui::printAllOptions() const
 		  << "bucket size = " << this->mu << std::endl
 		  << "time step = " << this->dt << std::endl
 		  << "boolean value = " << this->ch << std::endl
-		  << "scale = " << (this->scale == 1 ? "log" : "linear") << std::endl;
+		  << "scale = " << (this->scale == 1 ? "log" : "linear") << std::endl
+		  << "realisations = " << this->realisations << std::endl
+		  << "seed = " << this->seed << std::endl;
 
 	if (this->m == 0)
 		stout << "J0  = " << this->J0 << std::endl
@@ -2547,14 +2565,14 @@ void isingUI::ui::printAllOptions() const
 			  << "wn  = " << this->wn << std::endl
 			  << "g0  = " << this->g0 << std::endl
 			  << "g0s = " << this->g0s << std::endl
-			  << "g0n = " << this->g0n << std::endl
-			  << "realisations = " << this->realisations << std::endl
-			  << "seed = " << this->seed << std::endl;
+			  << "g0n = " << this->g0n << std::endl;
 
-	if (this->m == 1)
-		stout << "k-sector = " << 2 * this->symmetries.k_sym / this->L << "*pi" << std::endl
-			  << "p-sector = " << (this->symmetries.p_sym ? 1 : -1) << std::endl
+	if (this->m == 1){
+		if(this->symmetries.k_sym == -1) stout << "k-sector = pi" << std::endl;
+		else stout << "k-sector = " << 2 * this->symmetries.k_sym << "/L *pi" << std::endl;
+		stout << "p-sector = " << (this->symmetries.p_sym ? 1 : -1) << std::endl
 			  << "x-sector = " << (this->symmetries.x_sym ? 1 : -1) << std::endl;
+	}
 	stout << "---------------------------------------------------------------------------------\n\n";
 	#ifdef PRINT_HELP
 		print_help();
@@ -2758,8 +2776,6 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv)
 	// choose function
 	choosen_option = "-fun";
 	this->set_option(this->fun, argv, choosen_option, false);
-	if (this->fun < 2)
-		this->m = 0;
 
 	// buckets
 	choosen_option = "-mu";
@@ -2769,10 +2785,14 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv)
 
 	// symmetries
 	choosen_option = "-k";
-	this->set_option(this->symmetries.k_sym, argv, choosen_option);
+	this->set_option(this->symmetries.k_sym, argv, choosen_option, false);
 	if (this->symmetries.k_sym >= this->L)
 		this->set_default_msg(this->symmetries.k_sym, choosen_option.substr(1),
 							  "max k sector is L = " + std::to_string(this->L), table);
+	if(this->symmetries.k_sym < -1)
+		this->set_default_msg(this->symmetries.k_sym, choosen_option.substr(1),
+							  "negative k sector is only -1 for k=pi for all", table);
+
 	choosen_option = "-p";
 	this->set_option(this->symmetries.p_sym, argv, choosen_option, false);
 	choosen_option = "-x";
