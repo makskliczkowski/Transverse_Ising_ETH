@@ -226,29 +226,45 @@ arma::sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_ty
 	return opMatrix / sqrt(this->L);
 }
 
-arma::sp_cx_mat IsingModel_disorder::fourierTransform(op_type op, int k) const {
-	const double q = k * two_pi / double(this->L);
+arma::sp_cx_mat IsingModel_disorder::spin_current() const {
 	arma::sp_cx_mat opMatrix(this->N, this->N);
-
-	std::vector<cpx> k_exp(this->L);
-	for (int j = 0; j < this->L; j++) {
-		k_exp[j] = std::exp(im * q * double(j + 1));
-	}
+	auto neis = get_neigh_vector(this->_BC, this->L, 1);
 #pragma omp parallel for
-	for (long int n = 0; n < N; n++) {
-		u64 base_state = map(N);
-		cpx value = 0.0;
-		u64 new_idx = 0;
+	for (long int k = 0; k < N; k++) {
+		u64 base_state = map(k);
 		for (int j = 0; j < this->L; j++) {
-			std::tie(value, new_idx) = op(base_state, this->L, { j });
+			const int nei = neis[j];
+			if(nei < 0) continue;
+			cpx value_x, value_y; 
+			u64 new_idx_x, new_idx;
+			// sigma^x_j sigma^y_l+1
+			std::tie(value_x, new_idx_x) = IsingModel_disorder::sigma_y(base_state, this->L, { nei });
+			std::tie(value_y, new_idx) = IsingModel_disorder::sigma_x(new_idx_x, this->L, { j });
+
 			u64 idx = find_in_map(new_idx);
+			if(idx > this->N) continue;
 		#pragma omp critical
-			{
-				opMatrix(idx, n) += value * k_exp[j];
-			}
+			opMatrix(idx, k) += value_x * value_y;
+
+			// sigma^y_j sigma^x_l+1
+			std::tie(value_x, new_idx_x) = IsingModel_disorder::sigma_x(base_state, this->L, { nei });
+			std::tie(value_y, new_idx) = IsingModel_disorder::sigma_y(new_idx_x, this->L, { j });
+
+			idx = find_in_map(new_idx);
+			if(idx > this->N) continue;
+		#pragma omp critical
+			opMatrix(idx, k) -= value_x * value_y;
 		}
 	}
-	return opMatrix / sqrt(this->L);
+	return 2.0 * S * this->J * opMatrix / sqrt(this->L); // factor of 2 cause of commutation of pauli operators
+}
+arma::sp_cx_mat IsingModel_disorder::fourierTransform(op_type op, int k) const {
+	const double q = k * two_pi / double(this->L);
+	arma::cx_vec k_exp(this->L);
+	for (int j = 0; j < this->L; j++) {
+		k_exp(j) = std::exp(im * q * double(j + 1));
+	}
+	return create_operator({op}, k_exp);
 }
 arma::sp_cx_mat IsingModel_disorder::createHq(int k) const {
 	const double q = k * two_pi / double(this->L);

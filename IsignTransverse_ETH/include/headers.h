@@ -860,6 +860,11 @@ private:
 
 
 //! ----------------------------------------------------------------------------- ARMADILLO HELPERS -----------------------------------------------------------------------------
+//<! calculate commutator of two input matrix types, which have overloaded * operator
+template <typename matrix>
+matrix commutator(const matrix& A, const matrix& B)
+	{ return A * B - B * A; }
+
 //! -------------------------------------------------------- cast non-cpx to cpx types
 template <typename _ty>
 arma::Col<std::complex<_ty>> cpx_real_vec(const arma::Col<_ty>& input){ 

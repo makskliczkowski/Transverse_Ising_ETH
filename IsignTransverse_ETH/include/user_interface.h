@@ -257,6 +257,7 @@ namespace isingUI
 			_types... args										   //!< arguments passed to callable interface lambda
 		) {
 			const int x_max = (hx != 0) ? 0 : 1;
+		#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 			for (int k = 0; k < Lx; k++) {
 				if (k == 0 || k == Lx / 2.) {
 					for (int p = 0; p <= 1; p++)
