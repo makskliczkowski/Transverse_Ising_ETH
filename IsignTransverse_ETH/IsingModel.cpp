@@ -174,6 +174,15 @@ arma::sp_cx_mat IsingModel<_type>::create_tfim_liom_minus(int n) const {
 	return tfim_liom;
 }
 
+
+template <typename _type>
+arma::sp_cx_mat IsingModel<_type>::spin_imbalance() const {
+	arma::cx_vec imbal(this->L, arma::fill::zeros);
+	for(int i = 0; i < this->L; i++){
+		imbal(i) = (i % 2 == 0)? 1. : -1.;
+	}
+	return this->create_operator({IsingModel::sigma_z}, imbal);			
+}
 // ------------------------------------------------------------------------------------------------ TOOLS ------------------------------------------------------------------------------------------------
 
 /// <summary>
@@ -261,6 +270,8 @@ template arma::sp_cx_mat IsingModel<cpx>::create_tfim_liom_plus(int) const;
 template arma::sp_cx_mat IsingModel<double>::create_tfim_liom_plus(int) const;
 template arma::sp_cx_mat IsingModel<cpx>::create_tfim_liom_minus(int) const;
 template arma::sp_cx_mat IsingModel<double>::create_tfim_liom_minus(int) const;
+template arma::sp_cx_mat IsingModel<double>::spin_imbalance() const;
+template arma::sp_cx_mat IsingModel<cpx>::spin_imbalance() const;
 template arma::cx_vec IsingModel<double>::time_evolve_state(const arma::cx_vec&, double);
 template arma::cx_vec IsingModel<cpx>::time_evolve_state(const arma::cx_vec&, double);
 template void IsingModel<double>::time_evolve_state_ns(arma::cx_vec&, double, int);
