@@ -72,73 +72,8 @@ void isingUI::ui::make_sim()
 							this->J = Jx;
 							this->w = wx;
 							const auto start_loop = std::chrono::system_clock::now();
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-							
-=======
->>>>>>> origin/Rafal_main
 							stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
 							printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
-								auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-	const u64 N = alfa->get_hilbert_size();
-	arma::sp_cx_mat op = alfa->create_operator({IsingModel_disorder::sigma_x}, 1);
-	
-	auto set_E = [&](){
-		alfa->hamiltonian();
-		auto H = alfa->get_hamiltonian();
-		arma::vec eigenvaluess(N);
-		for(int i = 0; i < N; i++)
-			eigenvaluess(i) = H(i,i);
-		return eigenvaluess;
-	};
-	std::vector<double> delta;
-	double wH = 0;
-	for(int r = 0; r < this->realisations; r++){
-		arma::vec eigenvalues = set_E();
-		const u64 E_av_idx = spectrals::get_mean_energy_index(eigenvalues);
-		const double E_av = eigenvalues(E_av_idx);
-		wH += statistics::mean_level_spacing(eigenvalues.begin() + u64(E_av_idx - 0.25 * N), eigenvalues.begin() + u64(E_av_idx + 0.25 * N));
-	#pragma omp parallel for
-		for(long i = 0; i < N; i++){
-			for(int j = i + 1; j < N; j++){
-				cpx val = op(i, j);
-				const double w_nm = abs(eigenvalues(j) - eigenvalues(i));
-				if( abs( (eigenvalues(j) + eigenvalues(i)) / 2. - E_av) > 0.1 * this->L / 2. ) continue;
-				if( abs(val) == 0.0) continue;
-			#pragma omp critical
-				delta.push_back(w_nm);
-			}
-		}
-	}
-	wH /= double(this->realisations);
-	
-	//double tH = 1. / wH;
-	//int time_end = (int)std::ceil(std::log10(3 * tH));
-	//time_end = (time_end / std::log10(tH) < 2.0) ? time_end + 1 : time_end;
-	//auto bins = arma::logspace(-time_end, 2, 1000);
-	//arma::vec spec_fun(bins.size(), arma::fill::zeros);
-	arma::vec energy_diff = arma::log(arma::vec(delta));
-	long n_bins = 1 + 2 * long(3.322 * log(energy_diff.size()));
-	n_bins = 300;
-	const double _min = arma::min(energy_diff);
-	const double _max = arma::max(energy_diff);
-	arma::vec spec_fun = arma::conv_to<arma::vec>::from(
-            arma::hist(energy_diff, n_bins)
-            );
-	spec_fun = normalise_dist(arma::square(arma::abs(spec_fun)), _min, _max);
-	auto omega = arma::linspace(_min, _max, spec_fun.size());
-    save_to_file<double>(this->saving_dir + "IntegrableLimit_g=0" + alfa->get_info() + ".dat", omega, spec_fun, wH);
-	smoothen_data(this->saving_dir, "IntegrableLimit_g=0" + alfa->get_info() + ".dat");
-	//statistics::probability_distribution(this->saving_dir, "IntegrableLimit_g=0" + alfa->get_info(), energy_diff, -1);
-continue;
-=======
-							//stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
-							//printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
-=======
-							stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
-							printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
->>>>>>> origin/Rafal_main
 							
 								double mean = 0.0, typical = 0.0;
 								int counter = 0;
@@ -227,82 +162,6 @@ continue;
 							statistics::probability_distribution(dir, "Dist_" + opname + "_delta" + info, values, -1);
 							statistics::probability_distribution(dir, "Dist_" + opname + "_delta_log" + info, values_log, -1);
 
-<<<<<<< HEAD
-							const double chi = 0.341345;
-							const double wH = sqrt(this->L) / (chi * N) * sqrt(this->J * this->J + this->h * this->h + this->g * this->g
-																		 + ( this->m? 0.0 : (this->w * this->w + this->g0 * this->g0 + this->J0 * this->J0) / 3. ));
-							
-							const int num_of_points = 300;
-							arma::vec eigenvalues = set_E();
-							spectrals::preset_omega set_omegas(eigenvalues, 100*L, arma::trace(eigenvalues) / double(N));
-							
-							arma::vec omegas = set_omegas.set_omega_bins(num_of_points);
-							const long num = omegas.size();
-							long int M = int(set_omegas.get_size() / double(num_of_points));
-
-							arma::vec spec_fun_av(num, arma::fill::zeros);
-							
-							std::string base_dir = this->saving_dir + "ResponseFunction" + kPSep;
-							std::string extensive_dir = base_dir + "EXTENSIVE" + kPSep;
-							createDirs(base_dir, extensive_dir);
-
-							//for(int site = 0; site < this->L; site++)
-							{
-								auto [opname, str] = IsingModel_disorder::opName(1, site);
-								std::string dir = base_dir + str + kPSep;
-								createDirs(dir);
-
-								arma::vec spec_fun(num, arma::fill::zeros);
->>>>>>> origin/Rafal_main
-							
-							#pragma omp parallel for
-								for(int r = 0; r < this->realisations; r++){
-									arma::vec dh = create_random_vec(L, this->w);
-									std::vector<double> delta; 
-									for(u64 state = 0; state < N; state++){
-										double E_i = get_energy(state, dh);
-										for(int site = 0; site < this->L; site++)
-										{
-											int nei = (site + 1) % this->L;
-											int prev = (site - 1) % this->L;
-											if(prev < 0) prev += this->L;
-											//if(checkBit(state, L - 1 - site) == checkBit(state, L - 1 - nei)) continue; // only flip 0's to avoid double counting
-											u64 new_state = flip(state, BinaryPowers[this->L - 1 - nei], this->L - 1 - nei);
-											//new_state = flip(new_state, BinaryPowers[this->L - 1 - site], this->L - 1 - site);
-											
-											double E_j = get_energy(new_state, dh);
-											delta.push_back(abs(E_j - E_i));
-											delta.push_back(abs(E_i - E_j));
-
-											//new_state = flip(state, BinaryPowers[this->L - 1 - site], this->L - 1 - site);
-											//new_state = flip(new_state, BinaryPowers[this->L - 1 - prev], this->L - 1 - prev);
-											//
-											//E_j = get_energy(new_state, dh);
-											//delta.push_back(abs(E_j - E_i));
-											//delta.push_back(abs(E_i - E_j));
-										}
-										
-									}
-									arma::vec energy_diff = arma::vec(delta);
-									arma::vec spec_fun_realis = arma::conv_to<arma::vec>::from(
-    							        arma::histc(energy_diff, omegas)
-    							        );
-									#pragma omp critical
-										spec_fun += spec_fun_realis;
-								}
-								spec_fun /= double(M * this->realisations); // multiplied by 4 from spin cur definition
-								spec_fun_av += spec_fun;
-								
-								//save_to_file(dir + opname + info + ".dat", omegas, spec_fun, wH, 0.0);	// sum of diagonals = 0 in computational basis
-								//smoothen_data(dir, opname + info + ".dat", 10);
-								save_to_file(extensive_dir + "SigmaX" + info + ".dat", omegas, spec_fun_av / double(this->L), wH, 0.0);
-								smoothen_data(extensive_dir, "SigmaX" + info + ".dat", 10);
-							}
-							//save_to_file(extensive_dir + "SigmaXav" + info + ".dat", omegas, spec_fun_av / double(this->L), wH, 0.0);
-							//smoothen_data(extensive_dir, "SigmaXav" + info + ".dat", 10);
-							
-=======
->>>>>>> origin/Rafal_main
 							continue;
 							average_SFF(); continue;
 
@@ -1691,7 +1550,7 @@ void isingUI::ui::spectral_form_factor(){
 	std::string dir2 = this->saving_dir + "LevelSpacing" + kPSep + "raw_data" + kPSep;
 	createDirs(dir, dir2);
 	//------- PREAMBLE
-	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
+	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"k", "x", "p"}) 
 					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
 
 	const double chi = 0.341345;
@@ -1809,9 +1668,7 @@ void isingUI::ui::spectral_form_factor(){
 	sff = sff / Z;
 	wH_mean /= norm;
 	wH_typ /= norm;
-	if(this->m) info = IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"k", "x", "p"});
-					
-
+	
 	if(this->jobid > 0) return;
 	std::ofstream lvl;
 	openFile(lvl, dir2 + info + ".dat", std::ios::out);
