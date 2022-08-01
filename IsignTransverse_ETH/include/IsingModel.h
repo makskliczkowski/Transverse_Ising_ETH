@@ -186,6 +186,7 @@ public:
 	//arma::sp_cx_mat create_LIOMoperator_densities(int n, int ell) const;
 	arma::sp_cx_mat create_tfim_liom_plus(int n) const;
 	arma::sp_cx_mat create_tfim_liom_minus(int n) const;
+	arma::sp_cx_mat spin_imbalance() const;
 	virtual arma::sp_cx_mat spin_current() const = 0;
 	
 	virtual arma::sp_cx_mat createHq(int k) const = 0;
@@ -212,6 +213,7 @@ public:
 			case 12: op = this->create_operator({IsingModel::sigma_z}, int(1)); break;
 			case 13: op = this->create_operator({IsingModel::sigma_x}, int(2)); break;
 			case 14: op = this->create_operator({IsingModel::sigma_z}, int(2)); break;
+			case 15: op = this->spin_imbalance();								break;
 			default:
 				stout << "No operator chosen!\nReturning empty matrix\n\n";
 		}
@@ -237,6 +239,7 @@ public:
 		case 12: name = "SigmaZ_near_neigh";						break;
 		case 13: name = "SigmaX_next_neigh";						break;
 		case 14: name = "SigmaZ_next_neigh";						break;
+		case 15: name = "SpinImbalance";							break;
 		default:
 			stout << "Bad input! Operator -op 0-7 only";
 			exit(1);
