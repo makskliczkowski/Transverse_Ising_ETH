@@ -195,6 +195,9 @@ namespace isingUI
 		//<! integrated spectral function and spectral form factor with folded eigenvalues
 		void calculate_spectrals();
 
+		//<! average separate spectral files for input operator
+		void combine_spectrals();
+
 		//<! calculate evolution of entaglement from initial state chosen by -op.
 		//<! -s sets the subsystem size, if-s=0 the L/2 is assumed 
 		void entropy_evolution();

@@ -75,6 +75,8 @@ void isingUI::ui::make_sim()
 							stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
 							printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
 							
+							combine_spectrals(); continue;
+							
 								double mean = 0.0, typical = 0.0;
 								int counter = 0;
 								std::vector<double> values, values_log;
@@ -796,7 +798,7 @@ void isingUI::ui::calculate_spectrals()
 	auto kernel = [&](
 		auto& alfa, int r
 		){
-
+		r += this->jobid;
 		std::string tdir_realisation = timeDir + "realisation=" + std::to_string(r) + kPSep;
 		std::string intdir_realisation = intDir + "realisation=" + std::to_string(r) + kPSep;
 		std::string specdir_realisation = specDir + "realisation=" + std::to_string(r) + kPSep;
@@ -940,6 +942,156 @@ void isingUI::ui::calculate_spectrals()
 	
 	stout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - \n"
 			  << std::endl; // simulation end
+}
+
+//<! average separate spectral files for input operator
+void isingUI::ui::combine_spectrals(){
+	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
+					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
+
+	auto [opName_tup, subdir] = IsingModel_disorder::opName(this->op, this->site);
+	std::string opName = opName_tup;
+	std::string timeDir = this->saving_dir + "timeEvolution" + kPSep + subdir + kPSep;
+	std::string intDir = this->saving_dir + "IntegratedResponseFunction" + kPSep + subdir + kPSep;
+	std::string specDir_der = this->saving_dir + "IntegratedResponseFunction" + kPSep + "DERIVATIVE" + kPSep + subdir + kPSep;
+
+	std::string dir_stat = this->saving_dir + "STATISTICS" + kPSep + "raw_data" + kPSep;
+	std::string dir_agp = this->saving_dir + "AGP" + kPSep + opName + kPSep + "raw_data" + kPSep;
+	createDirs(timeDir, intDir, specDir_der, dir_stat, dir_agp);
+
+	int num_of_points = 1000;
+	arma::vec opEvol(num_of_points, arma::fill::zeros);
+	arma::vec opIntSpec(num_of_points, arma::fill::zeros);
+	arma::vec times(num_of_points);
+	arma::vec omegas = times;
+
+	//---------------- PREAMBLE
+	int counter = 0;
+	double 	 
+			 AGP = 0.0,	//<! adiabatic gauge potential
+		typ_susc = 0.0,	//<! typical fidelity susceptibility
+			susc = 0.0,	//<! fidelity susceptibility
+	   	 entropy = 0.0,	//<! half-chain entropy
+	  		 ipr = 0.0,	//<! inverse participation ratio
+	info_entropy = 0.0,	//<! information entropy in eigenstates
+	   gap_ratio = 0.0,	//<! gap ratio
+	   		  wH = 0.0,	//<! mean level spacing
+	   	  wH_typ = 0.0;	//<! typical level spacing
+	
+	arma::vec stats(6, arma::fill::zeros);
+	arma::vec agps(4, arma::fill::zeros);
+	
+	double LTA = 0.0;
+	int counter_time = 0, counter_int = 0;
+
+	auto start_loop = std::chrono::system_clock::now();
+	auto lambda_average = [&](int realis, double x){
+		
+		std::string filename = opName + info + "_jobid=" + std::to_string(realis) + ".dat";
+		std::ifstream file;
+		
+		//-------- STATISTICS
+		bool status = openFile(file, dir_stat + info + "_jobid=" + std::to_string(realis) + ".dat");
+		if(status){
+			std::string line;
+			int idx = 0;
+			while(std::getline(file, line)){
+				std::istringstream ss(line);
+				std::vector<std::string> datarow;
+				while(ss){
+					std::string element;	ss >> element;
+					datarow.push_back(element);
+				}
+				double value = std::stod(datarow[datarow.size()-2]);
+				stats(idx) += value;
+				idx++;
+			}
+			counter++;
+			stout << "\t\t	--> finished statistics for " << info
+			  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+		}
+		file.close();
+
+		//-------- AGP
+		status = openFile(file, dir_agp + info + "_jobid=" + std::to_string(realis) + ".dat");
+		if(status){
+			int idx = 0;
+			std::string line;
+			while(std::getline(file, line)){
+				std::istringstream ss(line);
+				std::vector<std::string> datarow;
+				while(ss){
+					std::string element;	ss >> element;
+					datarow.push_back(element);
+				}
+				double value = std::stod(datarow[datarow.size()-2]);
+				agps(idx) += value;
+				idx++;
+			}
+			stout << "\t\t	--> finished AGP for " << info
+			  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+		}
+		file.close();
+
+		//-------- TIME EVOLUTION
+		auto data = readFromFile(file, timeDir + filename);
+		if(!data.empty()){
+			times = data[0];
+			opEvol += data[1];
+			LTA += data[3](0);
+			counter_time++;
+			stout << "\t\t	--> finished time evolution for " << info
+			  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+		}
+		file.close();
+
+		//-------- INTEGRATED SPECTRAL FUNCTION
+		data = readFromFile(file, intDir + filename);
+		if(!data.empty()){
+			omegas = data[0];
+			opIntSpec += data[1];
+			wH += data[2](0);
+			counter_int++;
+			stout << "\t\t	--> finished integrated spectral function for " << info
+			  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+		}
+		file.close();
+
+	};
+	average_over_realisations<Ising_params::J>(false, lambda_average);
+	
+	stats /= double(counter);
+	agps /= double(counter);
+	
+	std::ofstream file_out;
+	openFile(file_out, dir_stat + info + ".dat");
+	printSeparated(file_out, "\t", 25, true, "'gap ratio'", 			   		stats(0));
+	printSeparated(file_out, "\t", 25, true, "'ipr'", 							stats(1));
+	printSeparated(file_out, "\t", 25, true, "'information entropy'", 			stats(2));
+	printSeparated(file_out, "\t", 25, true, "'entropy in ~100 states at E=0'", stats(3));
+	printSeparated(file_out, "\t", 25, true, "'mean level spacing'", 			stats(4));
+	printSeparated(file_out, "\t", 25, true, "'typical level spacing'", 	  	stats(5));
+	file_out.close();
+
+	openFile(file_out, dir_agp + info + ".dat");
+	printSeparated(file_out, "\t", 25, true, "'adiabatic gauge potential'", 		agps(0));
+	printSeparated(file_out, "\t", 25, true, "'typical fidelity susceptibility'",	agps(1));
+	printSeparated(file_out, "\t", 25, true, "'fidelity susceptibility'", 			agps(2));
+	printSeparated(file_out, "\t", 25, true, "'diagonal normalisation factor'", 	agps(3));
+
+	file_out.close();
+	std::string filename = opName + info + ".dat";
+	if(counter_time > 0)
+		save_to_file(timeDir + filename, times, opEvol / double(counter_time), 1.0 / wH, LTA);		smoothen_data(timeDir, opName + info + ".dat", 10);
+	if(counter_int > 0){
+		save_to_file(intDir + filename, omegas, opIntSpec / double(counter_int), wH, LTA);		smoothen_data(intDir,  opName + info + ".dat", 10);
+		std::ifstream file;
+		auto data = readFromFile(file, intDir + "smoothed" + kPSep + filename);
+		auto specFun = non_uniform_derivative(omegas, opIntSpec);
+		arma::vec x = data[0];	x.shed_row(x.size() - 1);
+		save_to_file(specDir_der + opName + info + ".dat", x, specFun, wH, LTA);		smoothen_data(specDir_der, opName + info + ".dat");
+	}
+
 }
 
 //<! calculate evolution of entaglement from initial state chosen by -op.
@@ -2188,7 +2340,7 @@ void isingUI::ui::generate_statistic_map(Ising_params varname1, Ising_params var
 	for(auto& x : xarr){
 		for(auto& y : yarr){
 			std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, y, this->g0, this->h, x);
-			bool status = openFile(datafile, dir + "raw_data" + kPSep + info + "_jobid=" + std::to_string(jobid) + ".dat");
+			bool status = openFile(datafile, dir + "raw_data" + kPSep + info + ".dat");
 			if(!status) continue;
 			std::string line;
 			double value;
