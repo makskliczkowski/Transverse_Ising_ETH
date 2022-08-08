@@ -19,21 +19,21 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 
 #---------------------------- PARAMETERS
 model = 0       # 1=symmetries and 0=disorder
-heisenberg=1
+heisenberg=0
 
-w = 2.2
-g = 0.55
-L = 16
-h = 0.0
+w = 1.0
+g = 0.9
+L = 13
+h = 1.0
 J = 1.0
 Jdis = 0.0
 gdis = 0.0
 k=1
 
-scaling = 1     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
+scaling = 2     # 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - k scaling (only model=1) : w scaling (only model=0)
 smoothed = 0        # smoothed ?
 plot_der_GOE = 0	 # plot deriviation from GOE value
-zoom_in = 1          # zoom in to collapse on GOE
+zoom_in = 0          # zoom in to collapse on GOE
 find_Thouless = 1    # find thouless time?
 add_gap_ratio = 1	 # add gap ratio
 rescale_times = 0	 # rescale times by size or parameter
@@ -47,11 +47,11 @@ compare_folded_to_unfolded = 0
 if(scaling < 0 || scaling > 4 || zoom_in == 1) add_gap_ratio = 0;
 if(plot_der_GOE){ zoom_in = 0;}
 
-	h0 = 5;     hend = 50;		dh = 5;
-	g0 = 4;    gend = 150;		dg = 4;
+	h0 = 5;     hend = 150;		dh = 5;
+	g0 = 4;    gend = 100;		dg = 4;
     J0 = 2;    Jend = 100;     dJ = 2
 	L0 = 10;	    Lend = 18; 		dL = 1;
-	w0 = 160;		wend = 300;			dw = 10;
+	w0 = 10;		wend = 100;			dw = 1;
 	w_num = (wend-w0)/dw + 1;	array w_list[w_num];
 	do for[i=1:w_num]{ w_list[i] = 0.01*w0 + 0.01*dw*(i-1);}
     h_list = '0.20 0.60 1.20 1.40 1.60 1.80 2.40 3.00 3.60'
@@ -77,17 +77,20 @@ _name_long(Lx, Jx, hx, gx, dis) = dir_base.(use_folded? "folded" : "").(\
 								model? sprintf("_L=%d,J=%.2f,g=%.2f,h=%.2f,k=%d,p=1,x=1.dat",Lx, Jx, gx, hx, k) :\
                         			   sprintf("_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", Lx, Jx, Jdis, gx, gdis, hx, dis));
 
+wvalue(Lx) = Lx == 10? 1.45 : (Lx == 12? 1.55 : (Lx == 14? 1.70 : 1.90))
+
 _name(x) = 0; _key_title(x) = 0;
 _rescale_times(x, i) = 0;
 i0 = 0; iend = 0; di = 1;
 		if(scaling == 0){
-			_name(x) = _name_long(L, J, 0.01 * x, g, (Jdis == 0? 0.01 * x / 2 : w));    _key_title(x) = sprintf("h=%.2f", x / 100.)
+			_name(x) = _name_long(L, J, 0.01 * x, g, w);    _key_title(x) = sprintf("h=%.2f", x / 100.)
 			if(Jdis == 0){ set key title "w=h/2";}
 			i0 = h0; iend = hend; di = dh; 	out_dir = out_dir."h_scaling/";
 			output_name = sprintf("_L=%d,J0%.2f,J0=%.2f,g=%.2f,g0=%.2f,w=%.2f", L, J, Jdis, g, gdis, w);
 			_rescale_times(x, i) = x * exp(-1. / (0.01*i)**nu)
 		}else{
 			if(scaling == 1){
+
 				_name(x) = _name_long(x, J, h, g, w);	_key_title(x) = sprintf("L=%d",x);
 				i0 = L0; iend = Lend; di = dL; 	out_dir = out_dir."size_scaling/"
 				output_name = sprintf("_J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", J, Jdis, g, gdis, h, w);
@@ -168,6 +171,7 @@ if(zoom_in) { unset logscale y; set format y '%g'; set key bottom right font ",2
 x_max = 98
 if(real_units){ x_min = 1e3*x_min;	x_max = x_max * 1e3;	}
 print x_min, y_min
+#y_min=1e-1
 RANGE=zoom_in? sprintf("set xrange[%.6f:20]; set yrange[%.10f:1.2];", x_min, 0.8 * y_min)\
                     : sprintf("set xrange[%.6f:%.6f]; set yrange[%.10f:%.2f];", x_min, x_max, 0.8 * y_min, 0.5*(scaling == 1? 2**Lend : 2**L))
 MARGIN = "set lmargin at screen 0.10; set rmargin at screen 0.95; set bmargin at screen 0.10; set tmargin at screen 0.99;"

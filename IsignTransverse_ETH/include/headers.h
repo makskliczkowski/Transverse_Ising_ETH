@@ -121,8 +121,12 @@ namespace fs = std::experimental::filesystem;
 #if !defined(HEISENBERG)
 =======
 #if defined(MY_MAC) && !defined(HEISENBERG)
+<<<<<<< HEAD
 >>>>>>> origin/Rafal_main
 	//#define HEISENBERG
+=======
+	#define HEISENBERG
+>>>>>>> origin/Rafal_main
 #endif
 
 extern std::random_device rd;
@@ -667,7 +671,8 @@ inline void save_to_file(std::string name, const arma::vec& x, const arma::vec& 
 /// <summary>
 /// Sorts the vector and saves the permutation with a lambda like function compare
 /// </summary>
-template <typename T, typename Compare> inline std::vector<std::size_t> sort_permutation(const std::vector<T>& vec, Compare compare) {
+template <typename T, typename Compare> 
+inline std::vector<std::size_t> sort_permutation(const T& vec, Compare compare) {
 	std::vector<std::size_t> p(vec.size());
 	std::iota(p.begin(), p.end(), 0);
 	std::sort(p.begin(), p.end(),
@@ -680,7 +685,8 @@ template <typename T, typename Compare> inline std::vector<std::size_t> sort_per
 /// <summary>
 /// Applies permutation on a given vector
 /// </summary>
-template <typename T> inline void apply_permutation(std::vector<T>& vec, const std::vector<std::size_t>& p) {
+template <typename T> 
+inline void apply_permutation(T& vec, const std::vector<std::size_t>& p) {
 	std::vector<bool> done(vec.size());
 	for (std::size_t i = 0; i < vec.size(); ++i) {
 		if (done[i]) continue;
@@ -862,6 +868,11 @@ private:
 
 
 //! ----------------------------------------------------------------------------- ARMADILLO HELPERS -----------------------------------------------------------------------------
+//<! calculate commutator of two input matrix types, which have overloaded * operator
+template <typename matrix>
+matrix commutator(const matrix& A, const matrix& B)
+	{ return A * B - B * A; }
+
 //! -------------------------------------------------------- cast non-cpx to cpx types
 template <typename _ty>
 arma::Col<std::complex<_ty>> cpx_real_vec(const arma::Col<_ty>& input){ 
