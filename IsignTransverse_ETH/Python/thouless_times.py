@@ -125,12 +125,6 @@ def plot(axis1, axis2, new_settings = None, use_scaling_ansatz = 0, scaling_ansa
     if new_settings != None:
         user_settings = new_settings
 
-    def key_title(x):
-        scaling_str = user_settings['scaling']
-        if user_settings['scaling_idx'] == 2:
-            scaling_str = hfun.var_name
-        return r"$" + (scaling_str + (f"=%d"%(vals[i]) if user_settings['scaling_idx'] == 0 else f"=%.2f"%(vals[i]))) + "$"
-
     #--- load data 
     vals, xvals, tau, gap_ratio = load()
     
@@ -181,7 +175,7 @@ def plot(axis1, axis2, new_settings = None, use_scaling_ansatz = 0, scaling_ansa
         #scaling_ansatz(x=xvals[i], par_crit=crit_par, L=vals[i], par=mu) if use_scaling_ansatz else xvals[i]
         xx = cf.plot_settings.rescale(temp if user_settings['scaling_idx'] == 0 else xvals[i] , 'x')
         #if cf.hamiltonian and (user_settings['vs_idx'] == 0): xx = log(scipy.special.binom(xx, xx / 2)) / log(2)
-        p = axis1.plot(xx, yvals, label=key_title(vals[i]))
+        p = axis1.plot(xx, yvals, label=hfun.key_title(vals[i], user_settings))
         m = []; fc = [];    ec.append(p[0].get_color())
         
         #-- xy-ranges

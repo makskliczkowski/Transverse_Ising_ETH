@@ -164,6 +164,9 @@ namespace isingUI
 				case Ising_params::g0 : name = "g0"; 	break;
 				case Ising_params::h : 	name = "h"; 	break;
 				case Ising_params::w : 	name = "w"; 	break;
+				case Ising_params::k : 	name = "k"; 	break;
+				case Ising_params::p : 	name = "p"; 	break;
+				case Ising_params::x : 	name = "x"; 	break;
 				default:
 					std::cout << "No option found, choosing g_array" << std::endl;
 					name = "";
@@ -171,6 +174,21 @@ namespace isingUI
 			return name;
 		}
 		
+		auto update_info(std::string old_info, const std::string& var, double new_value){
+			old_info.erase(0,1);
+			auto split_array = split_str(old_info, ",");
+			std::string new_info = "_";
+			for(auto& substr : split_array){
+				auto str_tmp = split_str(substr, "=");
+				if(str_tmp[0] == var){
+					if(str_tmp[1].find(".") != std::string::npos) str_tmp[1] = to_string_prec(new_value, 2);
+					else str_tmp[1] = std::to_string(int(new_value));
+				}
+				new_info += str_tmp[0] + "=" + str_tmp[1];
+				if(&substr != &split_array.back()) new_info += ",";
+			}
+			return new_info;
+		};
 		//-------------------------------------------------------------------------- GENERAL ROUTINES
 
 		void diagonalize();
@@ -219,6 +237,7 @@ namespace isingUI
 		//-------------------------------------------------------------------------- STATISTICS
 		//<! calculate all statistics for given input parameters -- averaged
 		void calculate_statistics();
+		void generate_statistic_map(Ising_params varname);
 		void generate_statistic_map(Ising_params varname1, Ising_params varname2);
 
 		//<! gap ratio map

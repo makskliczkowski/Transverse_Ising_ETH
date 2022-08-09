@@ -12,9 +12,9 @@ var_name = "\\Delta" if cf.hamiltonian else "g"
 
 #-------------------------- SET INFO
 def info_sym(L, J, g, h, k, p, x):
-    return r"$_L=%d,J=%.2f,g=%.2f,h=%.2f,k=%d,p=%d,x=%d$_.dat"%(L, J, g, h, k, p, x)
+    return "_L=%d,J=%.2f,g=%.2f,h=%.2f,k=%d,p=%d,x=%d.dat"%(L, J, g, h, k, p, x)
 def info_dis(L, J, J0, g, g0, h, w):
-    return r"$_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f$_.dat"%(L, J, J0, g, g0, h, w)
+    return "_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat"%(L, J, J0, g, g0, h, w)
 
 def info(_L = cf.params_arr[0], _J = cf.params_arr[1], _J0 = cf.params_arr[8], 
             _g = cf.params_arr[2], _g0 = cf.params_arr[9], 
@@ -57,6 +57,11 @@ def find_index(data, value) :
     except ValueError:
         return -1
 
+def key_title(x, settings):
+    scaling_str = settings['scaling']
+    if settings['scaling_idx'] == 2:
+        scaling_str = var_name
+    return r"$" + (scaling_str + (f"=%d"%(x) if settings['scaling_idx'] == 0 else f"=%.2f"%(x))) + "$"
 
 #-------------------------- PLOT FANCY
 #--------- scatter plot with differeent markertypes as list
@@ -90,8 +95,8 @@ def set_plot_elements(axis, xlim =[], ylim=[], xlabel = None, ylabel = 'y', sett
     ylab = list(settings['func_y_name'])
     ylab[ylab.index('Q')] = ylabel
     
-    axis.set_ylabel("".join(ylab), rotation=0, fontsize=20, labelpad=10)
-    axis.set_xlabel("".join(xlab), rotation=0, fontsize=20, labelpad=10)
+    axis.set_ylabel("".join(ylab), rotation=90, fontsize=font_size+4)
+    axis.set_xlabel("".join(xlab), rotation=0, fontsize=font_size+4, labelpad=font_size-2)
     axis.set_yscale(settings['y_scale'])
     axis.set_xscale(settings['x_scale'])
     

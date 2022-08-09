@@ -19,7 +19,11 @@ void isingUI::ui::make_sim()
 	auto g_list = this->get_params_array(Ising_params::g);
 	auto h_list = this->get_params_array(Ising_params::h);
 	auto w_list = this->get_params_array(Ising_params::w);
-	//generate_statistic_map(Ising_params::w, Ising_params::g);	return;
+	for (auto& system_size : L_list){
+		this->L = system_size;
+		generate_statistic_map(Ising_params::g); 
+	}
+	return;
 
 	switch (this->fun)
 	{
@@ -1078,8 +1082,9 @@ void isingUI::ui::combine_spectrals(){
 	printSeparated(file_out, "\t", 25, true, "'typical fidelity susceptibility'",	agps(1));
 	printSeparated(file_out, "\t", 25, true, "'fidelity susceptibility'", 			agps(2));
 	printSeparated(file_out, "\t", 25, true, "'diagonal normalisation factor'", 	agps(3));
-
+	double norm = counter_int > counter_time? double(counter_int) : double(counter_time);
 	file_out.close();
+	wH /= norm;	LTA /= norm;
 	std::string filename = opName + info + ".dat";
 	if(counter_time > 0)
 		save_to_file(timeDir + filename, times, opEvol / double(counter_time), 1.0 / wH, LTA);		smoothen_data(timeDir, opName + info + ".dat", 10);
@@ -2244,7 +2249,6 @@ void isingUI::ui::calculate_statistics(){
 	   	 entropy = 0.0,	//<! half-chain entropy
 	  		 ipr = 0.0,	//<! inverse participation ratio
 	info_entropy = 0.0,	//<! information entropy in eigenstates
-	info_ent_rnd = 0.0,	//<! information entropy of random state in eigenbasis
 	   gap_ratio = 0.0,	//<! gap ratio
 	   		  wH = 0.0,	//<! mean level spacing
 	   	  wH_typ = 0.0;	//<! typical level spacing
@@ -2293,8 +2297,6 @@ void isingUI::ui::calculate_statistics(){
 		}
 		wH_typ += std::exp(wH_typ_local / double(this->mu));
 
-		auto state = this->set_init_state(N);
-		info_ent_rnd += statistics::information_entropy(state);
 		counter++;
 		std::cout << counter << std::endl;
 	};
@@ -2317,7 +2319,6 @@ void isingUI::ui::calculate_statistics(){
 	printSeparated(file, "\t", 25, true, "'gap ratio'", 			   				gap_ratio / double(this->mu * counter));
 	printSeparated(file, "\t", 25, true, "'ipr'", 						 				  ipr / double(this->mu * counter));
 	printSeparated(file, "\t", 25, true, "'information entropy'", 			 	 info_entropy / double(this->mu * counter));
-	printSeparated(file, "\t", 25, true, "'information entropy random state'", 	 info_ent_rnd / double(counter));
 	printSeparated(file, "\t", 25, true, "'entropy in ~100 states at E=0'", 	  	  entropy / double(num_ent * counter));
 	printSeparated(file, "\t", 25, true, "'mean level spacing'", 			  			   wH / double(this->mu * counter));
 	printSeparated(file, "\t", 25, true, "'typical level spacing'", 	  			   wH_typ / double(counter));
@@ -2326,21 +2327,84 @@ void isingUI::ui::calculate_statistics(){
 }
 
 //<! generate map from statistics data
-void isingUI::ui::generate_statistic_map(Ising_params varname1, Ising_params varname2){
-	auto xarr = get_params_array(varname1); // "w"
-	auto yarr = get_params_array(varname2); // "delta=g"
-	std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, {"w", "g"});
+void isingUI::ui::generate_statistic_map(Ising_params varname){
+	auto xarr = get_params_array(varname); 
+	std::string str = get_params_name(varname);
+	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {str}) 
+					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, {str});
+	std::string baseinfo = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
+					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
+
 	std::ofstream map;
 	std::ifstream datafile;
-
-	std::string dir = this->saving_dir + "STATISTICS" + kPSep;
-	openFile(map, dir + info + ".dat");
-	printSeparated(map, "\t", 25, true, "'w'", "'delta'", "'gap ratio'", "'ipr'", "'information entropy'", "'information entropy random state'",
+	std::string dir = "";
+	if(this->ch){ 
+		auto [opName, subdir] = IsingModel_disorder::opName(this->op, this->site);
+		dir = this->saving_dir + "AGP" + kPSep + opName + kPSep;
+		openFile(map, dir + info + ".dat");
+		printSeparated(map, "\t", 25, true, "'" + str + "'", "'adiabatic gauge potential'", 	 			
+									"'typical fidelity susceptibility'", "'fidelity susceptibility'", "'diagonal normalisation factor'");
+	}
+	else { 
+		dir = this->saving_dir + "STATISTICS" + kPSep;
+		openFile(map, dir + info + ".dat");
+		printSeparated(map, "\t", 25, true, "'" + str + "'", "'gap ratio'", "'ipr'", "'information entropy'",
 											 "'entropy in ~100 states at E=0'", "'mean level spacing'", "'typical level spacing'");
+	}
 	for(auto& x : xarr){
+		std::string info_loc = update_info(baseinfo, str, x);
+		bool status = openFile(datafile, dir + "raw_data" + kPSep + info_loc + ".dat");
+		if(!status) continue;
+		std::string line;
+		double value;
+		printSeparated(map, "\t", 25, false, x);
+		while(std::getline(datafile, line)){
+			std::istringstream ss(line);
+			std::vector<std::string> datarow;
+			while(ss){
+				std::string element;
+				ss >> element;
+				datarow.push_back(element);
+			}
+			double value = std::stod(datarow[datarow.size()-2]);
+			printSeparated(map, "\t", 25, false, value);
+		}
+		map << std::endl;
+		datafile.close();
+	}
+	map.close();
+}
+void isingUI::ui::generate_statistic_map(Ising_params varname1, Ising_params varname2){
+	auto xarr = get_params_array(varname1);
+	auto yarr = get_params_array(varname2);
+	std::string str1 = get_params_name(varname1), str2 = get_params_name(varname2);
+
+	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {str1, str2}) 
+					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, {str1, str2});
+	std::string baseinfo = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
+					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
+
+	std::ofstream map;
+	std::ifstream datafile;
+	std::string dir = "";
+	if(this->ch){ 
+		auto [opName, subdir] = IsingModel_disorder::opName(this->op, this->site);
+		dir = this->saving_dir + "AGP" + kPSep + opName + kPSep;
+		openFile(map, dir + info + ".dat");
+		printSeparated(map, "\t", 25, true, "'" + str1 + "'", "'" + str2 + "'", "'adiabatic gauge potential'", 	 			
+									"'typical fidelity susceptibility'", "'fidelity susceptibility'", "'diagonal normalisation factor'");
+	}
+	else { 
+		dir = this->saving_dir + "STATISTICS" + kPSep;
+		openFile(map, dir + info + ".dat");
+		printSeparated(map, "\t", 25, true, "'" + str1 + "'", "'" + str2 + "'", "'gap ratio'", "'ipr'", "'information entropy'",
+											 "'entropy in ~100 states at E=0'", "'mean level spacing'", "'typical level spacing'");
+	}
+	for(auto& x : xarr){
+		std::string info_loc = update_info(baseinfo, str1, x);
 		for(auto& y : yarr){
-			std::string info = IsingModel_disorder::set_info(this->L, this->J, this->J0, y, this->g0, this->h, x);
-			bool status = openFile(datafile, dir + "raw_data" + kPSep + info + ".dat");
+			info_loc = update_info(info_loc, str2, y);
+			bool status = openFile(datafile, dir + "raw_data" + kPSep + info_loc + ".dat");
 			if(!status) continue;
 			std::string line;
 			double value;

@@ -3,16 +3,16 @@ from os import sep as kPSep
 import plot_settings as ps
 importlib.reload(ps)
 #---------------------------------------------------- MODEL PARAMETERS
-model = 1           # chooses model: 0-disorder / 1-symmetries
+model = 0           # chooses model: 0-disorder / 1-symmetries
 hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
 BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
 
-L = 14                          # system size
+L = 16                          # system size
 J = 1.00                        # spin exchange (Ising-like)
 g = 0.55                       # trasnverse magnetic field (z-axis)
-h = 0.80                        # longitudal magnetic field (x-axis)
+h = 0.00                        # longitudal magnetic field (x-axis)
 #---- DISORDER PARAMETERS
-w = 1.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
+w = 0.7                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 J0 = 0.0                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
 g0 = 0.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 #---- SYMETRY PARAMETERS
@@ -24,8 +24,8 @@ x_sym = 1                       # spin-flip symmetry sector (only when h=0)
 General settings for all plots
 """
 plot_settings_dict = {
-    'vs':             'g',          # set parameter on x-axis
-    'scaling':        'L',          # set scaling parameter (changing in legend)
+    'vs':             'L',          # set parameter on x-axis
+    'scaling':        'g',          # set scaling parameter (changing in legend)
 
     'x_scale':      'log',       
     'y_scale':      'log',          
@@ -41,7 +41,12 @@ plot_settings_dict = {
     'rescaleX':         0,          
     'func_x':       'power-law',     # rescale function -> function(x, nu) (power-law = 1 / x^nu)    
     'nu_x':             -1,           # power of inversion
-    
+
+#---- operator options
+    'operator':         12,         # chosen operator according to order set in IsingModel.h
+    'site':             1,          # chosen site for local operator
+    'smoothed':         1,          # choose running-smoothed option
+
 #---- instances set after
     'vs_idx':          -1,          # idx of vs option set after dict
     'scaling_idx':     -1,          # idx of scaling option set after dict
@@ -65,6 +70,32 @@ base_directory = f"..{kPSep}results{kPSep}" + (f"Heisenberg{kPSep}" if hamiltoni
 
 #---- INSTANCE OF PLOT SETTINGS CLASS --> plot_settings.py
 plot_settings = ps.plot_settings_class(plot_settings_dict)
+
+
+#---------------------------------------------------- OPERATOR OPTIONS
+operator_names = [
+    "SigmaZ_j=",
+    "SigmaX_j=",
+    "H_j=",
+    "SigmaZ_q=",
+    "SigmaX_q=",
+    "H_q=",
+    "TFIM_LIOM_plus_n=",
+    "TFIM_LIOM_minus_n=",
+    "SpinCurrent",
+    "SigmaX",
+    "SigmaZ",
+    "SigmaX_near_neigh",
+    "SigmaZ_near_neigh",
+    "SigmaX_next_neigh",
+    "SigmaZ_next_neigh",
+    "SpinImbalance"			
+]
+op_name = operator_names[plot_settings_dict['operator']] + ("%s"%plot_settings_dict['site'] if plot_settings_dict['operator'] < 8 else "")
+subdir = (f"EXTENSIVE{kPSep}" if plot_settings_dict['operator'] > 7 else "j=%s%s"%(plot_settings_dict['site'], kPSep) ) + (f"smoothed{kPSep}" if plot_settings_dict['smoothed'] else "")
+
+
+
 
 
 #---------------------------------------------------- SHORT USER FUNCTIONS
