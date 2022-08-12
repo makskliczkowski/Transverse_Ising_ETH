@@ -305,6 +305,34 @@ arma::sp_cx_mat IsingModel_disorder::createHq(int k) const {
 }
 arma::sp_cx_mat IsingModel_disorder::createHlocal(int k) const {
 	arma::sp_cx_mat opMatrix(this->N, this->N);
+	#ifdef HEISENBERG
+#pragma omp parallel for
+	for (long int n = 0; n < this->N; n++) {
+		u64 base_state = map(n);
+		cpx __2 = 0.0, __3 = 0.0;
+		u64 new_idx1 = 0, new_idx2 = 0;
+		auto nei = this->nearest_neighbors[k];
+		auto [s_iii, __1] = IsingModel_disorder::sigma_z(base_state, this->L, { k });
+		double s_i = real(s_iii);
+		opMatrix(n, n) += (this->h + this->dh(k)) / 2. * s_i;
+
+		
+		if (nei >= 0) {
+			auto [s_jjj, __4] = IsingModel_disorder::sigma_z(base_state, this->L, { nei });
+			double s_j = real(s_jjj);
+			opMatrix(n, n) += ((this->g + this->g0) * s_i + (this->h + this->dh(nei)) / 2.) * s_j;
+			if(s_i < 0 && s_j > 0){
+				u64 new_idx =  flip(base_state, BinaryPowers[this->L - 1 - nei], this->L - 1 - nei);
+				new_idx =  flip(new_idx, BinaryPowers[this->L - 1 - k], this->L - 1 - k);
+				// 0.5 cause flip 0.5*(S+S- + S-S+)
+				u64 idx = find_in_map(new_idx);
+				opMatrix(idx, n) += 0.5 * (this->J + this->dJ(k));
+				opMatrix(n, idx) += 0.5 * (this->J + this->dJ(k));
+			}
+		}
+	}
+
+	#else
 #pragma omp parallel for
 	for (long int n = 0; n < this->N; n++) {
 		u64 base_state = map(n);
@@ -332,7 +360,8 @@ arma::sp_cx_mat IsingModel_disorder::createHlocal(int k) const {
 			opMatrix(n, n) += (this->J * s_i + this->h / 2.) * s_j;
 		}
 	}
-	return opMatrix / std::sqrt(this->L);
+	#endif
+	return opMatrix;
 }
 
 
