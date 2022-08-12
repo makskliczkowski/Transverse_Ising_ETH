@@ -43,7 +43,7 @@ plot_settings_dict = {
     'nu_x':             -1,           # power of inversion
 
 #---- operator options
-    'operator':         12,         # chosen operator according to order set in IsingModel.h
+    'operator':         15,         # chosen operator according to order set in IsingModel.h
     'site':             1,          # chosen site for local operator
     'smoothed':         1,          # choose running-smoothed option
 
@@ -93,7 +93,24 @@ operator_names = [
 ]
 op_name = operator_names[plot_settings_dict['operator']] + ("%s"%plot_settings_dict['site'] if plot_settings_dict['operator'] < 8 else "")
 subdir = (f"EXTENSIVE{kPSep}" if plot_settings_dict['operator'] > 7 else "j=%s%s"%(plot_settings_dict['site'], kPSep) ) + (f"smoothed{kPSep}" if plot_settings_dict['smoothed'] else "")
-
+operator_formuals = [
+    r"$\sigma^z_j$",
+    r"$\sigma^x_j$",
+    r"$H_j=J_j\sigma^z_j\sigma^z_{j+1} + \frac{g_j}{2}\left(\sigma^x_j+\sigma^x_{j+1}\right) + \frac{h_j}{2}\left(\sigma^z_j+\sigma^z_{j+1}\right)$",
+    r"$\sigma^z_q=\frac{1}{\sqrt{L}}\sum_\ell e^{i\frac{2\pi}{L}q\ell}\sigma^z_\ell$",
+    r"$\sigma^x_q=\frac{1}{\sqrt{L}}\sum_\ell e^{i\frac{2\pi}{L}q\ell}\sigma^x_\ell$",
+    r"$H_q=\frac{1}{\sqrt{L}}\sum_\ell \cos{\frac{2\pi}{L}q\ell}H_\ell$",
+    "TFIM_LIOM_plus_n=...",
+    "TFIM_LIOM_minus_n=...",
+    r"$\frac{J}{\sqrt{L}}\sum_\ell\left(\sigma^x_j\sigma^y_{j+1}-\sigma^y_j\sigma^x_{j+1}\right)$",
+    r"$\sum_\ell\sigma^x_\ell$",
+    r"$\frac{1}{\sqrt{L}}\sum_\ell\sigma^z_\ell$",
+    r"$\frac{1}{\sqrt{L}}\sum_\ell\sigma^x_\ell\sigma^z_{\ell+1}$",
+    r"$\frac{1}{\sqrt{L}}\sum_\ell\sigma^z_\ell\sigma^z_{\ell+1}$",
+    r"$\frac{1}{\sqrt{L}}\sum_\ell\sigma^x_\ell\sigma^z_{\ell+2}$",
+    r"$\frac{1}{\sqrt{L}}\sum_\ell\sigma^z_\ell\sigma^z_{\ell+2}$",
+    r"$\frac{1}{\sqrt{L}}\sum_\ell(-1)^\ell\sigma^z_\ell$"			
+]
 
 
 

@@ -22,15 +22,15 @@ RANGE = "set xrange[0:1]; set yrange[0:2.0]"
 UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset border;"
 #-- PARAMETERS
 model = 0       # 1=symmetries and 0=disorder
-w = 0.3
-g = 0.8
-L = 13
+w = 0.1
+g = 0.9
+L = 14
 h = 0.8
 J=1.0
 scaling = 1		# 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - w scaling (k -  scaling for model==1)
 function = 1    # 1 - gap ratio / 0 - prob distribution
-h_vs_g = 0      # 1 - as function of h / 0 - as function of g
-heatmap = 0
+h_vs_g = 1      # 1 - as function of h / 0 - as function of g
+heatmap = 1
 interpolate = 1
 
 if(!heatmap){
@@ -50,7 +50,7 @@ if(!heatmap){
 GOE(x) = 0.5307;
 Lap(x) = 0.3863;
 ADD = function?  " GOE(x) w l dt (8,8) lc rgb 'black' lw 2 notitle, Lap(x) w l dt (8,8) lc rgb 'blue' lw 2 notitle" : " 2/(1+x)**2 w l dt (3,5,10,5) lw 2.5 lc rgb 'black' notitle, 27./4 * (x+x**2)/(1+x+x**2)**2.5 w l dt (3,5,10,5) lw 2.5 lc rgb 'blue' notitle"
-dir_base = '../results/'.(model? 'symmetries' : 'disorder').'/PBC/LevelSpacing/'.(function? 'ratio/' : 'distribution/');
+dir_base = '../results/ISING/'.(model? 'symmetries' : 'disorder').'/PBC/LevelSpacing/'.(function? 'ratio/' : 'distribution/');
 set key top right
 load './gnuplot-colorbrewer-master/diverging/RdYlGn.plt'
 

@@ -104,9 +104,9 @@ void IsingModel_disorder::hamiltonian() {
 		this->dh = create_random_vec(L, this->w);                               // creates random disorder vector
 		this->dJ = create_random_vec(L, this->J0);                              // creates random exchange vector
 		this->dg = create_random_vec(L, this->g0);                              // creates random transverse field vector
+		dh.zeros();
+		dh(this->L / 2) = this->h + this->w;
 	}
-	//this->dh.zeros();
-	//dh(1) = 0.165; dh(4) = -0.24;
 	#ifdef HEISENBERG
 		this->hamiltonian_heisenberg();
 	#else

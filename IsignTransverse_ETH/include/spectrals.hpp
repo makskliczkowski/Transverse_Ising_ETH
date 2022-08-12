@@ -97,6 +97,18 @@ namespace spectrals{
 		//<! get eigenvalues
 		auto get_eigenvalues() const
 			{ return this->eigenvalues; }
+
+
+		//--------------------------- SAVERS
+		auto save_matrix_elements(std::string filename, arma::cx_mat mat_elem) const {
+			std::ofstream file;
+			openFile(file, filename);
+			for(int i = 0; i < this->energy_diferences.size(); i++){
+				double element = abs(mat_elem(this->idx_alfa[i], this->idx_beta[i]));
+				printSeparated(file, "\t", 16, true, this->energy_diferences[i], element * element);
+			}
+			file.close();
+		}
 	};
 
 	//<! calculate response function for input model on self-built 'log' scale 
