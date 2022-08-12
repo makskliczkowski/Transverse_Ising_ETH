@@ -26,27 +26,27 @@ def load_taus():
     return np.array(tau_data)
 
 #--- compare all parameters except the scaling and vs one
-def compare_params(tau_data, row):
+def compare_params(tau_data, row, settings):
     """
     """
     bool = 1
     for i in range(0, 5) :
-        if i != user_settings['vs_idx']:
-            if i == 4 and user_settings['vs_idx'] == 3 and cf.J0 == 0 and cf.g0 == 0:
+        if i != settings['vs_idx']:
+            if i == 4 and settings['vs_idx'] == 3 and cf.J0 == 0 and cf.g0 == 0:
                 bool = bool and (abs(tau_data[4][row] - tau_data[3][row] / 2.) <= 2e-2)
             else:
                 bool = bool and (abs(tau_data[i][row] - cf.params_arr[i]) <= 1e-10)
     return bool
 
 #--- get tau data according to scaling in plot_settings
-def get_tau_data(tau_data) : 
-        vs_column = np.array(tau_data[user_settings['vs_idx']])
+def get_tau_data(tau_data, settings) : 
+        vs_column = np.array(tau_data[settings['vs_idx']])
         taus = {}
         for i in range(0, len(vs_column)): 
-            if(compare_params(tau_data, i)):
+            if(compare_params(tau_data, i, settings)):
                 par = vs_column[i]
                 #if par >= 0.7:
-                taus[f"%.5f"%(par)] = (tau_data[5][i] * (tau_data[6][i] if user_settings['physical_units'] else 1.0), tau_data[7][i])
+                taus[f"%.5f"%(par)] = (tau_data[5][i] * (tau_data[6][i] if settings['physical_units'] else 1.0), tau_data[7][i])
         x_float = [];   tau = [];   gap = []
         if taus:
             lists = sorted(taus.items())
@@ -58,7 +58,7 @@ def get_tau_data(tau_data) :
 
 
 #--- Function to Load data from file given by plot_settings
-def load() :
+def load(settings = None) :
     """
     Function to Load data from file given by plot_settings.
     
@@ -70,6 +70,8 @@ def load() :
 
     plot_settings:  dictionary with plot settings, see config.py
     """
+    if settings == None:
+        settings = user_settings
     #print(user_settings)
     #hfun.print_vars(cf.params_arr, cf.names)
     param_copy = cf.params_arr
@@ -82,10 +84,10 @@ def load() :
     length = int((xend-x0) / dx) + 1
     #--- prepare scaling - axis
     vals = []
-    if user_settings['scaling_idx'] == 0:
+    if settings['scaling_idx'] == 0:
         if cf.hamiltonian: vals = range(12, 19, 2)
         else: vals = range(11, 17, 1)
-    elif cf.model and user_settings['scaling_idx'] == 4:
+    elif cf.model and settings['scaling_idx'] == 4:
         vals = range(0, cf.params_arr[0])
     else :
         for x in range(0, length) :
@@ -100,10 +102,10 @@ def load() :
     tau_data = load_taus()
     new_vals = []
     for x in vals:
-        cf.params_arr[user_settings['scaling_idx']] = x
-        if user_settings['scaling_idx'] == 3 and cf.J0 == 0 and cf.g0 == 0:
+        cf.params_arr[settings['scaling_idx']] = x
+        if settings['scaling_idx'] == 3 and cf.J0 == 0 and cf.g0 == 0:
             cf.params_arr[4] = int(100 * x / 2.) / 100.
-        new_x, new_tau, new_gap = get_tau_data(tau_data)
+        new_x, new_tau, new_gap = get_tau_data(tau_data, settings)
         if new_tau.size > 1 :
             xvals.append(np.array(new_x))
             tau.append(np.array(new_tau))
@@ -121,15 +123,8 @@ def plot(axis1, axis2, new_settings = None, use_scaling_ansatz = 0, scaling_ansa
     """
     Plotter of Thouless times with plot_settings defining x-axis and scaling
     """
-    global user_settings
-    if new_settings != None:
-        user_settings = new_settings
-
-    def key_title(x):
-        scaling_str = user_settings['scaling']
-        if user_settings['scaling_idx'] == 2:
-            scaling_str = hfun.var_name
-        return r"$" + (scaling_str + (f"=%d"%(vals[i]) if user_settings['scaling_idx'] == 0 else f"=%.2f"%(vals[i]))) + "$"
+    if new_settings == None:
+        new_settings = user_settings
 
     #--- load data 
     vals, xvals, tau, gap_ratio = load()
@@ -146,7 +141,7 @@ def plot(axis1, axis2, new_settings = None, use_scaling_ansatz = 0, scaling_ansa
     for x in xvals: 
         for _x_ in x: 
             if x_max is None or _x_ > x_max: x_max = _x_
-    if user_settings['scaling_idx'] == 0 and use_scaling_ansatz:
+    if new_settings['scaling_idx'] == 0 and use_scaling_ansatz:
         x_min = 0 if crit_fun == 'free' else -x_max
         bounds = [ (0.0, 5.0), (x_min, x_max)]
         num_of_param = 0
@@ -175,13 +170,13 @@ def plot(axis1, axis2, new_settings = None, use_scaling_ansatz = 0, scaling_ansa
     nu = 2
     for i in range(0, num_of_plots):
         yvals = tau[i]
-        if rescale_by_L_nu and user_settings['vs_idx'] > 0 : yvals = yvals / (vals[i]**nu if user_settings['scaling_idx'] == 0 else cf.L**nu)
+        if rescale_by_L_nu and new_settings['vs_idx'] > 0 : yvals = yvals / (vals[i]**nu if new_settings['scaling_idx'] == 0 else cf.L**nu)
         yvals = cf.plot_settings.rescale(yvals, 'y')
-        temp = xvals[i] - critical_fun(vals[i], *crit_pars) if user_settings['scaling_idx'] == 0 and use_scaling_ansatz else xvals[i] 
+        temp = xvals[i] - critical_fun(vals[i], *crit_pars) if new_settings['scaling_idx'] == 0 and use_scaling_ansatz else xvals[i] 
         #scaling_ansatz(x=xvals[i], par_crit=crit_par, L=vals[i], par=mu) if use_scaling_ansatz else xvals[i]
-        xx = cf.plot_settings.rescale(temp if user_settings['scaling_idx'] == 0 else xvals[i] , 'x')
-        #if cf.hamiltonian and (user_settings['vs_idx'] == 0): xx = log(scipy.special.binom(xx, xx / 2)) / log(2)
-        p = axis1.plot(xx, yvals, label=key_title(vals[i]))
+        xx = cf.plot_settings.rescale(temp if new_settings['scaling_idx'] == 0 else xvals[i] , 'x')
+        #if cf.hamiltonian and (new_settings['vs_idx'] == 0): xx = log(scipy.special.binom(xx, xx / 2)) / log(2)
+        p = axis1.plot(xx, yvals, label=hfun.key_title(vals[i], new_settings))
         m = []; fc = [];    ec.append(p[0].get_color())
         
         #-- xy-ranges
@@ -208,22 +203,22 @@ def plot(axis1, axis2, new_settings = None, use_scaling_ansatz = 0, scaling_ansa
 
     #-- set panel1 details
     yrange = (0.9*y_min, 1.1*y_max)
-    ylab = "\\tau/L^{%d}"%nu if rescale_by_L_nu and user_settings['vs_idx'] > 0 else "\\tau"
-    vs_str = user_settings['vs']
-    if user_settings['vs_idx'] == 2:
+    ylab = "\\tau/L^{%d}"%nu if rescale_by_L_nu and new_settings['vs_idx'] > 0 else "\\tau"
+    vs_str = new_settings['vs']
+    if new_settings['vs_idx'] == 2:
         vs_str = hfun.var_name
 
-    xlab = (vs_str + (" - " + vs_str + "_c") if use_scaling_ansatz and (user_settings['scaling_idx'] == 0) else vs_str)
+    xlab = (vs_str + (" - " + vs_str + "_c") if use_scaling_ansatz and (new_settings['scaling_idx'] == 0) else vs_str)
     hfun.set_plot_elements(axis = axis1, xlim = (x_min - np.sign(x_min) * 0.02*x_min, 1.02*x_max), 
-                                ylim = yrange, ylabel = ylab, xlabel = xlab, settings=user_settings)
+                                ylim = yrange, ylabel = ylab, xlabel = xlab, settings=new_settings)
     axis1.grid()
     axis1.legend()
     title = ""
-    if (user_settings['vs_idx'] == 3 or user_settings['scaling_idx'] == 3) and cf.J0 == 0 and cf.g0 == 0:
-        title = hfun.remove_info(hfun.info_param(cf.params_arr), user_settings['vs'], user_settings['scaling'], 'w') + ',w=0.5h'
+    if (new_settings['vs_idx'] == 3 or new_settings['scaling_idx'] == 3) and cf.J0 == 0 and cf.g0 == 0:
+        title = hfun.remove_info(hfun.info_param(cf.params_arr), new_settings['vs'], new_settings['scaling'], 'w') + ',w=0.5h'
     else :
-        title = hfun.remove_info(hfun.info_param(cf.params_arr), user_settings['vs'], user_settings['scaling'])
-    if user_settings['vs_idx'] != 2 :
+        title = hfun.remove_info(hfun.info_param(cf.params_arr), new_settings['vs'], new_settings['scaling'])
+    if new_settings['vs_idx'] != 2 :
         try : 
             title = list(title);
             idx=title.index('g')    
@@ -239,14 +234,14 @@ def plot(axis1, axis2, new_settings = None, use_scaling_ansatz = 0, scaling_ansa
 
 
 
-    xlab = ("(" + vs_str + (" - " + vs_str + "_c) \\cdot L^{\\nu}") if use_scaling_ansatz and (user_settings['scaling_idx'] == 0) else vs_str)
-    xlab = ("(" + vs_str + (" - " + vs_str + "_c)^{\\nu} \\cdot e^{\\frac{ln2}{2}L}") if use_scaling_ansatz and (user_settings['scaling_idx'] == 0) else vs_str)
+    xlab = ("(" + vs_str + (" - " + vs_str + "_c) \\cdot L^{\\nu}") if use_scaling_ansatz and (new_settings['scaling_idx'] == 0) else vs_str)
+    xlab = ("(" + vs_str + (" - " + vs_str + "_c)^{\\nu} \\cdot e^{\\frac{ln2}{2}L}") if use_scaling_ansatz and (new_settings['scaling_idx'] == 0) else vs_str)
     xlab = cost.scale_ansatz_label[scaling_ansatz](vs_str)
     #--- plot second panel with gap ratios
     x_min = 1.0e10;     x_max = -1.0e10;
     for i in range(0, num_of_plots):
         xpoints = rescale_fun(xvals[i], vals[i], critical_fun, 
-                    par, *crit_pars) if user_settings['scaling_idx'] == 0 and use_scaling_ansatz else xvals[i] 
+                    par, *crit_pars) if new_settings['scaling_idx'] == 0 and use_scaling_ansatz else xvals[i] 
 
         min = xpoints.min();  max = xpoints.max()
         if np.isfinite(min) and min < x_min: x_min = min
@@ -259,7 +254,7 @@ def plot(axis1, axis2, new_settings = None, use_scaling_ansatz = 0, scaling_ansa
     new_set = getattr(new_set_class, 'settings')
     new_set['y_scale'] = 'linear'; new_set['x_scale'] = 'linear'
     
-    print(x_min, x_max, y_min, y_max, user_settings['vs_idx'], user_settings['scaling_idx'])
+    print(x_min, x_max, y_min, y_max, new_settings['vs_idx'], new_settings['scaling_idx'])
     hfun.set_plot_elements(axis = axis2, xlim = (0.98*x_min, 1.02*x_max), 
                                 ylim = (0.37, 0.54), xlabel = xlab, ylabel = 'r', settings=new_set, set_legend=False)
     if new_set['scaling_idx'] == 0:
