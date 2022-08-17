@@ -2,7 +2,7 @@ reset
 ##--PREAMBLE
 set autoscale
 use_png = 0		# 1 if use png output, and 0 for qt output
-if(use_png) { set term pngcairo size 1200, 1200 font sprintf("Helvetica,%d",20); }
+if(use_png) { set term pngcairo transparent size 1200, 1200 font sprintf("Helvetica,%d",20); }
 else {set term qt size 900, 900 font sprintf("Helvetica,%d",20); }
 load './gnuplot-colorbrewer-master/diverging/RdYlGn.plt'
 
@@ -27,10 +27,10 @@ g = 0.9
 L = 14
 h = 0.8
 J=1.0
-scaling = 1		# 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - w scaling (k -  scaling for model==1)
-function = 1    # 1 - gap ratio / 0 - prob distribution
+scaling = 2		# 0 - h scaling / 1 - L scaling / 2 - g scaling / 3 - J scaling / 4 - w scaling (k -  scaling for model==1)
+function = 0    # 1 - gap ratio / 0 - prob distribution
 h_vs_g = 1      # 1 - as function of h / 0 - as function of g
-heatmap = 1
+heatmap = 0
 interpolate = 1
 
 if(!heatmap){
@@ -38,7 +38,7 @@ if(!heatmap){
     if(scaling == 2) { h_vs_g = 1; }
 }
 	h0 = 5;     hend = 55;		dh = 10;
-	g0 = 5;    gend = 50;		dg = 10;
+	g0 = 10;    gend = 90;		dg = 20;
     J0 = 10;    Jend = 60;     dJ = 10
 	L0 = 9;	    Lend = 13; 		dL = 1;
 
@@ -57,7 +57,8 @@ load './gnuplot-colorbrewer-master/diverging/RdYlGn.plt'
 name_prefix = dir_base.(function? (h_vs_g? "hMap" : "gMap") : "");
 _name_ratio(Jx, Lx, dis) = name_prefix.sprintf("_L=%d",Lx).(model? ",k=0,p=1,x=1.dat" : sprintf(",J=%.2f,J0=0.00,g0=0.00,w=%.2f.dat", Jx, dis));
 _name_dist(Jx, Lx, hx, gx) = model? name_prefix.sprintf("_L=%d,g=%.2f,h=%.2f,k=0,p=1,x=1.dat", Lx, gx, hx) :\
-                        name_prefix.sprintf("_L=%d,J=%.2f,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", Jx, Lx, gx, hx, w);
+                        name_prefix.sprintf("_L=%d,J=%.2f,J0=0.00,g=%.2f,g0=0.00,h=%.2f,w=%.2f.dat", Lx, Jx, gx, hx, w);
+set output "LevelSpacing/level_spacing_J=1.0.png";
 if(function){
     if(heatmap){
         set xrange[0.05:1.5]
@@ -101,6 +102,8 @@ if(function){
     #plot for[gx in g_list] _name_dist(L, h, 1. * gx) u 1:2 w lp ls ((1. * gx - 0.01*g0)/ (0.01*dg)) pt 6 ps 1.5 title sprintf("g=%.2f", 1. * gx), @ADD
     set ylabel 'P(s)' rotate by 0;
     set xlabel 's'
+    set label 1 at 0.2, 1.5 "Poisson" tc rgb "black"
+    set label 2 at 0.7, 1.2 "Wigner-Dyson" tc rgb "blue"
     if(scaling == 0){ plot for[hx=h0:hend:dh] _name_dist(J, L, 0.01 * hx, g) u 1:2 w lp ls ((hx-h0)/dh) pt 6 ps 1.5 title sprintf("h=%.2f", 0.01*hx), @ADD
     } else {
     if(scaling == 1){ plot for[Lx=L0:Lend:dL] _name_dist(J, Lx, h, g) u 1:2 w lp ls ((Lx-L0)/dL) pt 6 ps 1.5 title sprintf("L=%d", Lx), @ADD

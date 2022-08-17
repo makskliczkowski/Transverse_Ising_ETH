@@ -61,7 +61,7 @@ def key_title(x, settings):
     scaling_str = settings['scaling']
     if settings['scaling_idx'] == 2:
         scaling_str = var_name
-    return r"$" + (scaling_str + (f"=%d"%(x) if settings['scaling_idx'] == 0 else f"=%.2f"%(x))) + "$"
+    return r"$" + (scaling_str + (f"=%d"%(x) if settings['scaling_idx'] == 0 or settings['scaling_idx'] == 5 else f"=%.2f"%(x))) + "$"
 
 #-------------------------- PLOT FANCY
 #--------- scatter plot with differeent markertypes as list
@@ -95,10 +95,12 @@ def set_plot_elements(axis, xlim =[], ylim=[], xlabel = None, ylabel = 'y', sett
     ylab = list(settings['func_y_name'])
     ylab[ylab.index('Q')] = ylabel
     
-    axis.set_ylabel("".join(ylab), rotation=90, fontsize=font_size+4)
-    axis.set_xlabel("".join(xlab), rotation=0, fontsize=font_size+4, labelpad=font_size-2)
+    axis.set_ylabel("".join(ylab), rotation=90, fontsize=font_size+2)
+    axis.set_xlabel("".join(xlab), rotation=0, fontsize=font_size+2, labelpad=font_size-2)
     axis.set_yscale(settings['y_scale'])
     axis.set_xscale(settings['x_scale'])
+    axis.tick_params(axis='both', which='major', labelsize=font_size, length=font_size-4, width=0.05*font_size)
+    axis.tick_params(axis='both', which='minor', labelsize=font_size, length=0.3*(font_size-4), width=0.05*font_size)
     
     if set_legend:
         axis.legend(frameon=False
