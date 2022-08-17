@@ -55,9 +55,8 @@ void isingUI::ui::make_sim()
 		break;
 	default:
 	auto [opName, subdir] = IsingModel_disorder::opName(this->op, this->site);
-	std::string intDir = this->saving_dir + "IntegratedResponseFunction" + kPSep + subdir + kPSep;
-	std::string specDir_der = this->saving_dir + "IntegratedResponseFunction" + kPSep + "DERIVATIVE" + kPSep + subdir + kPSep;
-	createDirs(intDir, specDir_der);
+	std::string specDir = this->saving_dir + "ResponseFunction" + kPSep + subdir + kPSep;
+	createDirs(specDir);
 		for (auto& system_size : L_list){
 			for (auto& gx : g_list){
 				for (auto& hx : h_list){
@@ -71,16 +70,22 @@ void isingUI::ui::make_sim()
 							const auto start_loop = std::chrono::system_clock::now();
 							std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
 								: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
-							std::string filename = opName + info + ".dat";
+							std::string filename = opName + info;
 							stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
 							printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
-							std::ifstream file;
-							auto data = readFromFile(file, intDir + "smoothed" + kPSep + filename);
-							if(data.empty() || data[1][0] != data[1][0]) continue;
-							auto specFun = non_uniform_derivative(data[0], data[1]);
-							arma::vec x = data[0];	x.shed_row(x.size() - 1);
-							save_to_file(specDir_der + opName + info + ".dat", x, specFun, data[2][0], data[3][0]);		smoothen_data(specDir_der, opName + info + ".dat");
-							continue;
+							arma::vec omegas, mat_elem;
+							for(int r = 0; r < this->realisations; r++){
+								std::ifstream file;
+								auto data = readFromFile(file, specDir + "realisation=" + std::to_string(r) + kPSep + "mat_elem" + kPSep + filename + ".dat");
+								file.close();
+								if(data.empty()) continue;
+								omegas = arma::join_cols(omegas, data[0]);
+								mat_elem = arma::join_cols(mat_elem, data[1]);
+							}
+							std::cout << arma::min(omegas) << "\t" << arma::max(omegas) << std::endl;
+							spectrals::spectralFunction(omegas, mat_elem, specDir + filename, 1000);
+							smoothen_data(specDir, filename + ".dat");
+							continue; 
 							average_SFF(); continue;
 
 							//combine_spectra(); 

@@ -4,15 +4,15 @@ import plot_settings as ps
 importlib.reload(ps)
 #---------------------------------------------------- MODEL PARAMETERS
 model = 0           # chooses model: 0-disorder / 1-symmetries
-hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
+hamiltonian = 0     # which hamiltonian?: 0-Ising / 1-Heisenberg
 BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
 
-L = 16                          # system size
+L = 14                          # system size
 J = 1.00                        # spin exchange (Ising-like)
-g = 0.55                       # trasnverse magnetic field (z-axis)
-h = 0.00                        # longitudal magnetic field (x-axis)
+g = 0.9                       # trasnverse magnetic field (z-axis)
+h = 0.80                        # longitudal magnetic field (x-axis)
 #---- DISORDER PARAMETERS
-w = 0.7                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
+w = 0.01                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 J0 = 0.0                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
 g0 = 0.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 #---- SYMETRY PARAMETERS
@@ -24,8 +24,8 @@ x_sym = 1                       # spin-flip symmetry sector (only when h=0)
 General settings for all plots
 """
 plot_settings_dict = {
-    'vs':             'L',          # set parameter on x-axis
-    'scaling':        'g',          # set scaling parameter (changing in legend)
+    'vs':             'g',          # set parameter on x-axis
+    'scaling':        'k',          # set scaling parameter (changing in legend)
 
     'x_scale':      'log',       
     'y_scale':      'log',          
@@ -40,12 +40,12 @@ plot_settings_dict = {
 #---- rescaling x-axis
     'rescaleX':         0,          
     'func_x':       'power-law',     # rescale function -> function(x, nu) (power-law = 1 / x^nu)    
-    'nu_x':             -1,           # power of inversion
+    'nu_x':             1,           # power of inversion
 
 #---- operator options
-    'operator':         15,         # chosen operator according to order set in IsingModel.h
+    'operator':         3,         # chosen operator according to order set in IsingModel.h
     'site':             1,          # chosen site for local operator
-    'smoothed':         1,          # choose running-smoothed option
+    'smoothed':         0,          # choose running-smoothed option
 
 #---- instances set after
     'vs_idx':          -1,          # idx of vs option set after dict
@@ -64,7 +64,7 @@ names = ps.options
 names.extend(['p','x','J0','x0'])
 
 #---- DIR
-base_directory = f"..{kPSep}results{kPSep}" + (f"Heisenberg{kPSep}" if hamiltonian else f"Ising{kPSep}")\
+base_directory = f"..{kPSep}results{kPSep}" + (f"Heisenberg{kPSep}" if hamiltonian else f"ISING{kPSep}")\
                                              + (f"symmetries{kPSep}" if model else f"disorder{kPSep}") \
                                               + (f"PBC{kPSep}" if BC else f"OBC{kPSep}") 
 
@@ -92,14 +92,14 @@ operator_names = [
     "SpinImbalance"			
 ]
 op_name = operator_names[plot_settings_dict['operator']] + ("%s"%plot_settings_dict['site'] if plot_settings_dict['operator'] < 8 else "")
-subdir = (f"EXTENSIVE{kPSep}" if plot_settings_dict['operator'] > 7 else "j=%s%s"%(plot_settings_dict['site'], kPSep) ) + (f"smoothed{kPSep}" if plot_settings_dict['smoothed'] else "")
+subdir = (f"EXTENSIVE{kPSep}" if plot_settings_dict['operator'] > 7 else ("j=%s%s" if plot_settings_dict['operator'] < 3 else "q=%s%s")%(plot_settings_dict['site'], kPSep) ) + (f"smoothed{kPSep}" if plot_settings_dict['smoothed'] else "")
 operator_formuals = [
     r"$\sigma^z_j$",
     r"$\sigma^x_j$",
     r"$H_j=J_j\sigma^z_j\sigma^z_{j+1} + \frac{g_j}{2}\left(\sigma^x_j+\sigma^x_{j+1}\right) + \frac{h_j}{2}\left(\sigma^z_j+\sigma^z_{j+1}\right)$",
     r"$\sigma^z_q=\frac{1}{\sqrt{L}}\sum_\ell e^{i\frac{2\pi}{L}q\ell}\sigma^z_\ell$",
     r"$\sigma^x_q=\frac{1}{\sqrt{L}}\sum_\ell e^{i\frac{2\pi}{L}q\ell}\sigma^x_\ell$",
-    r"$H_q=\frac{1}{\sqrt{L}}\sum_\ell \cos{\frac{2\pi}{L}q\ell}H_\ell$",
+    r"$H_q=\frac{1}{\sqrt{L}}\sum_\ell \cos\left(\frac{2\pi}{L}q\ell\right)H_\ell$",
     "TFIM_LIOM_plus_n=...",
     "TFIM_LIOM_minus_n=...",
     r"$\frac{J}{\sqrt{L}}\sum_\ell\left(\sigma^x_j\sigma^y_{j+1}-\sigma^y_j\sigma^x_{j+1}\right)$",

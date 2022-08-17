@@ -75,11 +75,11 @@ def load(settings = None) :
     #print(user_settings)
     #hfun.print_vars(cf.params_arr, cf.names)
     param_copy = cf.params_arr
-
+    print(param_copy)
     #--- SET SCALING RANGES AND DATA
     x0 = 0.0
     xend = 1.0
-    dx = 0.1
+    dx = 0.05
 
     length = int((xend-x0) / dx) + 1
     #--- prepare scaling - axis
