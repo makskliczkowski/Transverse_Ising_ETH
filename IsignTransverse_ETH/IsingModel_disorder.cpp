@@ -101,11 +101,16 @@ void IsingModel_disorder::hamiltonian() {
 	}
 	#pragma omp critical
 	{
-		this->dh = create_random_vec(L, this->w);                               // creates random disorder vector
-		this->dJ = create_random_vec(L, this->J0);                              // creates random exchange vector
-		this->dg = create_random_vec(L, this->g0);                              // creates random transverse field vector
-		//dh.zeros();
-		//dh(this->L / 2) = this->h + this->w;
+		this->dh = arma::vec(this->L, arma::fill::zeros);
+		this->dJ = arma::vec(this->L, arma::fill::zeros);
+		this->dg = arma::vec(this->L, arma::fill::zeros);
+		#if defined(LOCAL_PERT)
+			this->dh(this->L / 2.) = this->w;
+		#else
+			this->dh = create_random_vec(L, this->w);                               // creates random disorder vector
+			this->dJ = create_random_vec(L, this->J0);                              // creates random exchange vector
+			this->dg = create_random_vec(L, this->g0);                              // creates random transverse field vector
+		#endif
 	}
 	#ifdef HEISENBERG
 		this->hamiltonian_heisenberg();

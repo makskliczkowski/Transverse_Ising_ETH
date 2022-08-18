@@ -15,8 +15,8 @@ from os.path import exists
 #--- Global
 user_settings = getattr(cf.plot_settings, 'settings')
 #--- SET SCALING RANGES AND DATA
-x0 = 0.3
-xend = 0.9
+x0 = 0.02
+xend = 1.0
 dx = 0.1
 length = int((xend-x0) / dx) + 1
 
@@ -34,7 +34,7 @@ def get_scaling_array(settings = None):
             vals.append(x0 + x * dx)
     return np.array(vals)
 
-def plot_spectral(axis, dir = "", settings = None, xlab = None, ylab = None, yscale=None, xscale=None, func_x=None, func_y=None, normalise=False, seper="\t"):
+def plot_spectral(axis, dir = "", settings = None, xlab = None, ylab = None, yscale=None, xscale=None, func_x=None, func_y=None, normalise=False, seper="\t", font = 12):
     #-- main settings
     if settings == None:
         settings = user_settings
@@ -55,8 +55,8 @@ def plot_spectral(axis, dir = "", settings = None, xlab = None, ylab = None, ysc
     y_min = 1.0e10;     y_max = -1.0e10;
     x_min = 1.0e10;     x_max = -1.0e10;
     #--- load data and plot one-by-one
-    wH = []
-    LTA = []
+    wH = [];    LTA = []
+    wH_typ = [];    val_at_typ = [];
     for x in vals:
         cf.params_arr[settings['scaling_idx']] = x
         if settings['scaling_idx'] == 3 and cf.J0 == 0 and cf.g0 == 0:
@@ -64,12 +64,13 @@ def plot_spectral(axis, dir = "", settings = None, xlab = None, ylab = None, ysc
         filename = (hfun.info_param(cf.params_arr) if cf.hamiltonian else hfun.remove_info(hfun.info_param(cf.params_arr), 'J') + ".dat")
 
         if settings['scaling_idx'] == 5 and settings['operator'] < 8:
-            filename = dir + ("j=%d%s" if settings['operator'] < 3 else "q=%d%s")%(x, kPSep) + cf.operator_names[settings['operator']] + "%d"%x + filename
+            filename = dir + ("j=%d%s" if settings['operator'] < 3 else "q=%d%s")%(x, kPSep) + cf.smo_dir + cf.operator_names[settings['operator']] + "%d"%x + filename
         elif settings['scaling_idx'] == 0 and settings['site'] < 0:
-            filename = dir + ("j=%d%s" if settings['operator'] < 3 else "q=%d%s")%(x / 2, kPSep) + cf.operator_names[settings['operator']] + "%d"%(x/2) + filename
+            filename = dir + ("j=%d%s" if settings['operator'] < 3 else "q=%d%s")%(x / 2, kPSep) + cf.smo_dir + cf.operator_names[settings['operator']] + "%d"%(x/2) + filename
         else :
             filename = dir + cf.subdir + cf.op_name + filename
         
+        filename2 = cf.base_directory + "STATISTICS" + kPSep + "raw_data" + kPSep + hfun.info_param(cf.params_arr)
         if exists(filename):
             data = pd.read_table(filename, sep=seper, header=None)
             xdata = func_x(data[0], x)
@@ -77,13 +78,20 @@ def plot_spectral(axis, dir = "", settings = None, xlab = None, ylab = None, ysc
             if normalise and seper == "\t":
                 ytmp = (ytmp - data[3][0]) / np.abs(ytmp[len(ytmp)-1] - ytmp[0])
             ydata = func_y(ytmp, x)
-            axis.plot(xdata, ydata, label=hfun.key_title(x, settings), linewidth=3, markersize=12)
-           
+            axis.plot(xdata, ydata, label=hfun.key_title(x, settings), linewidth=int(font / 6), markersize=font-6)
+            stats = pd.read_table(filename2, sep="\t", header=None)
+            
             if seper == "\t":
-                wHnow = func_x(data[2][0], x)
+                "mean"
+                wHnow = (np.array(stats[1][4])).astype(np.float);   
+                if abs(ydata[0]-1) < 1e-5: wHnow = 1. / wHnow
                 wH.append(wHnow)
-                idx = min(range(len(xdata)), key=lambda i: abs(xdata[i] - wHnow))
-                LTA.append(ydata[idx])
+                idx = min(range(len(xdata)), key=lambda i: abs(xdata[i] - wHnow));  LTA.append(ydata[idx])
+                "typical"
+                wHnow = (np.array(stats[1][5])).astype(np.float);   
+                if abs(ydata[0]-1) < 1e-5: wHnow = 1. / wHnow
+                wH_typ.append(wHnow)
+                idx = min(range(len(xdata)), key=lambda i: abs(xdata[i] - wHnow));  val_at_typ.append(ydata[idx])
             
             #-- xy-ranges
             mini = ydata.min();  maxi = ydata.max();
@@ -94,8 +102,10 @@ def plot_spectral(axis, dir = "", settings = None, xlab = None, ylab = None, ysc
             if maxi > x_max and np.isfinite(maxi): x_max = maxi
     if normalise:
         ylab = "normalised\quad" + ylab
+    #if min(wH) < 1: x_min = 0.6 * min(wH)
+    #else: x_max = 1.3 * max(wH)
     hfun.set_plot_elements(axis = axis, xlim = (x_min, x_max), 
-                                    ylim = (0.95*y_min, 1.05*y_max), ylabel = ylab, xlabel = xlab, settings=settings, font_size=18, set_legend=False)
+                                    ylim = (0.95*y_min, 1.05*y_max), ylabel = ylab, xlabel = xlab, settings=settings, font_size=font, set_legend=False)
   
     
     title = ""
@@ -111,6 +121,8 @@ def plot_spectral(axis, dir = "", settings = None, xlab = None, ylab = None, ysc
                 print("not found")
     axis.title.set_text(r"$%s$"%title[1:])
     axis.title.set_fontsize(10)
-    axis.plot(wH, LTA, linestyle='--', marker='o', color='black', linewidth=3, markersize=12)
+    
+    axis.plot(wH, LTA, linestyle='--', marker='o', color='black', linewidth=int(font / 6), markersize=font-4)
+    axis.plot(wH_typ, val_at_typ, linestyle='--', marker='o', color='black', markerfacecolor='None', linewidth=int(font / 6), markersize=font-4)
     #--- reset defaults
     cf.params_arr = param_copy

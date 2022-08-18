@@ -96,7 +96,7 @@ def set_plot_elements(axis, xlim =[], ylim=[], xlabel = None, ylabel = 'y', sett
     ylab[ylab.index('Q')] = ylabel
     
     axis.set_ylabel("".join(ylab), rotation=90, fontsize=font_size+2)
-    axis.set_xlabel("".join(xlab), rotation=0, fontsize=font_size+2, labelpad=font_size-2)
+    axis.set_xlabel("".join(xlab), rotation=0, fontsize=font_size+2, labelpad=font_size-8)
     axis.set_yscale(settings['y_scale'])
     axis.set_xscale(settings['x_scale'])
     axis.tick_params(axis='both', which='major', labelsize=font_size, length=font_size-4, width=0.05*font_size)

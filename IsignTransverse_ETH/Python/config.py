@@ -4,15 +4,15 @@ import plot_settings as ps
 importlib.reload(ps)
 #---------------------------------------------------- MODEL PARAMETERS
 model = 0           # chooses model: 0-disorder / 1-symmetries
-hamiltonian = 0     # which hamiltonian?: 0-Ising / 1-Heisenberg
+hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
 BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
 
-L = 14                          # system size
+L = 16                          # system size
 J = 1.00                        # spin exchange (Ising-like)
-g = 0.9                       # trasnverse magnetic field (z-axis)
-h = 0.80                        # longitudal magnetic field (x-axis)
+g = 0.55                       # trasnverse magnetic field (z-axis)
+h = 0.00                        # longitudal magnetic field (x-axis)
 #---- DISORDER PARAMETERS
-w = 0.01                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
+w = 0.7                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 J0 = 0.0                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
 g0 = 0.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 #---- SYMETRY PARAMETERS
@@ -24,8 +24,8 @@ x_sym = 1                       # spin-flip symmetry sector (only when h=0)
 General settings for all plots
 """
 plot_settings_dict = {
-    'vs':             'g',          # set parameter on x-axis
-    'scaling':        'k',          # set scaling parameter (changing in legend)
+    'vs':             'x',          # set parameter on x-axis
+    'scaling':        'L',          # set scaling parameter (changing in legend)
 
     'x_scale':      'log',       
     'y_scale':      'log',          
@@ -43,8 +43,8 @@ plot_settings_dict = {
     'nu_x':             1,           # power of inversion
 
 #---- operator options
-    'operator':         3,         # chosen operator according to order set in IsingModel.h
-    'site':             1,          # chosen site for local operator
+    'operator':         0,         # chosen operator according to order set in IsingModel.h
+    'site':             -1,          # chosen site for local operator
     'smoothed':         0,          # choose running-smoothed option
 
 #---- instances set after
@@ -92,7 +92,8 @@ operator_names = [
     "SpinImbalance"			
 ]
 op_name = operator_names[plot_settings_dict['operator']] + ("%s"%plot_settings_dict['site'] if plot_settings_dict['operator'] < 8 else "")
-subdir = (f"EXTENSIVE{kPSep}" if plot_settings_dict['operator'] > 7 else ("j=%s%s" if plot_settings_dict['operator'] < 3 else "q=%s%s")%(plot_settings_dict['site'], kPSep) ) + (f"smoothed{kPSep}" if plot_settings_dict['smoothed'] else "")
+smo_dir = (f"smoothed{kPSep}" if plot_settings_dict['smoothed'] else "")
+subdir = (f"EXTENSIVE{kPSep}" if plot_settings_dict['operator'] > 7 else ("j=%s%s" if plot_settings_dict['operator'] < 3 else "q=%s%s")%(plot_settings_dict['site'], kPSep) ) + smo_dir
 operator_formuals = [
     r"$\sigma^z_j$",
     r"$\sigma^x_j$",
