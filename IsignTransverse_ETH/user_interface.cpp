@@ -54,9 +54,6 @@ void isingUI::ui::make_sim()
 		thouless_times();
 		break;
 	default:
-	auto [opName, subdir] = IsingModel_disorder::opName(this->op, this->site);
-	std::string specDir = this->saving_dir + "ResponseFunction" + kPSep + subdir + kPSep;
-	createDirs(specDir);
 		for (auto& system_size : L_list){
 			for (auto& gx : g_list){
 				for (auto& hx : h_list){
@@ -67,28 +64,16 @@ void isingUI::ui::make_sim()
 							this->h = hx;
 							this->J = Jx;
 							this->w = wx;
+							this->site = this->L / 2.;
+
 							const auto start_loop = std::chrono::system_clock::now();
-							std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
-								: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
-							std::string filename = opName + info;
 							stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
 							printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
-							arma::vec omegas, mat_elem;
-							for(int r = 0; r < this->realisations; r++){
-								std::ifstream file;
-								auto data = readFromFile(file, specDir + "realisation=" + std::to_string(r) + kPSep + "mat_elem" + kPSep + filename + ".dat");
-								file.close();
-								if(data.empty()) continue;
-								omegas = arma::join_cols(omegas, data[0]);
-								mat_elem = arma::join_cols(mat_elem, data[1]);
-							}
-							std::cout << arma::min(omegas) << "\t" << arma::max(omegas) << std::endl;
-							spectrals::spectralFunction(omegas, mat_elem, specDir + filename, 1000);
-							smoothen_data(specDir, filename + ".dat");
-							continue; 
+
+							combine_spectrals(); continue;
+
 							average_SFF(); continue;
 
-							//combine_spectra(); 
 							analyze_spectra(); continue;
 							spectral_form_factor(); continue;
 						}}}}}
@@ -868,6 +853,7 @@ void isingUI::ui::combine_spectrals(){
 	std::string timeDir = this->saving_dir + "timeEvolution" + kPSep + subdir + kPSep;
 	std::string intDir = this->saving_dir + "IntegratedResponseFunction" + kPSep + subdir + kPSep;
 	std::string specDir_der = this->saving_dir + "IntegratedResponseFunction" + kPSep + "DERIVATIVE" + kPSep + subdir + kPSep;
+	std::string specDir = this->saving_dir + "ResponseFunction" + kPSep + subdir + kPSep;
 
 	std::string dir_stat = this->saving_dir + "STATISTICS" + kPSep + "raw_data" + kPSep;
 	std::string dir_agp = this->saving_dir + "AGP" + kPSep + opName + kPSep + "raw_data" + kPSep;
@@ -878,19 +864,10 @@ void isingUI::ui::combine_spectrals(){
 	arma::vec opIntSpec(num_of_points, arma::fill::zeros);
 	arma::vec times(num_of_points);
 	arma::vec omegas = times;
-
+	arma::vec omegas_spec, mat_elem;
 	//---------------- PREAMBLE
 	int counter = 0;
-	double 	 
-			 AGP = 0.0,	//<! adiabatic gauge potential
-		typ_susc = 0.0,	//<! typical fidelity susceptibility
-			susc = 0.0,	//<! fidelity susceptibility
-	   	 entropy = 0.0,	//<! half-chain entropy
-	  		 ipr = 0.0,	//<! inverse participation ratio
-	info_entropy = 0.0,	//<! information entropy in eigenstates
-	   gap_ratio = 0.0,	//<! gap ratio
-	   		  wH = 0.0,	//<! mean level spacing
-	   	  wH_typ = 0.0;	//<! typical level spacing
+	double wH = 0.0;	//<! mean level spacing
 	
 	arma::vec stats(6, arma::fill::zeros);
 	arma::vec agps(4, arma::fill::zeros);
@@ -901,7 +878,7 @@ void isingUI::ui::combine_spectrals(){
 	auto start_loop = std::chrono::system_clock::now();
 	auto lambda_average = [&](int realis, double x){
 		
-		std::string filename = opName + info + "_jobid=" + std::to_string(realis) + ".dat";
+		std::string filename = opName + info + ".dat";
 		std::ifstream file;
 		
 		//-------- STATISTICS
@@ -948,7 +925,7 @@ void isingUI::ui::combine_spectrals(){
 		file.close();
 
 		//-------- TIME EVOLUTION
-		auto data = readFromFile(file, timeDir + filename);
+		auto data = readFromFile(file, timeDir + "realisation=" + std::to_string(realis) + kPSep + filename);
 		if(!data.empty()){
 			times = data[0];
 			opEvol += data[1];
@@ -960,7 +937,7 @@ void isingUI::ui::combine_spectrals(){
 		file.close();
 
 		//-------- INTEGRATED SPECTRAL FUNCTION
-		data = readFromFile(file, intDir + filename);
+		data = readFromFile(file, intDir + "realisation=" + std::to_string(realis) + kPSep + filename);
 		if(!data.empty()){
 			omegas = data[0];
 			opIntSpec += data[1];
@@ -971,6 +948,14 @@ void isingUI::ui::combine_spectrals(){
 		}
 		file.close();
 
+		//-------- SPECTRAL FUNCTION
+		data = readFromFile(file, specDir + "realisation=" + std::to_string(realis) + kPSep + "mat_elem" + kPSep + filename);
+		if(!data.empty()){
+			omegas_spec = arma::join_cols(omegas_spec, data[0]);
+			mat_elem = arma::join_cols(mat_elem, data[1]);
+			stout << "\t\t	--> finished spectral function for " << info
+			  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+		}
 	};
 	average_over_realisations<Ising_params::J>(false, lambda_average);
 	
@@ -995,18 +980,19 @@ void isingUI::ui::combine_spectrals(){
 	double norm = counter_int > counter_time? double(counter_int) : double(counter_time);
 	file_out.close();
 	wH /= norm;	LTA /= norm;
-	std::string filename = opName + info + ".dat";
+	std::string filename = opName + info;
 	if(counter_time > 0)
-		save_to_file(timeDir + filename, times, opEvol / double(counter_time), 1.0 / wH, LTA);		smoothen_data(timeDir, opName + info + ".dat", 10);
+		save_to_file(timeDir + filename + ".dat", times, opEvol / double(counter_time), 1.0 / wH, LTA);		smoothen_data(timeDir, opName + info + ".dat", 10);
 	if(counter_int > 0){
-		save_to_file(intDir + filename, omegas, opIntSpec / double(counter_int), wH, LTA);		smoothen_data(intDir,  opName + info + ".dat", 10);
+		save_to_file(intDir + filename + ".dat", omegas, opIntSpec / double(counter_int), wH, LTA);		smoothen_data(intDir,  opName + info + ".dat", 10);
 		std::ifstream file;
-		auto data = readFromFile(file, intDir + "smoothed" + kPSep + filename);
+		auto data = readFromFile(file, intDir + "smoothed" + kPSep + filename + ".dat");
 		auto specFun = non_uniform_derivative(data[0], data[1]);
 		arma::vec x = data[0];	x.shed_row(x.size() - 1);
 		save_to_file(specDir_der + opName + info + ".dat", x, specFun, wH, LTA);		smoothen_data(specDir_der, opName + info + ".dat");
 	}
-
+	const long num = (this->realisations == 1)? 400 + (this->L - 12) * 200 : this->L * counter_int;
+	spectrals::spectralFunction(omegas_spec, mat_elem, specDir + filename, num);	smoothen_data(specDir, filename + ".dat");
 }
 
 //<! calculate evolution of entaglement from initial state chosen by -op.
@@ -2798,18 +2784,22 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv)
 		exit_with_help();
 
 	// make folder based on a model
-	switch (this->m)
-	{
-	case 0:
-		str_model = "disorder" + std::string(kPathSeparator);
-		break;
-	case 1:
-		str_model = "symmetries" + std::string(kPathSeparator);
-		break;
-	default:
-		str_model = "disorder" + std::string(kPathSeparator);
-		break;
-	}
+	#ifdef LOCAL_PERT
+		str_model = "local_pert" + std::string(kPathSeparator);
+	#else
+		switch (this->m)
+		{
+		case 0:
+			str_model = "disorder" + std::string(kPathSeparator);
+			break;
+		case 1:
+			str_model = "symmetries" + std::string(kPathSeparator);
+			break;
+		default:
+			str_model = "disorder" + std::string(kPathSeparator);
+			break;
+		}
+	#endif
 	// make boundary condition folder
 	switch (this->boundary_conditions)
 	{
