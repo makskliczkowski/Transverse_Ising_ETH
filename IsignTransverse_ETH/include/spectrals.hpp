@@ -100,14 +100,15 @@ namespace spectrals{
 
 
 		//--------------------------- SAVERS
-		auto save_matrix_elements(std::string filename, arma::cx_mat mat_elem) const {
-			std::ofstream file;
-			openFile(file, filename);
+		auto save_matrix_elements(std::string filename, const arma::cx_mat& mat_elem) const {
+			arma::vec omegas = this->energy_diferences;
+			arma::vec mat_elem_to_save = arma::vec(this->energy_diferences.size(), arma::fill::zeros);
 			for(int i = 0; i < this->energy_diferences.size(); i++){
 				double element = abs(mat_elem(this->idx_alfa[i], this->idx_beta[i]));
-				printSeparated(file, "\t", 16, true, this->energy_diferences[i], element * element);
+				mat_elem_to_save(i) = element * element;
 			}
-			file.close();
+			omegas.save(arma::hdf5_name(filename + ".hdf5", "omegas"));
+			mat_elem_to_save.save(arma::hdf5_name(filename + ".hdf5", "mat_elem",arma::hdf5_opts::append));
 		}
 	};
 

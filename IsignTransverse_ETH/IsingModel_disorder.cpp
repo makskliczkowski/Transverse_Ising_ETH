@@ -106,6 +106,7 @@ void IsingModel_disorder::hamiltonian() {
 		this->dg = arma::vec(this->L, arma::fill::zeros);
 		#if defined(LOCAL_PERT)
 			this->dh(this->L / 2.) = this->w;
+			this->dh(0) = 0.1;
 		#else
 			this->dh = create_random_vec(L, this->w);                               // creates random disorder vector
 			this->dJ = create_random_vec(L, this->J0);                              // creates random exchange vector

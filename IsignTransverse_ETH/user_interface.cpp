@@ -12,7 +12,6 @@ void isingUI::ui::make_sim()
 	gen = std::mt19937_64(this->seed);
 	printAllOptions();
 
-
 	clk::time_point start = std::chrono::system_clock::now();
 	auto L_list = this->get_params_array(Ising_params::L);
 	auto J_list = this->get_params_array(Ising_params::J);
@@ -21,8 +20,8 @@ void isingUI::ui::make_sim()
 	auto w_list = this->get_params_array(Ising_params::w);
 	//for (auto& system_size : L_list){
 	//	this->L = system_size;
-	//	generate_statistic_map(Ising_params::g); 
-	//}
+	//	generate_statistic_map(Ising_params::w); 
+	//}; return;
 
 	switch (this->fun)
 	{
@@ -64,7 +63,7 @@ void isingUI::ui::make_sim()
 							this->h = hx;
 							this->J = Jx;
 							this->w = wx;
-							this->site = this->L / 2.;
+							//this->site = this->L / 2.;
 
 							const auto start_loop = std::chrono::system_clock::now();
 							stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
@@ -767,7 +766,7 @@ void isingUI::ui::calculate_spectrals()
 			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 
 		spectrals::preset_omega set_omega(E, 0.025 * alfa.L, E(alfa.E_av_idx));
-		set_omega.save_matrix_elements(specdir_real_mat_elem + opName + info + ".dat", mat_elem);
+		set_omega.save_matrix_elements(specdir_real_mat_elem + opName + info, mat_elem);
 
 		//auto specfun_r = spectrals::spectralFunction(mat_elem, set_omega, omega_spec);
 		//save_to_file(specdir_realisation + opName + info + ".dat", omega_spec, specfun_r, wH_local, LTA_tmp);
@@ -949,12 +948,18 @@ void isingUI::ui::combine_spectrals(){
 		file.close();
 
 		//-------- SPECTRAL FUNCTION
+		arma::vec omegas, mat_elem_r;
+		bool loaded = omegas.load(arma::hdf5_name(specDir + "realisation=" + std::to_string(realis) + kPSep + "mat_elem" + kPSep + opName + info + ".hdf5", "omegas"));
+		bool loaded2 = mat_elem_r.load(arma::hdf5_name(specDir + "realisation=" + std::to_string(realis) + kPSep + "mat_elem" + kPSep + opName + info + ".hdf5", "mat_elem"));
 		data = readFromFile(file, specDir + "realisation=" + std::to_string(realis) + kPSep + "mat_elem" + kPSep + filename);
-		if(!data.empty()){
-			omegas_spec = arma::join_cols(omegas_spec, data[0]);
-			mat_elem = arma::join_cols(mat_elem, data[1]);
+		if(loaded && loaded2){
+			omegas_spec = arma::join_cols(omegas_spec, omegas);
+			mat_elem = arma::join_cols(mat_elem, mat_elem_r);
 			stout << "\t\t	--> finished spectral function for " << info
 			  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+		}
+		else{
+			std::cout << "not found" << std::endl;
 		}
 	};
 	average_over_realisations<Ising_params::J>(false, lambda_average);
@@ -991,7 +996,8 @@ void isingUI::ui::combine_spectrals(){
 		arma::vec x = data[0];	x.shed_row(x.size() - 1);
 		save_to_file(specDir_der + opName + info + ".dat", x, specFun, wH, LTA);		smoothen_data(specDir_der, opName + info + ".dat");
 	}
-	const long num = (this->realisations == 1)? 400 + (this->L - 12) * 200 : this->L * counter_int;
+	std::vector<int> numss = {500, 2000, 6000, 10000};
+	const long num = (this->realisations == 1)? numss[ (this->L - 12) / 2] : this->L * counter_int;
 	spectrals::spectralFunction(omegas_spec, mat_elem, specDir + filename, num);	smoothen_data(specDir, filename + ".dat");
 }
 

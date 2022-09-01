@@ -19,12 +19,12 @@ UNSET = "unset tics; unset xlabel; unset ylabel; unset title; unset key; unset b
 
 #---------------------------- PARAMETERS
 model = 0       # 1=symmetries and 0=disorder
-heisenberg=0
+heisenberg=1
 
-w = 1.0
+w = 0.7
 g = 0.9
-L = 13
-h = 1.0
+L = 12
+h = 0.0
 J = 1.0
 Jdis = 0.0
 gdis = 0.0
@@ -48,7 +48,7 @@ if(scaling < 0 || scaling > 4 || zoom_in == 1) add_gap_ratio = 0;
 if(plot_der_GOE){ zoom_in = 0;}
 
 	h0 = 5;     hend = 150;		dh = 5;
-	g0 = 4;    gend = 100;		dg = 4;
+	g0 = 10;    gend = 100;		dg = 10;
     J0 = 2;    Jend = 100;     dJ = 2
 	L0 = 10;	    Lend = 18; 		dL = 1;
 	w0 = 10;		wend = 100;			dw = 1;
