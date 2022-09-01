@@ -21,7 +21,7 @@ def info(_L = cf.params_arr[0], _J = cf.params_arr[1], _J0 = cf.params_arr[8],
             _h = cf.params_arr[3], _w = cf.params_arr[4], 
           _k = cf.params_arr[5], _p = cf.params_arr[6], _x = cf.params_arr[7]
     ):
-    if(model) :
+    if(model == 1) :
         return info_sym(_L, _J, _g, _h, _k, _p, _x)
     else :
         return info_dis(_L, _J, _J0, _g, _g0, _h, _w)

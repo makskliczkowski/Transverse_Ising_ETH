@@ -3,16 +3,16 @@ from os import sep as kPSep
 import plot_settings as ps
 importlib.reload(ps)
 #---------------------------------------------------- MODEL PARAMETERS
-model = 0           # chooses model: 0-disorder / 1-symmetries
+model = 2           # chooses model: 0-disorder / 1-symmetries / 2-local perturbation
 hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
-BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
+BC = 0              # boundaary condition: 0 - OBC / 1 - PBC
 
-L = 16                          # system size
+L = 18                          # system size
 J = 1.00                        # spin exchange (Ising-like)
 g = 0.55                       # trasnverse magnetic field (z-axis)
 h = 0.00                        # longitudal magnetic field (x-axis)
 #---- DISORDER PARAMETERS
-w = 0.7                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
+w = 0.06                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 J0 = 0.0                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
 g0 = 0.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 #---- SYMETRY PARAMETERS
@@ -25,7 +25,7 @@ General settings for all plots
 """
 plot_settings_dict = {
     'vs':             'x',          # set parameter on x-axis
-    'scaling':        'L',          # set scaling parameter (changing in legend)
+    'scaling':        'w',          # set scaling parameter (changing in legend)
 
     'x_scale':      'log',       
     'y_scale':      'log',          
@@ -43,9 +43,9 @@ plot_settings_dict = {
     'nu_x':             1,           # power of inversion
 
 #---- operator options
-    'operator':         0,         # chosen operator according to order set in IsingModel.h
-    'site':             -1,          # chosen site for local operator
-    'smoothed':         0,          # choose running-smoothed option
+    'operator':         12,         # chosen operator according to order set in IsingModel.h
+    'site':             1,          # chosen site for local operator
+    'smoothed':         1,          # choose running-smoothed option
 
 #---- instances set after
     'vs_idx':          -1,          # idx of vs option set after dict
@@ -64,8 +64,17 @@ names = ps.options
 names.extend(['p','x','J0','x0'])
 
 #---- DIR
+model_dir = ""
+if model == 0:
+    model_dir = f"disorder{kPSep}"
+elif model == 1:
+    model_dir = f"symmetries{kPSep}"
+elif model == 2:
+    model_dir = f"local_pert{kPSep}"
+else:
+    model_dir = ""
 base_directory = f"..{kPSep}results{kPSep}" + (f"Heisenberg{kPSep}" if hamiltonian else f"ISING{kPSep}")\
-                                             + (f"symmetries{kPSep}" if model else f"disorder{kPSep}") \
+                                             + model_dir \
                                               + (f"PBC{kPSep}" if BC else f"OBC{kPSep}") 
 
 #---- INSTANCE OF PLOT SETTINGS CLASS --> plot_settings.py

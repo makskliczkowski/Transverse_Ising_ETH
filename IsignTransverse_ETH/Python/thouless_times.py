@@ -21,7 +21,7 @@ def load_taus():
     Function to load Thouless times from file and return as numpy array
     """
 
-    name = f"{cf.base_directory}ThoulessTime{kPSep}" + "_all" + ( ",p=%d,x=%d.dat"%(cf.p_sym, cf.x_sym) if cf.model else ",J0=%.2f,g0=%.2f.dat"%(cf.J0, cf.g0) )
+    name = f"{cf.base_directory}ThoulessTime{kPSep}" + "_all" + ( ",p=%d,x=%d.dat"%(cf.p_sym, cf.x_sym) if cf.model == 1 else ",J0=%.2f,g0=%.2f.dat"%(cf.J0, cf.g0) )
     tau_data = np.loadtxt(name, unpack=True)
     return np.array(tau_data)
 
@@ -87,7 +87,7 @@ def load(settings = None) :
     if settings['scaling_idx'] == 0:
         if cf.hamiltonian: vals = range(12, 19, 2)
         else: vals = range(11, 17, 1)
-    elif cf.model and settings['scaling_idx'] == 4:
+    elif cf.model == 1 and settings['scaling_idx'] == 4:
         vals = range(0, cf.params_arr[0])
     else :
         for x in range(0, length) :
@@ -98,7 +98,7 @@ def load(settings = None) :
     tau = []
     xvals = []
     gap_ratio = []
-
+    
     tau_data = load_taus()
     new_vals = []
     for x in vals:
