@@ -63,7 +63,7 @@ void isingUI::ui::make_sim()
 							this->h = hx;
 							this->J = Jx;
 							this->w = wx;
-							this->site = this->L / 2.;
+							//this->site = this->L / 2.;
 
 							const auto start_loop = std::chrono::system_clock::now();
 							stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
@@ -948,12 +948,18 @@ void isingUI::ui::combine_spectrals(){
 		file.close();
 
 		//-------- SPECTRAL FUNCTION
+		arma::vec omegas, mat_elem_r;
+		bool loaded = omegas.load(arma::hdf5_name(specDir + "realisation=" + std::to_string(realis) + kPSep + "mat_elem" + kPSep + opName + info + ".hdf5", "omegas"));
+		bool loaded2 = mat_elem_r.load(arma::hdf5_name(specDir + "realisation=" + std::to_string(realis) + kPSep + "mat_elem" + kPSep + opName + info + ".hdf5", "mat_elem"));
 		data = readFromFile(file, specDir + "realisation=" + std::to_string(realis) + kPSep + "mat_elem" + kPSep + filename);
-		if(!data.empty()){
-			omegas_spec = arma::join_cols(omegas_spec, data[0]);
-			mat_elem = arma::join_cols(mat_elem, data[1]);
+		if(loaded && loaded2){
+			omegas_spec = arma::join_cols(omegas_spec, omegas);
+			mat_elem = arma::join_cols(mat_elem, mat_elem_r);
 			stout << "\t\t	--> finished spectral function for " << info
 			  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+		}
+		else{
+			std::cout << "not found" << std::endl;
 		}
 	};
 	average_over_realisations<Ising_params::J>(false, lambda_average);
