@@ -117,8 +117,13 @@ namespace fs = std::experimental::filesystem;
 #define __builtin_popcountll _mm_popcnt_u64
 #endif
 
-#if defined(MY_MAC) && !defined(HEISENBERG)
-	#define HEISENBERG
+#if defined(MY_MAC)
+	#if !defined(HEISENBERG)
+		#define HEISENBERG
+	#endif
+	#if !defined(LOCAL_PERT)
+		//#define LOCAL_PERT
+	#endif
 #endif
 
 extern std::random_device rd;

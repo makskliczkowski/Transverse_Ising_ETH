@@ -3,16 +3,16 @@ from os import sep as kPSep
 import plot_settings as ps
 importlib.reload(ps)
 #---------------------------------------------------- MODEL PARAMETERS
-model = 1           # chooses model: 0-disorder / 1-symmetries
+model = 2           # chooses model: 0-disorder / 1-symmetries / 2-local perturbation
 hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
-BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
+BC = 0              # boundaary condition: 0 - OBC / 1 - PBC
 
-L = 14                          # system size
+L = 18                          # system size
 J = 1.00                        # spin exchange (Ising-like)
 g = 0.55                       # trasnverse magnetic field (z-axis)
-h = 0.80                        # longitudal magnetic field (x-axis)
+h = 0.00                        # longitudal magnetic field (x-axis)
 #---- DISORDER PARAMETERS
-w = 1.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
+w = 0.06                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 J0 = 0.0                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
 g0 = 0.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 #---- SYMETRY PARAMETERS
@@ -24,8 +24,8 @@ x_sym = 1                       # spin-flip symmetry sector (only when h=0)
 General settings for all plots
 """
 plot_settings_dict = {
-    'vs':             'g',          # set parameter on x-axis
-    'scaling':        'L',          # set scaling parameter (changing in legend)
+    'vs':             'x',          # set parameter on x-axis
+    'scaling':        'w',          # set scaling parameter (changing in legend)
 
     'x_scale':      'log',       
     'y_scale':      'log',          
@@ -40,8 +40,13 @@ plot_settings_dict = {
 #---- rescaling x-axis
     'rescaleX':         0,          
     'func_x':       'power-law',     # rescale function -> function(x, nu) (power-law = 1 / x^nu)    
-    'nu_x':             -1,           # power of inversion
-    
+    'nu_x':             1,           # power of inversion
+
+#---- operator options
+    'operator':         12,         # chosen operator according to order set in IsingModel.h
+    'site':             1,          # chosen site for local operator
+    'smoothed':         1,          # choose running-smoothed option
+
 #---- instances set after
     'vs_idx':          -1,          # idx of vs option set after dict
     'scaling_idx':     -1,          # idx of scaling option set after dict
@@ -59,12 +64,65 @@ names = ps.options
 names.extend(['p','x','J0','x0'])
 
 #---- DIR
-base_directory = f"..{kPSep}results{kPSep}" + (f"Heisenberg{kPSep}" if hamiltonian else f"Ising{kPSep}")\
-                                             + (f"symmetries{kPSep}" if model else f"disorder{kPSep}") \
+model_dir = ""
+if model == 0:
+    model_dir = f"disorder{kPSep}"
+elif model == 1:
+    model_dir = f"symmetries{kPSep}"
+elif model == 2:
+    model_dir = f"local_pert{kPSep}"
+else:
+    model_dir = ""
+base_directory = f"..{kPSep}results{kPSep}" + (f"Heisenberg{kPSep}" if hamiltonian else f"ISING{kPSep}")\
+                                             + model_dir \
                                               + (f"PBC{kPSep}" if BC else f"OBC{kPSep}") 
 
 #---- INSTANCE OF PLOT SETTINGS CLASS --> plot_settings.py
 plot_settings = ps.plot_settings_class(plot_settings_dict)
+
+
+#---------------------------------------------------- OPERATOR OPTIONS
+operator_names = [
+    "SigmaZ_j=",
+    "SigmaX_j=",
+    "H_j=",
+    "SigmaZ_q=",
+    "SigmaX_q=",
+    "H_q=",
+    "TFIM_LIOM_plus_n=",
+    "TFIM_LIOM_minus_n=",
+    "SpinCurrent",
+    "SigmaX",
+    "SigmaZ",
+    "SigmaX_near_neigh",
+    "SigmaZ_near_neigh",
+    "SigmaX_next_neigh",
+    "SigmaZ_next_neigh",
+    "SpinImbalance"			
+]
+op_name = operator_names[plot_settings_dict['operator']] + ("%s"%plot_settings_dict['site'] if plot_settings_dict['operator'] < 8 else "")
+smo_dir = (f"smoothed{kPSep}" if plot_settings_dict['smoothed'] else "")
+subdir = (f"EXTENSIVE{kPSep}" if plot_settings_dict['operator'] > 7 else ("j=%s%s" if plot_settings_dict['operator'] < 3 else "q=%s%s")%(plot_settings_dict['site'], kPSep) ) + smo_dir
+operator_formuals = [
+    r"$\sigma^z_j$",
+    r"$\sigma^x_j$",
+    r"$H_j=J_j\sigma^z_j\sigma^z_{j+1} + \frac{g_j}{2}\left(\sigma^x_j+\sigma^x_{j+1}\right) + \frac{h_j}{2}\left(\sigma^z_j+\sigma^z_{j+1}\right)$",
+    r"$\sigma^z_q=\frac{1}{\sqrt{L}}\sum_\ell e^{i\frac{2\pi}{L}q\ell}\sigma^z_\ell$",
+    r"$\sigma^x_q=\frac{1}{\sqrt{L}}\sum_\ell e^{i\frac{2\pi}{L}q\ell}\sigma^x_\ell$",
+    r"$H_q=\frac{1}{\sqrt{L}}\sum_\ell \cos\left(\frac{2\pi}{L}q\ell\right)H_\ell$",
+    "TFIM_LIOM_plus_n=...",
+    "TFIM_LIOM_minus_n=...",
+    r"$\frac{J}{\sqrt{L}}\sum_\ell\left(\sigma^x_j\sigma^y_{j+1}-\sigma^y_j\sigma^x_{j+1}\right)$",
+    r"$\sum_\ell\sigma^x_\ell$",
+    r"$\frac{1}{\sqrt{L}}\sum_\ell\sigma^z_\ell$",
+    r"$\frac{1}{\sqrt{L}}\sum_\ell\sigma^x_\ell\sigma^z_{\ell+1}$",
+    r"$\frac{1}{\sqrt{L}}\sum_\ell\sigma^z_\ell\sigma^z_{\ell+1}$",
+    r"$\frac{1}{\sqrt{L}}\sum_\ell\sigma^x_\ell\sigma^z_{\ell+2}$",
+    r"$\frac{1}{\sqrt{L}}\sum_\ell\sigma^z_\ell\sigma^z_{\ell+2}$",
+    r"$\frac{1}{\sqrt{L}}\sum_\ell(-1)^\ell\sigma^z_\ell$"			
+]
+
+
 
 
 #---------------------------------------------------- SHORT USER FUNCTIONS

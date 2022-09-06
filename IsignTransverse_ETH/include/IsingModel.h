@@ -90,7 +90,7 @@ public:
 		tmp_str.pop_back();
 		return tmp_str;
 	};
-
+	
 	auto get_hilbert_size()						const { return this->N; }						 // get the Hilbert space size 2^N
 	auto get_mapping()							const { return this->mapping; }					 // constant reference to the mapping
 	auto& get_hamiltonian()						const { return this->H; }						 // get the const reference to a Hamiltonian
@@ -365,7 +365,7 @@ public:
 		tmp_str.pop_back();
 		return tmp_str;
 	}
-
+	
 	arma::sp_cx_mat symmetryRotation() const;
 	arma::cx_vec symmetryRotation(const arma::cx_vec& state, const std::vector<u64>& full_map = std::vector<u64>()) const;
 

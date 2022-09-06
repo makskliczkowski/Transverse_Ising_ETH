@@ -12,16 +12,16 @@ var_name = "\\Delta" if cf.hamiltonian else "g"
 
 #-------------------------- SET INFO
 def info_sym(L, J, g, h, k, p, x):
-    return r"$_L=%d,J=%.2f,g=%.2f,h=%.2f,k=%d,p=%d,x=%d$_.dat"%(L, J, g, h, k, p, x)
+    return "_L=%d,J=%.2f,g=%.2f,h=%.2f,k=%d,p=%d,x=%d.dat"%(L, J, g, h, k, p, x)
 def info_dis(L, J, J0, g, g0, h, w):
-    return r"$_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f$_.dat"%(L, J, J0, g, g0, h, w)
+    return "_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat"%(L, J, J0, g, g0, h, w)
 
 def info(_L = cf.params_arr[0], _J = cf.params_arr[1], _J0 = cf.params_arr[8], 
             _g = cf.params_arr[2], _g0 = cf.params_arr[9], 
             _h = cf.params_arr[3], _w = cf.params_arr[4], 
           _k = cf.params_arr[5], _p = cf.params_arr[6], _x = cf.params_arr[7]
     ):
-    if(model) :
+    if(model == 1) :
         return info_sym(_L, _J, _g, _h, _k, _p, _x)
     else :
         return info_dis(_L, _J, _J0, _g, _g0, _h, _w)
@@ -57,6 +57,11 @@ def find_index(data, value) :
     except ValueError:
         return -1
 
+def key_title(x, settings):
+    scaling_str = settings['scaling']
+    if settings['scaling_idx'] == 2:
+        scaling_str = var_name
+    return r"$" + (scaling_str + (f"=%d"%(x) if settings['scaling_idx'] == 0 or settings['scaling_idx'] == 5 else f"=%.2f"%(x))) + "$"
 
 #-------------------------- PLOT FANCY
 #--------- scatter plot with differeent markertypes as list
@@ -90,10 +95,12 @@ def set_plot_elements(axis, xlim =[], ylim=[], xlabel = None, ylabel = 'y', sett
     ylab = list(settings['func_y_name'])
     ylab[ylab.index('Q')] = ylabel
     
-    axis.set_ylabel("".join(ylab), rotation=0, fontsize=20, labelpad=10)
-    axis.set_xlabel("".join(xlab), rotation=0, fontsize=20, labelpad=10)
+    axis.set_ylabel("".join(ylab), rotation=90, fontsize=font_size+2)
+    axis.set_xlabel("".join(xlab), rotation=0, fontsize=font_size+2, labelpad=font_size-8)
     axis.set_yscale(settings['y_scale'])
     axis.set_xscale(settings['x_scale'])
+    axis.tick_params(axis='both', which='major', labelsize=font_size, length=font_size-4, width=0.05*font_size)
+    axis.tick_params(axis='both', which='minor', labelsize=font_size, length=0.3*(font_size-4), width=0.05*font_size)
     
     if set_legend:
         axis.legend(frameon=False
