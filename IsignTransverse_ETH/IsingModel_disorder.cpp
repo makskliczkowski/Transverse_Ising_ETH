@@ -113,10 +113,15 @@ void IsingModel_disorder::hamiltonian() {
 			this->dg = create_random_vec(L, this->g0);                              // creates random transverse field vector
 		#endif
 	}
-	#ifdef HEISENBERG
-		this->hamiltonian_heisenberg();
+	#ifdef ANDERSON
+		auto lattice = std::make_unique<lattice3D>(this->L);
+		this->H = (arma::mat)anderson::hamiltonian(*lattice, this->J, this->w);
 	#else
-		this->hamiltonian_Ising();
+		#ifdef HEISENBERG
+			this->hamiltonian_heisenberg();
+		#else
+			this->hamiltonian_Ising();
+		#endif
 	#endif
 }
 

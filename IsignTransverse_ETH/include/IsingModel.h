@@ -2,6 +2,8 @@
 #ifndef ISINGMODEL
 #define ISINGMODEL
 #include "headers.h"
+#include "lattice.hpp"
+#include "anderson.hpp"
 
 /*-------------------- ISING MODEL WITH TRANSVERSE MAGNETIC FIELD ---------------------*
 * The Ising model with perpendicular magnetic field, known as the quantum Ising model *
