@@ -200,7 +200,11 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 			loaded = eigenvalues.load(arma::hdf5_name(name + ".hdf5", "eigenvalues/" + _suffix));
 	}
 	if(!loaded){
-		if(alfa.g == 0){
+		bool status = false;
+		#if !defined(ANDERSON) && !defined(HEISENBRG)
+			status = true;
+		#endif
+		if(status && alfa.g == 0){
 			auto H = alfa.get_hamiltonian();
 			const u64 N = alfa.get_hilbert_size();
 			arma::cx_vec E(N);
@@ -209,7 +213,7 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 			eigenvalues = real(E);
 			sort(eigenvalues.begin(), eigenvalues.end());
 		} 
-		else if(alfa.J == 0.0){
+		else if(status && alfa.J == 0.0){
 			eigenvalues = alfa.get_non_interacting_energies();
 		} 
 		else {
