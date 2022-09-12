@@ -2808,6 +2808,10 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv)
 			break;
 		}
 	#endif
+
+	#ifdef ANDERSON
+		str_model = "";
+	#endif
 	// make boundary condition folder
 	switch (this->boundary_conditions)
 	{
@@ -2826,6 +2830,9 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv)
 		std::string folder = saving_dir + "HEISENBERG" + kPSep + str_model;
 	#else
 		std::string folder = saving_dir + "ISING" + kPSep + str_model;
+	#endif
+	#ifdef ANDERSON
+		folder = saving_dir + "ANDERSON" + kPSep + str_model;
 	#endif
 	if (!argv[argc - 1].empty() && argc % 2 != 0) {
 		// only if the last command is non-even
