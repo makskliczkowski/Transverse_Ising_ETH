@@ -75,7 +75,6 @@ def load(settings = None) :
     #print(user_settings)
     #hfun.print_vars(cf.params_arr, cf.names)
     param_copy = cf.params_arr
-    print(param_copy)
     #--- SET SCALING RANGES AND DATA
     x0 = 0.0
     xend = 1.0
@@ -114,6 +113,8 @@ def load(settings = None) :
 
     #--- reset defaults
     cf.params_arr = param_copy
+    importlib.reload(cf)
+    
     return np.array(new_vals), np.array(xvals), np.array(tau), np.array(gap_ratio)
 
 

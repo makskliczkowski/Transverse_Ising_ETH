@@ -9,6 +9,7 @@ void isingUI::ui::make_sim()
 	#if defined(MY_MAC)
 		this->seed = static_cast<long unsigned int>(time(0));
 	#endif
+	
 	gen = std::mt19937_64(this->seed);
 	printAllOptions();
 
@@ -20,8 +21,9 @@ void isingUI::ui::make_sim()
 	auto w_list = this->get_params_array(Ising_params::w);
 	//for (auto& system_size : L_list){
 	//	this->L = system_size;
+	//	this->site = this->L / 2;
 	//	generate_statistic_map(Ising_params::w); 
-	//}; return;
+	//}; //return;
 
 	switch (this->fun)
 	{
@@ -765,7 +767,7 @@ void isingUI::ui::calculate_spectrals()
 		stout << "\t\t	--> finished integrated spectral function for " << info
 			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 
-		spectrals::preset_omega set_omega(E, 0.025 * alfa.L, E(alfa.E_av_idx));
+		spectrals::preset_omega set_omega(E, 0.0025 * alfa.L, E(alfa.E_av_idx));
 		set_omega.save_matrix_elements(specdir_real_mat_elem + opName + info, mat_elem);
 
 		//auto specfun_r = spectrals::spectralFunction(mat_elem, set_omega, omega_spec);
@@ -997,7 +999,7 @@ void isingUI::ui::combine_spectrals(){
 		save_to_file(specDir_der + opName + info + ".dat", x, specFun, wH, LTA);		smoothen_data(specDir_der, opName + info + ".dat");
 	}
 	std::vector<int> numss = {500, 2000, 6000, 10000};
-	const long num = (this->realisations == 1)? numss[ (this->L - 12) / 2] : this->L * counter_int;
+	const long num = (this->realisations == 1)? numss[ (this->L - 12) / 2] : ULLPOW(this->L / 2) * std::sqrt(counter_int);
 	spectrals::spectralFunction(omegas_spec, mat_elem, specDir + filename, num);	smoothen_data(specDir, filename + ".dat");
 }
 
