@@ -213,7 +213,7 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 			eigenvalues = alfa.get_non_interacting_energies();
 		} 
 		else {
-			//#undef MY_MAC
+			#undef MY_MAC
 			#if defined(MY_MAC)
 				std::cout << "Failed to load energies, returning empty array" << std::endl;
 			#else

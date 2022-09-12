@@ -8,13 +8,20 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 	this->_BC = _BC;
 
 	//change info
-	this->info = "_L=" + std::to_string(this->L) + \
-		",J=" + to_string_prec(this->J, 2) + \
-		",J0=" + to_string_prec(this->J0, 2) + \
-		",g=" + to_string_prec(this->g, 2) + \
-		",g0=" + to_string_prec(this->g0, 2) + \
-		",h=" + to_string_prec(this->h, 2) + \
-		",w=" + to_string_prec(this->w, 2);
+	#ifdef ANDERSON
+		this->info = "_L=" + std::to_string(this->L) + \
+			",J=" + to_string_prec(this->J, 2) + \
+			",J0=" + to_string_prec(this->J0, 2) + \
+			",w=" + to_string_prec(this->w, 2);
+	#else
+		this->info = "_L=" + std::to_string(this->L) + \
+			",J=" + to_string_prec(this->J, 2) + \
+			",J0=" + to_string_prec(this->J0, 2) + \
+			",g=" + to_string_prec(this->g, 2) + \
+			",g0=" + to_string_prec(this->g0, 2) + \
+			",h=" + to_string_prec(this->h, 2) + \
+			",w=" + to_string_prec(this->w, 2);
+	#endif
 	this->set_neighbors();
 	#ifndef HEISENBERG
 		if(this->g == 0 && this->g0 == 0)
@@ -116,6 +123,7 @@ void IsingModel_disorder::hamiltonian() {
 	#ifdef ANDERSON
 		auto lattice = std::make_unique<lattice3D>(this->L);
 		this->H = (arma::mat)anderson::hamiltonian(*lattice, this->J, this->w);
+		this->N = lattice->volume;
 	#else
 		#ifdef HEISENBERG
 			this->hamiltonian_heisenberg();

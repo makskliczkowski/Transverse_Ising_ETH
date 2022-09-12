@@ -437,13 +437,20 @@ public:
 	cpx av_operator(u64 alfa, u64 beta, op_type op, int corr_len);
 
 	static std::string set_info(int L, double J, double J0, double g, double g0, double h, double w, std::vector<std::string> skip = {}, std::string sep = "_") {
-		std::string name = sep + "L=" + std::to_string(L) + \
-			",J=" + to_string_prec(J, 2) + \
-			",J0=" + to_string_prec(J0, 2) + \
-			",g=" + to_string_prec(g, 2) + \
-			",g0=" + to_string_prec(g0, 2) + \
-			",h=" + to_string_prec(h, 2) + \
-			",w=" + to_string_prec(w, 2);
+		#ifdef ANDERSON
+			std::string name = sep + "L=" + std::to_string(L) + \
+				",J=" + to_string_prec(J, 2) + \
+				",J0=" + to_string_prec(J0, 2) + \
+				",w=" + to_string_prec(w, 2);
+		#else
+			std::string name = sep + "L=" + std::to_string(L) + \
+				",J=" + to_string_prec(J, 2) + \
+				",J0=" + to_string_prec(J0, 2) + \
+				",g=" + to_string_prec(g, 2) + \
+				",g0=" + to_string_prec(g0, 2) + \
+				",h=" + to_string_prec(h, 2) + \
+				",w=" + to_string_prec(w, 2);
+		#endif
 		auto tmp = split_str(name, ",");
 		std::string tmp_str = "";
 		for (int i = 0; i < tmp.size(); i++) {
