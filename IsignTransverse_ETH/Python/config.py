@@ -7,12 +7,12 @@ model = 0           # chooses model: 0-disorder / 1-symmetries / 2-local perturb
 hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
 BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
 
-L = 14                          # system size
+L = 32                          # system size
 J = 1.00                        # spin exchange (Ising-like)
 g = 0.55                       # trasnverse magnetic field (z-axis)
 h = 0.0                        # longitudal magnetic field (x-axis)
 #---- DISORDER PARAMETERS
-w = 1.00                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
+w = 0.70                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 J0 = 0.0                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
 g0 = 0.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 #---- SYMETRY PARAMETERS
@@ -43,8 +43,8 @@ plot_settings_dict = {
     'nu_x':             1,           # power of inversion
 
 #---- operator options
-    'operator':         0,         # chosen operator according to order set in IsingModel.h
-    'site':             -1,          # chosen site for local operator
+    'operator':         15,         # chosen operator according to order set in IsingModel.h
+    'site':            8,          # chosen site for local operator
     'smoothed':         0,          # choose running-smoothed option
 
 #---- instances set after

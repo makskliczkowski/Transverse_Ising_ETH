@@ -19,11 +19,11 @@ void isingUI::ui::make_sim()
 	auto g_list = this->get_params_array(Ising_params::g);
 	auto h_list = this->get_params_array(Ising_params::h);
 	auto w_list = this->get_params_array(Ising_params::w);
-	//for (auto& system_size : L_list){
-	//	this->L = system_size;
-	//	this->site = this->L / 2;
-	//	generate_statistic_map(Ising_params::w); 
-	//}; //return;
+	for (auto& system_size : L_list){
+		this->L = system_size;
+		this->site = this->L / 2;
+		generate_statistic_map(Ising_params::g); 
+	}; return;
 
 	switch (this->fun)
 	{
@@ -872,6 +872,7 @@ void isingUI::ui::combine_spectrals(){
 	arma::vec omegas_spec, mat_elem;
 	//---------------- PREAMBLE
 	int counter = 0;
+	int counter_agp = 0;
 	double wH = 0.0;	//<! mean level spacing
 	
 	arma::vec stats(6, arma::fill::zeros);
@@ -913,6 +914,7 @@ void isingUI::ui::combine_spectrals(){
 		if(status){
 			int idx = 0;
 			std::string line;
+			bool isnan = false;
 			while(std::getline(file, line)){
 				std::istringstream ss(line);
 				std::vector<std::string> datarow;
@@ -921,9 +923,11 @@ void isingUI::ui::combine_spectrals(){
 					datarow.push_back(element);
 				}
 				double value = std::stod(datarow[datarow.size()-2]);
+				if(value != value) std::cout << "found nan!!!" << std::endl;
 				agps(idx) += value;
 				idx++;
 			}
+			counter_agp++;
 			stout << "\t\t	--> finished AGP for " << info
 			  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 		}
@@ -971,7 +975,7 @@ void isingUI::ui::combine_spectrals(){
 	average_over_realisations<Ising_params::J>(false, lambda_average);
 	
 	stats /= double(counter);
-	agps /= double(counter);
+	agps /= double(counter_agp);
 	
 	std::ofstream file_out;
 	openFile(file_out, dir_stat + info + ".dat");
@@ -1621,6 +1625,8 @@ void isingUI::ui::spectral_form_factor(){
 	const double chi = 0.341345;
 	#ifdef HEISENBERG
 		size_t dim = binomial(this->L, this->L / 2.);
+	#elif defined ANDERSON
+		size_t dim = this->L * this->L * this->L;
 	#else
 		size_t dim = ULLPOW(this->L);
 	#endif
@@ -1773,6 +1779,8 @@ void isingUI::ui::average_SFF(){
 	const double chi = 0.341345;
 	#ifdef HEISENBERG
 		size_t dim = binomial(this->L, this->L / 2.);
+	#elif defined(ANDERSON)
+		size_t dim = this->L * this->L * this->L;
 	#else
 		size_t dim = ULLPOW(this->L);
 	#endif
