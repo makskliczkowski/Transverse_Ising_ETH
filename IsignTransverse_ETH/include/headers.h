@@ -56,6 +56,7 @@ DISABLE_WARNING_PUSH // include <armadillo> and suppress its warnings, cause dev
 #define ARMA_BLAS_LONG_LONG // using long long inside LAPACK call
 #define ARMA_USE_OPENMP
 #define ARMA_ALLOW_FAKE_GCC
+//#define ARMA_USE_HDF5
 //#define ARMA_EXTRA_DEBUG
 //-------
 DISABLE_OVERFLOW;
@@ -123,6 +124,9 @@ namespace fs = std::experimental::filesystem;
 	#endif
 	#if !defined(LOCAL_PERT)
 		//#define LOCAL_PERT
+	#endif
+	#if !defined(ANDERSON)
+		//#define ANDERSON
 	#endif
 #endif
 

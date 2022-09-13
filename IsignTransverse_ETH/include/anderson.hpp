@@ -3,43 +3,59 @@
 //<! anderson model
 namespace anderson{
 
-    //<! main diagonalisation scheme for 1D chain
+    //<! build hamiltonian
     inline
-    auto get_orbitals(
-        int system_size, 
-        double J, 
-        double h
-    ) -> std::pair<arma::vec, arma::mat>
-    {
+    auto hamiltonian(
+        const lattice_base& lattice,    //<! lattice class for system
+        double t,                       //<! exchange coupling ( 'opping)
+        double W 
+    ){
+        const u64 N = lattice.volume;
+        //-- set  anderson single-body matrix
+        arma::vec disorder = create_random_vec(N, W);
+        
+        arma::sp_mat anderson_hamiltonian(N, N);
+        for(int j = 0; j < N; j++){
+            anderson_hamiltonian(j, j) = disorder(j);
+            auto neis = lattice.get_neighbours(j);
+            for(auto& nei : neis){
+                if(nei > 0){
+                    anderson_hamiltonian(j, nei) = t;
+                    anderson_hamiltonian(nei, j) = t;
+                }
+            }
+        }
+        return anderson_hamiltonian;
+    }
+    //<! main diagonalisation scheme for any dimension lattice
+    inline
+    auto diagonalize(
+        const lattice_base& lattice,    //<! lattice class for system
+        double t,                       //<! exchange coupling ( 'opping)
+        double W                        //<! disorder stregth
+    ){
         arma::vec energies;
         arma::mat orbitals;
         
-        //-- set  anderson single-body matrix
-        arma::vec disorder = create_random_vec(system_size, h);
-        
-        arma::mat anderson_hamiltonian(system_size, system_size, arma::fill::zeros);
-        for(int j = 0; j < system_size; j++){
-            anderson_hamiltonian(j, j) = disorder(j);
-            anderson_hamiltonian(j, (j + 1) % system_size) = J / 2.;
-            anderson_hamiltonian((j + 1) % system_size, j) = J / 2.;
-            
-        }
+        arma::mat anderson_hamiltonian = (arma::mat)hamiltonian(lattice, t, W);
         
         arma::eig_sym(energies, orbitals, anderson_hamiltonian);
         return std::make_pair(energies, orbitals);
+        
     }
 
     //<! calculating localisation length for each anderson orbital
     inline
-    auto get_localisation_length(
+    auto get_localisation_length1D(
         int system_size,
         double J,
         double h
     ) -> std::pair<arma::vec, arma::vec>
     {
+        auto lattice = std::make_unique<lattice1D>(system_size);
         arma::vec energies;
         arma::mat orbitals;
-        std::tie(energies, orbitals) = anderson::get_orbitals(system_size, J, h);
+        std::tie(energies, orbitals) = anderson::diagonalize(*lattice, J, h);
         arma::vec loc_length(system_size, arma::fill::zeros);
     //#pragma omp parallel
         for(int i = 0; i < system_size; i++){

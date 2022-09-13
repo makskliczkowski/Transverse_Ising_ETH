@@ -73,9 +73,12 @@ def load_spectral(dir = "", settings = None, parameter = None,
     filename2 = cf.base_directory + "STATISTICS" + kPSep + "raw_data" + kPSep + hfun.info_param(cf.params_arr)
     #--- reset defaults
     cf.params_arr = param_copy
+
     if exists(filename):
-        data = pd.read_table(filename, sep="\t", header=None)
-        stats = pd.read_table(filename2, sep="\t", header=None)
+        seper = "\t\t" if spec == "spec" and cf.hamiltonian == 0 else "\t";
+        data = pd.read_table(filename, sep=seper, header=None)
+        stats = []
+        if exists(filename2): stats = pd.read_table(filename2, sep="\t", header=None)
         xdata = func_x(np.array(data[0]), parameter)
         ydata = np.array(data[1])
         
@@ -85,12 +88,13 @@ def load_spectral(dir = "", settings = None, parameter = None,
             norm_idx = len(ydata)-1
             if spec == "time": ydata = (ydata - data[3][0]) / np.abs(ydata[norm_idx] - ydata[0])
             else: ydata = (ydata - data[3][0]) / np.abs(ydata[norm_idx] - ydata[0])
-       
-        "mean"
-        wH = (np.array(stats[1][4])).astype(np.float);    
-        "typical"
-        wHtyp = (np.array(stats[1][5])).astype(np.float); 
-
+        if exists(filename2):
+            "mean"
+            wH = (np.array(stats[1][4])).astype(np.float);    
+            "typical"
+            wHtyp = (np.array(stats[1][5])).astype(np.float); 
+        else:
+            wH = 1e-8; wHtyp = 1e-8
         if spec == "time": wH = 1. / wH
         if spec == "time": wHtyp = 1. / wHtyp  
         return True, xdata, ydata, wH, wHtyp
@@ -177,10 +181,10 @@ def plot_spectral(axis, settings = None,
             if use_derivative == 0 and spec == "spec": 
                 ydata = ydata * (2**x / x if settings['scaling_idx'] == 0 else 2**cf.L / cf.L) # rescale by D
 
-            idx_cut = 0
-            if use_derivative == 1 and spec == "spec": idx_cut = 200
-            xdata = np.array([xdata[i] for i in range(len(xdata)) if i > idx_cut])
-            ydata = np.array([ydata[i] for i in range(len(ydata)) if i > idx_cut])
+            #idx_cut = 0
+            #if use_derivative == 1 and spec == "spec": idx_cut = 200
+            #xdata = np.array([xdata[i] for i in range(len(xdata)) if i > idx_cut])
+            #ydata = np.array([ydata[i] for i in range(len(ydata)) if i > idx_cut])
             axis.plot(xdata, ydata, label=hfun.key_title(x, settings), linewidth=int(font / 6), markersize=font-6)
             
             "mean" 

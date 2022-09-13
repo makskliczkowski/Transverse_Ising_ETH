@@ -9,6 +9,7 @@ void isingUI::ui::make_sim()
 	#if defined(MY_MAC)
 		this->seed = static_cast<long unsigned int>(time(0));
 	#endif
+	
 	gen = std::mt19937_64(this->seed);
 	printAllOptions();
 
@@ -18,10 +19,11 @@ void isingUI::ui::make_sim()
 	auto g_list = this->get_params_array(Ising_params::g);
 	auto h_list = this->get_params_array(Ising_params::h);
 	auto w_list = this->get_params_array(Ising_params::w);
-	//for (auto& system_size : L_list){
-	//	this->L = system_size;
-	//	generate_statistic_map(Ising_params::w); 
-	//}; return;
+	for (auto& system_size : L_list){
+		this->L = system_size;
+		this->site = this->L / 2;
+		generate_statistic_map(Ising_params::g); 
+	}; return;
 
 	switch (this->fun)
 	{
@@ -205,7 +207,11 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 			loaded = eigenvalues.load(arma::hdf5_name(name + ".hdf5", "eigenvalues/" + _suffix));
 	}
 	if(!loaded){
-		if(alfa.g == 0){
+		bool status = false;
+		#if !defined(ANDERSON) && !defined(HEISENBRG)
+			status = true;
+		#endif
+		if(status && alfa.g == 0){
 			auto H = alfa.get_hamiltonian();
 			const u64 N = alfa.get_hilbert_size();
 			arma::cx_vec E(N);
@@ -214,11 +220,11 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 			eigenvalues = real(E);
 			sort(eigenvalues.begin(), eigenvalues.end());
 		} 
-		else if(alfa.J == 0.0){
+		else if(status && alfa.J == 0.0){
 			eigenvalues = alfa.get_non_interacting_energies();
 		} 
 		else {
-			//#undef MY_MAC
+			#undef MY_MAC
 			#if defined(MY_MAC)
 				std::cout << "Failed to load energies, returning empty array" << std::endl;
 			#else
@@ -772,7 +778,7 @@ void isingUI::ui::calculate_spectrals()
 		stout << "\t\t	--> finished integrated spectral function for " << info
 			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 
-		spectrals::preset_omega set_omega(E, 0.025 * alfa.L, E(alfa.E_av_idx));
+		spectrals::preset_omega set_omega(E, 0.0025 * alfa.L, E(alfa.E_av_idx));
 		set_omega.save_matrix_elements(specdir_real_mat_elem + opName + info, mat_elem);
 
 		//auto specfun_r = spectrals::spectralFunction(mat_elem, set_omega, omega_spec);
@@ -873,6 +879,7 @@ void isingUI::ui::combine_spectrals(){
 	arma::vec omegas_spec, mat_elem;
 	//---------------- PREAMBLE
 	int counter = 0;
+	int counter_agp = 0;
 	double wH = 0.0;	//<! mean level spacing
 	
 	arma::vec stats(6, arma::fill::zeros);
@@ -914,6 +921,7 @@ void isingUI::ui::combine_spectrals(){
 		if(status){
 			int idx = 0;
 			std::string line;
+			bool isnan = false;
 			while(std::getline(file, line)){
 				std::istringstream ss(line);
 				std::vector<std::string> datarow;
@@ -922,9 +930,11 @@ void isingUI::ui::combine_spectrals(){
 					datarow.push_back(element);
 				}
 				double value = std::stod(datarow[datarow.size()-2]);
+				if(value != value) std::cout << "found nan!!!" << std::endl;
 				agps(idx) += value;
 				idx++;
 			}
+			counter_agp++;
 			stout << "\t\t	--> finished AGP for " << info
 			  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 		}
@@ -972,7 +982,7 @@ void isingUI::ui::combine_spectrals(){
 	average_over_realisations<Ising_params::J>(false, lambda_average);
 	
 	stats /= double(counter);
-	agps /= double(counter);
+	agps /= double(counter_agp);
 	
 	std::ofstream file_out;
 	openFile(file_out, dir_stat + info + ".dat");
@@ -1004,7 +1014,7 @@ void isingUI::ui::combine_spectrals(){
 		save_to_file(specDir_der + opName + info + ".dat", x, specFun, wH, LTA);		smoothen_data(specDir_der, opName + info + ".dat");
 	}
 	std::vector<int> numss = {500, 2000, 6000, 10000};
-	const long num = (this->realisations == 1)? numss[ (this->L - 12) / 2] : this->L * counter_int;
+	const long num = (this->realisations == 1)? numss[ (this->L - 12) / 2] : ULLPOW(this->L / 2) * std::sqrt(counter_int);
 	spectrals::spectralFunction(omegas_spec, mat_elem, specDir + filename, num);	smoothen_data(specDir, filename + ".dat");
 }
 
@@ -1622,6 +1632,8 @@ void isingUI::ui::spectral_form_factor(){
 	const double chi = 0.341345;
 	#ifdef HEISENBERG
 		size_t dim = binomial(this->L, this->L / 2.);
+	#elif defined ANDERSON
+		size_t dim = this->L * this->L * this->L;
 	#else
 		size_t dim = ULLPOW(this->L);
 	#endif
@@ -1774,6 +1786,8 @@ void isingUI::ui::average_SFF(){
 	const double chi = 0.341345;
 	#ifdef HEISENBERG
 		size_t dim = binomial(this->L, this->L / 2.);
+	#elif defined(ANDERSON)
+		size_t dim = this->L * this->L * this->L;
 	#else
 		size_t dim = ULLPOW(this->L);
 	#endif
@@ -2817,6 +2831,10 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv)
 			break;
 		}
 	#endif
+
+	#ifdef ANDERSON
+		str_model = "";
+	#endif
 	// make boundary condition folder
 	switch (this->boundary_conditions)
 	{
@@ -2835,6 +2853,9 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv)
 		std::string folder = saving_dir + "HEISENBERG" + kPSep + str_model;
 	#else
 		std::string folder = saving_dir + "ISING" + kPSep + str_model;
+	#endif
+	#ifdef ANDERSON
+		folder = saving_dir + "ANDERSON" + kPSep + str_model;
 	#endif
 	if (!argv[argc - 1].empty() && argc % 2 != 0) {
 		// only if the last command is non-even

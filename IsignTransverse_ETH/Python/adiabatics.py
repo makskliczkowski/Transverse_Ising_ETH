@@ -13,7 +13,7 @@ from os.path import exists
 from scipy.special import binom
 
 def plot_agp(axis=None, settings_class = None, which=1):
-    
+
     if which < 1 or which > 4: 
         print("Parameter 'which' entered with illegal value")
         return
