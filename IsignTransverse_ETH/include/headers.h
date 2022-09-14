@@ -126,10 +126,11 @@ namespace fs = std::experimental::filesystem;
 		//#define LOCAL_PERT
 	#endif
 	#if !defined(ANDERSON)
-		//#define ANDERSON
+		#define ANDERSON
 	#endif
 #endif
 
+extern int anderson_dim;
 extern std::random_device rd;
 extern std::mt19937::result_type seed_global;
 extern std::mt19937_64 gen;

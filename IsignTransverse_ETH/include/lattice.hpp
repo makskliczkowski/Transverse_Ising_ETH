@@ -38,13 +38,21 @@ public:
     {
         std::vector<site_type> neis;
         
-        site_type nei = (site + 1) % this->L;
-        neis.push_back((site + 1 >= L && this->boundary_condition)? nei : -1);
+        site_type nei = site + 1;
+        if(nei >= this->L){
+            if(this->boundary_condition) nei = nei % L;
+            else nei = -1;
+        }
+        neis.push_back(nei);
         
-        nei = (site - 1) % this->L;
-        if(nei < 0) nei += this->L;
-        neis.push_back((site - 1 < 0 && this->boundary_condition)? nei : -1);
-        
+        nei = site - 1;
+        if(nei < 0){
+            if(this->boundary_condition) {
+                nei = (nei % L) + this->L;
+            }
+            else nei = -1;
+        }
+        neis.push_back(nei);
         return neis;
     }
 };
