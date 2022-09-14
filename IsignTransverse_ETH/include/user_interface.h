@@ -105,7 +105,8 @@ namespace isingUI
 		{"ts", "0.1"},					// time step for 
 		{"scale", "0"},					// scale: linear-0 or log-1
 		{"seed", "87178291199L"},		// seed foir random generator
-		{"jobid", "0"}					// unique job id
+		{"jobid", "0"},					// unique job id
+		{"dim", "1"}					// dimensionality of anderson model
 	};
 
 	// ----------------------------------- UI CLASS SPECIALISATION -----------------------------------
@@ -129,7 +130,7 @@ namespace isingUI
 		int fun;											// choose function to start calculations
 		double dt;											// time step for evolution
 		int scale;											// choose scale: either linear or log
-
+		int dim;											// dimension of lattice (mostly for anderson model)
 		struct {
 			int k_sym;										// translational symmetry generator
 			int p_sym;										// parity symmetry generator
@@ -207,7 +208,9 @@ namespace isingUI
 		void compare_entaglement();
 
 		void benchmark();
-		
+		//-------------------------------------------------------------------------- ANDERSON
+		void calculate_localisation_length();
+
 		//-------------------------------------------------------------------------- SPECTRAL PROPERTIES AND HELPERS
 		//<! calculate all spectral quantities: time evolution, response function,
 		//<! integrated spectral function and spectral form factor with folded eigenvalues
@@ -219,12 +222,6 @@ namespace isingUI
 		//<! calculate evolution of entaglement from initial state chosen by -op.
 		//<! -s sets the subsystem size, if-s=0 the L/2 is assumed 
 		void entropy_evolution();
-		
-		//<! loop over all parameters (L, site, g, h) for given disorder
-		//<! or symmetry sector and find relaxation times as I(w)=1/2 (the later from integrated time evolution)
-		void relaxationTimesFromFiles();
-		void intSpecFun_from_timeEvol();
-	
 		
 		//<! analyze spectra with unfolding, DOS and level spacing distribution --  all to file
 		void analyze_spectra();
@@ -358,7 +355,7 @@ namespace isingUI
 			typename... _types	//<! argument-types passed to lambda
 		 > 
 		void average_over_realisations(
-			bool with_diagonalization,	//!< checked if each realisation should diagonalize a new matrix
+			bool some_switch_I_add_later_cause_fak_compiler,
 			callable& lambda, 			//!< callable function
 			_types... args				//!< arguments passed to callable interface lambda
 		) {

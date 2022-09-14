@@ -12,7 +12,7 @@ J = 1.00                        # spin exchange (Ising-like)
 g = 0.55                       # trasnverse magnetic field (z-axis)
 h = 0.0                        # longitudal magnetic field (x-axis)
 #---- DISORDER PARAMETERS
-w = 1.00                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
+w = 0.70                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 J0 = 0.0                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
 g0 = 0.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 #---- SYMETRY PARAMETERS
@@ -43,9 +43,9 @@ plot_settings_dict = {
     'nu_x':             1,           # power of inversion
 
 #---- operator options
-    'operator':         0,         # chosen operator according to order set in IsingModel.h
-    'site':             -1,          # chosen site for local operator
-    'smoothed':         0,          # choose running-smoothed option
+    'operator':         2,         # chosen operator according to order set in IsingModel.h
+    'site':            7,          # chosen site for local operator
+    'smoothed':         1,          # choose running-smoothed option
 
 #---- instances set after
     'vs_idx':          -1,          # idx of vs option set after dict
