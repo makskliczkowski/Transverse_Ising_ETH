@@ -122,7 +122,7 @@ void IsingModel_disorder::hamiltonian() {
 	}
 	#ifdef ANDERSON
 		auto lattice = std::make_unique<lattice3D>(this->L);
-		this->H = (arma::mat)anderson::hamiltonian(*lattice, this->J, this->w);
+		this->H = anderson::hamiltonian(*lattice, this->J, this->w);
 		this->N = lattice->volume;
 	#else
 		#ifdef HEISENBERG
