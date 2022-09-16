@@ -12,7 +12,7 @@ namespace anderson{
     ){
         const u64 N = lattice.volume;
         //-- set  anderson single-body matrix
-        arma::vec disorder = create_random_vec(N, W);
+        arma::vec disorder = my_gen.create_random_vec<double>(N, W);
         
         arma::sp_mat anderson_hamiltonian(N, N);
         for(int j = 0; j < N; j++){
@@ -50,7 +50,7 @@ namespace anderson{
         int system_size,
         double t,
         double W
-    ) -> std::pair<arma::vec, arma::vec>
+    ) -> std::pair<arma::vec, arma::mat>
     {
         auto lattice = std::make_unique<lattice1D>(system_size);
         arma::vec energies;
@@ -59,6 +59,7 @@ namespace anderson{
         arma::vec loc_length(system_size, arma::fill::zeros);
         //return std::make_pair(energies, arma::vec(system_size, arma::fill::zeros));
     //#pragma omp parallel
+        arma::mat corr_func(system_size / 2, system_size, arma::fill::zeros);
         for(int i = 0; i < system_size; i++){
             auto orbital_i = orbitals.col(i);
 
@@ -70,8 +71,14 @@ namespace anderson{
                 
                 corr(r) = log(abs(val));
             }
+            corr_func.col(i) = corr;
+            continue;
+
+
+            //<! OLD METHOD TO CALCULATE FOR EACH REALISATION SEPERATRELY
+            //<! ADD CHOICE BETWEEN OPTIONS!
             arma::vec r_vals  = arma::linspace(0, system_size / 2., corr.size());
-            if(i % 100 == 0)
+            if(i % 100 == 0 || system_size < 20)
                 save_to_file("./results/ANDERSON/1D/PBC/CorrelationFunction/_L=" 
                             + std::to_string(system_size) + "_n=" + std::to_string(i) + "_w=" + to_string_prec(W, 2) + ".dat", r_vals, corr);
             //continue;
@@ -86,7 +93,7 @@ namespace anderson{
             
             loc_length(i) = -1. / p(0);
         }
-        return std::make_pair(energies, loc_length);
+        return std::make_pair(energies, corr_func);
     }
     
 };
