@@ -7,7 +7,7 @@ model = 0           # chooses model: 0-disorder / 1-symmetries / 2-local perturb
 hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
 BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
 
-L = 14                          # system size
+L = 16                          # system size
 J = 1.00                        # spin exchange (Ising-like)
 g = 0.55                       # trasnverse magnetic field (z-axis)
 h = 0.0                        # longitudal magnetic field (x-axis)
@@ -24,8 +24,8 @@ x_sym = 1                       # spin-flip symmetry sector (only when h=0)
 General settings for all plots
 """
 plot_settings_dict = {
-    'vs':             'x',          # set parameter on x-axis
-    'scaling':        'w',          # set scaling parameter (changing in legend)
+    'vs':             'L',          # set parameter on x-axis
+    'scaling':        'g',          # set scaling parameter (changing in legend)
 
     'x_scale':      'log',       
     'y_scale':      'log',          
@@ -44,7 +44,7 @@ plot_settings_dict = {
 
 #---- operator options
     'operator':         2,         # chosen operator according to order set in IsingModel.h
-    'site':            7,          # chosen site for local operator
+    'site':            8,          # chosen site for local operator
     'smoothed':         1,          # choose running-smoothed option
 
 #---- instances set after
@@ -100,13 +100,19 @@ operator_names = [
     "SigmaZ_next_neigh",
     "SpinImbalance"			
 ]
-op_name = operator_names[plot_settings_dict['operator']] + ("%s"%plot_settings_dict['site'] if plot_settings_dict['operator'] < 8 else "")
-smo_dir = (f"smoothed{kPSep}" if plot_settings_dict['smoothed'] else "")
-subdir = (f"EXTENSIVE{kPSep}" if plot_settings_dict['operator'] > 7 else ("j=%s%s" if plot_settings_dict['operator'] < 3 else "q=%s%s")%(plot_settings_dict['site'], kPSep) ) + smo_dir
+
+def operator_name(operator, site):
+    return operator_names[operator] + ("%s"%site if operator < 8 else "")
+    
+def subdir(operator, site, smoothed = 1):
+    return (f"EXTENSIVE{kPSep}" if operator > 7 else ("j=%s%s" if operator < 3 else "q=%s%s")%(site, kPSep) ) + (f"smoothed{kPSep}" if smoothed else "")
+
+
 operator_formuals = [
     r"$\sigma^z_j$",
     r"$\sigma^x_j$",
-    r"$H_j=J_j\sigma^z_j\sigma^z_{j+1} + \frac{g_j}{2}\left(\sigma^x_j+\sigma^x_{j+1}\right) + \frac{h_j}{2}\left(\sigma^z_j+\sigma^z_{j+1}\right)$",
+    (r"$H^{XXZ}_j=J_j\left(\sigma^x_j\sigma^x_{j+1} + \sigma^y_j\sigma^y_{j+1}\right) + \Delta_j\sigma^z_j\sigma^z_{j+1} + \frac{h_j}{2}\left(\sigma^z_j+\sigma^z_{j+1}\right)$" 
+            if hamiltonian  else r"$H^{Ising}_j=J_j\sigma^z_j\sigma^z_{j+1} + \frac{g_j}{2}\left(\sigma^x_j+\sigma^x_{j+1}\right) + \frac{h_j}{2}\left(\sigma^z_j+\sigma^z_{j+1}\right)$"),
     r"$\sigma^z_q=\frac{1}{\sqrt{L}}\sum_\ell e^{i\frac{2\pi}{L}q\ell}\sigma^z_\ell$",
     r"$\sigma^x_q=\frac{1}{\sqrt{L}}\sum_\ell e^{i\frac{2\pi}{L}q\ell}\sigma^x_\ell$",
     r"$H_q=\frac{1}{\sqrt{L}}\sum_\ell \cos\left(\frac{2\pi}{L}q\ell\right)H_\ell$",
@@ -139,3 +145,7 @@ def set_params(_L = None, _J = None, _J0 = None, _g = None, _g0 = None, _h = Non
     if(_p != None):     p_sym = _p 
     if(_x != None):     x_sym = _x
     params_arr = [L, J, g, h, w, k_sym, p_sym, x_sym, J0, g0]
+
+
+def set_plot_dict_value(option, value):
+    plot_settings_dict[option] = value

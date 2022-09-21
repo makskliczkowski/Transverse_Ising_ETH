@@ -32,7 +32,8 @@ def get_scaling_array(settings = None, x0 = 0.1, xend = 1.0, dx = 0.1):
 
 def load_spectral(dir = "", settings = None, parameter = None, 
                             spec = None, normalise = False, 
-                            func_x = lambda x, a: x):
+                            func_x = lambda x, a: x,
+                            operator = -1, site = -3):
     """
     Load spectral data along with statistical measures
 
@@ -53,7 +54,14 @@ def load_spectral(dir = "", settings = None, parameter = None,
         func_x : lambda
             rescaling function for x axis values (input function is x data and scaling parameter)
 
+        operator, site : int
+            Values definining which operator to choose, if None the default from config.py is chosen
     """
+    importlib.reload(cf)
+
+    if operator < 0: operator = settings['operator']
+    if site < -1: site = settings['site']
+
     param_copy = copy.deepcopy(cf.params_arr)
     if parameter == None:
         raise ValueError("Input value 'parameter' unasigned. No default value.")
@@ -63,17 +71,18 @@ def load_spectral(dir = "", settings = None, parameter = None,
         cf.params_arr[4] = int(100 * parameter / 2.) / 100.
     filename = (hfun.info_param(cf.params_arr) if cf.hamiltonian else hfun.remove_info(hfun.info_param(cf.params_arr), 'J') + ".dat")
     
-    if settings['scaling_idx'] == 5 and settings['operator'] < 8:
-        filename = dir + ("j=%d%s" if settings['operator'] < 3 else "q=%d%s")%(parameter, kPSep) + cf.smo_dir + cf.operator_names[settings['operator']] + "%d"%parameter + filename
-    elif settings['scaling_idx'] == 0 and settings['site'] < 0 and settings['operator'] < 8:
-        filename = dir + ("j=%d%s" if settings['operator'] < 3 else "q=%d%s")%(parameter / 2, kPSep) + cf.smo_dir + cf.operator_names[settings['operator']] + "%d"%(parameter/2) + filename
+    if settings['scaling_idx'] == 5 and operator < 8:
+        filename = dir + ("j=%d%s" if operator < 3 else "q=%d%s")%(parameter, kPSep) + cf.smo_dir + cf.operator_names[operator] + "%d"%parameter + filename
+    elif settings['scaling_idx'] == 0 and site < 0 and operator < 8:
+        filename = dir + ("j=%d%s" if operator < 3 else "q=%d%s")%(parameter / 2, kPSep) + cf.smo_dir + cf.operator_names[operator] + "%d"%(parameter/2) + filename
     else :
-        filename = dir + cf.subdir + cf.op_name + filename
+        filename = dir + cf.subdir(operator, site, settings['smoothed']) + cf.operator_name(operator, site) + filename
     
     filename2 = cf.base_directory + "STATISTICS" + kPSep + "raw_data" + kPSep + hfun.info_param(cf.params_arr)
     #--- reset defaults
     cf.params_arr = param_copy
-    
+    #print(filename)
+
     if exists(filename):
         seper = "\t\t" if spec == "spec" and cf.hamiltonian == 0 else "\t";
         data = pd.read_table(filename, sep=seper, header=None)
@@ -107,7 +116,9 @@ def plot_spectral(axis, settings = None,
                     xlab = "x", ylab = "y", xscale='log', yscale=None,
                     func_x = lambda x, a: x, func_y = lambda y, a: y,
                     normalise=False, spec="time", 
-                    font = 12, use_derivative = 0, vals = None):
+                    font = 12, use_derivative = 0, 
+                    vals = None,
+                    operator = -1, site = -3):
     """
     Plot spectral function according to input range
 
@@ -139,6 +150,10 @@ def plot_spectral(axis, settings = None,
 
         vals : np.array
             Numpy Array with scaling parameter values to sweep through
+
+        operator, site : int
+            Values definining which operator to choose, if None the default from config.py is chosen
+
     """
     if spec == "time":
                             dir = cf.base_directory + "timeEvolution%s"%kPSep
@@ -146,6 +161,9 @@ def plot_spectral(axis, settings = None,
     elif spec == "spec":    dir = cf.base_directory + ("IntegratedResponseFunction%sDERIVATIVE%s"%(kPSep,kPSep) if use_derivative else "ResponseFunction%s"%kPSep)
     else:
         raise ValueError("No spectral data possible for this option, choose among: 'time', 'int' or 'spec'")
+
+    if operator < 0: operator = settings['operator']
+    if site < -1: site = settings['site']
 
     #-- main settings
     if settings == None:
@@ -171,7 +189,9 @@ def plot_spectral(axis, settings = None,
                                                     parameter=x,
                                                     spec=spec,
                                                     func_x=func_x,
-                                                    normalise=normalise
+                                                    normalise=normalise,
+                                                    operator = operator,
+                                                    site = site
                                                     )
 
         if status:
@@ -201,6 +221,7 @@ def plot_spectral(axis, settings = None,
             mini = xdata.min();  maxi = xdata.max();
             if mini < x_min and np.isfinite(mini): x_min = mini
             if maxi > x_max and np.isfinite(maxi): x_max = maxi
+
     if normalise:
         ylab = "normalised\quad" + ylab
     hfun.set_plot_elements(axis = axis, xlim = (x_min, x_max), 

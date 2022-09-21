@@ -10,8 +10,6 @@ void isingUI::ui::make_sim()
 	#if defined(MY_MAC)
 		this->seed = static_cast<long unsigned int>(time(0));
 	#endif
-
-	gen = std::mt19937_64(this->seed);
 	printAllOptions();
 
 	clk::time_point start = std::chrono::system_clock::now();
@@ -20,11 +18,11 @@ void isingUI::ui::make_sim()
 	auto g_list = this->get_params_array(Ising_params::g);
 	auto h_list = this->get_params_array(Ising_params::h);
 	auto w_list = this->get_params_array(Ising_params::w);
-	//for (auto& system_size : L_list){
-	//	this->L = system_size;
-	//	this->site = this->L / 2;
-	//	generate_statistic_map(Ising_params::g); 
-	//}; return;
+	for (auto& system_size : L_list){
+		this->L = system_size;
+		this->site = this->L / 2;
+		generate_statistic_map(Ising_params::L); 
+	}; return;
 
 	switch (this->fun)
 	{
@@ -265,14 +263,14 @@ void isingUI::ui::combine_spectra(){
 //<! generate random product state (random orientation of spins on the bloch sphere)
 arma::cx_vec isingUI::ui::random_product_state(int system_size)
 {
-	auto the = theta(gen);
+	auto the = my_gen.random_uni<double>(0.0, pi);
 	arma::cx_vec init_state = std::cos(the / 2.) * up
-		+ std::exp(im * fi(gen)) * std::sin(the / 2.) * down;
+		+ std::exp(im * my_gen.random_uni<double>(0.0, pi)) * std::sin(the / 2.) * down;
 	for (int j = 1; j < system_size; j++)
 	{
-		the = theta(gen);
+		the = my_gen.random_uni<double>(0.0, pi);
 		init_state = arma::kron(init_state, std::cos(the / 2.) * up
-			+ std::exp(im * fi(gen)) * std::sin(the / 2.) * down);
+			+ std::exp(im * my_gen.random_uni<double>(0.0, pi)) * std::sin(the / 2.) * down);
 	}
 	return init_state;
 }
@@ -1031,8 +1029,7 @@ void isingUI::ui::entropy_evolution(){
 		double dt_new = 1e-2;
 		std::string dir = this->saving_dir + "Entropy" + kPSep;
 		createDirs(dir);
-		alfa.reset_random(this->seed);
-
+		my_gen.reset();
 		// ----------- diagonalize
 		stout << "\t\t	--> start diagonalizing for " << alfa.get_info()
 				<< " - in time : " << tim_s(start) << "s" << std::endl;
@@ -2119,31 +2116,50 @@ void isingUI::ui::generate_statistic_map(Ising_params varname1, Ising_params var
 
 //-------------------------------------------------------------------------- ANDERSON
 
-void isingUI::ui::calculate_localisation_length(){
 
-	arma::vec loc_length(this->L, arma::fill::zeros), E;
-	double r = 0;
-	this->mu = this->L / 2.;
-	//const long
+void isingUI::ui::calculate_localisation_length(){
+	arma::vec energies(this->L, arma::fill::zeros);
+	arma::mat corr_func(this->L / 2, this->L, arma::fill::zeros);
 
 	auto lambda_average = [&](
 		int realis, double x
 		)
 	{
-		arma::vec energies, loc_len_tmp;
-		std::tie(energies, loc_len_tmp) = anderson::get_localisation_length1D(this->L, this->J, this->w);
+		arma::vec E;
+		arma::mat corr_functmp;
+		std::tie(E, corr_functmp) = anderson::get_localisation_length1D(this->L, this->J, this->w);
 		#pragma omp critical
 		{
-			loc_length += loc_len_tmp;
-			E = energies;
+			energies +=E;
+			corr_func += corr_functmp;
 		}
 	};
 
 	average_over_realisations<Ising_params::g>(false, lambda_average);
-	loc_length /= double(this->realisations);
+	energies /= double(this->realisations);
+	corr_func /= double(this->realisations);
+	arma::vec loc_length(this->L, arma::fill::zeros);
+	
+	for(int i = 0; i < this->L; i++){
+		arma::vec corr = corr_func.col(i);
+        double _min = arma::min(corr);
+        if(!std::isfinite(_min) || _min < -20.0)
+            _min = -20.0;
+
+		arma::vec r_vals  = arma::linspace(0, this->L / 2., corr.size());
+        
+		if(this->L < 20 || (i % (this->L / 20) == 0))
+			save_to_file("./results/ANDERSON/1D/PBC/CorrelationFunction/_L=" 
+                            + std::to_string(this->L) + "_n=" + std::to_string(i) + "_w=" + to_string_prec(this->w, 2) + ".dat", r_vals, corr);
+        arma::vec func_to_fit;
+		func_to_fit = exctract_vector_between_values(corr, _min, 1.0);
+        r_vals  = arma::linspace(0, func_to_fit.size(), func_to_fit.size());
+        arma::vec p = arma::polyfit(r_vals, func_to_fit, 1);
+        loc_length(i) = -1. / p(0);
+	}
 	std::string dir = this->saving_dir + "LocalisationLength" + kPSep + "Distribution" + kPSep;
 	createDirs(dir);
-	save_to_file(dir + IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w) + ".dat", E / (this->J + this->w), loc_length);
+	save_to_file(dir + IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w) + ".dat", energies / (this->J + this->w), loc_length);
 }
 
 
