@@ -81,7 +81,8 @@ def load_spectral(dir = "", settings = None, parameter = None,
     filename2 = cf.base_directory + "STATISTICS" + kPSep + "raw_data" + kPSep + hfun.info_param(cf.params_arr)
     #--- reset defaults
     cf.params_arr = param_copy
-    
+    #print(filename)
+
     if exists(filename):
         seper = "\t\t" if spec == "spec" and cf.hamiltonian == 0 else "\t";
         data = pd.read_table(filename, sep=seper, header=None)

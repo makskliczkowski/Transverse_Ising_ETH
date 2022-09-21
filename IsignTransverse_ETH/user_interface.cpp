@@ -10,10 +10,6 @@ void isingUI::ui::make_sim()
 	#if defined(MY_MAC)
 		this->seed = static_cast<long unsigned int>(time(0));
 	#endif
-	
-	my_gen = randomGen(this->seed);
-	checkRandom(this->seed);
-	return;
 	printAllOptions();
 
 	clk::time_point start = std::chrono::system_clock::now();
@@ -22,11 +18,11 @@ void isingUI::ui::make_sim()
 	auto g_list = this->get_params_array(Ising_params::g);
 	auto h_list = this->get_params_array(Ising_params::h);
 	auto w_list = this->get_params_array(Ising_params::w);
-	//for (auto& system_size : L_list){
-	//	this->L = system_size;
-	//	this->site = this->L / 2;
-	//	generate_statistic_map(Ising_params::g); 
-	//}; return;
+	for (auto& system_size : L_list){
+		this->L = system_size;
+		this->site = this->L / 2;
+		generate_statistic_map(Ising_params::L); 
+	}; return;
 
 	switch (this->fun)
 	{

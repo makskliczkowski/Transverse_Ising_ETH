@@ -7,7 +7,7 @@ model = 0           # chooses model: 0-disorder / 1-symmetries / 2-local perturb
 hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
 BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
 
-L = 14                          # system size
+L = 16                          # system size
 J = 1.00                        # spin exchange (Ising-like)
 g = 0.55                       # trasnverse magnetic field (z-axis)
 h = 0.0                        # longitudal magnetic field (x-axis)
@@ -24,8 +24,8 @@ x_sym = 1                       # spin-flip symmetry sector (only when h=0)
 General settings for all plots
 """
 plot_settings_dict = {
-    'vs':             'x',          # set parameter on x-axis
-    'scaling':        'w',          # set scaling parameter (changing in legend)
+    'vs':             'L',          # set parameter on x-axis
+    'scaling':        'g',          # set scaling parameter (changing in legend)
 
     'x_scale':      'log',       
     'y_scale':      'log',          
@@ -43,9 +43,9 @@ plot_settings_dict = {
     'nu_x':             1,           # power of inversion
 
 #---- operator options
-    'operator':         0,         # chosen operator according to order set in IsingModel.h
-    'site':            7,          # chosen site for local operator
-    'smoothed':         0,          # choose running-smoothed option
+    'operator':         2,         # chosen operator according to order set in IsingModel.h
+    'site':            8,          # chosen site for local operator
+    'smoothed':         1,          # choose running-smoothed option
 
 #---- instances set after
     'vs_idx':          -1,          # idx of vs option set after dict

@@ -12,7 +12,8 @@ from os import sep as kPSep
 from os.path import exists
 from scipy.special import binom
 
-def plot_agp(axis=None, settings_class = None, which=1):
+def plot_agp(axis=None, settings_class = None, 
+                which=1, operator = -1, site = -3):
 
     if which < 1 or which > 4: 
         print("Parameter 'which' entered with illegal value")
@@ -37,12 +38,12 @@ def plot_agp(axis=None, settings_class = None, which=1):
             cf.params_arr[4] = int(100 * x / 2.) / 100.
         filename = (hfun.remove_info(hfun.info_param(cf.params_arr), settings['vs']) + ".dat" if cf.hamiltonian else hfun.remove_info(hfun.info_param(cf.params_arr), 'J', settings['vs']) + ".dat")
 
-        if settings['scaling_idx'] == 5 and settings['operator'] < 8:
-            filename = dir + cf.operator_names[settings['operator']] + "%d"%x + kPSep + filename
-        elif settings['scaling_idx'] == 0 and settings['site'] < 0  and settings['operator'] < 8:
-            filename = dir + cf.operator_names[settings['operator']] + "%d"%(x/2) + kPSep + filename
+        if settings['scaling_idx'] == 5 and operator < 8:
+            filename = dir + cf.operator_names[operator] + "%d"%x + kPSep + filename
+        elif settings['scaling_idx'] == 0 and site < 0  and operator < 8:
+            filename = dir + cf.operator_names[operator] + "%d"%(x/2) + kPSep + filename
         else :
-            filename = dir + cf.op_name + kPSep + filename
+            filename = dir + cf.operator_name(operator, site) + kPSep + filename
         
         filename2 = cf.base_directory + "STATISTICS" + kPSep + hfun.remove_info(hfun.info_param(cf.params_arr), settings['vs']) + ".dat"
         if exists(filename):

@@ -76,9 +76,9 @@ def load(settings = None) :
     #hfun.print_vars(cf.params_arr, cf.names)
     param_copy = cf.params_arr
     #--- SET SCALING RANGES AND DATA
-    x0 = 0.0
-    xend = 1.0
-    dx = 0.05
+    x0 = 0.1
+    xend = 1.02
+    dx = 0.01
 
     length = int((xend-x0) / dx) + 1
     #--- prepare scaling - axis
@@ -128,7 +128,7 @@ def plot(axis1, axis2, new_settings = None, use_scaling_ansatz = 0, scaling_ansa
         new_settings = user_settings
 
     #--- load data 
-    vals, xvals, tau, gap_ratio = load()
+    vals, xvals, tau, gap_ratio = load(new_settings)
     
     num_of_plots = len(tau)
 
@@ -148,6 +148,7 @@ def plot(axis1, axis2, new_settings = None, use_scaling_ansatz = 0, scaling_ansa
         num_of_param = 0
         if crit_fun == 'free': num_of_param = len(vals) - 1
         elif crit_fun == 'power_law': num_of_param = 3
+        elif crit_fun == 'const': num_of_param = 0
         else: num_of_param = 3
         for i in range(num_of_param): bounds.append((x_min, x_max))
         params, cost_fun = cost.cost_func_minization(x=xvals, y=gap_ratio, sizes=vals, 
@@ -155,7 +156,7 @@ def plot(axis1, axis2, new_settings = None, use_scaling_ansatz = 0, scaling_ansa
                                         crit_func=crit_fun,
                                         bnds=bounds,
                                         population_size=1e2,
-                                        maxiterarions=1e3, workers=10, realisations=2
+                                        maxiterarions=1e2, workers=10, realisations=1
                                     )
         print(scaling_ansatz + ": ", cost_fun)
     par = params[0]
@@ -177,6 +178,7 @@ def plot(axis1, axis2, new_settings = None, use_scaling_ansatz = 0, scaling_ansa
         #scaling_ansatz(x=xvals[i], par_crit=crit_par, L=vals[i], par=mu) if use_scaling_ansatz else xvals[i]
         xx = cf.plot_settings.rescale(temp if new_settings['scaling_idx'] == 0 else xvals[i] , 'x')
         #if cf.hamiltonian and (new_settings['vs_idx'] == 0): xx = log(scipy.special.binom(xx, xx / 2)) / log(2)
+        #yvals = np.log(yvals) / np.log(xx)
         p = axis1.plot(xx, yvals, label=hfun.key_title(vals[i], new_settings))
         m = []; fc = [];    ec.append(p[0].get_color())
         
