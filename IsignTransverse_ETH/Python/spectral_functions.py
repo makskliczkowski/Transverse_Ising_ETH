@@ -12,22 +12,6 @@ from os.path import exists
 
 #--- Global
 user_settings = getattr(cf.plot_settings, 'settings')
-#--- SET SCALING RANGES AND DATA
-
-def get_scaling_array(settings = None, x0 = 0.1, xend = 1.0, dx = 0.1):
-    if settings == None:
-        settings = user_settings
-    vals = []
-    length = int((xend-x0) / dx) + 1
-    if settings['scaling_idx'] == 0:
-        if cf.hamiltonian: vals = range(12, 19, 2)
-        else: vals = range(11, 17, 1)
-    elif settings['scaling_idx'] == 5:
-        vals = range(1, int(cf.params_arr[0] / 2) + 1)
-    else :
-        for x in range(0, length) :
-            vals.append(x0 + x * dx)
-    return np.array(vals)
 
 
 def load_spectral(dir = "", settings = None, parameter = None, 
@@ -72,9 +56,9 @@ def load_spectral(dir = "", settings = None, parameter = None,
     filename = (hfun.info_param(cf.params_arr) if cf.hamiltonian else hfun.remove_info(hfun.info_param(cf.params_arr), 'J') + ".dat")
     
     if settings['scaling_idx'] == 5 and operator < 8:
-        filename = dir + ("j=%d%s" if operator < 3 else "q=%d%s")%(parameter, kPSep) + cf.smo_dir + cf.operator_names[operator] + "%d"%parameter + filename
+        filename = dir + cf.subdir(operator, parameter, settings['smoothed']) + cf.operator_names[operator] + "%d"%parameter + filename
     elif settings['scaling_idx'] == 0 and site < 0 and operator < 8:
-        filename = dir + ("j=%d%s" if operator < 3 else "q=%d%s")%(parameter / 2, kPSep) + cf.smo_dir + cf.operator_names[operator] + "%d"%(parameter/2) + filename
+        filename = dir + cf.subdir(operator, parameter / 2, settings['smoothed']) + cf.operator_names[operator] + "%d"%(parameter/2) + filename
     else :
         filename = dir + cf.subdir(operator, site, settings['smoothed']) + cf.operator_name(operator, site) + filename
     
@@ -175,7 +159,7 @@ def plot_spectral(axis, settings = None,
     #--- prepare scaling - axis
     vals = np.array(vals)
     if vals.any() == None:
-        vals = get_scaling_array(settings=settings)
+        vals = hfun.get_scaling_array(settings=settings)
 
     y_min = 1.0e10;     y_max = -1.0e10;
     x_min = 1.0e10;     x_max = -1.0e10;

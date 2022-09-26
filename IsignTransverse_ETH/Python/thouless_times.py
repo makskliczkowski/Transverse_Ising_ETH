@@ -1,7 +1,5 @@
 import importlib
-from math import perm
 from os import sep as kPSep
-from pickle import STACK_GLOBAL
 import numpy as np
 
 import costfun.costfun as cost
@@ -45,7 +43,7 @@ def get_tau_data(tau_data, settings) :
         for i in range(0, len(vs_column)): 
             if(compare_params(tau_data, i, settings)):
                 par = vs_column[i]
-                #if par >= 0.7:
+                #if par <= 1.0:
                 taus[f"%.5f"%(par)] = (tau_data[5][i] * (tau_data[6][i] if settings['physical_units'] else 1.0), tau_data[7][i])
         x_float = [];   tau = [];   gap = []
         if taus:
@@ -58,7 +56,7 @@ def get_tau_data(tau_data, settings) :
 
 
 #--- Function to Load data from file given by plot_settings
-def load(settings = None) :
+def load(settings = None, vals = None) :
     """
     Function to Load data from file given by plot_settings.
     
@@ -75,24 +73,10 @@ def load(settings = None) :
     #print(user_settings)
     #hfun.print_vars(cf.params_arr, cf.names)
     param_copy = cf.params_arr
+
     #--- SET SCALING RANGES AND DATA
-    x0 = 0.1
-    xend = 1.02
-    dx = 0.01
-
-    length = int((xend-x0) / dx) + 1
-    #--- prepare scaling - axis
-    vals = []
-    if settings['scaling_idx'] == 0:
-        if cf.hamiltonian: vals = range(12, 19, 2)
-        else: vals = range(11, 17, 1)
-    elif cf.model == 1 and settings['scaling_idx'] == 4:
-        vals = range(0, cf.params_arr[0])
-    else :
-        for x in range(0, length) :
-            vals.append(x0 + x * dx)
-    vals = np.array(vals)
-
+    if vals is None:
+        vals = hfun.get_scaling_array(settings=settings)
     #----- find data
     tau = []
     xvals = []
@@ -100,6 +84,7 @@ def load(settings = None) :
     
     tau_data = load_taus()
     new_vals = []
+    print(vals)
     for x in vals:
         cf.params_arr[settings['scaling_idx']] = x
         if settings['scaling_idx'] == 3 and cf.J0 == 0 and cf.g0 == 0:
@@ -114,7 +99,6 @@ def load(settings = None) :
     #--- reset defaults
     cf.params_arr = param_copy
     importlib.reload(cf)
-    
     return np.array(new_vals), np.array(xvals), np.array(tau), np.array(gap_ratio)
 
 
@@ -233,7 +217,7 @@ def plot(axis1, axis2, new_settings = None, use_scaling_ansatz = 0, scaling_ansa
             #title = list(title);    title[title.index('g')] = hfun.var_name;   title = "".join(title) # g0
         except ValueError:
                 print("not found")
-    axis1.title.set_text(title)
+    axis1.title.set_text(r"$%s$"%title)
 
 
 
@@ -260,12 +244,13 @@ def plot(axis1, axis2, new_settings = None, use_scaling_ansatz = 0, scaling_ansa
     print(x_min, x_max, y_min, y_max, new_settings['vs_idx'], new_settings['scaling_idx'])
     hfun.set_plot_elements(axis = axis2, xlim = (0.98*x_min, 1.02*x_max), 
                                 ylim = (0.37, 0.54), xlabel = xlab, ylabel = 'r', settings=new_set, set_legend=False)
-    if new_set['scaling_idx'] == 0:
-        axis2.annotate(r"$\nu=%.2f$"%par, xy=(320, 300), xycoords='axes points', color='black', size=20)
+    if new_set['scaling_idx'] == 0 and use_scaling_ansatz:
+        axis2.annotate(r"$\nu=%.2f$"%par, xy=(150, 260), xycoords='axes points', color='black', size=20)
         for i in range(0, len(params)-1):
-            axis2.annotate(r"$x_{%d}=%.4f$"%(i,params[i+1]), xy=(320, 280 - 20*i), xycoords='axes points', color='black', size=20)  
+            axis2.annotate(r"$x_{%d}=%.4f$"%(i,params[i+1]), xy=(150, 240 - 20*i), xycoords='axes points', color='black', size=20)  
+    
     #--- additional lines on plot
     axis2.axhline(y=0.5307, ls='--', color='black', label='GOE')
     axis2.axhline(y=0.3863, ls='--', color='red', label='Poisson')
     axis2.legend()
-    axis2.title.set_text(title)
+    axis2.title.set_text(r"$%s$"%title)

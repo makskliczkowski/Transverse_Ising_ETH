@@ -64,6 +64,8 @@ template <typename T> void IsingModel<T>::diagonalization(bool get_eigenvectors,
 		return abs(x - E_av) < abs(y - E_av);
 		});
 	this->E_av_idx = i - begin(eigenvalues);
+	printSeparated(std::cout, "\t", 16, true, "mean energy", "energies close to this value (-1,0,+1 around found index");
+	printSeparated(std::cout, "\t", 16, true, E_av, eigenvalues(this->E_av_idx - 1), eigenvalues(this->E_av_idx),  eigenvalues(this->E_av_idx + 1));
 }
 
 // ----------------------------------------------------------- OPERATORS AND AVERAGES -------------------------------------------------------

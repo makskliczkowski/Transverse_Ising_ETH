@@ -18,11 +18,11 @@ void isingUI::ui::make_sim()
 	auto g_list = this->get_params_array(Ising_params::g);
 	auto h_list = this->get_params_array(Ising_params::h);
 	auto w_list = this->get_params_array(Ising_params::w);
-	for (auto& system_size : L_list){
-		this->L = system_size;
-		this->site = this->L / 2;
-		generate_statistic_map(Ising_params::L); 
-	}; return;
+	//for (auto& system_size : L_list){
+	//	this->L = system_size;
+	//	this->site = this->L / 2;
+	//	generate_statistic_map(Ising_params::L); 
+	//}; return;
 
 	switch (this->fun)
 	{
@@ -52,6 +52,9 @@ void isingUI::ui::make_sim()
 		break;
 	case 8:
 		thouless_times();
+		break;
+	case 9:
+		calculate_statistics();
 		break;
 	default:
 		for (auto& system_size : L_list){
@@ -678,6 +681,8 @@ void isingUI::ui::calculate_spectrals()
 		typ_susc = 0.0,	//<! typical fidelity susceptibility
 			susc = 0.0,	//<! fidelity susceptibility
 	   	 entropy = 0.0,	//<! half-chain entropy
+	   	 errS_dis = 0.0,//<! half-chain entropy error with disorder
+	   	 var_S = 0.0,	//<! half-chain entropy variance
 	  		 ipr = 0.0,	//<! inverse participation ratio
 	info_entropy = 0.0,	//<! information entropy in eigenstates
 	   gap_ratio = 0.0,	//<! gap ratio
@@ -699,6 +704,7 @@ void isingUI::ui::calculate_spectrals()
 
 	arma::vec opEvol(times.size(), arma::fill::zeros);
 	arma::vec opIntSpec(omegas.size(), arma::fill::zeros);
+	std::vector<u64> map;
 	
 	//---------------- SET KERNEL
 	double LTA = 0;
@@ -731,6 +737,7 @@ void isingUI::ui::calculate_spectrals()
 	
 		double wH_local = 0.0;
 		double wH_typ_local = 0.0;
+		double S = 0, S2 = 0;
 		for(int i = 0; i < N; i++){
 			if(i >= E_min && i < E_max){
 				const double gap1 = E(i) - E(i - 1);
@@ -748,14 +755,23 @@ void isingUI::ui::calculate_spectrals()
 				const arma::Col<decltype(alfa.type_var)> state = U.col(i);
 				ipr += statistics::inverse_participation_ratio(state) / double(N);
 				info_entropy += statistics::information_entropy(state);
-				//if(i >= alfa.E_av_idx - num_ent / 2. && i <= alfa.E_av_idx + num_ent / 2.)
-				//	entropy += entropy::vonNeumann(cast_cx_vec(state), this->L / 2, this->L);
+				if(i >= alfa.E_av_idx - num_ent / 2. && i < alfa.E_av_idx + num_ent / 2.)
+				{
+					double Stmp= entropy::vonNeumann(cast_cx_vec(state), this->L / 2, this->L, map);
+					S += Stmp;
+					S2 += Stmp * Stmp;
+				}
 			}
 		}
 		wH_typ_local = std::exp(wH_typ_local / double(this->mu));
 		wH_local = wH_local / double(this->mu);
 		wH_typ += wH_typ_local;
 		wH += wH_local;
+		S /= double(num_ent);
+		S2 /= double(num_ent);
+		entropy += S;
+		var_S += S2 - S * S;
+		errS_dis += S * S;
 		counter++;
 
 		stout << "\t\t	--> finished statistics for " << info
@@ -805,10 +821,17 @@ void isingUI::ui::calculate_spectrals()
 		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 		prefix_kernel(*alfa);
+		map = alfa->get_mapping();
 		average_over_realisations<Ising_params::h>(*alfa, true, kernel);
 	} else{
 		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 		prefix_kernel(*alfa);
+		#ifdef HEISENBERG
+			map = alfa->get_mapping();
+		#elif !defined(ANDERSON)
+			if(this->g == 0 && this->g0 == 0)
+				map = alfa->get_mapping();
+		#endif
 		average_over_realisations<Ising_params::h>(*alfa, true, kernel);
 	}
 
@@ -816,10 +839,11 @@ void isingUI::ui::calculate_spectrals()
 	std::string dir_agp = this->saving_dir + "AGP" + kPSep + opName + kPSep + "raw_data" + kPSep;
 	createDirs(dir, dir_agp);
 
-	opEvol /= double(this->realisations);
-	LTA /= double(this->realisations);
-	opIntSpec /= double(this->realisations);
+	opEvol /= double(counter);
+	LTA /= double(counter);
+	opIntSpec /= double(counter);
 	wH /= double(counter);
+	errS_dis = errS_dis / double(counter) - entropy / double(counter) * entropy / double(counter);
 
 	std::ofstream file;
 
@@ -827,9 +851,11 @@ void isingUI::ui::calculate_spectrals()
 	printSeparated(file, "\t", 25, true, "'gap ratio'", 			   				gap_ratio / double(this->mu * counter));
 	printSeparated(file, "\t", 25, true, "'ipr'", 						 				  ipr / double(this->mu * counter));
 	printSeparated(file, "\t", 25, true, "'information entropy'", 			 	 info_entropy / double(this->mu * counter));
-	printSeparated(file, "\t", 25, true, "'entropy in ~100 states at E=0'", 	  	  entropy / double(num_ent * counter));
+	printSeparated(file, "\t", 25, true, "'entropy in ~100 states at E=0'", 	  	  entropy / double(counter));
 	printSeparated(file, "\t", 25, true, "'mean level spacing'", 			  			   wH);
 	printSeparated(file, "\t", 25, true, "'typical level spacing'", 	  			   wH_typ / double(counter));
+	printSeparated(file, "\t", 25, true, "'entropy var in ~100 states at E=0'", 	    var_S / double(counter));
+	printSeparated(file, "\t", 25, true, "'entropy error over realisations'", 	  	 errS_dis);
 	file.close();
 
 	openFile(file, dir_agp + info + "_jobid=" + std::to_string(jobid) + ".dat");
@@ -839,6 +865,7 @@ void isingUI::ui::calculate_spectrals()
 	printSeparated(file, "\t", 25, true, "'diagonal normalisation factor'", 	   LTA);
 
 	file.close();
+	return;
 	std::string filename = opName + info + "_jobid=" + std::to_string(jobid) + ".dat";
 	save_to_file(timeDir + filename, times, opEvol, 1.0 / wH, LTA);		//smoothen_data(timeDir, opName + info + ".dat", 10);
 	save_to_file(intDir + filename, omegas, opIntSpec, wH, LTA);		//smoothen_data(intDir,  opName + info + ".dat", 10);
@@ -1704,7 +1731,7 @@ void isingUI::ui::thouless_times()
 		if(data.size() > 6)
 			N = data[6](0);
 		// find thouless time
-		double eps = 8e-2;
+		double eps = 1e-1;
 		auto K_GOE = [](double t){
 			return t < 1? 2 * t - t * log(1+2*t) : 2 - t * log( (2*t+1) / (2*t-1) );
 		};
@@ -1712,7 +1739,7 @@ void isingUI::ui::thouless_times()
 		const double t_max = this->ch? 2.5 : 2.5 * tH;
 		double delta_min = 1e6;
 		for(int i = 0; i < sff.size(); i++){
-			double t = this->ch? times(i) : times(i) / tH;
+			double t = times(i);
 			double delta = abs( log10( sff(i) / K_GOE(t) ));
 			//if(delta < eps){
 			//	thouless_time = t;
@@ -1934,14 +1961,17 @@ void isingUI::ui::calculate_statistics(){
 	int counter = 0;
 	double 	 
 	   	 entropy = 0.0,	//<! half-chain entropy
+	   	 errS_dis = 0.0,//<! half-chain entropy error with disorder
+	   	 var_S = 0.0,	//<! half-chain entropy variance
 	  		 ipr = 0.0,	//<! inverse participation ratio
 	info_entropy = 0.0,	//<! information entropy in eigenstates
 	   gap_ratio = 0.0,	//<! gap ratio
 	   		  wH = 0.0,	//<! mean level spacing
 	   	  wH_typ = 0.0;	//<! typical level spacing
 	std::string info;
+	std::vector<u64> map;
 	#ifdef HEISENBERG
-		const long num_ent = L >= 12? 100 : 20;
+		const long num_ent = L >= 14? 500 : (L >= 12? 100 : 20);
 	#else
 		const long num_ent = L >= 10? 100 : 20;
 	#endif
@@ -1961,6 +1991,7 @@ void isingUI::ui::calculate_statistics(){
 		const arma::vec E = alfa.get_eigenvalues();
 
 		double wH_typ_local = 0.0;
+		double S = 0, S2 = 0;
 		for(int i = 0; i < N; i++){
 			if(i >= E_min && i < E_max){
 				const double gap1 = E(i) - E(i - 1);
@@ -1978,10 +2009,19 @@ void isingUI::ui::calculate_statistics(){
 				const arma::Col<decltype(alfa.type_var)> state = U.col(i);
 				ipr += statistics::inverse_participation_ratio(state) / double(N);
 				info_entropy += statistics::information_entropy(state);
-				//if(i >= alfa.E_av_idx - num_ent / 2. && i <= alfa.E_av_idx + num_ent / 2.)
-				//	entropy += entropy::vonNeumann(cast_cx_vec(state), this->L / 2, this->L);
+				if(i >= alfa.E_av_idx - num_ent / 2. && i < alfa.E_av_idx + num_ent / 2.)
+				{
+					double Stmp= entropy::vonNeumann(cast_cx_vec(state), this->L / 2, this->L, map);
+					S += Stmp;
+					S2 += Stmp * Stmp;
+				}
 			}
 		}
+		S /= double(num_ent);
+		S2 /= double(num_ent);
+		entropy += S;
+		var_S += S2 - S * S;
+		errS_dis += S * S;
 		wH_typ += std::exp(wH_typ_local / double(this->mu));
 
 		counter++;
@@ -1992,11 +2032,19 @@ void isingUI::ui::calculate_statistics(){
 	if(this->m){
 		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+		map = alfa->get_mapping();
 		average_over_realisations<Ising_params::h>(*alfa, true, kernel);
 	} else{
 		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+		#ifdef HEISENBERG
+			map = alfa->get_mapping();
+		#elif !defined(ANDERSON)
+			if(this->g == 0 && this->g0 == 0)
+				map = alfa->get_mapping();
+		#endif
 		average_over_realisations<Ising_params::h>(*alfa, true, kernel);
 	}
+	errS_dis = errS_dis / double(counter) - entropy / double(counter) * entropy / double(counter);
 
 	std::string dir = this->saving_dir + "STATISTICS" + kPSep + "raw_data" + kPSep;
 	createDirs(dir);
@@ -2006,9 +2054,11 @@ void isingUI::ui::calculate_statistics(){
 	printSeparated(file, "\t", 25, true, "'gap ratio'", 			   				gap_ratio / double(this->mu * counter));
 	printSeparated(file, "\t", 25, true, "'ipr'", 						 				  ipr / double(this->mu * counter));
 	printSeparated(file, "\t", 25, true, "'information entropy'", 			 	 info_entropy / double(this->mu * counter));
-	printSeparated(file, "\t", 25, true, "'entropy in ~100 states at E=0'", 	  	  entropy / double(num_ent * counter));
+	printSeparated(file, "\t", 25, true, "'entropy in ~100 states at E=0'", 	  	  entropy / double(counter));
 	printSeparated(file, "\t", 25, true, "'mean level spacing'", 			  			   wH / double(this->mu * counter));
 	printSeparated(file, "\t", 25, true, "'typical level spacing'", 	  			   wH_typ / double(counter));
+	printSeparated(file, "\t", 25, true, "'entropy var in ~100 states at E=0'", 	    var_S / double(counter));
+	printSeparated(file, "\t", 25, true, "'entropy error over realisations'", 	  	 errS_dis);
 
 	file.close();
 }
