@@ -12,7 +12,7 @@ J = 1.00                        # spin exchange (Ising-like)
 g = 0.55                       # trasnverse magnetic field (z-axis)
 h = 0.0                        # longitudal magnetic field (x-axis)
 #---- DISORDER PARAMETERS
-w = 0.70                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
+w = 0.7                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 J0 = 0.0                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
 g0 = 0.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 #---- SYMETRY PARAMETERS
@@ -25,7 +25,7 @@ General settings for all plots
 """
 plot_settings_dict = {
     'vs':             'L',          # set parameter on x-axis
-    'scaling':        'g',          # set scaling parameter (changing in legend)
+    'scaling':        'w',          # set scaling parameter (changing in legend)
 
     'x_scale':      'log',       
     'y_scale':      'log',          
@@ -34,16 +34,16 @@ plot_settings_dict = {
 
 #---- rescaling y-data
     'rescaleY':         0,      
-    'func_y':       'log',           # rescale function -> function(x, nu) (power-law = 1 / x^nu)    
+    'func_y':       'exp',           # rescale function -> function(x, nu) (power-law = x^nu)    
     'nu_y':             -1,           # power of inversion
     
 #---- rescaling x-axis
     'rescaleX':         0,          
-    'func_x':       'power-law',     # rescale function -> function(x, nu) (power-law = 1 / x^nu)    
-    'nu_x':             1,           # power of inversion
+    'func_x':       'power-law',     # rescale function -> function(x, nu) (power-law = x^nu)    
+    'nu_x':             -1.0,           # power of inversion
 
 #---- operator options
-    'operator':         2,         # chosen operator according to order set in IsingModel.h
+    'operator':         0,         # chosen operator according to order set in IsingModel.h
     'site':            8,          # chosen site for local operator
     'smoothed':         1,          # choose running-smoothed option
 
@@ -105,7 +105,7 @@ def operator_name(operator, site):
     return operator_names[operator] + ("%s"%site if operator < 8 else "")
     
 def subdir(operator, site, smoothed = 1):
-    return (f"EXTENSIVE{kPSep}" if operator > 7 else ("j=%s%s" if operator < 3 else "q=%s%s")%(site, kPSep) ) + (f"smoothed{kPSep}" if smoothed else "")
+    return (f"EXTENSIVE{kPSep}" if operator > 7 else ("j=%d%s" if operator < 3 else "q=%d%s")%(site, kPSep) ) + (f"smoothed{kPSep}" if smoothed else "")
 
 
 operator_formuals = [

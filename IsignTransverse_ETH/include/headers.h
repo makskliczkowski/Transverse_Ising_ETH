@@ -14,7 +14,6 @@
 		//#define ANDERSON
 	#endif
 #endif
-
 extern int num_of_threads;													// number of threads
 extern int anderson_dim;
 extern std::mt19937::result_type seed_global;

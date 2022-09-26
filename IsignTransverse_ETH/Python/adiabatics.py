@@ -3,7 +3,7 @@ import importlib
 import helper_functions as hfun
 import config as cf
 import copy
-import plot_spectrals as spec_fun
+import spectral_functions as spec_fun
 importlib.reload(hfun)
 importlib.reload(cf)
 importlib.reload(spec_fun)
