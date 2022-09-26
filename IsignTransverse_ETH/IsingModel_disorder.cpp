@@ -64,7 +64,7 @@ u64 IsingModel_disorder::find_in_map(u64 index) const {
 void IsingModel_disorder::generate_mapping() {
 	this->mapping = std::vector<u64>();
 	for (u64 j = 0; j < (ULLPOW(this->L)); j++){
-		if (__builtin_popcountll(j) == this->L / 2.)
+		if (__builtin_popcountll(j) == int(this->L / 2.))
 			this->mapping.push_back(j);
 	}
 	this->N = this->mapping.size();

@@ -886,6 +886,8 @@ void isingUI::ui::combine_spectrals(){
 	std::string intDir = this->saving_dir + "IntegratedResponseFunction" + kPSep + subdir + kPSep;
 	std::string specDir_der = this->saving_dir + "IntegratedResponseFunction" + kPSep + "DERIVATIVE" + kPSep + subdir + kPSep;
 	std::string specDir = this->saving_dir + "ResponseFunction" + kPSep + subdir + kPSep;
+	std::string SpecFunDistDir = this->saving_dir + "MatrixElemDistribution" + kPSep + subdir + kPSep;
+	std::string HybridDir = this->saving_dir + "Hybrydization" + kPSep + "Distribution" + kPSep;
 
 	std::string dir_stat = this->saving_dir + "STATISTICS" + kPSep + "raw_data" + kPSep;
 	std::string dir_agp = this->saving_dir + "AGP" + kPSep + opName + kPSep + "raw_data" + kPSep;
@@ -1033,6 +1035,14 @@ void isingUI::ui::combine_spectrals(){
 		arma::vec x = data[0];	x.shed_row(x.size() - 1);
 		save_to_file(specDir_der + opName + info + ".dat", x, specFun, wH, LTA);		smoothen_data(specDir_der, opName + info + ".dat");
 	}
+	//arma::uvec non_zero_elements = arma::find(mat_elem > 1e-34);
+	statistics::probability_distribution(SpecFunDistDir, filename, arma::sqrt(mat_elem), -1);
+	statistics::probability_distribution(SpecFunDistDir, filename + "_log", 0.5 * arma::log(mat_elem), -1);
+	
+	arma::vec hybrid = mat_elem / omegas_spec;
+	statistics::probability_distribution(HybridDir, filename, hybrid, -1, arma::mean(hybrid), arma::var(hybrid));
+	statistics::probability_distribution(HybridDir, filename + "_log", 0.5 * arma::log(hybrid), -1, arma::mean(hybrid), arma::var(hybrid));
+
 	std::vector<int> numss = {500, 2000, 6000, 10000};
 	const long num = (this->realisations == 1)? numss[ (this->L - 12) / 2] : ULLPOW(this->L / 2) * std::sqrt(counter_int);
 	spectrals::spectralFunction(omegas_spec, mat_elem, specDir + filename, num);	smoothen_data(specDir, filename + ".dat");
