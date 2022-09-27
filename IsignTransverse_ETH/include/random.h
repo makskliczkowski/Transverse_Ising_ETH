@@ -12,12 +12,13 @@
 /// </summary>
 class randomGen {
 private:
-	XoshiroCpp::Xoshiro256PlusPlus engine;
+	std::mt19937_64 engine;
+	//XoshiroCpp::Xoshiro256PlusPlus engine;
 	std::uint64_t init_seed;
 public:
 	explicit randomGen(const std::uint64_t seed = std::random_device{}()) {
 		this->init_seed = seed;
-		this->engine = XoshiroCpp::Xoshiro256PlusPlus(this->SeedInit(seed));
+		this->engine = std::mt19937_64(seed);
 	}
 	uint64_t SeedInit(uint64_t n) const
 	{
@@ -32,7 +33,7 @@ public:
 		return std::accumulate(s.begin(), s.end(), 0.0);
 	}
 	void reset()
-		{this->engine = XoshiroCpp::Xoshiro256PlusPlus(this->SeedInit(this->init_seed));}
+		{this->engine = std::mt19937_64(this->init_seed);}
 
 	//------------------------------------------------------------------------------ WRAPPERS ON RANDOM FUNCTIONS
 	std::complex<double> randomCpx_uni(double _min = 0, double _max = 1) 
@@ -60,19 +61,6 @@ public:
 			idx += 2 * j;
 			if (idx < size) random_vec(idx) = random_uni<_type>(-h, h);
 		}
-		return arma::normalise(random_vec);
-	}
-	template <typename _type> 
-	std::vector<_type> create_random_stdvec(const uint64_t size, double h = 0.0) 
-	{
-		std::vector<_type> random_vec(size, 0);
-		_type norm = 0;
-		for (uint64_t j = 0; j < size; j++) {
-			random_vec[j] = random_uni<_type>(-h, h);
-			norm += random_vec[j];
-		}
-		for (uint64_t j = 0; j < size; j++)
-			random_vec[j] /= norm;
 		return random_vec;
 	}
 };
