@@ -2,14 +2,15 @@
 // set externs
 std::uniform_real_distribution<> theta	= std::uniform_real_distribution<>(0.0, pi);
 std::uniform_real_distribution<> fi		= std::uniform_real_distribution<>(0.0, pi);
-int outer_threads = 10;
+int outer_threads = 1;
 int anderson_dim = 3;
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
 {	
 	#if defined(MY_MAC)
-		this->seed = static_cast<long unsigned int>(time(0));
+		//this->seed = static_cast<long unsigned int>(time(0));
 	#endif
+	my_gen = randomGen(this->seed);
 	printAllOptions();
 
 	clk::time_point start = std::chrono::system_clock::now();
@@ -21,7 +22,7 @@ void isingUI::ui::make_sim()
 	//for (auto& system_size : L_list){
 	//	this->L = system_size;
 	//	this->site = this->L / 2;
-	//	generate_statistic_map(Ising_params::L); 
+	//	generate_statistic_map(Ising_params::w); 
 	//}; return;
 
 	switch (this->fun)
@@ -68,11 +69,11 @@ void isingUI::ui::make_sim()
 							this->J = Jx;
 							this->w = wx;
 							//this->site = this->L / 2.;
-
+							
 							const auto start_loop = std::chrono::system_clock::now();
 							stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
 							printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
-							calculate_localisation_length(); continue;
+							//calculate_localisation_length(); continue;
 
 							combine_spectrals(); continue;
 
@@ -337,6 +338,7 @@ arma::vec isingUI::ui::get_params_array(Ising_params par){
 	}
 	return result;
 }
+
 //-------------------------------------------------------------------- COMPARING SYMMETRIC TO DISORDERED RESULTS
 void isingUI::ui::compare_energies()
 {
@@ -902,14 +904,12 @@ void isingUI::ui::combine_spectrals(){
 	//---------------- PREAMBLE
 	int counter = 0;
 	int counter_agp = 0;
-	double wH = 0.0;	//<! mean level spacing
+	int counter_time = 0;
+	int counter_int = 0;
 	
-	arma::vec stats(6, arma::fill::zeros);
+	arma::vec stats(10, arma::fill::zeros);
 	arma::vec agps(4, arma::fill::zeros);
 	
-	double LTA = 0.0;
-	int counter_time = 0, counter_int = 0;
-
 	auto start_loop = std::chrono::system_clock::now();
 	auto lambda_average = [&](int realis, double x){
 		
@@ -967,7 +967,6 @@ void isingUI::ui::combine_spectrals(){
 		if(!data.empty()){
 			times = data[0];
 			opEvol += data[1];
-			LTA += data[3](0);
 			counter_time++;
 			stout << "\t\t	--> finished time evolution for " << info
 			  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "s" << std::endl;
@@ -979,7 +978,6 @@ void isingUI::ui::combine_spectrals(){
 		if(!data.empty()){
 			omegas = data[0];
 			opIntSpec += data[1];
-			wH += data[2](0);
 			counter_int++;
 			stout << "\t\t	--> finished integrated spectral function for " << info
 			  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "s" << std::endl;
@@ -997,59 +995,72 @@ void isingUI::ui::combine_spectrals(){
 			stout << "\t\t	--> finished spectral function for " << info
 			  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 		}
-		else{
-			std::cout << "not found" << std::endl;
-		}
 	};
 	average_over_realisations<Ising_params::J>(false, lambda_average);
 	
-	stats /= double(counter);
-	agps /= double(counter_agp);
-	
-	std::ofstream file_out;
-	openFile(file_out, dir_stat + info + ".dat");
-	printSeparated(file_out, "\t", 25, true, "'gap ratio'", 			   		stats(0));
-	printSeparated(file_out, "\t", 25, true, "'ipr'", 							stats(1));
-	printSeparated(file_out, "\t", 25, true, "'information entropy'", 			stats(2));
-	printSeparated(file_out, "\t", 25, true, "'entropy in ~100 states at E=0'", stats(3));
-	printSeparated(file_out, "\t", 25, true, "'mean level spacing'", 			stats(4));
-	printSeparated(file_out, "\t", 25, true, "'typical level spacing'", 	  	stats(5));
-	file_out.close();
+	if(counter > 0){
+		stats /= double(counter);
 
-	openFile(file_out, dir_agp + info + ".dat");
-	printSeparated(file_out, "\t", 25, true, "'adiabatic gauge potential'", 		agps(0));
-	printSeparated(file_out, "\t", 25, true, "'typical fidelity susceptibility'",	agps(1));
-	printSeparated(file_out, "\t", 25, true, "'fidelity susceptibility'", 			agps(2));
-	printSeparated(file_out, "\t", 25, true, "'diagonal normalisation factor'", 	agps(3));
-	double norm = counter_int > counter_time? double(counter_int) : double(counter_time);
-	file_out.close();
-	wH /= norm;	LTA /= norm;
+		std::ofstream file_out;
+		openFile(file_out, dir_stat + info + ".dat");
+		printSeparated(file_out, "\t", 25, true, "'gap ratio'", 			   			stats(0));
+		printSeparated(file_out, "\t", 25, true, "'ipr'", 								stats(1));
+		printSeparated(file_out, "\t", 25, true, "'information entropy'", 				stats(2));
+		printSeparated(file_out, "\t", 25, true, "'entropy in ~100 states at E=0'", 	stats(3));
+		printSeparated(file_out, "\t", 25, true, "'mean level spacing'", 				stats(4));
+		printSeparated(file_out, "\t", 25, true, "'typical level spacing'", 	  		stats(5));
+		printSeparated(file_out, "\t", 25, true, "'entropy var in ~100 states at E=0'",	stats(6));
+		printSeparated(file_out, "\t", 25, true, "'entropy error over realisations'", 	stats(7));
+		file_out.close();
+	}
+
+	if(counter_agp > 0){
+		agps /= double(counter_agp);
+		std::ofstream file_out;
+		openFile(file_out, dir_agp + info + ".dat");
+		printSeparated(file_out, "\t", 25, true, "'adiabatic gauge potential'", 		agps(0));
+		printSeparated(file_out, "\t", 25, true, "'typical fidelity susceptibility'",	agps(1));
+		printSeparated(file_out, "\t", 25, true, "'fidelity susceptibility'", 			agps(2));
+		printSeparated(file_out, "\t", 25, true, "'diagonal normalisation factor'", 	agps(3));
+		file_out.close();
+	}
+	
 	std::string filename = opName + info;
-	if(counter_time > 0)
-		save_to_file(timeDir + filename + ".dat", times, opEvol / double(counter_time), 1.0 / wH, LTA);		smoothen_data(timeDir, opName + info + ".dat", 10);
+	if(counter_time > 0){
+		save_to_file(timeDir + filename + ".dat", times, opEvol / double(counter_time), 1.0 / stats(4), agps(3));		
+		smoothen_data(timeDir, opName + info + ".dat", 10);
+	}
 	if(counter_int > 0){
-		save_to_file(intDir + filename + ".dat", omegas, opIntSpec / double(counter_int), wH, LTA);		smoothen_data(intDir,  opName + info + ".dat", 10);
+		save_to_file(intDir + filename + ".dat", omegas, opIntSpec / double(counter_int), stats(4), agps(3));		
+		smoothen_data(intDir,  opName + info + ".dat", 10);
+		
 		std::ifstream file;
 		auto data = readFromFile(file, intDir + "smoothed" + kPSep + filename + ".dat");
 		auto specFun = non_uniform_derivative(data[0], data[1]);
 		arma::vec x = data[0];	x.shed_row(x.size() - 1);
-		save_to_file(specDir_der + opName + info + ".dat", x, specFun, wH, LTA);		smoothen_data(specDir_der, opName + info + ".dat");
+		save_to_file(specDir_der + opName + info + ".dat", x, specFun, stats(4), agps(3));		
+		smoothen_data(specDir_der, opName + info + ".dat");
 	}
-	//arma::uvec non_zero_elements = arma::find(mat_elem > 1e-34);
-	statistics::probability_distribution(SpecFunDistDir, filename, arma::sqrt(mat_elem), -1);
-	statistics::probability_distribution(SpecFunDistDir, filename + "_log", 0.5 * arma::log(mat_elem), -1);
-	
-	arma::vec hybrid = mat_elem / omegas_spec;
-	statistics::probability_distribution(HybridDir, filename, hybrid, -1, arma::mean(hybrid), arma::var(hybrid));
-	statistics::probability_distribution(HybridDir, filename + "_log", 0.5 * arma::log(hybrid), -1, arma::mean(hybrid), arma::var(hybrid));
 
-	std::vector<int> numss = {500, 2000, 6000, 10000};
-	const long num = (this->realisations == 1)? numss[ (this->L - 12) / 2] : ULLPOW(this->L / 2) * std::sqrt(counter_int);
-	spectrals::spectralFunction(omegas_spec, mat_elem, specDir + filename, num);	smoothen_data(specDir, filename + ".dat");
+	if(!mat_elem.is_empty() && !omegas_spec.is_empty()){
+		//arma::uvec non_zero_elements = arma::find(mat_elem > 1e-34);
+		statistics::probability_distribution(SpecFunDistDir, filename, arma::sqrt(mat_elem), -1);
+		statistics::probability_distribution(SpecFunDistDir, filename + "_log", 0.5 * arma::log(mat_elem), -1);
+
+		arma::vec hybrid = mat_elem / omegas_spec;
+		statistics::probability_distribution(HybridDir, filename, hybrid, -1, arma::mean(hybrid), arma::var(hybrid));
+		statistics::probability_distribution(HybridDir, filename + "_log", 0.5 * arma::log(hybrid), -1, arma::mean(hybrid), arma::var(hybrid));
+
+		std::vector<int> numss = {500, 2000, 6000, 10000};
+		const long num = (this->realisations == 1)? numss[ (this->L - 12) / 2] : ULLPOW(this->L / 2) * std::sqrt(counter_int);
+		spectrals::spectralFunction(omegas_spec, mat_elem, specDir + filename, num);	smoothen_data(specDir, filename + ".dat");
+	}
 }
 
+
+
 //<! calculate evolution of entaglement from initial state chosen by -op.
-//<! -s sets the subsystem size, if-s=0 the L/2 is assumed 
+//<! -s sets the subsystem size, if-s=-1 the L/2 is assumed 
 void isingUI::ui::entropy_evolution(){
 	clk::time_point start = std::chrono::system_clock::now();
 	// ----------- generate kernel
@@ -2096,7 +2107,8 @@ void isingUI::ui::generate_statistic_map(Ising_params varname){
 		dir = this->saving_dir + "STATISTICS" + kPSep;
 		openFile(map, dir + info + ".dat");
 		printSeparated(map, "\t", 25, true, "'" + str + "'", "'gap ratio'", "'ipr'", "'information entropy'",
-											 "'entropy in ~100 states at E=0'", "'mean level spacing'", "'typical level spacing'");
+											 "'entropy in ~100 states at E=0'", "'mean level spacing'", "'typical level spacing'",
+											 "'entropy var in ~100 states at E=0'", "'entropy error over realisations'");
 	}
 	for(auto& x : xarr){
 		std::string info_loc = update_info(baseinfo, str, x);

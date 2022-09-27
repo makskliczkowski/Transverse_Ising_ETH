@@ -330,10 +330,7 @@ namespace isingUI
 						model.hamiltonian();
 						model.diagonalization();
 					}
-					auto dummy_lambda = [&lambda](IsingModel<_ty>& modello, int real, auto... args){
-						lambda(modello, real, args...);
-					};
-					dummy_lambda(model, r, args...);
+					lambda(model, r, args...);
 				}
 			} else {
 				for (int r = 0; r < this->realisations; r++) {
@@ -341,10 +338,7 @@ namespace isingUI
 						model.hamiltonian();
 						model.diagonalization();
 					}
-					auto dummy_lambda = [&lambda](IsingModel<_ty>& modello, int real, auto... args){
-						lambda(modello, real, args...);
-					};
-					dummy_lambda(model, r, args...);
+					lambda(model, r, args...);
 				}
 			}
 		};
