@@ -1,19 +1,29 @@
 from turtle import width
 import numpy as np
 import importlib
-import helper_functions as hfun
+import utils.helper_functions as hfun
 import config as cf
 import copy
+import thouless_times as thouless
 importlib.reload(cf)
 importlib.reload(hfun)
+importlib.reload(thouless)
 import pandas as pd
 from os import sep as kPSep
 from os.path import exists
+from utils.fit_functions import *
+from scipy.optimize import curve_fit as fit
+
 
 #--- Global
 user_settings = getattr(cf.plot_settings, 'settings')
 
+time_dir = cf.base_directory + "timeEvolution%s"%kPSep
+int_dir = cf.base_directory + "IntegratedResponseFunction%s"%kPSep
+spec_dir = cf.base_directory + "ResponseFunction%s"%kPSep
 
+# ------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------
 def load_spectral(dir = "", settings = None, parameter = None, 
                             spec = None, normalise = False, 
                             func_x = lambda x, a: x,
@@ -94,7 +104,8 @@ def load_spectral(dir = "", settings = None, parameter = None,
     else:
         return False, np.array([]), np.array([]), None, None
 
-
+# ------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------
 
 def plot_spectral(axis, settings = None, 
                     xlab = "x", ylab = "y", xscale='log', yscale=None,
@@ -139,8 +150,7 @@ def plot_spectral(axis, settings = None,
             Values definining which operator to choose, if None the default from config.py is chosen
 
     """
-    if spec == "time":
-                            dir = cf.base_directory + "timeEvolution%s"%kPSep
+    if spec == "time":      dir = cf.base_directory + "timeEvolution%s"%kPSep
     elif spec == "int":     dir = cf.base_directory + "IntegratedResponseFunction%s"%kPSep
     elif spec == "spec":    dir = cf.base_directory + ("IntegratedResponseFunction%sDERIVATIVE%s"%(kPSep,kPSep) if use_derivative else "ResponseFunction%s"%kPSep)
     else:
@@ -229,3 +239,171 @@ def plot_spectral(axis, settings = None,
     axis.plot(wH, LTA, linestyle='--', marker='o', color='black', linewidth=int(font / 6), markersize=font-4)
     axis.plot(wH_typ, val_at_typ, linestyle='--', marker='o', color='black', markerfacecolor='None', linewidth=int(font / 6), markersize=font-4)
    
+# ------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------
+def get_thouless_time(par, set_class = None, vals = None):
+    if set_class is None:   set_class = cf.plot_settings    
+    if par is None:         
+        print("No parameter input!")
+        raise ValueError
+
+    " Find thouless data "
+    tau_data = []
+    status_time = False
+    try :
+        tau_data = thouless.load(getattr(set_class, 'settings'))
+        status_time = True
+    except OSError:
+        print("No Thouless data present")
+        
+    taus = [];  gap_ratio = []; xvalues = []
+    if status_time:    
+        idx = list(tau_data[0]).index(par)
+        if vals is None:    vals = tau_data[1][idx]
+        for x in vals:
+            idx2 = hfun.find_index(tau_data[1][idx], x)
+            if idx2 >= 0:   
+                taus.append(tau_data[2][idx][idx2])
+                gap_ratio.append(tau_data[3][idx][idx2])
+            else:           
+                taus.append(np.nan)
+                gap_ratio.append(np.nan)
+    xvalues = vals
+    return status_time, np.array(xvalues), np.array(taus), np.array(gap_ratio)
+
+# ------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------
+def get_relax_times(vals = None, set_class = None, operator = -1, site = -2):
+    """ 
+    Find relaxation times from both integrated spectral function at I(w)=1/2 and fitting autocorrelation function
+    """
+    if set_class is None:   set_class = cf.plot_settings 
+    settings = getattr(set_class, 'settings')
+
+    if operator < 0: operator = settings['operator']
+    if site < -1: site = settings['site']
+    if vals is None:    vals = hfun.get_scaling_array()
+
+   
+    set_class_th = copy.deepcopy(set_class)
+    set_class_th.set_vs(settings['scaling'])
+    set_class_th.set_scaling('L')
+
+    status_time, xvals, taus, gap_ratio = get_thouless_time(par = cf.L, set_class=set_class_th, vals=vals)
+    relax_time = []
+    
+    relaxt_time_fit = [];   tH = [];    tH_typ = [];
+    
+    for i in range(0, len(vals)):
+        x = vals[i]
+
+        "Find relax time from integrated spec fun"
+        status, xdata, ydata, wHnow, wHtypnow = load_spectral(dir=int_dir, 
+                                                                        settings=settings, 
+                                                                        parameter=x,
+                                                                        spec="int",
+                                                                        normalise=True,
+                                                                        operator=operator,
+                                                                        site=site
+                                                                        )
+        if status:
+            idx = min(range(len(ydata)), key=lambda i: abs(ydata[i] - 0.5));
+            relax_time.append(1. / xdata[idx])
+            tH.append(1. / wHnow)
+            tH_typ.append(1. / wHtypnow)
+        else:
+            relax_time.append(np.nan)
+            tH.append(np.nan)
+            tH_typ.append(np.nan)
+    
+        "Find relax time from autocorrelation function"
+        status2, xdata2, ydata2, wHnow, wHtypnow = load_spectral(dir=time_dir, 
+                                                                        settings=settings, 
+                                                                        parameter=x,
+                                                                        spec="time",
+                                                                        normalise=True,
+                                                                        operator=operator,
+                                                                        site=site
+                                                                        )
+        
+        if status2:
+            cut = 30
+            if x <= 0.2: cut = 120
+            xfull = xdata2
+            xdata2 = np.array([xdata2[i] for i in range(0,len(xdata2)) if (xdata2[i] < 5000 and xdata2[i] > cut)])
+            ydata2 = np.array([ydata2[i] for i in range(0,len(ydata2)) if (xfull[i] < 5000 and xfull[i] > cut)])
+            
+            ydata2 = np.log10(np.abs(ydata2))
+            idx_zero = np.argmin((ydata2))
+            ydata2 = ydata2[:idx_zero - 15]
+            xdata2 = xdata2[:idx_zero - 15]
+            #print(pars)
+            
+            pars, sth = fit(f=lin_fit, 
+                                xdata=xdata2, 
+                                ydata=ydata2)
+            relaxt_time_fit.append(pars[0])
+        else:
+            relaxt_time_fit.append(np.nan)
+
+    return status_time, np.array(taus), np.array(relax_time), np.array(relaxt_time_fit), np.array(tH), np.array(tH_typ), np.array(gap_ratio)
+
+# ------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------
+def set_inset_style(axis, vals, settings, ylim = None, ylabel = None):
+    """ 
+    Sets style of plot with relaxation times
+    """
+    if ylim is None:    ylim = (1e-1, 7e3)
+    if ylabel is None:  ylabel = "\\tau_{rel}"
+    
+    ii = settings['scaling_idx']
+    xlab = "q/\\pi" if ii == 5 else (hfun.var_name if ii == 2 else settings['scaling'])
+
+    hfun.set_plot_elements(axis = axis, xlim = (0.95*min(vals), 1.05*max(vals)), 
+                                        ylim = ylim, ylabel = ylabel, xlabel = xlab, 
+                                        settings=settings, font_size=16, set_legend=True)
+    
+    axis.set_yscale('log')
+    axis.set_xscale('log')
+    axis.tick_params(axis='both', which='both',length=2)
+
+    axis.grid(b=True, which='major', color='0.75', linestyle='-')
+    axis.grid(b=True, which='minor', color='0.85', linestyle='--')
+    axis.legend(ncol=3, loc='lower center')
+
+def set_inset(axis, settings, vals, taus, relax_time, relaxt_time_fit, tH, tH_typ, status_time = True):
+    """ 
+    Plots relaxation times
+    """
+    ii = settings['scaling_idx']
+    xlab = "q/\\pi" if ii == 5 else (hfun.var_name if ii == 2 else settings['scaling'])
+    if settings is None:
+        settings = user_settings
+
+    axis.plot(vals, relax_time, marker='o', label='int-fit')
+    axis.plot(vals, relaxt_time_fit, marker='o', label='exp fit')
+    axis.plot(vals, tH, linestyle='--', label=r"$t_H$", color='gray')
+    #axis.plot(vals, tH_typ, linestyle=':', label=r"$t_H^{typ}$", color='gray')
+
+    axis.plot(vals, 2e0 / vals**2, linestyle='--', color='red', label=r"$%s^{-2}$"%xlab)
+    axis.plot(vals, 1e0 / vals**1., linestyle='--', color='black', label=r"$%s^{-1}$"%xlab)
+
+    if status_time and settings['scaling_idx'] == 5: 
+        axis.axhline(y=taus[0], ls='--', color='black')
+        axis.annotate("$\it{Thouless}\ \it{Time}$", xy=(0.3,1.5e3), color='black', size=12)
+    else: 
+        if status_time == False or cf.model == 2: print('No data')
+        else: axis.plot(vals, taus, linestyle='--', color='black', marker='o', label=r"$\tau_{Th}$")
+
+    set_inset_style(axis, vals, settings)
+
+#axis2.xaxis.set_minor_locator(plt.MultipleLocator(0.2))
+#def format_func(value, tick_number):
+#    return "%.1f"%value
+#def format_func2(value, tick_number):
+#    return "%d"%value
+#axis2.xaxis.set_minor_formatter(plt.FuncFormatter(format_func))
+#axis2.xaxis.set_major_formatter(plt.FuncFormatter(format_func))
+#axis2.yaxis.set_major_formatter(plt.FuncFormatter(format_func2))
+

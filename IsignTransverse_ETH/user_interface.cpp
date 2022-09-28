@@ -12,6 +12,11 @@ void isingUI::ui::make_sim()
 	#endif
 	my_gen = randomGen(this->seed);
 	printAllOptions();
+	auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+	arma::sp_cx_mat Hloc(alfa->get_hilbert_size(), alfa->get_hilbert_size());
+	for(int i = 0; i < this->L; i++)
+		Hloc += alfa->createHlocal(i);
+	std::cout << alfa->get_hamiltonian() - Hloc;
 
 	clk::time_point start = std::chrono::system_clock::now();
 	auto L_list = this->get_params_array(Ising_params::L);
@@ -19,11 +24,25 @@ void isingUI::ui::make_sim()
 	auto g_list = this->get_params_array(Ising_params::g);
 	auto h_list = this->get_params_array(Ising_params::h);
 	auto w_list = this->get_params_array(Ising_params::w);
-	//for (auto& system_size : L_list){
-	//	this->L = system_size;
-	//	this->site = this->L / 2;
-	//	generate_statistic_map(Ising_params::w); 
-	//}; return;
+
+	Ising_params var;
+	switch(this->op){
+		case 0: var = Ising_params::L;	break;
+		case 1: var = Ising_params::J;	break;
+		case 2: var = Ising_params::g;	break;
+		case 3: var = Ising_params::h;	break;
+		case 4: var = Ising_params::w;	break;
+		case 5: var = Ising_params::k;	break;
+		default:
+			var = Ising_params::g;
+	}
+
+	for (auto& system_size : L_list){
+		this->L = system_size;
+		this->site = this->L / 2;
+		generate_statistic_map(var); 
+		//thouless_times(var);
+	}; return;
 
 	switch (this->fun)
 	{
@@ -52,7 +71,7 @@ void isingUI::ui::make_sim()
 		level_spacing();
 		break;
 	case 8:
-		thouless_times();
+		thouless_times(var);
 		break;
 	case 9:
 		calculate_statistics();
@@ -154,7 +173,7 @@ void isingUI::ui::diagonalize(){
 			for(int i = 0; i < N; i++)
 				E(i) = H(i,i);
 			eigenvalues = arma::real(E);
-			sort(eigenvalues.begin(), eigenvalues.end());
+			std::sort(eigenvalues.begin(), eigenvalues.end());
 		} 
 		else if(alfa.J == 0.0){
 			eigenvalues = alfa.get_non_interacting_energies();
@@ -1499,7 +1518,7 @@ void isingUI::ui::spectral_form_factor(){
 		// ------------------------------------- calculate gap ratio
 			u64 E_av_idx = spectrals::get_mean_energy_index(eigenvalues);
 			const u64 num = this->L <= 9? 0.25 * N : 0.5 * N;
-			const u64 num2 = this->L <= 10? 50 : 500;
+			const u64 num2 = this->L <= 12? 50 : 500;
 
 		// ------------------------------------- calculate level statistics
 			double r1_tmp = statistics::eigenlevel_statistics((E_av_idx - num / 2) + eigenvalues.begin(), (E_av_idx + num / 2) + eigenvalues.begin());
@@ -1719,27 +1738,33 @@ void isingUI::ui::average_SFF(){
 }
 
 //<! find thouless time with various method as function of h,g,J
-void isingUI::ui::thouless_times()
+void isingUI::ui::thouless_times(Ising_params var)
 {
-	const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
-	auto Jx_list = arma::linspace(this->J, this->J + this->Js * (this->Jn - 1), this->Jn);
-	auto gx_list = arma::linspace(this->g, this->g + this->gs * (this->gn - 1), this->gn);
-	auto hx_list = arma::linspace(this->h, this->h + this->hs * (this->hn - 1), this->hn);
-	auto wx_list = arma::linspace(this->w, this->w + this->ws * (this->wn - 1), this->wn);
-	auto k_list = arma::linspace(0, this->L, this->L);
-	auto _list = this->m? k_list : wx_list;
-	std::cout << _list << std::endl;
-	auto kernel = [this](
-		int Lx, double Jx, double gx, double hx, double x,
-		std::ofstream& map, auto... prints
-		){
+	auto xarr = get_params_array(var); 
+	std::string var_name = get_params_name(var);
+	
+	double eps = 1e-1;
+	auto K_GOE = [](double t){
+		return t < 1? 2 * t - t * log(1 + 2*t) : 2 - t * log( (2*t + 1) / (2*t - 1) );
+	};
+
+	std::string dir = this->saving_dir + "ThoulessTime" + kPSep;	createDirs(dir);
+	std::ofstream map;
+	std::string sep = var_name == "L"? "," : "_";
+	std::string info = this->generate_baseinfo({var_name}, sep);
+	std::string baseinfo = this->generate_baseinfo();
+	openFile(map, dir + info + ".dat", ios::out);
+	std::cout << xarr << std::endl;
+	for(auto& x : xarr)
+	{
+		// read SFF file
 		std::ifstream file;
-		std::string info = this->m? IsingModel_sym::set_info(Lx, Jx ,gx, hx, x, this->symmetries.p_sym, this->symmetries.x_sym) 
-						: IsingModel_disorder::set_info(Lx, Jx, this->J0, gx, this->g0, hx, x);
-		std::string filename = this->saving_dir + "SpectralFormFactor/smoothed" + kPSep + info + ".dat";
+		std::string info_loc = this->update_info(baseinfo, var_name, x);
+		std::string filename = this->saving_dir + "SpectralFormFactor/smoothed" + kPSep + info_loc + ".dat";
 		auto data = readFromFile(file, filename);
 		file.close();
-		if (data.empty()) return;
+		if (data.empty()) continue;
+
 		arma::vec times = data[0];
 		arma::vec sff = data[1];
 		double tH = data[2](0);
@@ -1751,78 +1776,27 @@ void isingUI::ui::thouless_times()
 		}
 		if(data.size() > 6)
 			N = data[6](0);
+
 		// find thouless time
-		double eps = 1e-1;
-		auto K_GOE = [](double t){
-			return t < 1? 2 * t - t * log(1+2*t) : 2 - t * log( (2*t+1) / (2*t-1) );
-		};
 		double thouless_time = 0;
 		const double t_max = this->ch? 2.5 : 2.5 * tH;
 		double delta_min = 1e6;
 		for(int i = 0; i < sff.size(); i++){
 			double t = times(i);
 			double delta = abs( log10( sff(i) / K_GOE(t) ));
-			//if(delta < eps){
-			//	thouless_time = t;
-			//	break;
-			//}
+
 			delta = delta - eps;
 			delta *= delta;
 			if(delta < delta_min){
 				delta_min = delta;
 				thouless_time = times(i); 
 			}
-
 			if(times(i) >= t_max) break;
 		}
-		printSeparated(std::cout, "\t", 12, false, prints...);
-		printSeparated(std::cout, "\t", 12, true, thouless_time, tH);
-		printSeparated(map, "\t", 12, false, prints...);
-		printSeparated(map, "\t", 12, true, thouless_time, tH, r1, r2, N);
-	};
-	std::string dir = this->saving_dir + "ThoulessTime" + kPSep;
-	createDirs(dir);
-	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"h", "g"}) 
-					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, {"h", "g", "L", "J", "w"}, ",");
-	std::ofstream map;
-	openFile(map, dir + "_all" + info + ".dat", ios::out);
-	for (int size = Lmin; size < Lmax; size += this->Ls){
-		for(auto& Jx : Jx_list){
-			for (auto &gx : gx_list){
-				for (auto &hx : hx_list){
-					for(auto& x : _list){	// either disorder w (m=0) or symmetry sector k (m=1)
-						//printSeparated(std::cout, "\t", 16, true, size, Jx, gx, hx, x);
-						kernel(size, Jx, gx, hx, x, map, size, Jx, gx, hx, x);
-		}}}}}
+		printSeparated(std::cout, "\t", 12, true, x, thouless_time);
+		printSeparated(map, "\t", 12, true, x, thouless_time, tH, r1, r2, N);
+	}
 	map.close();
-
-	return;
-	for (int size = Lmin; size < Lmax; size += this->Ls){
-		std::string info = this->m? IsingModel_sym::set_info(size, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"h", "g"}) 
-					: IsingModel_disorder::set_info(size, this->J, this->J0, this->g, this->g0, this->h, this->w, {"h", "g"});
-		std::ofstream map_g, map_h;
-		openFile(map_g, dir + "_g" + info + ".dat", ios::out);
-		for (auto &hx : hx_list)
-			for (auto &gx : gx_list)
-				kernel(size, this->J, gx, hx, this->w, map_g, hx, gx);
-		map_g.close();
-		openFile(map_h, dir + "_h" + info + ".dat", ios::out);
-		for (auto &gx : gx_list)
-			for (auto &hx : hx_list)
-				kernel(size, this->J, gx, hx, this->w, map_h, hx, gx);
-		map_h.close();
-	}
-	for (auto &gx : gx_list){
-		for (auto &hx : hx_list){
-			std::ofstream map_L;
-			std::string info = this->m? IsingModel_sym::set_info(this->L, this->J,gx, hx, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"L"}, ",") 
-					: IsingModel_disorder::set_info(this->L, this->J, this->J0, gx, this->g0, hx, this->w, {"L"}, ",");
-			openFile(map_L, dir + "_L" + info + ".dat", ios::out);
-			for (int size = Lmin; size < Lmax; size += this->Ls)
-				kernel(size, this->J, gx, hx, this->w, map_L, size);
-			map_L.close();	
-		}
-	}
 }
 
 
@@ -2088,10 +2062,9 @@ void isingUI::ui::calculate_statistics(){
 void isingUI::ui::generate_statistic_map(Ising_params varname){
 	auto xarr = get_params_array(varname); 
 	std::string str = get_params_name(varname);
-	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {str}) 
-					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, {str});
-	std::string baseinfo = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
-					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
+	std::string sep = str == "L"? "," : "_";
+	std::string info = this->generate_baseinfo({str}, sep);
+	std::string baseinfo = this->generate_baseinfo();
 
 	std::ofstream map;
 	std::ifstream datafile;

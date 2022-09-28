@@ -1,12 +1,10 @@
 import numpy as np
 import importlib
-import helper_functions as hfun
+import utils.helper_functions as hfun
 import config as cf
 import copy
-import spectral_functions as spec_fun
 importlib.reload(hfun)
 importlib.reload(cf)
-importlib.reload(spec_fun)
 import pandas as pd
 from os import sep as kPSep
 from os.path import exists
@@ -26,7 +24,7 @@ def plot_agp(axis=None, settings_class = None,
     param_copy = copy.deepcopy(cf.params_arr)
 
     #--- prepare scaling - axis
-    vals = spec_fun.get_scaling_array(settings=settings)
+    vals = hfun.get_scaling_array(settings=settings)
 
     y_min = 1.0e10;     y_max = -1.0e10;
     x_min = 1.0e10;     x_max = -1.0e10;

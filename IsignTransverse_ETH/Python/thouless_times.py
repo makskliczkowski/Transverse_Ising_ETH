@@ -3,7 +3,7 @@ from os import sep as kPSep
 import numpy as np
 
 import costfun.costfun as cost
-import helper_functions as hfun
+import utils.helper_functions as hfun
 import config as cf
 import copy
 importlib.reload(cf)
@@ -37,14 +37,14 @@ def compare_params(tau_data, row, settings):
     return bool
 
 #--- get tau data according to scaling in plot_settings
-def get_tau_data(tau_data, settings) : 
+def get_tau_data_from_all_file(tau_data, settings) : 
         vs_column = np.array(tau_data[settings['vs_idx']])
         taus = {}
         for i in range(0, len(vs_column)): 
             if(compare_params(tau_data, i, settings)):
                 par = vs_column[i]
-                #if par <= 1.0:
-                taus[f"%.5f"%(par)] = (tau_data[5][i] * (tau_data[6][i] if settings['physical_units'] else 1.0), tau_data[7][i])
+                if settings['vs_idx'] != 4 or par <= 1.0:
+                    taus[f"%.5f"%(par)] = (tau_data[5][i] * (tau_data[6][i] if settings['physical_units'] else 1.0), tau_data[7][i])
         x_float = [];   tau = [];   gap = []
         if taus:
             lists = sorted(taus.items())
@@ -53,7 +53,19 @@ def get_tau_data(tau_data, settings) :
                 tau.append(data[j][0]); gap.append(data[j][1]); x_float.append(float(x[j]))
         return np.array(x_float), np.array(tau), np.array(gap)
 
-
+#-- get thouless times from data chosen by settings['vs']
+def get_tau_data(settings):
+    dir = f"{cf.base_directory}ThoulessTime{kPSep}"
+    xvals = np.array([]); taus = np.array([]);  gaps = np.array([])
+    try:
+        data = np.loadtxt(dir + hfun.remove_info(hfun.info_param(cf.params_arr), settings['vs']) + ".dat", unpack=True)
+        if len(data) > 0:
+            xvals = np.array(data[0])
+            taus = np.array(data[1]) * (np.array(data[2]) if settings['physical_units'] else 1.0)
+            gaps = np.array(data[3])
+    except OSError:
+        xvals = np.array([]); taus = np.array([]);  gaps = np.array([])
+    return xvals, taus, gaps
 
 #--- Function to Load data from file given by plot_settings
 def load(settings = None, vals = None) :
@@ -89,22 +101,111 @@ def load(settings = None, vals = None) :
         cf.params_arr[settings['scaling_idx']] = x
         if settings['scaling_idx'] == 3 and cf.J0 == 0 and cf.g0 == 0:
             cf.params_arr[4] = int(100 * x / 2.) / 100.
-        new_x, new_tau, new_gap = get_tau_data(tau_data, settings)
+        
+        new_x, new_tau, new_gap = get_tau_data_from_all_file(tau_data, settings)
         if new_tau.size > 1 :
-            xvals.append(np.array(new_x))
-            tau.append(np.array(new_tau))
-            gap_ratio.append(np.array(new_gap))
-            new_vals.append(np.array(x))
+            new_vals.append(x)
+            index = []
+            for i in range(len(new_gap)):
+                if new_gap[i] < 0.37: index.append(i)
+            xvals.append(np.delete(new_x, index))
+            tau.append(np.delete(new_tau, index))
+            gap_ratio.append(np.delete(new_gap, index))
 
     #--- reset defaults
     cf.params_arr = param_copy
     importlib.reload(cf)
+
     return np.array(new_vals), np.array(xvals), np.array(tau), np.array(gap_ratio)
 
 
 
 #--- Function to plot thouless data given by plot_settings
-def plot(axis1, axis2, new_settings = None, use_scaling_ansatz = 0, scaling_ansatz=None, crit_fun=None) :
+def plot_taus(axis, settings = None, vals = None, 
+                linewidth=0, fontsize=14, return_data=False):
+    """
+    Plotter of Thouless times with plot_settings defining x-axis and scaling
+    
+    Parameters:
+    --------------
+        axis: plt.figure
+            axis to plot data on
+
+        new_settings: dict
+            settings defining plot behavior and data extraction
+    """
+    if settings == None:
+        settings = settings
+
+    #--- load data 
+    vals, xvals, tau, gap_ratio = load(settings, vals)
+
+    num_of_plots = len(tau)
+
+#--- plot first panel with thouless times
+    ec = []
+    y_min = 1.0e10;     y_max = -1.0e10;
+    x_min = 1.0e10;     x_max = -1.0e10;
+
+    for i in range(0, num_of_plots):
+        yvals = cf.plot_settings.rescale(tau[i], 'y')
+        xx = cf.plot_settings.rescale(xvals[i] , 'x')
+        p = None
+        if linewidth == 0:  p = axis.plot(xx, yvals, linewidth=linewidth)
+        else:               p = axis.plot(xx, yvals, label=hfun.key_title(vals[i], settings), linewidth=linewidth)
+        m = []; fc = [];    ec.append(p[0].get_color())
+        
+        #-- xy-ranges
+        min = yvals.min();  max = yvals.max();
+        if min < y_min and np.isfinite(min): y_min = min
+        if max > y_max and np.isfinite(max): y_max = max
+        min = xx.min();  max = xx.max();
+        if min < x_min and np.isfinite(min): x_min = min
+        if max > x_max and np.isfinite(max): x_max = max
+        
+        for r in gap_ratio[i]: 
+            m.append('o')       # leaving behind in case of change in marker
+            fc.append( p[0].get_color() if abs(r-0.53) <= 0.02 else 'none' )
+        for j in range(0, len(tau[i])) :
+            if linewidth == 0 and j == 0:   
+                axis.scatter(xx[j], yvals[j], edgecolors=ec[i], marker=m[j], s=50, facecolor=fc[j], label=hfun.key_title(vals[i], settings))
+            else: axis.scatter(xx[j], yvals[j], edgecolors=ec[i], marker=m[j], s=50, facecolor=fc[j])
+        
+
+    #-- set panel1 details
+    yrange = (0.9*y_min, 1.1*y_max)
+    ylab = "\\tau"
+    vs_str = settings['vs']
+    if settings['vs_idx'] == 2: vs_str = hfun.var_name
+
+    xlab = vs_str
+    hfun.set_plot_elements(axis = axis, xlim = (x_min - np.sign(x_min) * 0.02*x_min, 1.02*x_max), 
+                                ylim = yrange, ylabel = ylab, xlabel = xlab, settings=settings, font_size=fontsize)
+    axis.grid()
+    axis.legend()
+    if return_data: return vals, xvals, tau, gap_ratio, ec
+    #title = ""
+    #if (settings['vs_idx'] == 3 or settings['scaling_idx'] == 3) and cf.J0 == 0 and cf.g0 == 0:
+    #    title = hfun.remove_info(hfun.info_param(cf.params_arr), settings['vs'], settings['scaling'], 'w') + ',w=0.5h'
+    #else :
+    #    title = hfun.remove_info(hfun.info_param(cf.params_arr), settings['vs'], settings['scaling'])
+    #
+    #if settings['vs_idx'] != 2 :
+    #    try : 
+    #        title = list(title);    idx=title.index('g');   title.remove('g')
+    #        dummy=list(hfun.var_name)
+    #        for i in range(0,len(dummy)):
+    #            title.insert(i + idx, dummy[i]) 
+    #        title = "".join(title) # g
+    #        #title = list(title);    title[title.index('g')] = hfun.var_name;   title = "".join(title) # g0
+    #    except ValueError:
+    #            print("not found")
+    #axis.title.set_text(r"$%s$"%title)
+
+
+
+#--- Function to plot thouless data given by plot_settings with gap ratio on second axis
+def plot_with_gap_ratio(axis1, axis2, new_settings = None, use_scaling_ansatz = 0, scaling_ansatz=None, crit_fun=None) :
     """
     Plotter of Thouless times with plot_settings defining x-axis and scaling
     """
@@ -140,10 +241,11 @@ def plot(axis1, axis2, new_settings = None, use_scaling_ansatz = 0, scaling_ansa
                                         crit_func=crit_fun,
                                         bnds=bounds,
                                         population_size=1e2,
-                                        maxiterarions=1e2, workers=10, realisations=1
+                                        maxiterarions=1e3, workers=10, realisations=1
                                     )
         print(scaling_ansatz + ": ", cost_fun)
     par = params[0]
+    print(par)
     crit_pars = np.array(params[1:])
     rescale_fun = cost.resc_functions_dict[scaling_ansatz]
     critical_fun = cost.crit_functions_dict[crit_fun]
