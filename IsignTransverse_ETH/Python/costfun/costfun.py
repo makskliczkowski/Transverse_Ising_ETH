@@ -157,6 +157,7 @@ def cost_func_minization(x, y, sizes, bnds,
             )
     optimal_res = np.array(result.x)
     cost_fun = result.fun
+    if result.success ==  False: print('Failed convergence')
     if realisations > 1:
         for r in range(realisations - 1):
             seed_r = np.random.default_rng();
@@ -166,13 +167,13 @@ def cost_func_minization(x, y, sizes, bnds,
                         args=(x, y, sizes, scale_func, crit_func),
                         popsize=int(population_size), 
                         maxiter=int(maxiterarions), 
-                        workers=workers, atol=1e-2,
+                        workers=workers, atol=1e-3,
                         seed=seed_r
                 )
             optimal_res = optimal_res + np.array(result.x)
             cost_fun = cost_fun + result.fun
             if result.success ==  False: print('Failed convergence')    
-    return optimal_res / float(realisations), cost_fun / float(realisations)
+    return optimal_res / float(realisations), cost_fun / float(realisations), result.success
 
 
 def get_crit_points(x, y, vals, scaling_ansatz = None, seed = None):
@@ -200,15 +201,15 @@ def get_crit_points(x, y, vals, scaling_ansatz = None, seed = None):
             if x_max is None or _x_ > x_max: x_max = _x_
 
     bounds = [(0, x_max) for i in range(len(vals) + 1)]
-    params, cost_fun = cost_func_minization(x=x, y=y, sizes=vals,
+    params, cost_fun, status = cost_func_minization(x=x, y=y, sizes=vals,
                                     scale_func=scaling_ansatz, 
                                     crit_func=crit_fun,
                                     bnds=bounds,
-                                    population_size=1e2,
-                                    maxiterarions=1e2, workers=10, realisations=1,
+                                    population_size=1e3,
+                                    maxiterarions=1e4, workers=4, realisations=1,
                                     seed = seed
                                 )
 
     par = params[0]
     crit_pars = np.array(params[1:])
-    return par, crit_pars, cost_fun
+    return par, crit_pars, cost_fun, status

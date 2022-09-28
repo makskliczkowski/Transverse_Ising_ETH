@@ -73,7 +73,7 @@ elif model == 2:
     model_dir = f"local_pert{kPSep}"
 else:
     model_dir = ""
-base_directory = f"..{kPSep}results{kPSep}" + (f"Heisenberg{kPSep}" if hamiltonian else f"ISING{kPSep}")\
+base_directory = f"..{kPSep}results{kPSep}" + (f"HEISENBERG{kPSep}" if hamiltonian else f"ISING{kPSep}")\
                                              + model_dir \
                                               + (f"PBC{kPSep}" if BC else f"OBC{kPSep}") 
 
