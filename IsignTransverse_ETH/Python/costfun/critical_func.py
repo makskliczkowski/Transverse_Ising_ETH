@@ -16,6 +16,16 @@ def _crit_free(size, *args):
     idx = int( (size - 12) / 2 if hamiltonian == 1 else size - 11 )
     return crit[idx]
 
+def _crit_free_inv(size, *args):
+    """
+    Free inversed critical point for each system size if critical points appears to be very small
+    For Heisenberg chain the sizes are even: 12,14,16,18,..
+    For Ising chain the sizes are: 11,12,13,14,...
+    """
+    crit = 1. / np.array(args)
+    idx = int( (size - 12) / 2 if hamiltonian == 1 else size - 11 )
+    return crit[idx]
+
 def _crit_const(size, x0):
     """
     Constant critical value

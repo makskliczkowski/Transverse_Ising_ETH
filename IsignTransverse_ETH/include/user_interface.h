@@ -182,14 +182,23 @@ namespace isingUI
 			for(auto& substr : split_array){
 				auto str_tmp = split_str(substr, "=");
 				if(str_tmp[0] == var){
-					if(str_tmp[1].find(".") != std::string::npos) str_tmp[1] = to_string_prec(new_value, 2);
-					else str_tmp[1] = std::to_string(int(new_value));
+					// found position of parameter with name var
+					if(str_tmp[1].find(".") != std::string::npos) str_tmp[1] = to_string_prec(new_value, 2);	// print double value
+					else str_tmp[1] = std::to_string(int(new_value));											// print int value
 				}
+				// reconstruct the info
 				new_info += str_tmp[0] + "=" + str_tmp[1];
 				if(&substr != &split_array.back()) new_info += ",";
 			}
 			return new_info;
 		};
+
+
+		//<! generate info by input parameters and model
+		std::string generate_baseinfo(std::vector<std::string> skip = {}, std::string sep = "_"){
+			if(this->m) return IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, skip, sep);
+			else 		return IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, skip, sep);
+		}
 		//-------------------------------------------------------------------------- GENERAL ROUTINES
 
 		void diagonalize();
@@ -244,7 +253,7 @@ namespace isingUI
 		void spectral_form_factor();
 		
 		//<! find thouless time with various method as function of h,g,J
-		void thouless_times();
+		void thouless_times(Ising_params varname);
 
 		void smoothen_data(const std::string& dir, const std::string& name, int mu = -1);
 
@@ -312,7 +321,7 @@ namespace isingUI
 				default:				  x = 0.0;		break;
 				}
 			if(this->m){
-				arma::vec _vec = x + create_random_vec(this->realisations, x / 50.);
+				arma::vec _vec = x + my_gen.create_random_vec<double>(this->realisations, x / 50.);
 				stout << _vec << std::endl;
 				for(int r = 0; r < _vec.size(); r++){
 					if(this->realisations > 1){
@@ -330,10 +339,7 @@ namespace isingUI
 						model.hamiltonian();
 						model.diagonalization();
 					}
-					auto dummy_lambda = [&lambda](IsingModel<_ty>& modello, int real, auto... args){
-						lambda(modello, real, args...);
-					};
-					dummy_lambda(model, r, args...);
+					lambda(model, r, args...);
 				}
 			} else {
 				for (int r = 0; r < this->realisations; r++) {
@@ -341,10 +347,7 @@ namespace isingUI
 						model.hamiltonian();
 						model.diagonalization();
 					}
-					auto dummy_lambda = [&lambda](IsingModel<_ty>& modello, int real, auto... args){
-						lambda(modello, real, args...);
-					};
-					dummy_lambda(model, r, args...);
+					lambda(model, r, args...);
 				}
 			}
 		};
@@ -368,7 +371,7 @@ namespace isingUI
 				default:				  x = 0.0;		break;
 				}
 			if(this->m){
-				arma::vec _vec = x + create_random_vec(this->realisations, x / 50.);
+				arma::vec _vec = x + my_gen.create_random_vec<double>(this->realisations, x / 50.);
 				stout << _vec << std::endl;
 			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 				for(int r = 0; r < _vec.size(); r++){

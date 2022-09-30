@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.optimize import minimize, differential_evolution
+from scipy.optimize import differential_evolution
 from . import critical_func as crit
 from . import scaling_ansatz as rescale
 import importlib
@@ -117,7 +117,7 @@ def minimization_function(params, xvals, y, sizes, scaling_ansatz, crit_function
 def cost_func_minization(x, y, sizes, bnds, 
                             scale_func, crit_func, 
                             population_size=1e2, maxiterarions=1e3, 
-                            workers=1, realisations=1):
+                            workers=1, realisations=1, seed = None):
     """
     Main function returning optimal parameters for given scaling ansatz
 
@@ -129,7 +129,7 @@ def cost_func_minization(x, y, sizes, bnds,
     
     y: 2D array 
         qunatity to find scaling solution for
-        at different paramter values and sizes
+        at different parameter values and sizes
     
     sizes: 1D array of system sizes present in scaling
 
@@ -144,28 +144,116 @@ def cost_func_minization(x, y, sizes, bnds,
         (gives ValueError when is not amongst existing ones)
 
     """
+
+    if seed is None: seed = np.random.default_rng();
     result = differential_evolution(
                     minimization_function,
                     bounds=bnds,
                     args=(x, y, sizes, scale_func, crit_func),
                     popsize=int(population_size), 
                     maxiter=int(maxiterarions), 
-                    workers=workers, atol=1e-2
+                    workers=workers, atol=1e-3,
+                    seed=seed
             )
     optimal_res = np.array(result.x)
     cost_fun = result.fun
-    for r in range(realisations - 1):
-        seed = np.random.default_rng();
-        result = differential_evolution(
-                    minimization_function,
-                    bounds=bnds,
-                    args=(x, y, sizes, scale_func, crit_func),
-                    popsize=int(population_size), 
-                    maxiter=int(maxiterarions), 
-                    workers=workers, atol=1e-2,
-                    seed=seed
-            )
-        optimal_res = optimal_res + np.array(result.x)
-        cost_fun = cost_fun + result.fun
-        if result.success ==  False: print('Failed convergence')    
-    return optimal_res / float(realisations), cost_fun / float(realisations)
+    if result.success ==  False: print('Failed convergence')
+    if realisations > 1:
+        for r in range(realisations - 1):
+            seed_r = np.random.default_rng();
+            result = differential_evolution(
+                        minimization_function,
+                        bounds=bnds,
+                        args=(x, y, sizes, scale_func, crit_func),
+                        popsize=int(population_size), 
+                        maxiter=int(maxiterarions), 
+                        workers=workers, atol=1e-3,
+                        seed=seed_r
+                )
+            optimal_res = optimal_res + np.array(result.x)
+            cost_fun = cost_fun + result.fun
+            if result.success ==  False: print('Failed convergence')    
+    return optimal_res / float(realisations), cost_fun / float(realisations), result.success
+
+
+def prepare_bounds(x, crit_fun, vals):
+    """
+    Generate bounds for optimization procedure
+    
+    For details about signature of critical functions see critical_fun.py to see
+    what the boudns correspond to
+
+    Parameters:
+    ------------
+        x: 2D array 
+            values of parameters (e.g. disorder) 
+            at different system sizes
+
+        crit_fun:   'string'
+            function of critical value, one among critical_func.py
+
+        vals:   1D array
+            scaling parameters: system sizes
+    """
+    x_max = -1e6
+    for a in x: 
+        for _x_ in a: 
+            if x_max is None or _x_ > x_max: x_max = _x_
+
+    bounds = [(0., 10.)]        # -- critical exponent
+
+    #-- number of bounds is number of different scaling parameters
+    if crit_fun == 'free':  
+        for i in range(len(vals)):  
+            bounds.append((0, x_max))
+    elif crit_fun == 'free_inv':  
+        for i in range(len(vals)):  
+            bounds.append((1. / x_max, 1e3))
+    #-- constant value, only one new bounds
+    elif crit_fun == 'const':   
+        bounds.append((0, x_max))
+    #-- power law and inverse function have 3 paramters
+    elif crit_fun == 'power_law' or crit_fun == 'inv':   
+        for i in range(3):
+            bounds.append((-10., 10.))
+    #-- logarithmic and its inverse function have 2 paramters
+    elif crit_fun == 'log' or crit_fun == 'inv_log' or crit_fun == 'lin':   
+        for i in range(2):
+            bounds.append((-10., 10.))
+    return bounds
+
+
+def get_crit_points(x, y, vals, crit_fun='free', scaling_ansatz = 'classic', seed = None):
+    """
+    Calculating critical points for each system size
+
+    Parameters:
+    -----------
+        x, y:   2D array
+            x and y data for collapse with different vals (sizes) values
+        
+        vals:   1D array
+            scaling parameters: system sizes
+        
+        crit_fun:   'string'
+            function of critical value, one among critical_func.py
+
+        scaling_ansatz:   'string'
+            scaling ansatz for collapse, classic, KT, FGR,...
+    """
+    
+    params = []
+    bounds = prepare_bounds(x, crit_fun, vals)
+
+    params, cost_fun, status = cost_func_minization(x=x, y=y, sizes=vals,
+                                    scale_func=scaling_ansatz, 
+                                    crit_func=crit_fun,
+                                    bnds=bounds,
+                                    population_size=1e2,
+                                    maxiterarions=1e3, workers=10, realisations=1,
+                                    seed = seed
+                                )
+
+    par = params[0]
+    crit_pars = np.array(params[1:])
+    return par, crit_pars, cost_fun, status

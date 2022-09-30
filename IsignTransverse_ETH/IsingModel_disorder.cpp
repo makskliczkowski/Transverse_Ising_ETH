@@ -64,7 +64,7 @@ u64 IsingModel_disorder::find_in_map(u64 index) const {
 void IsingModel_disorder::generate_mapping() {
 	this->mapping = std::vector<u64>();
 	for (u64 j = 0; j < (ULLPOW(this->L)); j++){
-		if (__builtin_popcountll(j) == this->L / 2.)
+		if (__builtin_popcountll(j) == int(this->L / 2.))
 			this->mapping.push_back(j);
 	}
 	this->N = this->mapping.size();
@@ -98,6 +98,10 @@ void IsingModel_disorder::setHamiltonianElem(u64 k, double value, u64 new_idx) {
 /// Generates the total Hamiltonian of the system. The diagonal part is straightforward,
 /// while the non-diagonal terms need the specialized setHamiltonainElem(...) function
 /// </summary>
+void hamiltonian_qsun(){
+	
+}
+
 void IsingModel_disorder::hamiltonian() {
 	try {
 		this->H = arma::sp_mat(N, N);                                //  hamiltonian memory reservation
@@ -115,9 +119,9 @@ void IsingModel_disorder::hamiltonian() {
 			this->dh(this->L / 2.) = this->w;
 			this->dh(0) = 0.1;
 		#else
-			this->dh = create_random_vec(L, this->w);                               // creates random disorder vector
-			this->dJ = create_random_vec(L, this->J0);                              // creates random exchange vector
-			this->dg = create_random_vec(L, this->g0);                              // creates random transverse field vector
+			this->dh = my_gen.create_random_vec<double>(L, this->w);                               // creates random disorder vector
+			this->dJ = my_gen.create_random_vec<double>(L, this->J0);                              // creates random exchange vector
+			this->dg = my_gen.create_random_vec<double>(L, this->g0);                              // creates random transverse field vector
 		#endif
 	}
 	#ifdef ANDERSON
@@ -182,6 +186,8 @@ void IsingModel_disorder::hamiltonian_heisenberg(){
 	}
 	//std::cout << std::endl << arma::mat(this->H) << std::endl;
 }
+
+
 // ----------------------------------------------------------------------------- PHYSICAL QUANTITES -----------------------------------------------------------------------------
 
 // ----------------------------------------------------------------------------- CREATE OPERATOR TO CALCULATE MATRIX ELEMENTS -----------------------------------------------------------------------------

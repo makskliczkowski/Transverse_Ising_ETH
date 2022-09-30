@@ -3,16 +3,8 @@ int num_of_threads = 16;
 
 std::random_device rd;
 std::mt19937::result_type seed_global = static_cast<long unsigned int>(time(0)); // 87178291199L; // set constant to maintain same disorder for different sizes etc
-// rd() ^ (
-//	(std::mt19937::result_type)
-//	std::chrono::duration_cast<std::chrono::seconds>(
-//		std::chrono::system_clock::now().time_since_epoch()
-//		).count() +
-//	(std::mt19937::result_type)
-//	std::chrono::duration_cast<std::chrono::microseconds>(
-//		std::chrono::high_resolution_clock::now().time_since_epoch()
-//		).count());
-std::mt19937_64 gen(seed_global);
+randomGen my_gen(seed_global);
+
 
 /* STRING BASED TOOLS */
 /// <summary>

@@ -42,7 +42,6 @@ template <typename _type>
 class IsingModel {
 protected:
 	std::string info;									// information about the model
-	randomGen ran;										// consistent quick random number generator
 
 	arma::SpMat<_type> H;								// the Hamiltonian
 	arma::Mat<_type> eigenvectors;						// matrix of the eigenvectors in increasing order
@@ -116,13 +115,7 @@ public:
 	virtual void hamiltonian_Ising() = 0;														// pure virtual Ising Hamiltonian creator
 	virtual void hamiltonian_heisenberg() = 0;													// pure virtual heisenberg hamiltonian creator
 	virtual void setHamiltonianElem(u64 k, double value, u64 new_idx) = 0;						// sets the Hamiltonian elements in a virtual way
-	void reset_random(size_t new_seed = seed_global) const {
-		gen = std::mt19937_64(new_seed);
-		//this->ran.reset();
-	}
-	double getRandomValue(const double _min, const double _max) {
-		return this->ran.randomReal_uni(_min, _max);
-	}
+	
 	int properSite(int site) const {
 		if (_BC == 0) {
 			if (site < 0)
