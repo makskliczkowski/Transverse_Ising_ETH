@@ -368,8 +368,8 @@ def set_inset_style(axis, vals, settings, ylim = None, ylabel = None):
     axis.set_xscale('log')
     axis.tick_params(axis='both', which='both',length=2)
 
-    axis.grid(b=True, which='major', color='0.75', linestyle='-')
-    axis.grid(b=True, which='minor', color='0.85', linestyle='--')
+    #axis.grid(b=True, which='major', color='0.75', linestyle='-')
+    #axis.grid(b=True, which='minor', color='0.85', linestyle='--')
     axis.legend(ncol=3, loc='lower center')
 
 def set_inset(axis, settings, vals, taus, relax_time, relaxt_time_fit, tH, tH_typ, status_time = True):

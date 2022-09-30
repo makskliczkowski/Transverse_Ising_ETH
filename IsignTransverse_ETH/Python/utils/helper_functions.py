@@ -134,3 +134,27 @@ def get_scaling_array(settings = None, x0 = 0.1, xend = 1.0, dx = 0.1):
         for x in range(0, length) :
             vals.append(x0 + x * dx)
     return np.array(vals)
+
+
+#--- CREATE INSET FIGURE ON ANY SUBPLOT
+def add_subplot_axes(ax,rect):
+    fig = plt.gcf()
+    box = ax.get_position()
+    width = box.width
+    height = box.height
+    inax_position  = ax.transAxes.transform(rect[0:2])
+    transFigure = fig.transFigure.inverted()
+    infig_position = transFigure.transform(inax_position)    
+    x = infig_position[0]
+    y = infig_position[1]
+    width *= rect[2]
+    height *= rect[3]  # <= Typo was here
+    #subax = fig.add_axes([x,y,width,height],facecolor=facecolor)  # matplotlib 2.0+
+    subax = fig.add_axes([x,y,width,height])
+    x_labelsize = subax.get_xticklabels()[0].get_size()
+    y_labelsize = subax.get_yticklabels()[0].get_size()
+    x_labelsize *= rect[2]**0.15
+    y_labelsize *= rect[3]**0.15
+    subax.xaxis.set_tick_params(labelsize=x_labelsize)
+    subax.yaxis.set_tick_params(labelsize=y_labelsize)
+    return subax

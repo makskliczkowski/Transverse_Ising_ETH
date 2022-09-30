@@ -119,34 +119,14 @@ def load(settings = None, vals = None) :
     return np.array(new_vals), np.array(xvals), np.array(tau), np.array(gap_ratio)
 
 
-
-#--- Function to plot thouless data given by plot_settings
-def plot_taus(axis, settings = None, vals = None, 
-                linewidth=0, fontsize=14, return_data=False):
-    """
-    Plotter of Thouless times with plot_settings defining x-axis and scaling
-    
-    Parameters:
-    --------------
-        axis: plt.figure
-            axis to plot data on
-
-        new_settings: dict
-            settings defining plot behavior and data extraction
-    """
-    if settings == None:
-        settings = settings
-
-    #--- load data 
-    vals, xvals, tau, gap_ratio = load(settings, vals)
-
-    num_of_plots = len(tau)
-
-#--- plot first panel with thouless times
+def replot_taus(axis, vals, xvals, tau, gap_ratio, settings = None,
+                linewidth=0, fontsize=14):
+    #--- plot first panel with thouless times
     ec = []
     y_min = 1.0e10;     y_max = -1.0e10;
     x_min = 1.0e10;     x_max = -1.0e10;
-
+    
+    num_of_plots = len(tau)
     for i in range(0, num_of_plots):
         yvals = cf.plot_settings.rescale(tau[i], 'y')
         xx = cf.plot_settings.rescale(xvals[i] , 'x')
@@ -183,6 +163,37 @@ def plot_taus(axis, settings = None, vals = None,
                                 ylim = yrange, ylabel = ylab, xlabel = xlab, settings=settings, font_size=fontsize)
     axis.grid()
     axis.legend()
+
+    return ec               
+#--- Function to plot thouless data given by plot_settings
+
+def plot_taus(axis, settings = None, vals = None, 
+                linewidth=0, fontsize=14, return_data=False):
+    """
+    Plotter of Thouless times with plot_settings defining x-axis and scaling
+    
+    Parameters:
+    --------------
+        axis: plt.figure
+            axis to plot data on
+
+        new_settings: dict
+            settings defining plot behavior and data extraction
+    """
+    if settings == None:
+        settings = user_settings
+
+    #--- load data 
+    vals, xvals, tau, gap_ratio = load(settings, vals)
+
+    ec = replot_taus(axis=axis,
+                    vals=vals,
+                    xvals=xvals,
+                    tau=tau,
+                    gap_ratio=gap_ratio,
+                    settings=settings,
+                    linewidth=linewidth,
+                    fontsize=fontsize)
     if return_data: return vals, xvals, tau, gap_ratio, ec
     #title = ""
     #if (settings['vs_idx'] == 3 or settings['scaling_idx'] == 3) and cf.J0 == 0 and cf.g0 == 0:
@@ -222,33 +233,21 @@ def plot_with_gap_ratio(axis1, axis2, new_settings = None, use_scaling_ansatz = 
     #cost functinon
     if scaling_ansatz is None: scaling_ansatz='classic'
     if crit_fun is None: crit_fun='const'
-    params = [0,0,0,0,0,0]
-    x_max=None
-    for x in xvals: 
-        for _x_ in x: 
-            if x_max is None or _x_ > x_max: x_max = _x_
-    if new_settings['scaling_idx'] == 0 and use_scaling_ansatz:
-        x_min = 0 if crit_fun == 'free' else -x_max
-        bounds = [ (0.0, 5.0), (x_min, x_max)]
-        num_of_param = 0
-        if crit_fun == 'free': num_of_param = len(vals) - 1
-        elif crit_fun == 'power_law': num_of_param = 3
-        elif crit_fun == 'const': num_of_param = 0
-        else: num_of_param = 3
-        for i in range(num_of_param): bounds.append((x_min, x_max))
-        params, cost_fun = cost.cost_func_minization(x=xvals, y=gap_ratio, sizes=vals, 
-                                        scale_func=scaling_ansatz, 
-                                        crit_func=crit_fun,
-                                        bnds=bounds,
-                                        population_size=1e2,
-                                        maxiterarions=1e3, workers=10, realisations=1
-                                    )
-        print(scaling_ansatz + ": ", cost_fun)
-    par = params[0]
-    print(par)
-    crit_pars = np.array(params[1:])
     rescale_fun = cost.resc_functions_dict[scaling_ansatz]
     critical_fun = cost.crit_functions_dict[crit_fun]
+    params = [0,0,0,0,0,0]
+    par = params[0]
+    crit_pars = params[1:]
+    if new_settings['scaling_idx'] == 0 and use_scaling_ansatz:
+        par, crit_pars, cost_fun, status = cost.get_crit_points(x=xvals,
+                                                                y=gap_ratio,
+                                                                vals=vals,
+                                                                scaling_ansatz=scaling_ansatz,
+                                                                crit_fun=crit_fun)
+        
+        print(scaling_ansatz + ": ", cost_fun, [critical_fun(vals[i], *crit_pars) for i in range(len(vals))])
+    
+    print(par)
 
     #--- plot first panel with thouless times
     marker_style = [];  face_colors = [];   ec = []
@@ -269,12 +268,12 @@ def plot_with_gap_ratio(axis1, axis2, new_settings = None, use_scaling_ansatz = 
         m = []; fc = [];    ec.append(p[0].get_color())
         
         #-- xy-ranges
-        min = yvals.min();  max = yvals.max();
-        if min < y_min and np.isfinite(min): y_min = min
-        if max > y_max and np.isfinite(max): y_max = max
-        min = xx.min();  max = xx.max();
-        if min < x_min and np.isfinite(min): x_min = min
-        if max > x_max and np.isfinite(max): x_max = max
+        min_val = yvals.min();  max_val = yvals.max();
+        if min_val < y_min and np.isfinite(min_val): y_min = min_val
+        if max_val > y_max and np.isfinite(max_val): y_max = max_val
+        min_val = xx.min();  max_val = xx.max();
+        if min_val < x_min and np.isfinite(min_val): x_min = min_val
+        if max_val > x_max and np.isfinite(max_val): x_max = max_val
         
         #--- plot markers with additional legend according to level spacing:
         # ~0.3865   -   filled squares
@@ -332,9 +331,9 @@ def plot_with_gap_ratio(axis1, axis2, new_settings = None, use_scaling_ansatz = 
         xpoints = rescale_fun(xvals[i], vals[i], critical_fun, 
                     par, *crit_pars) if new_settings['scaling_idx'] == 0 and use_scaling_ansatz else xvals[i] 
 
-        min = xpoints.min();  max = xpoints.max()
-        if np.isfinite(min) and min < x_min: x_min = min
-        if np.isfinite(max) and max > x_max: x_max = max
+        min_val = xpoints.min();  max_val = xpoints.max()
+        if np.isfinite(min_val) and min_val < x_min: x_min = min_val
+        if np.isfinite(max_val) and max_val > x_max: x_max = max_val
         #axis2.plot(xpoints, gap_ratio[i], label=key_title(vals[i]))
         for j in range(0, len(tau[i])) :
             axis2.scatter(xpoints[j], gap_ratio[i][j], edgecolors=ec[i], marker=marker_style[i][j], s=50, facecolor=face_colors[i][j])
@@ -348,11 +347,14 @@ def plot_with_gap_ratio(axis1, axis2, new_settings = None, use_scaling_ansatz = 
                                 ylim = (0.37, 0.54), xlabel = xlab, ylabel = 'r', settings=new_set, set_legend=False)
     if new_set['scaling_idx'] == 0 and use_scaling_ansatz:
         axis2.annotate(r"$\nu=%.2f$"%par, xy=(150, 260), xycoords='axes points', color='black', size=20)
-        for i in range(0, len(params)-1):
-            axis2.annotate(r"$x_{%d}=%.4f$"%(i,params[i+1]), xy=(150, 240 - 20*i), xycoords='axes points', color='black', size=20)  
+        for i in range(0, len(crit_pars)):
+            axis2.annotate(r"$x_{%d}=%.4f$"%(i,crit_pars[i]), xy=(150, 240 - 20*i), xycoords='axes points', color='black', size=20)  
     
     #--- additional lines on plot
     axis2.axhline(y=0.5307, ls='--', color='black', label='GOE')
     axis2.axhline(y=0.3863, ls='--', color='red', label='Poisson')
     axis2.legend()
     axis2.title.set_text(r"$%s$"%title)
+    axis2.set_xscale('linear')
+    crit = [critical_fun(vals[i], *crit_pars) for i in range(len(vals))]
+    axis2.set_xlim(min(crit) - 30, max(crit) + 30)
