@@ -52,7 +52,7 @@ public:
 		{ return std::uniform_real_distribution<_type>(_min, _max)(engine); }
 
 	template <typename _type> 
-	arma::Col<_type> create_random_vec(const uint64_t size, double h = 0.0) 
+	arma::Col<_type> create_random_vec(const uint64_t size, double h = 1.0) 
 	{
 		arma::Col<_type> random_vec(size, arma::fill::zeros);
 		for (u64 j = 0; j <= size / 2.; j++) {

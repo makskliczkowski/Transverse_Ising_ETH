@@ -136,6 +136,11 @@ def get_scaling_array(settings = None, x0 = 0.1, xend = 1.0, dx = 0.1):
     return np.array(vals)
 
 
+#--- SPECTRAL FORM FACTOR GOE SHAPE
+def sff_GOE(x : np.array):
+    return np.array([2*a-a*np.log(1+2*a) if a < 1 else 2-a * np.log((2*a+1)/(2*a-1)) for a in x])
+
+
 #--- CREATE INSET FIGURE ON ANY SUBPLOT
 def add_subplot_axes(ax,rect):
     fig = plt.gcf()

@@ -12,12 +12,29 @@ void isingUI::ui::make_sim()
 	#endif
 	my_gen = randomGen(this->seed);
 	printAllOptions();
-	auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-	arma::sp_cx_mat Hloc(alfa->get_hilbert_size(), alfa->get_hilbert_size());
-	for(int i = 0; i < this->L; i++)
-		Hloc += alfa->createHlocal(i);
-	std::cout << alfa->get_hamiltonian() - Hloc;
 
+	//auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+	auto alfa = std::make_unique<IsingModel_disorder>(this->L, 1, 0, 1, 0, 0, 0, this->boundary_conditions);
+	auto H = alfa->get_hamiltonian();
+	alfa->diagonalization();
+	std::cout << alfa->get_eigenEnergy(0) << std::endl;
+	u64 idx = 286;// 4. / 3. * (ULLPOW(this->L) - 1);
+	std::ifstream filee;
+	auto data = readFromFile(filee, this->saving_dir + "random_vec.dat");
+	arma::cx_vec random = cast_cx_vec(data[0]);
+
+	lanczos::Lanczos lancz(H, lanczosParams(this->mu, 1, false, false), random);
+	lancz.diagonalization();
+	auto T = lancz.get_lanczos_matrix();
+
+	std::cout << lancz.get_eigenvalues()(0) << std::endl;
+	std::ofstream file;
+	std::cout << T << std::endl;
+	file.open(this->saving_dir + "lanczos_matrix.dat");
+	file << T;
+	file.close();
+
+	return;
 	clk::time_point start = std::chrono::system_clock::now();
 	auto L_list = this->get_params_array(Ising_params::L);
 	auto J_list = this->get_params_array(Ising_params::J);
@@ -37,8 +54,8 @@ void isingUI::ui::make_sim()
 			var = Ising_params::g;
 	}
 
-	for (auto& system_size : L_list){
-		this->L = system_size;
+	for (auto& wx : w_list){
+		this->w = wx;
 		this->site = this->L / 2;
 		generate_statistic_map(var); 
 		//thouless_times(var);
@@ -369,7 +386,7 @@ arma::vec isingUI::ui::get_params_array(Ising_params par){
 void isingUI::ui::compare_energies()
 {
 	// handle disorder
-	auto Hamil = std::make_unique<IsingModel_disorder>(L, J, this->J0, g, this->g0, h, this->w, boundary_conditions);
+	auto Hamil = std::make_unique<IsingModel_disorder>(this->L, this->J, 0.0, this->g, 0.0, this->h, 0.0, boundary_conditions);
 	Hamil->diagonalization();
 	const arma::vec E_dis = Hamil->get_eigenvalues();
 	Hamil.release();
@@ -377,6 +394,7 @@ void isingUI::ui::compare_energies()
 	std::vector<double> E_sym = v_1d<double>();
 	std::vector<std::string> symms = v_1d<std::string>();
 	// go for each symmetry sector
+	const int x_max = (this->h != 0) ? 0 : 1;
 	for (int k = 0; k < L; k++)
 	{
 		if (k == 0 || k == this->L / 2.)
@@ -384,11 +402,10 @@ void isingUI::ui::compare_energies()
 			for (int p = 0; p <= 1; p++)
 			{
 				// if the spin flip is unaviable we just use 1
-				const int x_max = (this->h != 0) ? 0 : 1;
 				for (int x = 0; x <= x_max; x++)
 				{
-					auto ham = std::make_unique<IsingModel_sym>(L, J, g, h, k, p, x, boundary_conditions);
-					ham->diagonalization();
+					auto ham = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, k, p, x, boundary_conditions);
+					ham->diagonalization(false);
 					arma::vec t = ham->get_eigenvalues();
 					E_sym.insert(E_sym.end(), std::make_move_iterator(t.begin()), std::make_move_iterator(t.end()));
 					v_1d<std::string> temp_str = v_1d<std::string>(t.size(), "k=" + std::to_string(k) + ",x=" + to_string(x) + ",p=" + to_string(p));
@@ -398,11 +415,10 @@ void isingUI::ui::compare_energies()
 		}
 		else
 		{
-			int x_max = (this->h != 0) ? 0 : 1;
 			for (int x = 0; x <= x_max; x++)
 			{
-				auto ham = std::make_unique<IsingModel_sym>(L, J, g, h, k, 1, x, boundary_conditions);
-				ham->diagonalization();
+				auto ham = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, k, 1, x, boundary_conditions);
+				ham->diagonalization(false);
 				arma::vec t = ham->get_eigenvalues();
 				E_sym.insert(E_sym.end(), std::make_move_iterator(t.begin()), std::make_move_iterator(t.end()));
 				v_1d<std::string> temp_str = v_1d<std::string>(t.size(), "k=" + std::to_string(k) + ",x=" + to_string(x) + ",p=*");
@@ -682,7 +698,48 @@ void isingUI::ui::benchmark()
 		}
 	}
 }
+void isingUI::ui::check_symmetry_rotation(){
+	auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, 0, this->boundary_conditions);
+	arma::sp_mat H0 = alfa->get_hamiltonian();
 
+	auto lambda = [this](int k, int p, int x, arma::sp_cx_mat& H){
+		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
+								 k, p, x, this->boundary_conditions);
+		auto U = alfa->symmetryRotation();
+		arma::sp_cx_mat Hsym = alfa->get_hamiltonian();
+		H += U * Hsym * U.t();
+	};
+
+	arma::sp_cx_mat H(H0.n_rows, H0.n_cols);
+
+	const int x_max = (abs(this->h) > 0) ? 0 : 1;
+	for (int k = 0; k < this->L; k++) {
+		if (k == 0 || k == this->L / 2.) {
+			for (int p = 0; p <= 1; p++)
+				for (int x = 0; x <= x_max; x++)
+					lambda(k, p, x, H);
+		}
+		else {
+			for (int x = 0; x <= x_max; x++)
+					lambda(k, 0, x, H);
+		}
+	}
+	arma::sp_mat HH = arma::real(H);
+	auto N = H0.n_cols;
+	arma::sp_cx_mat res = arma::sp_cx_mat(HH - H0, arma::imag(H));
+	printSeparated(std::cout, "\t", 32, true, "index i", "index j", "difference", "original hamil");
+	cpx x = 0;
+	for(int i = 0; i < N; i++){
+		for(int j = 0; j < N; j++){
+			cpx val = res(i, j);
+			if(abs(val) > 1e-15){
+				x += val;
+				printSeparated(std::cout, "\t", 32, true, i, j, res(i, j), H0(i, j));
+			}
+		}
+	}
+	printSeparated(std::cout, "\t", 32, true, "Sum of suspicious elements: ", x);
+}
 //--------------------------------------------------------------------- SPECTRAL PROPERTIES and TIME EVOLUTION
 
 //<! calculate all spectral quantities: time evolution, response function,
