@@ -24,8 +24,8 @@ x_sym = 1                       # spin-flip symmetry sector (only when h=0)
 General settings for all plots
 """
 plot_settings_dict = {
-    'vs':             'L',          # set parameter on x-axis
-    'scaling':        'g',          # set scaling parameter (changing in legend)
+    'vs':             'g',          # set parameter on x-axis
+    'scaling':        'L',          # set scaling parameter (changing in legend)
 
     'x_scale':      'log',       
     'y_scale':      'log',          

@@ -12,7 +12,7 @@ import sys
 import os
 import utils.helper_functions as hfun
 import config as cf
-import thouless_times as thouless
+import modules.thouless_times as thouless
 import costfun.costfun as cost
 
 if __name__ == '__main__':

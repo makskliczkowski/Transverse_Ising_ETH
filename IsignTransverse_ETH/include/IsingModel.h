@@ -309,7 +309,7 @@ private:
 	static auto generate_full_map(int system_size, bool use_Sz_sym = 0){	
 		std::vector<u64> full_map;
 		for (u64 j = 0; j < (ULLPOW(system_size)); j++){
-			if (__builtin_popcountll(j) == system_size / 2.)
+			if (!use_Sz_sym || (__builtin_popcountll(j) == int(system_size / 2.)))
 				full_map.push_back(j);
 		}
 		return full_map;
@@ -362,7 +362,7 @@ public:
 	}
 	
 	arma::sp_cx_mat symmetryRotation() const;
-	arma::cx_vec symmetryRotation(const arma::cx_vec& state, const std::vector<u64>& full_map = std::vector<u64>()) const;
+	arma::cx_vec symmetryRotation(const arma::cx_vec& state, std::vector<u64> full_map = std::vector<u64>()) const;
 
 	//friend sp_cx_mat create_operatorDistinctSectors()
 	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, arma::cx_vec prefactors = arma::cx_vec()) const override;													
