@@ -25,6 +25,11 @@ def lin_fit(x, mu, a):
 def power_law(x, alfa, a):
     """ Power-law fit function """
     return a * x**alfa
+
+
+def power_law_inv(x, alfa, a):
+    """ Power-law fit function """
+    return a / x**alfa
     
 def stretch_exp(x, alfa, a):
     """ Ffit function for exponential decay with arbitrary exponent """

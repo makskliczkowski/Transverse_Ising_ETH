@@ -339,9 +339,9 @@ public:
 	
 	static std::string set_info(int L, double J, double g, double h, int k_sym, bool p_sym, bool x_sym, std::vector<std::string> skip = {}, std::string sep = "_") {
 		std::string name = sep + "L=" + std::to_string(L) + \
-			",J=" + to_string_prec(J, 2) + \
-			",g=" + to_string_prec(g, 2) + \
-			",h=" + to_string_prec(h, 2) + \
+			",J=" + to_string_prec(J) + \
+			",g=" + to_string_prec(g) + \
+			",h=" + to_string_prec(h) + \
 			",k=" + std::to_string(k_sym) + \
 			",p=" + std::to_string((p_sym) ? 1 : -1) + \
 			",x=" + std::to_string(x_sym ? 1 : -1);
@@ -437,12 +437,12 @@ public:
 				",w=" + to_string_prec(w, 2);
 		#else
 			std::string name = sep + "L=" + std::to_string(L) + \
-				",J=" + to_string_prec(J, 2) + \
-				",J0=" + to_string_prec(J0, 2) + \
-				",g=" + to_string_prec(g, 2) + \
-				",g0=" + to_string_prec(g0, 2) + \
-				",h=" + to_string_prec(h, 2) + \
-				",w=" + to_string_prec(w, 2);
+				",J=" + to_string_prec(J) + \
+				",J0=" + to_string_prec(J0) + \
+				",g=" + to_string_prec(g) + \
+				",g0=" + to_string_prec(g0) + \
+				",h=" + to_string_prec(h) + \
+				",w=" + to_string_prec(w);
 		#endif
 		auto tmp = split_str(name, ",");
 		std::string tmp_str = "";

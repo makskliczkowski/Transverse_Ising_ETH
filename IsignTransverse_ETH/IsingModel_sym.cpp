@@ -7,9 +7,9 @@ IsingModel_sym::IsingModel_sym(int L, double J, double g, double h, int k_sym, b
 	symmetries.p_sym = (p_sym) ? 1 : -1;
 	symmetries.x_sym = (x_sym) ? 1 : -1;
 	this->info = "_L=" + std::to_string(this->L) + \
-		",J=" + to_string_prec(this->J, 2) + \
-		",g=" + to_string_prec(this->g, 2) + \
-		",h=" + to_string_prec(this->h, 2) + \
+		",J=" + to_string_prec(this->J) + \
+		",g=" + to_string_prec(this->g) + \
+		",h=" + to_string_prec(this->h) + \
 		",k=" + std::to_string(k_sym) + \
 		",p=" + std::to_string(symmetries.p_sym) + \
 		",x=" + std::to_string(symmetries.x_sym);
@@ -63,6 +63,7 @@ void IsingModel_sym::createSymmetryGroup() {
 		T = multiply_operators(rotate_left, T);
 	}
 }
+
 
 /// <summary>
 /// Takes the state from the index in mapping

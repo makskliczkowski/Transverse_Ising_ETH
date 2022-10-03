@@ -46,18 +46,33 @@ std::vector<std::string> split_str(std::string s, std::string delimiter);
 
 // ---------------------------------- templates
 
+//<! finds the order of magnitude of number +1 (only for <1 numbers to find filename format)
+template <typename T>
+inline
+int order_of_magnitude(const T a_value) {
+	if(a_value < 1.0 && a_value > 0){
+		T m = std::abs(std::log10(a_value));
+		return int(std::max(std::ceil(m) + 1., 2.));
+	}
+	else return 2;
+}
 /// <summary>
 /// Changes a value to a string with a given precison
 /// </summary>
 /// <param name="n">number of decimal places</param>
 /// <returns>string of a number with given precision</returns>
 template <typename T>
-std::string to_string_prec(const T a_value, const int n = 3) {
+inline
+std::string to_string_prec(const T a_value, int n = -1) {
+	if(n < 0)
+		n = order_of_magnitude(a_value);
+	std::cout << n << std::endl;
 	std::ostringstream outie;
 	outie.precision(n);
 	outie << std::fixed << a_value;
 	return outie.str();
 }
+
 
 // ----------------------------------------------------------------------------- BINARY TOOLS -----------------------------------------------------------------------------
 
