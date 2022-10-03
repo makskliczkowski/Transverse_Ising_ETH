@@ -6,7 +6,7 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 	this->J0 = J0; this->g0 = g0;  this->w = w;
 	this->N = ULLPOW(this->L);
 	this->_BC = _BC;
-
+	
 	//change info
 	#ifdef ANDERSON
 		this->info = "_L=" + std::to_string(this->L) + \
@@ -15,12 +15,12 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 			",w=" + to_string_prec(this->w, 2);
 	#else
 		this->info = "_L=" + std::to_string(this->L) + \
-			",J=" + to_string_prec(this->J, 2) + \
-			",J0=" + to_string_prec(this->J0, 2) + \
-			",g=" + to_string_prec(this->g, 2) + \
-			",g0=" + to_string_prec(this->g0, 2) + \
-			",h=" + to_string_prec(this->h, 2) + \
-			",w=" + to_string_prec(this->w, 2);
+			",J=" + to_string_prec(this->J) + \
+			",J0=" + to_string_prec(this->J0) + \
+			",g=" + to_string_prec(this->g) + \
+			",g0=" + to_string_prec(this->g0) + \
+			",h=" + to_string_prec(this->h) + \
+			",w=" + to_string_prec(this->w);
 	#endif
 	this->set_neighbors();
 	#ifndef HEISENBERG
