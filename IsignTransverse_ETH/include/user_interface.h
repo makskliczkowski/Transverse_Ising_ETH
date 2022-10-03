@@ -215,6 +215,7 @@ namespace isingUI
 		void compare_energies();
 		void compare_matrix_elements(op_type op, int k_alfa, int k_beta, int p_alfa = 1, int p_beta = 1, int x_alfa = 1, int x_beta = 1);
 		void compare_entaglement();
+		void check_symmetry_rotation();
 
 		void benchmark();
 		//-------------------------------------------------------------------------- ANDERSON
@@ -278,23 +279,34 @@ namespace isingUI
 
 		//-------------------------------------------------------------------------- GENERAL LAMBDA'S
 		//<! loop over all symmetry sectors
-		template <typename... _types> void loopSymmetrySectors(
-			std::function<void(int,int,int,_types...args)> lambda, //!< callable function
-			double hx,											   //!< longitudal field -- whether spin-flip symmetry is allowed
-			int Lx,												   //!< system size
+		template <
+			typename callable, 
+			typename... _types
+			> 
+			void loopSymmetrySectors(
+			callable& lambda, //!< callable function
 			_types... args										   //!< arguments passed to callable interface lambda
 		) {
-			const int x_max = (hx != 0) ? 0 : 1;
+			const int x_max = (this->h != 0) ? 0 : 1;
 		#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
-			for (int k = 0; k < Lx; k++) {
-				if (k == 0 || k == Lx / 2.) {
-					for (int p = 0; p <= 1; p++)
-						for (int x = 0; x <= x_max; x++)
-							lambda(k, p, x, std::forward<_types>(args)...);
+			for (int k = 0; k < this->L; k++) {
+				if (k == 0 || k == this->L / 2.) {
+					for (int p = 0; p <= 1; p++){
+						for (int x = 0; x <= x_max; x++){
+							auto dummy_lambda = [&lambda](int k, int p, int x, auto... args){
+								lambda(k, p, x, args...);
+							};
+							dummy_lambda(k, p, x, args...);
+						}
+					}
 				}
 				else {
-					for (int x = 0; x <= x_max; x++)
-						lambda(k, 0, x, std::forward<_types>(args)...);
+					for (int x = 0; x <= x_max; x++){
+							auto dummy_lambda = [&lambda](int k, int p, int x, auto... args){
+								lambda(k, p, x, args...);
+							};
+							dummy_lambda(k, 0, x, args...);
+					}
 				}
 			}
 		}

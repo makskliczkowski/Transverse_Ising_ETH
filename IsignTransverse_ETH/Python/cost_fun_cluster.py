@@ -12,7 +12,7 @@ import sys
 import os
 import utils.helper_functions as hfun
 import config as cf
-import thouless_times as thouless
+import modules.thouless_times as thouless
 import costfun.costfun as cost
 
 if __name__ == '__main__':
@@ -37,8 +37,9 @@ if __name__ == '__main__':
             stats = pd.read_table(filename, sep="\t", header=None)
             xarray.append(np.array(list(stats[0])[1:]).astype(float))
 
-            norm = x * np.log(2) / 2.
-            entropy.append((np.array(list(stats[4])[1:]).astype(float) + 0.5 - (0.5 - np.log(2.))/2. ) / norm)
+            S = np.array(list(stats[4])[1:]).astype(float)
+            norm = x * np.log(2) / 2. + (0.5 - np.log(2)) / 2. - 0.5
+            entropy.append(S / norm)
 
     #--- reset defaults
     cf.params_arr = param_copy
@@ -50,11 +51,12 @@ if __name__ == '__main__':
         os.mkdir(dir)
     except OSError as error:
         print(error)   
-    def calculate_and_save(scaling_ansatz):
-        suffix = hfun.remove_info(hfun.info_param(cf.params_arr), settings['scaling'], settings['vs']) + "_critfun=free_ansatz=%s_pert=%s_seed=%d"%(scaling_ansatz, settings['vs'], seed)
+    def calculate_and_save(scaling_ansatz, crit_fun = 'free'):
+        suffix = hfun.remove_info(hfun.info_param(cf.params_arr), settings['scaling'], settings['vs']) \
+                     + "_critfun=%s_ansatz=%s_pert=%s_seed=%d"%(crit_fun, scaling_ansatz, settings['vs'], seed)
 
         #-- calculate gap ratio collapse
-        par, crit_pars, costfun, status = cost.get_crit_points(x=xvals, y=gap_ratio, vals=vals, scaling_ansatz=scaling_ansatz, seed=seed)
+        par, crit_pars, costfun, status = cost.get_crit_points(x=xvals, y=gap_ratio, vals=vals, crit_fun=crit_fun, scaling_ansatz=scaling_ansatz, seed=seed)
         print("Gap Ratio:\t", par, crit_pars, costfun, status)
         if status:
             filename = dir + os.sep + "GapRatio" + suffix
@@ -67,7 +69,7 @@ if __name__ == '__main__':
             np.savez(filename, **data)
 
         #-- calculate entropy collapse
-        par, crit_pars, costfun, status = cost.get_crit_points(x=np.array(xarray), y=np.array(entropy), vals=vals, scaling_ansatz=scaling_ansatz, seed=seed)
+        par, crit_pars, costfun, status = cost.get_crit_points(x=np.array(xarray), y=np.array(entropy), vals=vals, crit_fun=crit_fun, scaling_ansatz=scaling_ansatz, seed=seed)
         print("Entropy:\t", par, crit_pars, costfun, status)
         if status:
             filename = dir + os.sep + "Entropy" + suffix

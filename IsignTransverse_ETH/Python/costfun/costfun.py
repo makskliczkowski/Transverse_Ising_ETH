@@ -152,7 +152,7 @@ def cost_func_minization(x, y, sizes, bnds,
                     args=(x, y, sizes, scale_func, crit_func),
                     popsize=int(population_size), 
                     maxiter=int(maxiterarions), 
-                    workers=workers, atol=1e-2,
+                    workers=workers, atol=1e-3,
                     seed=seed
             )
     optimal_res = np.array(result.x)
@@ -176,31 +176,75 @@ def cost_func_minization(x, y, sizes, bnds,
     return optimal_res / float(realisations), cost_fun / float(realisations), result.success
 
 
-def get_crit_points(x, y, vals, scaling_ansatz = None, seed = None):
+def prepare_bounds(x, crit_fun, vals):
+    """
+    Generate bounds for optimization procedure
+    
+    For details about signature of critical functions see critical_fun.py to see
+    what the boudns correspond to
+
+    Parameters:
+    ------------
+        x: 2D array 
+            values of parameters (e.g. disorder) 
+            at different system sizes
+
+        crit_fun:   'string'
+            function of critical value, one among critical_func.py
+
+        vals:   1D array
+            scaling parameters: system sizes
+    """
+    x_max = -1e6
+    for a in x: 
+        for _x_ in a: 
+            if x_max is None or _x_ > x_max: x_max = _x_
+
+    bounds = [(0., 10.)]        # -- critical exponent
+
+    #-- number of bounds is number of different scaling parameters
+    if crit_fun == 'free':  
+        for i in range(len(vals)):  
+            bounds.append((0, x_max))
+    elif crit_fun == 'free_inv':  
+        for i in range(len(vals)):  
+            bounds.append((1. / x_max, 1e3))
+    #-- constant value, only one new bounds
+    elif crit_fun == 'const':   
+        bounds.append((0, x_max))
+    #-- power law and inverse function have 3 paramters
+    elif crit_fun == 'power_law' or crit_fun == 'inv':   
+        for i in range(3):
+            bounds.append((-10., 10.))
+    #-- logarithmic and its inverse function have 2 paramters
+    elif crit_fun == 'log' or crit_fun == 'inv_log' or crit_fun == 'lin':   
+        for i in range(2):
+            bounds.append((-10., 10.))
+    return bounds
+
+
+def get_crit_points(x, y, vals, crit_fun='free', scaling_ansatz = 'classic', seed = None):
     """
     Calculating critical points for each system size
 
     Parameters:
     -----------
-        x, y:   1D array
-            x and y data for collapse
+        x, y:   2D array
+            x and y data for collapse with different vals (sizes) values
         
         vals:   1D array
             scaling parameters: system sizes
         
+        crit_fun:   'string'
+            function of critical value, one among critical_func.py
+
         scaling_ansatz:   'string'
             scaling ansatz for collapse, classic, KT, FGR,...
     """
-    if scaling_ansatz is None: scaling_ansatz='classic'
-
-    crit_fun='free'
+    
     params = []
-    x_max=None
-    for a in x: 
-        for _x_ in a: 
-            if x_max is None or _x_ > x_max: x_max = _x_
+    bounds = prepare_bounds(x, crit_fun, vals)
 
-    bounds = [(0, x_max) for i in range(len(vals) + 1)]
     params, cost_fun, status = cost_func_minization(x=x, y=y, sizes=vals,
                                     scale_func=scaling_ansatz, 
                                     crit_func=crit_fun,

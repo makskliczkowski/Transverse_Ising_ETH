@@ -43,6 +43,7 @@ namespace lanczos {
 		auto get_eigenvalues() 				const { return this->eigenvalues; }
 		auto get_eigenstate(int _id = 0) 	const { return conv_to_hilbert_space(_id); }
 		auto get_krylov()					const { return this->krylov_space; }
+		auto get_lanczos_matrix()			const { return this->H_lanczos; }
 		//friend _returnTy FTLM(Lanczos&);
 		//------------------------------------------------------------------------------------------------ CONSTRUCTOS
 		~Lanczos() = default;
