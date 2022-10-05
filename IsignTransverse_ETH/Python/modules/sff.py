@@ -56,7 +56,8 @@ def load(settings = None, parameter = None):
 
     dir = cf.base_directory + "SpectralFormFactor" + kPSep + ("smoothed" + kPSep if settings['smoothed'] else "")
     filename = dir + hfun.info_param(cf.params_arr)
-    
+    info = hfun.info_param(cf.params_arr)
+    print(info, hfun.get_params_from_info(info))
     #--- reset defaults
     cf.params_arr = param_copy
 

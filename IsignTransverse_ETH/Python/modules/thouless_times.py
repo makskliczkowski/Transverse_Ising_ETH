@@ -44,7 +44,7 @@ def get_tau_data_from_all_file(tau_data, settings) :
             if(compare_params(tau_data, i, settings)):
                 par = vs_column[i]
                 if settings['vs_idx'] != 4 or par <= 1.0:
-                    taus[f"%.5f"%(par)] = (tau_data[5][i] * (tau_data[6][i] if settings['physical_units'] else 1.0), tau_data[7][i])
+                    taus[f"%.5f"%(par)] = (tau_data[5][i] * (tau_data[9][i] / np.sqrt(tau_data[0][i]) if settings['physical_units'] else 1.0), tau_data[7][i])
         x_float = [];   tau = [];   gap = []
         if taus:
             lists = sorted(taus.items())
@@ -120,13 +120,13 @@ def load(settings = None, vals = None) :
 
 
 def replot_taus(axis, vals, xvals, tau, gap_ratio, settings = None,
-                linewidth=0, fontsize=14):
+                linewidth=0, fontsize=14, use_grid=False):
     #--- plot first panel with thouless times
     ec = []
     y_min = 1.0e10;     y_max = -1.0e10;
     x_min = 1.0e10;     x_max = -1.0e10;
-    
-    num_of_plots = len(tau)
+    print(vals)
+    num_of_plots = len(vals)
     for i in range(0, num_of_plots):
         yvals = cf.plot_settings.rescale(tau[i], 'y')
         xx = cf.plot_settings.rescale(xvals[i] , 'x')
@@ -148,20 +148,20 @@ def replot_taus(axis, vals, xvals, tau, gap_ratio, settings = None,
             fc.append( p[0].get_color() if abs(r-0.53) <= 0.02 else 'none' )
         for j in range(0, len(tau[i])) :
             if linewidth == 0 and j == 0:   
-                axis.scatter(xx[j], yvals[j], edgecolors=ec[i], marker=m[j], s=50, facecolor=fc[j], label=hfun.key_title(vals[i], settings))
-            else: axis.scatter(xx[j], yvals[j], edgecolors=ec[i], marker=m[j], s=50, facecolor=fc[j])
+                axis.scatter(xx[j], yvals[j], edgecolors=ec[i], marker=m[j], s=30, facecolor=fc[j], label=hfun.key_title(vals[i], settings))
+            else: axis.scatter(xx[j], yvals[j], edgecolors=ec[i], marker=m[j], s=30, facecolor=fc[j])
         
 
     #-- set panel1 details
     yrange = (0.9*y_min, 1.1*y_max)
-    ylab = "\\tau"
+    ylab = "\\tau_{Th}"
     vs_str = settings['vs']
     if settings['vs_idx'] == 2: vs_str = hfun.var_name
 
     xlab = vs_str
     hfun.set_plot_elements(axis = axis, xlim = (x_min - np.sign(x_min) * 0.02*x_min, 1.02*x_max), 
                                 ylim = yrange, ylabel = ylab, xlabel = xlab, settings=settings, font_size=fontsize)
-    axis.grid()
+    if use_grid: axis.grid()
     axis.legend()
 
     return ec               
