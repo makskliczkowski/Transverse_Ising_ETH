@@ -25,7 +25,7 @@ General settings for all plots
 """
 plot_settings_dict = {
     'vs':             'g',          # set parameter on x-axis
-    'scaling':        'L',          # set scaling parameter (changing in legend)
+    'scaling':        'w',          # set scaling parameter (changing in legend)
 
     'x_scale':      'log',       
     'y_scale':      'log',          

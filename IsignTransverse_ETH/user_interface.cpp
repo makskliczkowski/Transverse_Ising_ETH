@@ -12,29 +12,29 @@ void isingUI::ui::make_sim()
 	#endif
 	my_gen = randomGen(this->seed);
 	printAllOptions();
-
 	//auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-	auto alfa = std::make_unique<IsingModel_disorder>(this->L, 1, 0, 1, 0, 0, 0, this->boundary_conditions);
-	auto H = alfa->get_hamiltonian();
-	alfa->diagonalization();
-	std::cout << alfa->get_eigenEnergy(0) << std::endl;
-	u64 idx = 286;// 4. / 3. * (ULLPOW(this->L) - 1);
-	std::ifstream filee;
-	auto data = readFromFile(filee, this->saving_dir + "random_vec.dat");
-	arma::cx_vec random = cast_cx_vec(data[0]);
+	//auto alfa = std::make_unique<IsingModel_disorder>(this->L, 1, 0, 1, 0, 0, 0, this->boundary_conditions);
+	//auto H = alfa->get_hamiltonian();
+	//alfa->diagonalization();
+	//std::cout << alfa->get_eigenEnergy(0) << std::endl;
+	//u64 idx = 286;// 4. / 3. * (ULLPOW(this->L) - 1);
+	//std::ifstream filee;
+	//auto data = readFromFile(filee, this->saving_dir + "random_vec.dat");
+	//arma::cx_vec random = cast_cx_vec(data[0]);
+//
+	//lanczos::Lanczos lancz(H, lanczosParams(this->mu, 1, false, false), random);
+	//lancz.diagonalization();
+	//auto T = lancz.get_lanczos_matrix();
+//
+	//std::cout << lancz.get_eigenvalues()(0) << std::endl;
+	//std::ofstream file;
+	//std::cout << T << std::endl;
+	//file.open(this->saving_dir + "lanczos_matrix.dat");
+	//file << T;
+	//file.close();
+	//return;
 
-	lanczos::Lanczos lancz(H, lanczosParams(this->mu, 1, false, false), random);
-	lancz.diagonalization();
-	auto T = lancz.get_lanczos_matrix();
 
-	std::cout << lancz.get_eigenvalues()(0) << std::endl;
-	std::ofstream file;
-	std::cout << T << std::endl;
-	file.open(this->saving_dir + "lanczos_matrix.dat");
-	file << T;
-	file.close();
-
-	return;
 	clk::time_point start = std::chrono::system_clock::now();
 	auto L_list = this->get_params_array(Ising_params::L);
 	auto J_list = this->get_params_array(Ising_params::J);
@@ -54,12 +54,12 @@ void isingUI::ui::make_sim()
 			var = Ising_params::g;
 	}
 
-	for (auto& wx : w_list){
-		this->w = wx;
-		this->site = this->L / 2;
-		generate_statistic_map(var); 
-		//thouless_times(var);
-	}; return;
+	//for (auto& wx : w_list){
+	//	this->w = wx;
+	//	this->site = this->L / 2;
+	//	generate_statistic_map(var); 
+	//	//thouless_times(var);
+	//}; return;
 
 	switch (this->fun)
 	{
@@ -2040,20 +2040,18 @@ void isingUI::ui::calculate_statistics(){
 	std::string info;
 	std::vector<u64> map;
 	#ifdef HEISENBERG
-		const long num_ent = L >= 14? 500 : (L >= 12? 100 : 20);
+		const long num_ent = L >= 14? 1000 : (L >= 12? 400 : 100);
 	#else
-		const long num_ent = L >= 10? 100 : 20;
+		const long num_ent = L >= 12? 1000 : (L >= 10? 400 : 100);
 	#endif
 	//---- KERNEL LAMBDA
 	auto kernel = [&](auto& alfa, int realis)
 	{
 		const u64 N = alfa.get_hilbert_size();
-		const double omegaH = alfa.mean_level_spacing_analytical();
-		const double rescale = (double)N * omegaH * omegaH / (double)L;
 		this->mu = long(0.5 * N);
 	
 		info = alfa.get_info();
-
+		std::cout << info << std::endl;
 		long int E_min = alfa.E_av_idx - long(mu / 2);
 		long int E_max = alfa.E_av_idx + long(mu / 2);
 		const arma::Mat<decltype(alfa.type_var)> U = alfa.get_eigenvectors();
