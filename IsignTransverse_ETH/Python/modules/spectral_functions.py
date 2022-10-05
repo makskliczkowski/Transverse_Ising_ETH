@@ -3,6 +3,7 @@ import importlib
 import utils.helper_functions as hfun
 import config as cf
 import copy
+import math
 import modules.thouless_times as thouless
 importlib.reload(cf)
 importlib.reload(hfun)
@@ -341,7 +342,7 @@ def get_relax_times(vals = None, set_class = None, operator = -1, site = -2):
             pars, sth = fit(f=lin_fit, 
                                 xdata=xdata2, 
                                 ydata=ydata2)
-            relaxt_time_fit.append(pars[0])
+            relaxt_time_fit.append(pars[0] / np.log10(math.e))
         else:
             relaxt_time_fit.append(np.nan)
 

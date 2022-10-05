@@ -4,17 +4,43 @@ import config as cf
 from matplotlib.markers import MarkerStyle
 import matplotlib.pyplot as plt
 import numpy as np
+from math import ceil
 importlib.reload(cf)
+import re
 
-model = 0   # chooses model: 0-disorder / 1-symmetries
-BC = 1     # boundaary condition: 0 - OBC / 1 - PBC
 user_settings = getattr(cf.plot_settings, 'settings')
 var_name = "\\Delta" if cf.hamiltonian else "g"
 
+def order_of_magnitude(a_value):
+    if np.abs(a_value) < 1.0 and a_value != 0:
+        m = np.abs(np.log10(np.abs(a_value)))
+        return int(max(ceil(m) + 1., 2.))
+    else: 
+        return 2
+
+def findOccurrences(s, ch):
+    """
+    Find all occurences of character ch in string s
+    """
+    return [i for i, letter in enumerate(s) if letter == ch]
 #-------------------------- SET INFO
 def info_sym(L, J, g, h, k, p, x):
-    return "_L=%d,J=%.2f,g=%.2f,h=%.2f,k=%d,p=%d,x=%d.dat"%(L, J, g, h, k, p, x)
+    arr = [J, g, h]
+    names = ['J', 'g', 'h']
+    info = "_L=%d"%L
+    for i, var in enumerate(arr):
+        n = order_of_magnitude(var)
+        info += str(",%s={:.%df}"%(names[i], n)).format(round(var, n))
+    return info + ",k=%d,p=%d,x=%d.dat"%(k,p,x)
+    
 def info_dis(L, J, J0, g, g0, h, w):
+    arr = [J, J0, g, g0, h, w]
+    names = ['J', 'J0', 'g', 'g0', 'h', 'w']
+    info = "_L=%d"%L
+    for i, var in enumerate(arr):
+        n = order_of_magnitude(var)
+        info += str(",%s={:.%df}"%(names[i], n)).format(round(var, n))
+    return info + ".dat"
     return "_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat"%(L, J, J0, g, g0, h, w)
 
 def info(_L = cf.params_arr[0], _J = cf.params_arr[1], _J0 = cf.params_arr[8], 
@@ -22,7 +48,7 @@ def info(_L = cf.params_arr[0], _J = cf.params_arr[1], _J0 = cf.params_arr[8],
             _h = cf.params_arr[3], _w = cf.params_arr[4], 
           _k = cf.params_arr[5], _p = cf.params_arr[6], _x = cf.params_arr[7]
     ):
-    if(model == 1) :
+    if(cf.model == 1) :
         return info_sym(_L, _J, _g, _h, _k, _p, _x)
     else :
         return info_dis(_L, _J, _J0, _g, _g0, _h, _w)
@@ -32,6 +58,38 @@ def info_param(params):
             _h = params[3], _w = params[4], 
           _k = params[5], _p = params[6], _x = params[7]
     )
+
+def get_params_from_info(info):
+    """
+    Exctract parameters from info and suplement rest from params array
+    """
+    found = re.findall(r"[-+]?(?:\d*\.\d+|\d+)", info)
+    found = [int(x) if x.isdigit() else float(x) for x in found]
+    result = list(range(len(cf.params_arr)))
+    
+    if cf.model != 1:
+        found = list(np.delete(found, [3, 6]))
+        initial_found = found
+        
+        J0 = found[2];  g0 = found[4]
+        result[0] = found[0]
+        result[1:4] = found[1:7:2]
+        result[4] = found[6]
+        # symmetries
+        result[5:8] = cf.params_arr[5:8]
+        # rest of disordeer
+        result[8:10] = [J0, g0]
+        if len(initial_found) > 7: result.append(initial_found[-1])
+    else:
+        result[0:4] = found[:4]
+        result[4] = cf.params_arr[4]
+        # symmetries
+        result[5:8] = found[4:7]
+        # rest of disordeer
+        result[8:10] = [cf.params_arr[8], cf.params_arr[9]]
+        if len(initial_found) > 7: result.append(initial_found[-1])
+
+    return result
 
 def remove_info(info_str, *args):
     for x in args:
@@ -135,6 +193,9 @@ def get_scaling_array(settings = None, x0 = 0.1, xend = 1.0, dx = 0.1):
             vals.append(x0 + x * dx)
     return np.array(vals)
 
+
+def regspace(x0, xend, dx):
+    return np.array(range(int(100 * x0), int(100 * xend), int(100 * dx))) / 100.
 
 #--- SPECTRAL FORM FACTOR GOE SHAPE
 def sff_GOE(x : np.array):
