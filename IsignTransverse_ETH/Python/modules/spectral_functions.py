@@ -98,6 +98,7 @@ def load_spectral(dir = "", settings = None, parameter = None,
             wHtyp = (np.array(stats[1][5])).astype(np.float); 
         else:
             wH = 1e-8; wHtyp = 1e-8
+            print("Stats not found, taking 1e-8 cause nan will give error")
         if spec == "time": wH = 1. / wH
         if spec == "time": wHtyp = 1. / wHtyp  
         return True, xdata, ydata, wH, wHtyp

@@ -4,8 +4,11 @@
 #include "digamma.h"
 
 #if defined(MY_MAC)
-	#if !defined(HEISENBERG)
-		#define HEISENBERG
+	#if !defined(XYZ)
+		#define XYZ
+	#endif 
+	#if !defined(HEISENBERG) && !defined(XYZ)
+		//#define HEISENBERG
 	#endif
 	#if !defined(LOCAL_PERT)
 		//#define LOCAL_PERT

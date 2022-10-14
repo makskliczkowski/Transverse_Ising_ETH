@@ -233,6 +233,11 @@ namespace isingUI
 		//<! -s sets the subsystem size, if-s=0 the L/2 is assumed 
 		void entropy_evolution();
 		
+
+		//<! calculate entaglement in eigenstates and saves to file
+		//<! -s sets the subsystem size, if-s=0 the L/2 is assumed 
+		void eigenstate_entropy();
+
 		//<! analyze spectra with unfolding, DOS and level spacing distribution --  all to file
 		void analyze_spectra();
 

@@ -12,6 +12,7 @@ user_settings = getattr(cf.plot_settings, 'settings')
 var_name = "\\Delta" if cf.hamiltonian else "g"
 
 def order_of_magnitude(a_value):
+    #return 2
     if np.abs(a_value) < 1.0 and a_value != 0:
         m = np.abs(np.log10(np.abs(a_value)))
         return int(max(ceil(m) + 1., 2.))
@@ -120,7 +121,8 @@ def key_title(x, settings):
     scaling_str = settings['scaling']
     if settings['scaling_idx'] == 2:
         scaling_str = var_name
-    return r"$" + (scaling_str + (f"=%d"%(x) if settings['scaling_idx'] == 0 or settings['scaling_idx'] == 5 else f"=%.2f"%(x))) + "$"
+    n = order_of_magnitude(x)
+    return r"$" + (scaling_str + (f"=%d"%(x) if settings['scaling_idx'] == 0 or settings['scaling_idx'] == 5 else str("={:.%df}"%(n)).format(round(x, n)))) + "$"
 
 #-------------------------- PLOT FANCY
 #--------- scatter plot with differeent markertypes as list
@@ -184,7 +186,7 @@ def get_scaling_array(settings = None, x0 = 0.1, xend = 1.0, dx = 0.1):
     vals = []
     length = int((xend-x0) / dx) + 1
     if settings['scaling_idx'] == 0:
-        if cf.hamiltonian: vals = range(12, 19, 2)
+        if cf.hamiltonian: vals = range(10, 19, 2)
         else: vals = range(11, 17, 1)
     elif settings['scaling_idx'] == 5:
         vals = range(1, int(cf.params_arr[0] / 2) + 1)
@@ -224,3 +226,21 @@ def add_subplot_axes(ax,rect):
     subax.xaxis.set_tick_params(labelsize=x_labelsize)
     subax.yaxis.set_tick_params(labelsize=y_labelsize)
     return subax
+
+#--- READ WEIRD FILE I SAVED VIA PYTHON
+
+def read_python_saved_dat_file(filename):
+    f = open(filename, "r")
+    data = f.read()
+    indices = findOccurrences(data, "\n")
+    num_of_cols = len(findOccurrences(data[:indices[0]], "\t")) + 2  
+    data = data[indices[0]:]
+    data = data.split('\n')[1:]
+    result = [[] for i in range(num_of_cols)]
+    
+    for line in data[:-1]:
+        line = [int(x) if x.isdigit() else float(x) for x in line.split('\t')[:-1]]
+        for i in range(0, num_of_cols):
+            result[i].append(line[i])
+
+    return np.array(result)

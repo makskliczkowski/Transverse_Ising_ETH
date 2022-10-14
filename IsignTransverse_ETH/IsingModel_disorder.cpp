@@ -132,7 +132,12 @@ void IsingModel_disorder::hamiltonian() {
 		#ifdef HEISENBERG
 			this->hamiltonian_heisenberg();
 		#else
-			this->hamiltonian_Ising();
+			#ifdef XYZ
+				this->H = hamiltonian::XYZ_nnn_OBC(this->L, 1.0, 1.0, this->J, this->J0, this->g, this->g0, this->h, this->w);
+				std::cout << "Using XYZ Hamiltonian if you are wondering!" << std::endl;
+			#else
+				this->hamiltonian_Ising();
+			#endif
 		#endif
 	#endif
 }
