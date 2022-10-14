@@ -34,3 +34,18 @@ def power_law_inv(x, alfa, a):
 def stretch_exp(x, alfa, a):
     """ Ffit function for exponential decay with arbitrary exponent """
     return a * np.exp(x*alfa)
+
+
+def log_fit(x, a, b):
+    """
+    Logarithmic fit function without shift
+    """
+
+    return a + b * np.log(x)
+
+
+def log_fit_inv(size, a, b):
+    """
+    Inversed logarithmic fit function without shift
+    """
+    return a + b / np.log(size)

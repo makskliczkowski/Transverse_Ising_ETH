@@ -4,8 +4,11 @@
 #include "digamma.h"
 
 #if defined(MY_MAC)
-	#if !defined(HEISENBERG)
-		#define HEISENBERG
+	#if !defined(XYZ)
+		#define XYZ
+	#endif 
+	#if !defined(HEISENBERG) && !defined(XYZ)
+		//#define HEISENBERG
 	#endif
 	#if !defined(LOCAL_PERT)
 		//#define LOCAL_PERT
@@ -50,8 +53,8 @@ std::vector<std::string> split_str(std::string s, std::string delimiter);
 template <typename T>
 inline
 int order_of_magnitude(const T a_value) {
-	if(a_value < 1.0 && a_value > 0){
-		T m = std::abs(std::log10(a_value));
+	if(a_value < 1.0 && a_value != 0){
+		T m = std::abs(std::log10(std::abs(a_value)));
 		return int(std::max(std::ceil(m) + 1., 2.));
 	}
 	else return 2;

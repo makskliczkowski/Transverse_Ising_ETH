@@ -2,7 +2,7 @@
 // set externs
 std::uniform_real_distribution<> theta	= std::uniform_real_distribution<>(0.0, pi);
 std::uniform_real_distribution<> fi		= std::uniform_real_distribution<>(0.0, pi);
-int outer_threads = 1;
+int outer_threads = 10;
 int anderson_dim = 3;
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
@@ -92,6 +92,9 @@ void isingUI::ui::make_sim()
 		break;
 	case 9:
 		calculate_statistics();
+		break;
+	case 10:
+		eigenstate_entropy();
 		break;
 	default:
 		for (auto& system_size : L_list){
@@ -1243,7 +1246,54 @@ void isingUI::ui::entropy_evolution(){
 	}
 	
 }
-		
+	
+//<! calculate entaglement in eigenstates and saves to file
+//<! -s sets the subsystem size, if-s=0 the L/2 is assumed 
+void isingUI::ui::eigenstate_entropy(){
+
+	//---- KERNEL LAMBDA
+	std::vector<u64> map;
+	std::string dir = this->saving_dir + "Entropy" + kPSep + "Eigenstate" + kPSep;
+	createDirs(dir);
+	int LA = this->L / 2;
+	auto kernel = [&](auto& alfa)
+	{
+		const u64 N = alfa.get_hilbert_size();
+		alfa.diagonalization();
+	
+		std::string filename = dir + alfa.get_info() + "_subsize=" + std::to_string(LA);
+		const arma::Mat<decltype(alfa.type_var)> U = alfa.get_eigenvectors();
+		const arma::vec E = alfa.get_eigenvalues();
+		arma::vec entropies(N, arma::fill::zeros);
+	#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
+		for(int n = 0; n < N; n++){
+			arma::cx_vec state = alfa.get_state_in_full_Hilbert(n);
+			double S = entropy::vonNeumann(state, LA, this->L);
+			entropies(n) = S;
+		}
+
+		E.save(arma::hdf5_name(filename + ".hdf5", "energies"));
+		entropies.save(arma::hdf5_name(filename + ".hdf5", "entropy",arma::hdf5_opts::append));
+	};
+
+	//---- START COMPUTATION
+	if(this->m){
+		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
+								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+		map = alfa->get_mapping();
+		kernel(*alfa);
+	} else{
+		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+		#ifdef HEISENBERG
+			map = alfa->get_mapping();
+		#elif !defined(ANDERSON)
+			if(this->g == 0 && this->g0 == 0)
+				map = alfa->get_mapping();
+		#endif
+		kernel(*alfa);
+	}
+}
+
 //<! analyze spectra with unfolding, DOS and level spacing distribution --  all to file
 void isingUI::ui::analyze_spectra(){
 
@@ -1259,7 +1309,13 @@ void isingUI::ui::analyze_spectra(){
 	std::string dir_gap 		= this->saving_dir + "LevelSpacing" + kPSep + "distribution" + kPSep;
 	createDirs(dir_DOS, dir_spacing, dir_unfolding, dir_gap);
 
-	size_t N = ULLPOW(this->L);
+	#ifdef HEISENBERG
+		size_t N = binomial(this->L, this->L / 2.);
+	#elif defined ANDERSON
+		size_t N = this->L * this->L * this->L;
+	#else
+		size_t N = ULLPOW(this->L);
+	#endif
 	if(this->m){
 		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
@@ -1305,7 +1361,7 @@ void isingUI::ui::analyze_spectra(){
 			//		printSeparated(file, "\t", 14, true, eigenvalues(k), cdf(k), res1(k), res2(k), res3(k), res4(k));
 			//	file.close();
 			//}
-			arma::vec energies_unfolded = statistics::unfolding(eigenvalues, this->L);
+			arma::vec energies_unfolded = statistics::unfolding(eigenvalues, std::min(20, this->L));
 			//------------------- Get 50% spectrum
 			double E_av = arma::trace(eigenvalues) / double(N);
 			auto i = min_element(begin(eigenvalues), end(eigenvalues), [=](double x, double y) {
@@ -1314,19 +1370,18 @@ void isingUI::ui::analyze_spectra(){
 			u64 E_av_idx = i - eigenvalues.begin();
 			const long E_min = E_av_idx - num / 2.;
 			const long E_max = E_av_idx + num / 2. + 1;
-
-			double epsilon = sqrt(g*g + (h+w)*(h+w));
-			arma::vec energies = this->ch? exctract_vector_between_values(eigenvalues, -0.5 * epsilon, 0.5 * epsilon) : 
+			const long num_small = (N > 1000)? 500 : 100;
+			arma::vec energies = this->ch? exctract_vector(eigenvalues, E_av_idx - num_small / 2., E_av_idx + num_small / 2.) :
 											exctract_vector(eigenvalues, E_min, E_max);
-			arma::vec energies_unfolded_cut = this->ch? statistics::unfolding(energies, this->L) :
+			arma::vec energies_unfolded_cut = this->ch? exctract_vector(energies_unfolded, E_av_idx - num_small / 2., E_av_idx + num_small / 2.) :
 														 exctract_vector(energies_unfolded, E_min, E_max);
 			
 			//------------------- Level Spacings
 			arma::vec level_spacings(energies.size() - 1, arma::fill::zeros);
 			arma::vec level_spacings_unfolded(energies.size() - 1, arma::fill::zeros);
 			for(int i = 0; i < energies.size() - 1; i++){
-				const double delta 			= energies(i+1) 				- energies(i);
-				const double delta_unfolded = energies_unfolded_cut(i+1) 	- energies_unfolded_cut(i);
+				const double delta 			= energies(i+1) 			 - energies(i);
+				const double delta_unfolded = energies_unfolded_cut(i+1) - energies_unfolded_cut(i);
 
 				wH 				 += delta / double(energies.size()-1);
 				wH_typ  		 += log(abs(delta)) / double(energies.size()-1);
@@ -1388,7 +1443,7 @@ void isingUI::ui::analyze_spectra(){
 							 || energies_all.is_zero() || energies_unfolded_all.is_zero()) return;
 
 	wH /= norm;	wH_typ /= norm;	wH_typ_unfolded /= norm;
-	std:string prefix = this->ch ? "oneband" : "";
+	std:string prefix = this->ch ? "_500_states" : "";
 	statistics::probability_distribution(dir_spacing, prefix + info, spacing, -1, exp(wH_typ_unfolded), wH, exp(wH_typ));
 	statistics::probability_distribution(dir_spacing, prefix + "_log" + info, spacing_log, -1, wH_typ_unfolded, wH, wH_typ);
 	statistics::probability_distribution(dir_spacing, prefix + "unfolded" + info, spacing_unfolded, -1, exp(wH_typ_unfolded), wH, exp(wH_typ));
@@ -1400,7 +1455,6 @@ void isingUI::ui::analyze_spectra(){
 	statistics::probability_distribution(dir_gap, info, gap_ratio, -1);
 	statistics::probability_distribution(dir_gap, info, gap_ratio_unfolded, -1);
 }
-
 //--------------------------------------------------------------------- ADIABATIC GAUGE POTENTIAL
 void isingUI::ui::adiabatic_gauge_potential(){
 
@@ -2781,7 +2835,11 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv)
 	#ifdef HEISENBERG
 		std::string folder = saving_dir + "HEISENBERG" + kPSep + str_model;
 	#else
-		std::string folder = saving_dir + "ISING" + kPSep + str_model;
+		#ifdef XYZ
+			std::string folder = saving_dir + "XYZ" + kPSep + str_model;
+		#else
+			std::string folder = saving_dir + "ISING" + kPSep + str_model;
+		#endif
 	#endif
 	#ifdef ANDERSON
 		folder = saving_dir + "ANDERSON" + kPSep + str_model;

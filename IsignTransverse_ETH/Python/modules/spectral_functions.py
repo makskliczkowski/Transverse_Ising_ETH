@@ -3,6 +3,7 @@ import importlib
 import utils.helper_functions as hfun
 import config as cf
 import copy
+import math
 import modules.thouless_times as thouless
 importlib.reload(cf)
 importlib.reload(hfun)
@@ -97,6 +98,7 @@ def load_spectral(dir = "", settings = None, parameter = None,
             wHtyp = (np.array(stats[1][5])).astype(np.float); 
         else:
             wH = 1e-8; wHtyp = 1e-8
+            print("Stats not found, taking 1e-8 cause nan will give error")
         if spec == "time": wH = 1. / wH
         if spec == "time": wHtyp = 1. / wHtyp  
         return True, xdata, ydata, wH, wHtyp
@@ -341,7 +343,7 @@ def get_relax_times(vals = None, set_class = None, operator = -1, site = -2):
             pars, sth = fit(f=lin_fit, 
                                 xdata=xdata2, 
                                 ydata=ydata2)
-            relaxt_time_fit.append(pars[0])
+            relaxt_time_fit.append(pars[0] / np.log10(math.e))
         else:
             relaxt_time_fit.append(np.nan)
 

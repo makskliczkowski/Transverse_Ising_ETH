@@ -24,7 +24,7 @@ x_sym = 1                       # spin-flip symmetry sector (only when h=0)
 General settings for all plots
 """
 plot_settings_dict = {
-    'vs':             'g',          # set parameter on x-axis
+    'vs':             'x',          # set parameter on x-axis
     'scaling':        'w',          # set scaling parameter (changing in legend)
 
     'x_scale':      'log',       
@@ -43,7 +43,7 @@ plot_settings_dict = {
     'nu_x':             -1.0,           # power of inversion
 
 #---- operator options
-    'operator':         0,         # chosen operator according to order set in IsingModel.h
+    'operator':         2,         # chosen operator according to order set in IsingModel.h
     'site':            8,          # chosen site for local operator
     'smoothed':         1,          # choose running-smoothed option
 
