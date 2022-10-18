@@ -29,22 +29,26 @@ if __name__ == '__main__':
     vals = hfun.get_scaling_array(settings=settings)
     entropy = []
     xarray = []
+    gap_ratio = []
     param_copy = copy.deepcopy(cf.params_arr)
     for x in vals:
         cf.params_arr[settings['scaling_idx']] = x
         filename = cf.base_directory + "STATISTICS" + os.sep + hfun.remove_info(hfun.info_param(cf.params_arr), settings['vs']) + ".dat" 
         if os.path.exists(filename):
-            stats = pd.read_table(filename, sep="\t", header=None)
-            xarray.append(np.array(list(stats[0])[1:]).astype(float))
+            #stats = pd.read_table(filename, sep="\t", header=None)
+            stats = hfun.read_python_saved_dat_file(filename)
+            r_tmp = stats[1]
+            indices = np.where(r_tmp < 0.37)
 
-            S = np.array(list(stats[4])[1:]).astype(float)
+            xarray.append(np.delete(stats[0], indices))
+            gap_ratio.append(np.delete(stats[1], indices))
+            
+            S = np.delete(stats[4], indices)
             norm = x * np.log(2) / 2. + (0.5 - np.log(2)) / 2. - 0.5
             entropy.append(S / norm)
 
     #--- reset defaults
     cf.params_arr = param_copy
-
-    vals, xvals, tau, gap_ratio = thouless.load(settings, vals)
 
     dir = "CriticalParameters"
     try:
@@ -56,7 +60,7 @@ if __name__ == '__main__':
                      + "_critfun=%s_ansatz=%s_pert=%s_seed=%d"%(crit_fun, scaling_ansatz, settings['vs'], seed)
 
         #-- calculate gap ratio collapse
-        par, crit_pars, costfun, status = cost.get_crit_points(x=xvals, y=gap_ratio, vals=vals, crit_fun=crit_fun, scaling_ansatz=scaling_ansatz, seed=seed)
+        par, crit_pars, costfun, status = cost.get_crit_points(x=xarray, y=gap_ratio, vals=vals, crit_fun=crit_fun, scaling_ansatz=scaling_ansatz, seed=seed)
         print("Gap Ratio:\t", par, crit_pars, costfun, status)
         if status:
             filename = dir + os.sep + "GapRatio" + suffix
@@ -82,4 +86,4 @@ if __name__ == '__main__':
             np.savez(filename, **data)
 
 
-    calculate_and_save(scaling_ansatz='FGR', crit_fun='free_inv')
+    calculate_and_save(scaling_ansatz='FGR', crit_fun='free')
