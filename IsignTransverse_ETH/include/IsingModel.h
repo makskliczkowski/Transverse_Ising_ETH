@@ -4,6 +4,7 @@
 #include "headers.h"
 #include "lattice.hpp"
 #include "anderson.hpp"
+#include "Hamiltonians.hpp"
 
 /*-------------------- ISING MODEL WITH TRANSVERSE MAGNETIC FIELD ---------------------*
 * The Ising model with perpendicular magnetic field, known as the quantum Ising model *
@@ -31,12 +32,6 @@
 * Special thanks to dr Lev Vidmar at Institute Josef Stefan, with whose support       *
 * the work has been done, while staying in Ljubljana, Slovenia.					 *
 * ---------------------------------------------------------------------------------- */
-
-#ifdef HEISENBERG
-	const double S = 0.5;
-#else
-	const double S = 1.0;
-#endif
 
 template <typename _type>
 class IsingModel {
@@ -255,6 +250,7 @@ public:
 	//--------------------------------------------------------- dummy functions
 	virtual arma::vec get_non_interacting_energies() = 0;
 	virtual arma::cx_vec get_state_in_full_Hilbert(const arma::cx_vec& state) = 0;
+	virtual arma::cx_vec get_state_in_full_Hilbert(u64 state_id) = 0;
 };
 
 inline void normaliseOp(arma::sp_cx_mat& op) {
@@ -379,6 +375,8 @@ public:
 	virtual arma::vec get_non_interacting_energies() override;
 	virtual arma::cx_vec get_state_in_full_Hilbert(const arma::cx_vec& state) override
 		{ return symmetryRotation(state); };
+	virtual arma::cx_vec get_state_in_full_Hilbert(u64 state_id) override
+		{ return symmetryRotation(this->eigenvectors.col(state_id)); };
 };
 //-------------------------------------------------------------------------------------------------------------------------------
 /// <summary>
@@ -466,6 +464,11 @@ public:
 		{ return state; };
 	arma::vec get_state_in_full_Hilbert(const arma::vec& state)
 		{ return state; };
+	virtual arma::cx_vec get_state_in_full_Hilbert(u64 state_id) override
+		{ 
+			arma::vec state = this->eigenvectors.col(state_id);
+			return cast_cx_vec(state); 
+		};
 };
 // ---------------------------------- HELPERS ----------------------------------
 template <typename _type>

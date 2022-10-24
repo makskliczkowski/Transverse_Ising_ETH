@@ -12,6 +12,7 @@ user_settings = getattr(cf.plot_settings, 'settings')
 var_name = "\\Delta" if cf.hamiltonian else "g"
 
 def order_of_magnitude(a_value):
+    #return 2
     if np.abs(a_value) < 1.0 and a_value != 0:
         m = np.abs(np.log10(np.abs(a_value)))
         return int(max(ceil(m) + 1., 2.))
@@ -40,7 +41,7 @@ def info_dis(L, J, J0, g, g0, h, w):
     for i, var in enumerate(arr):
         n = order_of_magnitude(var)
         info += str(",%s={:.%df}"%(names[i], n)).format(round(var, n))
-    return info + ".dat"
+    #return info + ".dat"
     return "_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat"%(L, J, J0, g, g0, h, w)
 
 def info(_L = cf.params_arr[0], _J = cf.params_arr[1], _J0 = cf.params_arr[8], 
@@ -120,7 +121,8 @@ def key_title(x, settings):
     scaling_str = settings['scaling']
     if settings['scaling_idx'] == 2:
         scaling_str = var_name
-    return r"$" + (scaling_str + (f"=%d"%(x) if settings['scaling_idx'] == 0 or settings['scaling_idx'] == 5 else f"=%.2f"%(x))) + "$"
+    n = order_of_magnitude(x)
+    return r"$" + (scaling_str + (f"=%d"%(x) if settings['scaling_idx'] == 0 or settings['scaling_idx'] == 5 else str("={:.%df}"%(n)).format(round(x, n)))) + "$"
 
 #-------------------------- PLOT FANCY
 #--------- scatter plot with differeent markertypes as list
@@ -224,3 +226,42 @@ def add_subplot_axes(ax,rect):
     subax.xaxis.set_tick_params(labelsize=x_labelsize)
     subax.yaxis.set_tick_params(labelsize=y_labelsize)
     return subax
+
+#--- READ WEIRD FILE I SAVED VIA PYTHON
+
+def read_python_saved_dat_file(filename):
+    """
+    Loading statistical data from scaling file (as funciton of paramter) and return 2D-array of them
+    """
+    f = open(filename, "r")
+    data = f.read()
+    indices = findOccurrences(data, "\n")
+    num_of_cols = len(findOccurrences(data[:indices[0]], "\t")) + 2  
+    data = data[indices[0]:]
+    data = data.split('\n')[1:]
+    result = [[] for i in range(num_of_cols)]
+    
+    for line in data[:-1]:
+        line = [int(x) if x.isdigit() else float(x) for x in line.split('\t')[:-1]]
+        for i in range(0, num_of_cols):
+            result[i].append(line[i])
+
+    return np.array(result)
+
+
+def load_stats(filename):
+    """
+    Loading statistical data to dictionairy from raw file
+    """
+    f = open(filename, "r")
+    data = f.read()
+    
+    result = {}
+    endline = findOccurrences(data, "\n")
+    for i in range(len(endline) - 1):
+        line = data[endline[i] : endline[i+1]]
+        index = findOccurrences(line, "\t")
+        x = line[index[0] + 1 :]
+        result[line[2 : index[0]-1]] = int(x) if x.isdigit() else float(x)
+    
+    return result
