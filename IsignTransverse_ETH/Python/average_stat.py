@@ -124,7 +124,7 @@ if __name__ == '__main__':
                     stats[keys] /= float(counter[keys])
                     file_scaling.write("%.12f\t"%stats[keys])
             file_scaling.write("\n")
-
+            
             #--------------------------------------- SAVE DATA AT GIVEN PARAMTER TO RAW DATA
             file = open(dir_in + hfun.info_param(new_pars), "w")
             for keys in stats:

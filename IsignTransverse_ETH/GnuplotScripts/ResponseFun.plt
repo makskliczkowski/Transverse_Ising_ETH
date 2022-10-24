@@ -34,16 +34,16 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 10; 
+L = 16; 
 g = 0.9; 
-h = 0.8;
+h = 0.0;
 J=1.0
 J0 = 0.; g_knot = 0.; 
-w = 0.8;
+w = 0.7;
 
 SigX_or_SigZ = 1	 	# 0-SigX , 1-SigZ :local
 operator_sum = 0		# is the operator a sum
-site = 0				# site at which the operator acts
+site = 8				# site at which the operator acts
 cor = 0					# correlations
 scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or 4-realisations or 5-M scaling or 6-compare
 q_vs_j = 0				# =1 - evolution of Sz_q, else ecol of Sz_j
@@ -87,8 +87,8 @@ if(use_derivative){ a0 = 1e-3}
 nu=2.0
 fun(x, y, i) = scaling==1? x**nu*2**i*y : x**nu*2**L*y
 	
-dir_base='../results/ISING/disorder/PBC/'
-dir = dir_base.(use_derivative? 'IntegratedResponseFunction/DERIVATIVE/' : 'ResponseFunction/DERIVATIVE/')
+dir_base='../results/HEISENBERG/disorder/PBC/'
+dir = dir_base.(use_derivative? 'IntegratedResponseFunction/DERIVATIVE/' : 'ResponseFunction/')
 out_dir = 'Spectral_Function/'
 	#------------------------------------ GRAPHICS
 	set border back

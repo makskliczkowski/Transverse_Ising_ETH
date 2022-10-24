@@ -7,7 +7,7 @@ model = 0           # chooses model: 0-disorder / 1-symmetries / 2-local perturb
 hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
 BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
 
-L = 16                          # system size
+L = 18                          # system size
 J = 1.00                        # spin exchange (Ising-like)
 g = 0.55                       # trasnverse magnetic field (z-axis)
 h = 0.0                        # longitudal magnetic field (x-axis)
@@ -24,8 +24,8 @@ x_sym = 1                       # spin-flip symmetry sector (only when h=0)
 General settings for all plots
 """
 plot_settings_dict = {
-    'vs':             'x',          # set parameter on x-axis
-    'scaling':        'w',          # set scaling parameter (changing in legend)
+    'vs':             'L',          # set parameter on x-axis
+    'scaling':        'g',          # set scaling parameter (changing in legend)
 
     'x_scale':      'log',       
     'y_scale':      'log',          
@@ -73,7 +73,7 @@ elif model == 2:
     model_dir = f"local_pert{kPSep}"
 else:
     model_dir = ""
-base_directory = f"..{kPSep}results{kPSep}" + (f"Heisenberg{kPSep}" if hamiltonian else f"ISING{kPSep}")\
+base_directory = f"..{kPSep}results{kPSep}" + (f"HEISENBERG{kPSep}" if hamiltonian else f"ISING{kPSep}")\
                                              + model_dir \
                                               + (f"PBC{kPSep}" if BC else f"OBC{kPSep}") 
 

@@ -42,9 +42,21 @@ def get_tau_data_from_all_file(tau_data, settings) :
         taus = {}
         for i in range(0, len(vs_column)): 
             if(compare_params(tau_data, i, settings)):
+                local_pars = copy.deepcopy(cf.params_arr)
                 par = vs_column[i]
+                local_pars[settings['vs_idx']] = par
                 if settings['vs_idx'] != 4 or par <= 1.0:
-                    taus[f"%.5f"%(par)] = (tau_data[5][i] * (tau_data[9][i] / np.sqrt(tau_data[0][i]) if settings['physical_units'] else 1.0), tau_data[7][i])
+                    filename = cf.base_directory + "STATISTICS" + kPSep + "raw_data" + kPSep + hfun.info_param(local_pars)
+                    wH = 0; stats = {}
+                    try:
+                        stats = hfun.load_stats(filename)
+                        wH = 1. / stats['mean level spacing']
+                    except FileNotFoundError:
+                        wH = tau_data[9][i] / np.sqrt(tau_data[0][i]) 
+                    if np.isnan(wH):
+                        wH = tau_data[9][i] / np.sqrt(tau_data[0][i]) 
+                    
+                    taus[f"%.5f"%(par)] = (tau_data[5][i] * (wH if settings['physical_units'] else 1.0), tau_data[7][i])
         x_float = [];   tau = [];   gap = []
         if taus:
             lists = sorted(taus.items())
