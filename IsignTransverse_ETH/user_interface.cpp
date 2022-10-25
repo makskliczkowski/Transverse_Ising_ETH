@@ -2,7 +2,7 @@
 // set externs
 std::uniform_real_distribution<> theta	= std::uniform_real_distribution<>(0.0, pi);
 std::uniform_real_distribution<> fi		= std::uniform_real_distribution<>(0.0, pi);
-int outer_threads = 10;
+int outer_threads = 1;
 int anderson_dim = 3;
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
@@ -1256,24 +1256,45 @@ void isingUI::ui::eigenstate_entropy(){
 	std::string dir = this->saving_dir + "Entropy" + kPSep + "Eigenstate" + kPSep;
 	createDirs(dir);
 	int LA = this->L / 2;
-	auto kernel = [&](auto& alfa)
-	{
-		const u64 N = alfa.get_hilbert_size();
-		alfa.diagonalization();
 	
-		std::string filename = dir + alfa.get_info() + "_subsize=" + std::to_string(LA);
+	#ifdef HEISENBERG
+		size_t N = binomial(this->L, this->L / 2.);
+	#elif defined ANDERSON
+		size_t N = this->L * this->L * this->L;
+	#else
+		size_t N = ULLPOW(this->L);
+	#endif
+	arma::vec energies(N, arma::fill::zeros);
+	arma::vec entropies(N, arma::fill::zeros);
+	
+	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
+					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
+	int counter = 0;
+	std::string filename = info + "_subsize=" + std::to_string(LA);
+	auto kernel = [&](auto& alfa, int realis)
+	{
+		realis += this->jobid;
+
+		std::string dir_realis = this->saving_dir + "Entropy" + kPSep + "Eigenstate" + kPSep + "realisation=" + std::to_string(realis) + kPSep;
+		createDirs(dir_realis);
+
 		const arma::Mat<decltype(alfa.type_var)> U = alfa.get_eigenvectors();
 		const arma::vec E = alfa.get_eigenvalues();
-		arma::vec entropies(N, arma::fill::zeros);
+		
+		arma::vec S(N, arma::fill::zeros);
 	#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 		for(int n = 0; n < N; n++){
 			arma::cx_vec state = alfa.get_state_in_full_Hilbert(n);
-			double S = entropy::vonNeumann(state, LA, this->L);
-			entropies(n) = S;
+			double S_tmp = entropy::vonNeumann(state, LA, this->L, map);
+			S(n) = S_tmp;
 		}
-
-		E.save(arma::hdf5_name(filename + ".hdf5", "energies"));
-		entropies.save(arma::hdf5_name(filename + ".hdf5", "entropy",arma::hdf5_opts::append));
+		E.save(arma::hdf5_name(dir_realis + filename + ".hdf5", "energies"));
+		S.save(arma::hdf5_name(dir_realis + filename + ".hdf5", "entropy",arma::hdf5_opts::append));
+		//alfa.get_eigenvectors().save(arma::hdf5_name(filename + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
+		//save_to_file(filename + ".dat", E, entropies);
+		energies += E;
+		entropies += S;
+		counter++;
 	};
 
 	//---- START COMPUTATION
@@ -1281,7 +1302,7 @@ void isingUI::ui::eigenstate_entropy(){
 		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 		map = alfa->get_mapping();
-		kernel(*alfa);
+		average_over_realisations<Ising_params::J>(*alfa, true, kernel);
 	} else{
 		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 		#ifdef HEISENBERG
@@ -1290,8 +1311,13 @@ void isingUI::ui::eigenstate_entropy(){
 			if(this->g == 0 && this->g0 == 0)
 				map = alfa->get_mapping();
 		#endif
-		kernel(*alfa);
+		average_over_realisations<Ising_params::J>(*alfa, true, kernel);
 	}
+	energies /= double(counter);
+	entropies /= double(counter);
+
+	energies.save(arma::hdf5_name(dir + filename + "_jobid=" + std::to_string(this->jobid) + ".hdf5", "energies"));
+	entropies.save(arma::hdf5_name(dir + filename + "_jobid=" + std::to_string(this->jobid) + ".hdf5", "entropy", arma::hdf5_opts::append));
 }
 
 //<! analyze spectra with unfolding, DOS and level spacing distribution --  all to file
@@ -1868,6 +1894,82 @@ void isingUI::ui::average_SFF(){
 //<! find thouless time with various method as function of h,g,J
 void isingUI::ui::thouless_times(Ising_params var)
 {
+	const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
+	auto Jx_list = arma::linspace(this->J, this->J + this->Js * (this->Jn - 1), this->Jn);
+	auto gx_list = arma::linspace(this->g, this->g + this->gs * (this->gn - 1), this->gn);
+	auto hx_list = arma::linspace(this->h, this->h + this->hs * (this->hn - 1), this->hn);
+	auto wx_list = arma::linspace(this->w, this->w + this->ws * (this->wn - 1), this->wn);
+	auto k_list = arma::linspace(0, this->L, this->L);
+	auto _list = this->m? k_list : wx_list;
+	std::cout << _list << std::endl;
+	auto kernel = [this](
+		int Lx, double Jx, double gx, double hx, double x,
+		std::ofstream& map, auto... prints
+		){
+		std::ifstream file;
+		std::string info = this->m? IsingModel_sym::set_info(Lx, Jx ,gx, hx, x, this->symmetries.p_sym, this->symmetries.x_sym) 
+						: IsingModel_disorder::set_info(Lx, Jx, this->J0, gx, this->g0, hx, x);
+		std::string filename = this->saving_dir + "SpectralFormFactor/smoothed" + kPSep + info + ".dat";
+		auto data = readFromFile(file, filename);
+		file.close();
+		if (data.empty()) return;
+		arma::vec times = data[0];
+		arma::vec sff = data[1];
+		double tH = data[2](0);
+		double r1 = 0.0, r2 = 0.0;
+		size_t N = 0;
+		if(data.size() > 4){
+			r1 = data[4](0);
+			r2 = data[5](0);
+		}
+		if(data.size() > 6)
+			N = data[6](0);
+		// find thouless time
+		double eps = 1e-1;
+		auto K_GOE = [](double t){
+			return t < 1? 2 * t - t * log(1+2*t) : 2 - t * log( (2*t+1) / (2*t-1) );
+		};
+		double thouless_time = 0;
+		const double t_max = this->ch? 2.5 : 2.5 * tH;
+		double delta_min = 1e6;
+		for(int i = 0; i < sff.size(); i++){
+			double t = times(i);
+			double delta = abs( log10( sff(i) / K_GOE(t) ));
+			//if(delta < eps){
+			//	thouless_time = t;
+			//	break;
+			//}
+			delta = delta - eps;
+			delta *= delta;
+			if(delta < delta_min){
+				delta_min = delta;
+				thouless_time = times(i); 
+			}
+
+			if(times(i) >= t_max) break;
+		}
+		printSeparated(std::cout, "\t", 12, false, prints...);
+		printSeparated(std::cout, "\t", 12, true, thouless_time, tH);
+		printSeparated(map, "\t", 12, false, prints...);
+		printSeparated(map, "\t", 12, true, thouless_time, tH, r1, r2, N);
+	};
+	std::string dir = this->saving_dir + "ThoulessTime" + kPSep;
+	createDirs(dir);
+	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"h", "g"}) 
+					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, {"h", "g", "L", "J", "w"}, ",");
+	std::ofstream map;
+	openFile(map, dir + "_all" + info + ".dat", ios::out);
+	for (int size = Lmin; size < Lmax; size += this->Ls){
+		for(auto& Jx : Jx_list){
+			for (auto &gx : gx_list){
+				for (auto &hx : hx_list){
+					for(auto& x : _list){	// either disorder w (m=0) or symmetry sector k (m=1)
+						//printSeparated(std::cout, "\t", 16, true, size, Jx, gx, hx, x);
+						kernel(size, Jx, gx, hx, x, map, size, Jx, gx, hx, x);
+		}}}}}
+	map.close();
+
+	return;
 	auto xarr = get_params_array(var); 
 	std::string var_name = get_params_name(var);
 	
@@ -1875,7 +1977,7 @@ void isingUI::ui::thouless_times(Ising_params var)
 	auto K_GOE = [](double t){
 		return t < 1? 2 * t - t * log(1 + 2*t) : 2 - t * log( (2*t + 1) / (2*t - 1) );
 	};
-
+/*
 	std::string dir = this->saving_dir + "ThoulessTime" + kPSep;	createDirs(dir);
 	std::ofstream map;
 	std::string sep = var_name == "L"? "," : "_";
@@ -1925,6 +2027,7 @@ void isingUI::ui::thouless_times(Ising_params var)
 		printSeparated(map, "\t", 12, true, x, thouless_time, tH, r1, r2, N);
 	}
 	map.close();
+	*/
 }
 
 

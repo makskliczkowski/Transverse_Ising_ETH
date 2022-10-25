@@ -28,16 +28,18 @@ namespace hamiltonian{
                 cpx val = 0.0;
                 u64 op_k;
                 std::tie(val, op_k) = operators::sigma_z(k, L, { j });
-                double fieldZ = (j != L - 1)? hz : 0.5 * hz;
+                //double fieldZ = (j != L - 1)? hz : 0.5 * hz;
+                double fieldZ = hz;
 		    	H(op_k, k) += fieldZ * real(val);
 
                 std::tie(val, op_k) = operators::sigma_x(k, L, { j });
-                double fieldX = (j != 0)? hx : 0.5 * hx;
+                //double fieldX = (j != 0)? hx : 0.5 * hx;
+                double fieldX = hx;
 		    	H(op_k, k) += fieldX * real(val);
 
                 for(int a = 0; a < neighbor_distance.size(); a++){
                     int r = neighbor_distance[a];
-		    	    if (j < L - r && j >= r - 1) {
+		    	    if (j < L - r) {
                         for(int b = 0; b < XYZoperators.size(); b++){
                             op_type op = XYZoperators[b];
 			                auto [val1, op_k] = op(k, L, { j });

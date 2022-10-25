@@ -198,7 +198,8 @@ def prepare_bounds(x, crit_fun, vals):
     x_max = -1e6
     for a in x: 
         for _x_ in a: 
-            if x_max is None or _x_ > x_max: x_max = _x_
+            if x_max is None or _x_ > x_max: 
+                x_max = _x_
 
     bounds = [(0., 10.)]        # -- critical exponent
 

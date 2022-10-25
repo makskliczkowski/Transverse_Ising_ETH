@@ -88,7 +88,7 @@ namespace entropy{
     #pragma omp parallel for reduction(+: entropy)
     	for (int i = 0; i < probabilities.size(); i++) {
     		auto value = probabilities(i);
-    		entropy += (abs(value) < 1e-15) ? 0 : -value * log(abs(value));
+    		entropy += (abs(value) > 0) ? -value * log(abs(value)) : 0;
     	}
     	//double entropy = -real(trace(rho * real(logmat(rho))));
     	return entropy;
