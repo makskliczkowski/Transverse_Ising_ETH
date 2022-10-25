@@ -7,7 +7,7 @@ model = 0           # chooses model: 0-disorder / 1-symmetries / 2-local perturb
 hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
 BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
 
-L = 18                          # system size
+L = 16                          # system size
 J = 1.00                        # spin exchange (Ising-like)
 g = 0.55                       # trasnverse magnetic field (z-axis)
 h = 0.0                        # longitudal magnetic field (x-axis)
