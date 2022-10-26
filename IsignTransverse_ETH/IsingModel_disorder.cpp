@@ -6,15 +6,22 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 	this->J0 = J0; this->g0 = g0;  this->w = w;
 	this->N = ULLPOW(this->L);
 	this->_BC = _BC;
-
+	
 	//change info
-	this->info = "_L=" + std::to_string(this->L) + \
-		",J=" + to_string_prec(this->J, 2) + \
-		",J0=" + to_string_prec(this->J0, 2) + \
-		",g=" + to_string_prec(this->g, 2) + \
-		",g0=" + to_string_prec(this->g0, 2) + \
-		",h=" + to_string_prec(this->h, 2) + \
-		",w=" + to_string_prec(this->w, 2);
+	#ifdef ANDERSON
+		this->info = "_L=" + std::to_string(this->L) + \
+			",J=" + to_string_prec(this->J, 2) + \
+			",J0=" + to_string_prec(this->J0, 2) + \
+			",w=" + to_string_prec(this->w, 2);
+	#else
+		this->info = "_L=" + std::to_string(this->L) + \
+			",J=" + to_string_prec(this->J) + \
+			",J0=" + to_string_prec(this->J0) + \
+			",g=" + to_string_prec(this->g) + \
+			",g0=" + to_string_prec(this->g0) + \
+			",h=" + to_string_prec(this->h) + \
+			",w=" + to_string_prec(this->w);
+	#endif
 	this->set_neighbors();
 	#ifndef HEISENBERG
 		if(this->g == 0 && this->g0 == 0)
@@ -57,7 +64,7 @@ u64 IsingModel_disorder::find_in_map(u64 index) const {
 void IsingModel_disorder::generate_mapping() {
 	this->mapping = std::vector<u64>();
 	for (u64 j = 0; j < (ULLPOW(this->L)); j++){
-		if (__builtin_popcountll(j) == this->L / 2.)
+		if (__builtin_popcountll(j) == int(this->L / 2.))
 			this->mapping.push_back(j);
 	}
 	this->N = this->mapping.size();
@@ -91,6 +98,10 @@ void IsingModel_disorder::setHamiltonianElem(u64 k, double value, u64 new_idx) {
 /// Generates the total Hamiltonian of the system. The diagonal part is straightforward,
 /// while the non-diagonal terms need the specialized setHamiltonainElem(...) function
 /// </summary>
+void hamiltonian_qsun(){
+	
+}
+
 void IsingModel_disorder::hamiltonian() {
 	try {
 		this->H = arma::sp_mat(N, N);                                //  hamiltonian memory reservation
@@ -101,16 +112,33 @@ void IsingModel_disorder::hamiltonian() {
 	}
 	#pragma omp critical
 	{
-		this->dh = create_random_vec(L, this->w);                               // creates random disorder vector
-		this->dJ = create_random_vec(L, this->J0);                              // creates random exchange vector
-		this->dg = create_random_vec(L, this->g0);                              // creates random transverse field vector
+		this->dh = arma::vec(this->L, arma::fill::zeros);
+		this->dJ = arma::vec(this->L, arma::fill::zeros);
+		this->dg = arma::vec(this->L, arma::fill::zeros);
+		#if defined(LOCAL_PERT)
+			this->dh(this->L / 2.) = this->w;
+			this->dh(0) = 0.1;
+		#else
+			this->dh = my_gen.create_random_vec<double>(L, this->w);                               // creates random disorder vector
+			this->dJ = my_gen.create_random_vec<double>(L, this->J0);                              // creates random exchange vector
+			this->dg = my_gen.create_random_vec<double>(L, this->g0);                              // creates random transverse field vector
+		#endif
 	}
-	//this->dh.zeros();
-	//dh(1) = 0.165; dh(4) = -0.24;
-	#ifdef HEISENBERG
-		this->hamiltonian_heisenberg();
+	#ifdef ANDERSON
+		auto lattice = std::make_unique<lattice3D>(this->L);
+		this->H = anderson::hamiltonian(*lattice, this->J, this->w);
+		this->N = lattice->volume;
 	#else
-		this->hamiltonian_Ising();
+		#ifdef HEISENBERG
+			this->hamiltonian_heisenberg();
+		#else
+			#ifdef XYZ
+				this->H = hamiltonian::XYZ_nnn_OBC(this->L, 1.0, 1.0, this->J, this->J0, this->g, this->g0, this->h, this->w);
+				std::cout << "Using XYZ Hamiltonian if you are wondering!" << std::endl;
+			#else
+				this->hamiltonian_Ising();
+			#endif
+		#endif
 	#endif
 }
 
@@ -163,6 +191,8 @@ void IsingModel_disorder::hamiltonian_heisenberg(){
 	}
 	//std::cout << std::endl << arma::mat(this->H) << std::endl;
 }
+
+
 // ----------------------------------------------------------------------------- PHYSICAL QUANTITES -----------------------------------------------------------------------------
 
 // ----------------------------------------------------------------------------- CREATE OPERATOR TO CALCULATE MATRIX ELEMENTS -----------------------------------------------------------------------------
@@ -305,6 +335,34 @@ arma::sp_cx_mat IsingModel_disorder::createHq(int k) const {
 }
 arma::sp_cx_mat IsingModel_disorder::createHlocal(int k) const {
 	arma::sp_cx_mat opMatrix(this->N, this->N);
+	#ifdef HEISENBERG
+#pragma omp parallel for
+	for (long int n = 0; n < this->N; n++) {
+		u64 base_state = map(n);
+		cpx __2 = 0.0, __3 = 0.0;
+		u64 new_idx1 = 0, new_idx2 = 0;
+		auto nei = this->nearest_neighbors[k];
+		auto [s_iii, __1] = IsingModel_disorder::sigma_z(base_state, this->L, { k });
+		double s_i = real(s_iii);
+		opMatrix(n, n) += (this->h + this->dh(k)) / 2. * s_i;
+
+		
+		if (nei >= 0) {
+			auto [s_jjj, __4] = IsingModel_disorder::sigma_z(base_state, this->L, { nei });
+			double s_j = real(s_jjj);
+			opMatrix(n, n) += ((this->g + this->g0) * s_i + (this->h + this->dh(nei)) / 2.) * s_j;
+			if(s_i < 0 && s_j > 0){
+				u64 new_idx =  flip(base_state, BinaryPowers[this->L - 1 - nei], this->L - 1 - nei);
+				new_idx =  flip(new_idx, BinaryPowers[this->L - 1 - k], this->L - 1 - k);
+				// 0.5 cause flip 0.5*(S+S- + S-S+)
+				u64 idx = find_in_map(new_idx);
+				opMatrix(idx, n) += 0.5 * (this->J + this->dJ(k));
+				opMatrix(n, idx) += 0.5 * (this->J + this->dJ(k));
+			}
+		}
+	}
+
+	#else
 #pragma omp parallel for
 	for (long int n = 0; n < this->N; n++) {
 		u64 base_state = map(n);
@@ -332,7 +390,8 @@ arma::sp_cx_mat IsingModel_disorder::createHlocal(int k) const {
 			opMatrix(n, n) += (this->J * s_i + this->h / 2.) * s_j;
 		}
 	}
-	return opMatrix / std::sqrt(this->L);
+	#endif
+	return opMatrix;
 }
 
 

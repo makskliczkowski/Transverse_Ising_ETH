@@ -97,6 +97,19 @@ namespace spectrals{
 		//<! get eigenvalues
 		auto get_eigenvalues() const
 			{ return this->eigenvalues; }
+
+
+		//--------------------------- SAVERS
+		auto save_matrix_elements(std::string filename, const arma::cx_mat& mat_elem) const {
+			arma::vec omegas = this->energy_diferences;
+			arma::vec mat_elem_to_save = arma::vec(this->energy_diferences.size(), arma::fill::zeros);
+			for(int i = 0; i < this->energy_diferences.size(); i++){
+				double element = abs(mat_elem(this->idx_alfa[i], this->idx_beta[i]));
+				mat_elem_to_save(i) = element * element;
+			}
+			omegas.save(arma::hdf5_name(filename + ".hdf5", "omegas"));
+			mat_elem_to_save.save(arma::hdf5_name(filename + ".hdf5", "mat_elem",arma::hdf5_opts::append));
+		}
 	};
 
 	//<! calculate response function for input model on self-built 'log' scale 
@@ -165,7 +178,7 @@ namespace spectrals{
 				omega += energy_diff[p];
 			}
 			if(element < 1e-36) continue;
-			reponse_fun << omega / (double)M << "\t\t" << element / double(M) << endl;
+			printSeparated(reponse_fun, "\t", 16, true, omega / (double)M, element / double(M));
 			reponse_fun.flush();
 		}
 		double element = 0;
@@ -178,11 +191,60 @@ namespace spectrals{
 			omega += energy_diff[p];
 			counter++;
 		}
-		reponse_fun << omega / (double)counter << "\t\t" << element / double(counter) << endl;
+		printSeparated(reponse_fun, "\t", 16, true, omega / (double)counter, element / double(counter));
 		reponse_fun.flush();
 		reponse_fun.close();
 	}
 
+	//<! calculate response function for input model on self-built 'log' scale 
+	//<! (fixed number of matrix elementes in omega bucket)
+	inline 
+	void spectralFunction(
+		arma::vec& omegas,			//<! omega values
+	    arma::vec& mat_elem,		//<! input calculated matrix elements for any operator
+	    std::string name,           //<! filename to write data (contains directory)
+		int num_of_points = 3000	//<! total number of points
+	    ){
+
+		std::cout << arma::min(omegas) << "\t" << arma::max(omegas) << std::endl;
+		auto p = sort_permutation(omegas, [](const double a, const double b)
+								   { return a < b; });
+		std::cout << arma::min(omegas) << "\t" << arma::max(omegas) << std::endl;
+		apply_permutation(omegas, p);
+		apply_permutation(mat_elem, p);	
+		
+		long int size = (int)omegas.size();
+		long int M = int(size / double(num_of_points));
+		long int bucket_num = int(size / (double)M);
+		
+		std::ofstream reponse_fun;
+		openFile(reponse_fun, name + ".dat", ios::out);
+		for (int k = 0; k < bucket_num; k++)
+		{
+			double element = 0;
+			double omega = 0;
+			for (long int p = k * M; p < (k + 1) * M; p++)
+			{
+				element += mat_elem[p];
+				omega += omegas[p];
+			}
+			if(element < 1e-32) continue;
+			printSeparated(reponse_fun, "\t", 16, true, omega / (double)M, element / double(M));
+			reponse_fun.flush();
+		}
+		double element = 0;
+		double omega = 0;
+		int counter = 0;
+		for (long int p = bucket_num * M; p < size; p++)
+		{
+			element += abs(mat_elem[p]);
+			omega += omegas[p];
+			counter++;
+		}
+		printSeparated(reponse_fun, "\t", 16, true, omega / (double)counter, element / double(counter));
+		reponse_fun.flush();
+		reponse_fun.close();
+	}
 	// ---------------------------------------------------------------------------------- INTEGRATED RESPONSE FUNCTION
 	//<! calculate integrated respone function and writes to file given by
 	//<!  input 'name' on omega log scale

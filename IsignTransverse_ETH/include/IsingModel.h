@@ -2,6 +2,9 @@
 #ifndef ISINGMODEL
 #define ISINGMODEL
 #include "headers.h"
+#include "lattice.hpp"
+#include "anderson.hpp"
+#include "Hamiltonians.hpp"
 
 /*-------------------- ISING MODEL WITH TRANSVERSE MAGNETIC FIELD ---------------------*
 * The Ising model with perpendicular magnetic field, known as the quantum Ising model *
@@ -30,17 +33,10 @@
 * the work has been done, while staying in Ljubljana, Slovenia.					 *
 * ---------------------------------------------------------------------------------- */
 
-#ifdef HEISENBERG
-	const double S = 0.5;
-#else
-	const double S = 1.0;
-#endif
-
 template <typename _type>
 class IsingModel {
 protected:
 	std::string info;									// information about the model
-	randomGen ran;										// consistent quick random number generator
 
 	arma::SpMat<_type> H;								// the Hamiltonian
 	arma::Mat<_type> eigenvectors;						// matrix of the eigenvectors in increasing order
@@ -90,7 +86,7 @@ public:
 		tmp_str.pop_back();
 		return tmp_str;
 	};
-
+	
 	auto get_hilbert_size()						const { return this->N; }						 // get the Hilbert space size 2^N
 	auto get_mapping()							const { return this->mapping; }					 // constant reference to the mapping
 	auto& get_hamiltonian()						const { return this->H; }						 // get the const reference to a Hamiltonian
@@ -114,13 +110,7 @@ public:
 	virtual void hamiltonian_Ising() = 0;														// pure virtual Ising Hamiltonian creator
 	virtual void hamiltonian_heisenberg() = 0;													// pure virtual heisenberg hamiltonian creator
 	virtual void setHamiltonianElem(u64 k, double value, u64 new_idx) = 0;						// sets the Hamiltonian elements in a virtual way
-	void reset_random(size_t new_seed = seed_global) const {
-		gen = std::mt19937_64(new_seed);
-		//this->ran.reset();
-	}
-	double getRandomValue(const double _min, const double _max) {
-		return this->ran.randomReal_uni(_min, _max);
-	}
+	
 	int properSite(int site) const {
 		if (_BC == 0) {
 			if (site < 0)
@@ -260,6 +250,7 @@ public:
 	//--------------------------------------------------------- dummy functions
 	virtual arma::vec get_non_interacting_energies() = 0;
 	virtual arma::cx_vec get_state_in_full_Hilbert(const arma::cx_vec& state) = 0;
+	virtual arma::cx_vec get_state_in_full_Hilbert(u64 state_id) = 0;
 };
 
 inline void normaliseOp(arma::sp_cx_mat& op) {
@@ -314,7 +305,7 @@ private:
 	static auto generate_full_map(int system_size, bool use_Sz_sym = 0){	
 		std::vector<u64> full_map;
 		for (u64 j = 0; j < (ULLPOW(system_size)); j++){
-			if (__builtin_popcountll(j) == system_size / 2.)
+			if (!use_Sz_sym || (__builtin_popcountll(j) == int(system_size / 2.)))
 				full_map.push_back(j);
 		}
 		return full_map;
@@ -344,9 +335,9 @@ public:
 	
 	static std::string set_info(int L, double J, double g, double h, int k_sym, bool p_sym, bool x_sym, std::vector<std::string> skip = {}, std::string sep = "_") {
 		std::string name = sep + "L=" + std::to_string(L) + \
-			",J=" + to_string_prec(J, 2) + \
-			",g=" + to_string_prec(g, 2) + \
-			",h=" + to_string_prec(h, 2) + \
+			",J=" + to_string_prec(J) + \
+			",g=" + to_string_prec(g) + \
+			",h=" + to_string_prec(h) + \
 			",k=" + std::to_string(k_sym) + \
 			",p=" + std::to_string((p_sym) ? 1 : -1) + \
 			",x=" + std::to_string(x_sym ? 1 : -1);
@@ -365,9 +356,9 @@ public:
 		tmp_str.pop_back();
 		return tmp_str;
 	}
-
+	
 	arma::sp_cx_mat symmetryRotation() const;
-	arma::cx_vec symmetryRotation(const arma::cx_vec& state, const std::vector<u64>& full_map = std::vector<u64>()) const;
+	arma::cx_vec symmetryRotation(const arma::cx_vec& state, std::vector<u64> full_map = std::vector<u64>()) const;
 
 	//friend sp_cx_mat create_operatorDistinctSectors()
 	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, arma::cx_vec prefactors = arma::cx_vec()) const override;													
@@ -384,6 +375,8 @@ public:
 	virtual arma::vec get_non_interacting_energies() override;
 	virtual arma::cx_vec get_state_in_full_Hilbert(const arma::cx_vec& state) override
 		{ return symmetryRotation(state); };
+	virtual arma::cx_vec get_state_in_full_Hilbert(u64 state_id) override
+		{ return symmetryRotation(this->eigenvectors.col(state_id)); };
 };
 //-------------------------------------------------------------------------------------------------------------------------------
 /// <summary>
@@ -435,13 +428,20 @@ public:
 	cpx av_operator(u64 alfa, u64 beta, op_type op, int corr_len);
 
 	static std::string set_info(int L, double J, double J0, double g, double g0, double h, double w, std::vector<std::string> skip = {}, std::string sep = "_") {
-		std::string name = sep + "L=" + std::to_string(L) + \
-			",J=" + to_string_prec(J, 2) + \
-			",J0=" + to_string_prec(J0, 2) + \
-			",g=" + to_string_prec(g, 2) + \
-			",g0=" + to_string_prec(g0, 2) + \
-			",h=" + to_string_prec(h, 2) + \
-			",w=" + to_string_prec(w, 2);
+		#ifdef ANDERSON
+			std::string name = sep + "L=" + std::to_string(L) + \
+				",J=" + to_string_prec(J, 2) + \
+				",J0=" + to_string_prec(J0, 2) + \
+				",w=" + to_string_prec(w, 2);
+		#else
+			std::string name = sep + "L=" + std::to_string(L) + \
+				",J=" + to_string_prec(J) + \
+				",J0=" + to_string_prec(J0) + \
+				",g=" + to_string_prec(g) + \
+				",g0=" + to_string_prec(g0) + \
+				",h=" + to_string_prec(h) + \
+				",w=" + to_string_prec(w);
+		#endif
 		auto tmp = split_str(name, ",");
 		std::string tmp_str = "";
 		for (int i = 0; i < tmp.size(); i++) {
@@ -464,6 +464,11 @@ public:
 		{ return state; };
 	arma::vec get_state_in_full_Hilbert(const arma::vec& state)
 		{ return state; };
+	virtual arma::cx_vec get_state_in_full_Hilbert(u64 state_id) override
+		{ 
+			arma::vec state = this->eigenvectors.col(state_id);
+			return cast_cx_vec(state); 
+		};
 };
 // ---------------------------------- HELPERS ----------------------------------
 template <typename _type>

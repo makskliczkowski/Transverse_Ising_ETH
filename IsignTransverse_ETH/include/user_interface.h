@@ -10,7 +10,7 @@
 #include "entaglement.hpp"
 #include "adiabatic_gauges.hpp"
 #include "ThomasAlgorithm.hpp"
-#include "anderson.hpp"
+
 
 const arma::vec down = { 0, 1 };
 const arma::vec up	 = { 1, 0 };
@@ -105,7 +105,8 @@ namespace isingUI
 		{"ts", "0.1"},					// time step for 
 		{"scale", "0"},					// scale: linear-0 or log-1
 		{"seed", "87178291199L"},		// seed foir random generator
-		{"jobid", "0"}					// unique job id
+		{"jobid", "0"},					// unique job id
+		{"dim", "1"}					// dimensionality of anderson model
 	};
 
 	// ----------------------------------- UI CLASS SPECIALISATION -----------------------------------
@@ -129,7 +130,7 @@ namespace isingUI
 		int fun;											// choose function to start calculations
 		double dt;											// time step for evolution
 		int scale;											// choose scale: either linear or log
-
+		int dim;											// dimension of lattice (mostly for anderson model)
 		struct {
 			int k_sym;										// translational symmetry generator
 			int p_sym;										// parity symmetry generator
@@ -164,6 +165,9 @@ namespace isingUI
 				case Ising_params::g0 : name = "g0"; 	break;
 				case Ising_params::h : 	name = "h"; 	break;
 				case Ising_params::w : 	name = "w"; 	break;
+				case Ising_params::k : 	name = "k"; 	break;
+				case Ising_params::p : 	name = "p"; 	break;
+				case Ising_params::x : 	name = "x"; 	break;
 				default:
 					std::cout << "No option found, choosing g_array" << std::endl;
 					name = "";
@@ -171,6 +175,30 @@ namespace isingUI
 			return name;
 		}
 		
+		auto update_info(std::string old_info, const std::string& var, double new_value){
+			old_info.erase(0,1);
+			auto split_array = split_str(old_info, ",");
+			std::string new_info = "_";
+			for(auto& substr : split_array){
+				auto str_tmp = split_str(substr, "=");
+				if(str_tmp[0] == var){
+					// found position of parameter with name var
+					if(str_tmp[1].find(".") != std::string::npos) str_tmp[1] = to_string_prec(new_value, 2);	// print double value
+					else str_tmp[1] = std::to_string(int(new_value));											// print int value
+				}
+				// reconstruct the info
+				new_info += str_tmp[0] + "=" + str_tmp[1];
+				if(&substr != &split_array.back()) new_info += ",";
+			}
+			return new_info;
+		};
+
+
+		//<! generate info by input parameters and model
+		std::string generate_baseinfo(std::vector<std::string> skip = {}, std::string sep = "_"){
+			if(this->m) return IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, skip, sep);
+			else 		return IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, skip, sep);
+		}
 		//-------------------------------------------------------------------------- GENERAL ROUTINES
 
 		void diagonalize();
@@ -187,9 +215,12 @@ namespace isingUI
 		void compare_energies();
 		void compare_matrix_elements(op_type op, int k_alfa, int k_beta, int p_alfa = 1, int p_beta = 1, int x_alfa = 1, int x_beta = 1);
 		void compare_entaglement();
+		void check_symmetry_rotation();
 
 		void benchmark();
-		
+		//-------------------------------------------------------------------------- ANDERSON
+		void calculate_localisation_length();
+
 		//-------------------------------------------------------------------------- SPECTRAL PROPERTIES AND HELPERS
 		//<! calculate all spectral quantities: time evolution, response function,
 		//<! integrated spectral function and spectral form factor with folded eigenvalues
@@ -202,12 +233,11 @@ namespace isingUI
 		//<! -s sets the subsystem size, if-s=0 the L/2 is assumed 
 		void entropy_evolution();
 		
-		//<! loop over all parameters (L, site, g, h) for given disorder
-		//<! or symmetry sector and find relaxation times as I(w)=1/2 (the later from integrated time evolution)
-		void relaxationTimesFromFiles();
-		void intSpecFun_from_timeEvol();
-	
-		
+
+		//<! calculate entaglement in eigenstates and saves to file
+		//<! -s sets the subsystem size, if-s=0 the L/2 is assumed 
+		void eigenstate_entropy();
+
 		//<! analyze spectra with unfolding, DOS and level spacing distribution --  all to file
 		void analyze_spectra();
 
@@ -219,6 +249,7 @@ namespace isingUI
 		//-------------------------------------------------------------------------- STATISTICS
 		//<! calculate all statistics for given input parameters -- averaged
 		void calculate_statistics();
+		void generate_statistic_map(Ising_params varname);
 		void generate_statistic_map(Ising_params varname1, Ising_params varname2);
 
 		//<! gap ratio map
@@ -228,7 +259,7 @@ namespace isingUI
 		void spectral_form_factor();
 		
 		//<! find thouless time with various method as function of h,g,J
-		void thouless_times();
+		void thouless_times(Ising_params varname);
 
 		void smoothen_data(const std::string& dir, const std::string& name, int mu = -1);
 
@@ -253,23 +284,34 @@ namespace isingUI
 
 		//-------------------------------------------------------------------------- GENERAL LAMBDA'S
 		//<! loop over all symmetry sectors
-		template <typename... _types> void loopSymmetrySectors(
-			std::function<void(int,int,int,_types...args)> lambda, //!< callable function
-			double hx,											   //!< longitudal field -- whether spin-flip symmetry is allowed
-			int Lx,												   //!< system size
+		template <
+			typename callable, 
+			typename... _types
+			> 
+			void loopSymmetrySectors(
+			callable& lambda, //!< callable function
 			_types... args										   //!< arguments passed to callable interface lambda
 		) {
-			const int x_max = (hx != 0) ? 0 : 1;
+			const int x_max = (this->h != 0) ? 0 : 1;
 		#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
-			for (int k = 0; k < Lx; k++) {
-				if (k == 0 || k == Lx / 2.) {
-					for (int p = 0; p <= 1; p++)
-						for (int x = 0; x <= x_max; x++)
-							lambda(k, p, x, std::forward<_types>(args)...);
+			for (int k = 0; k < this->L; k++) {
+				if (k == 0 || k == this->L / 2.) {
+					for (int p = 0; p <= 1; p++){
+						for (int x = 0; x <= x_max; x++){
+							auto dummy_lambda = [&lambda](int k, int p, int x, auto... args){
+								lambda(k, p, x, args...);
+							};
+							dummy_lambda(k, p, x, args...);
+						}
+					}
 				}
 				else {
-					for (int x = 0; x <= x_max; x++)
-						lambda(k, 0, x, std::forward<_types>(args)...);
+					for (int x = 0; x <= x_max; x++){
+							auto dummy_lambda = [&lambda](int k, int p, int x, auto... args){
+								lambda(k, p, x, args...);
+							};
+							dummy_lambda(k, 0, x, args...);
+					}
 				}
 			}
 		}
@@ -296,7 +338,7 @@ namespace isingUI
 				default:				  x = 0.0;		break;
 				}
 			if(this->m){
-				arma::vec _vec = x + create_random_vec(this->realisations, x / 50.);
+				arma::vec _vec = x + my_gen.create_random_vec<double>(this->realisations, x / 50.);
 				stout << _vec << std::endl;
 				for(int r = 0; r < _vec.size(); r++){
 					if(this->realisations > 1){
@@ -314,10 +356,7 @@ namespace isingUI
 						model.hamiltonian();
 						model.diagonalization();
 					}
-					auto dummy_lambda = [&lambda](IsingModel<_ty>& modello, int real, auto... args){
-						lambda(modello, real, args...);
-					};
-					dummy_lambda(model, r, args...);
+					lambda(model, r, args...);
 				}
 			} else {
 				for (int r = 0; r < this->realisations; r++) {
@@ -325,10 +364,7 @@ namespace isingUI
 						model.hamiltonian();
 						model.diagonalization();
 					}
-					auto dummy_lambda = [&lambda](IsingModel<_ty>& modello, int real, auto... args){
-						lambda(modello, real, args...);
-					};
-					dummy_lambda(model, r, args...);
+					lambda(model, r, args...);
 				}
 			}
 		};
@@ -339,7 +375,7 @@ namespace isingUI
 			typename... _types	//<! argument-types passed to lambda
 		 > 
 		void average_over_realisations(
-			bool with_diagonalization,	//!< checked if each realisation should diagonalize a new matrix
+			bool some_switch_I_add_later_cause_fak_compiler,
 			callable& lambda, 			//!< callable function
 			_types... args				//!< arguments passed to callable interface lambda
 		) {
@@ -352,7 +388,7 @@ namespace isingUI
 				default:				  x = 0.0;		break;
 				}
 			if(this->m){
-				arma::vec _vec = x + create_random_vec(this->realisations, x / 50.);
+				arma::vec _vec = x + my_gen.create_random_vec<double>(this->realisations, x / 50.);
 				stout << _vec << std::endl;
 			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 				for(int r = 0; r < _vec.size(); r++){

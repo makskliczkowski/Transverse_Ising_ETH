@@ -7,15 +7,15 @@ IsingModel_sym::IsingModel_sym(int L, double J, double g, double h, int k_sym, b
 	symmetries.p_sym = (p_sym) ? 1 : -1;
 	symmetries.x_sym = (x_sym) ? 1 : -1;
 	this->info = "_L=" + std::to_string(this->L) + \
-		",J=" + to_string_prec(this->J, 2) + \
-		",g=" + to_string_prec(this->g, 2) + \
-		",h=" + to_string_prec(this->h, 2) + \
+		",J=" + to_string_prec(this->J) + \
+		",g=" + to_string_prec(this->g) + \
+		",h=" + to_string_prec(this->h) + \
 		",k=" + std::to_string(k_sym) + \
 		",p=" + std::to_string(symmetries.p_sym) + \
 		",x=" + std::to_string(symmetries.x_sym);
 	if(k_sym == -1)
 		k_sym = this->L / 2;
-	symmetries.k_sym = (k_sym+0.5) * two_pi / double(this->L);
+	symmetries.k_sym = k_sym * two_pi / double(this->L);
 
 	k_sector = abs(this->symmetries.k_sym) < 1e-4 || abs(this->symmetries.k_sym - pi) < 1e-4;
 	// precalculate the exponents
@@ -63,6 +63,7 @@ void IsingModel_sym::createSymmetryGroup() {
 		T = multiply_operators(rotate_left, T);
 	}
 }
+
 
 /// <summary>
 /// Takes the state from the index in mapping
@@ -334,20 +335,25 @@ void IsingModel_sym::set_OperatorElem(std::vector<op_type> operators, cpx prefac
 }
 
 arma::sp_cx_mat IsingModel_sym::symmetryRotation() const {
-	#ifdef HEISENBERG
-		auto full_map = IsingModel_sym::generate_full_map(this->L, true);
+	std::vector<u64> full_map;
+	bool use_Sz_sym = this->g == 0;
+	#ifdef HEISENBERG	
+		full_map = IsingModel_sym::generate_full_map(this->L, true);
+		use_Sz_sym = true;
 	#else
-		auto full_map = IsingModel_sym::generate_full_map(this->L, this->g == 0);
+		if(use_Sz_sym)
+			full_map = IsingModel_sym::generate_full_map(this->L, use_Sz_sym);
 	#endif
-	u64 dim_tot = full_map.size();
-	arma::sp_cx_mat U(dim_tot, this->N);
 
 	u64 max_dim = ULLPOW(this->L);
+	u64 dim_tot = use_Sz_sym? full_map.size() : max_dim; 
+	arma::sp_cx_mat U(dim_tot, this->N);
+
 	auto find_index = [&](u64 index){
 		#ifdef HEISENBERG
 			return binary_search(full_map, 0, dim_tot - 1, index);
 		#else
-			return (dim_tot < max_dim)? binary_search(full_map, 0, dim_tot - 1, index) : index;
+			return use_Sz_sym? binary_search(full_map, 0, dim_tot - 1, index) : index;
 		#endif
 	};
 
@@ -357,29 +363,43 @@ arma::sp_cx_mat IsingModel_sym::symmetryRotation() const {
 			auto new_idx = this->symmetry_group[i](this->mapping[k], this->L);
 			u64 idx = find_index(new_idx);
 			if(idx < dim_tot) // only if exists in sector
-				U(idx, k) += this->symmetry_eigVal[i] / (this->normalisation[k] * sqrt(this->symmetry_group.size()));
+				U(idx, k) += conj(this->symmetry_eigVal[i] / (this->normalisation[k] * sqrt(this->symmetry_group.size())));
+			// CONJUNGATE YOU MORON CAUSE YOU RETURN TO FULL STATE, I.E. INVERSE MAPPING!!!!!! 
 		}
 	}
 	return U;
 }
-arma::cx_vec IsingModel_sym::symmetryRotation(const arma::cx_vec& state, const std::vector<u64>& full_map) const {
+arma::cx_vec IsingModel_sym::symmetryRotation(const arma::cx_vec& state, std::vector<u64> full_map) const {
+	if(full_map.empty()){
+		bool use_Sz_sym = this->g == 0;
+		#ifdef HEISENBERG	
+			full_map = IsingModel_sym::generate_full_map(this->L, true);
+			use_Sz_sym = true;
+		#else
+			if(use_Sz_sym)
+				full_map = IsingModel_sym::generate_full_map(this->L, use_Sz_sym);
+		#endif
+	}
+
 	u64 max_dim = ULLPOW(this->L);
-	u64 dim_tot = full_map.empty()? max_dim : full_map.size();
+	u64 dim_tot = full_map.empty()? full_map.size() : max_dim; 
 	arma::cx_vec output(dim_tot, arma::fill::zeros);
+
 	auto find_index = [&](u64 index){
 		#ifdef HEISENBERG
 			return binary_search(full_map, 0, dim_tot - 1, index);
 		#else
-			return (dim_tot < max_dim)? binary_search(full_map, 0, dim_tot - 1, index) : index;
+			return full_map.empty()? binary_search(full_map, 0, dim_tot - 1, index) : index;
 		#endif
 	};
+
 #pragma omp parallel for
 	for (long int k = 0; k < this->N; k++) {
 		for (int i = 0; i < this->symmetry_group.size(); i++) {
 			auto new_idx = this->symmetry_group[i](this->mapping[k], this->L);
 			u64 idx = find_index(new_idx);
 			if(idx < dim_tot) // only if exists in sector
-				output(idx) += this->symmetry_eigVal[i] / (this->normalisation[k] * sqrt(this->symmetry_group.size())) * state(k);
+				output(idx) += conj(this->symmetry_eigVal[i] / (this->normalisation[k] * sqrt(this->symmetry_group.size())) * state(k));
 		}
 	}
 	return output;
