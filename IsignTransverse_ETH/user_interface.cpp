@@ -1249,6 +1249,7 @@ void isingUI::ui::eigenstate_entropy(){
 	std::string dir = this->saving_dir + "Entropy" + kPSep + "Eigenstate" + kPSep;
 	createDirs(dir);
 	int LA = this->L / 2;
+	
 	#ifdef HEISENBERG
 		size_t N = binomial(this->L, this->L / 2.);
 	#elif defined ANDERSON
@@ -1261,7 +1262,7 @@ void isingUI::ui::eigenstate_entropy(){
 	
 	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
 					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
-
+	int counter = 0;
 	std::string filename = info + "_subsize=" + std::to_string(LA);
 	auto kernel = [&](auto& alfa, int realis)
 	{
@@ -1286,6 +1287,7 @@ void isingUI::ui::eigenstate_entropy(){
 		//save_to_file(filename + ".dat", E, entropies);
 		energies += E;
 		entropies += S;
+		counter++;
 	};
 
 	//---- START COMPUTATION
@@ -1304,9 +1306,11 @@ void isingUI::ui::eigenstate_entropy(){
 		#endif
 		average_over_realisations<Ising_params::J>(*alfa, true, kernel);
 	}
+	energies /= double(counter);
+	entropies /= double(counter);
 
 	energies.save(arma::hdf5_name(dir + filename + "_jobid=" + std::to_string(this->jobid) + ".hdf5", "energies"));
-	entropies.save(arma::hdf5_name(dir + filename + "_jobid=" + std::to_string(this->jobid) + ".hdf5", "entropy",arma::hdf5_opts::append));
+	entropies.save(arma::hdf5_name(dir + filename + "_jobid=" + std::to_string(this->jobid) + ".hdf5", "entropy", arma::hdf5_opts::append));
 }
 
 //<! analyze spectra with unfolding, DOS and level spacing distribution --  all to file
