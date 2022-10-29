@@ -41,12 +41,14 @@ if __name__ == '__main__':
             print(stats)
             r_tmp = stats[1]
             
-            xarray.append(np.array([stats[0][i] for i, r in enumerate(r_tmp) if r > 0.37]))
-            gap_ratio.append(np.array([stats[1][i] for i, r in enumerate(r_tmp) if r > 0.37]))
+            xvals = np.array([stats[0][i] for i, r in enumerate(r_tmp) if r > 0.42])
+            xarray.append(xvals[:25])
+            r = np.array([stats[1][i] for i, r in enumerate(r_tmp) if r > 0.42])
+            gap_ratio.append(r[:25])
             
-            S = np.array([stats[4][i] for i, r in enumerate(r_tmp) if r > 0.37])
+            S = np.array([stats[4][i] for i, r in enumerate(r_tmp) if r > 0.42])
             norm = x * np.log(2) / 2. + (0.5 - np.log(2)) / 2. - 0.5
-            entropy.append(S / norm)
+            entropy.append( S[:25] / norm )
             vals.append(x)
     vals = np.array(vals)
     
@@ -93,3 +95,8 @@ if __name__ == '__main__':
     calculate_and_save(scaling_ansatz='KT', crit_fun='free')
     calculate_and_save(scaling_ansatz='RG', crit_fun='free')
     calculate_and_save(scaling_ansatz='classic', crit_fun='free')
+
+    calculate_and_save(scaling_ansatz='FGR', crit_fun='free_inv')
+    calculate_and_save(scaling_ansatz='KT', crit_fun='free_inv')
+    calculate_and_save(scaling_ansatz='RG', crit_fun='free_inv')
+    calculate_and_save(scaling_ansatz='classic', crit_fun='free_inv')

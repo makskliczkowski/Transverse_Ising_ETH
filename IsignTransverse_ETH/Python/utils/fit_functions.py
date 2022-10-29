@@ -30,6 +30,10 @@ def power_law(x, alfa, a):
     """ Power-law fit function """
     return a * x**alfa
 
+def power_law_offset(x, alfa, a, b):
+    """ Power-law fit function """
+    return a * x**alfa + b
+
 
 def power_law_inv(x, alfa, a):
     """ Power-law fit function """
