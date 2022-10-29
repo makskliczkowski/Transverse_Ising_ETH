@@ -40,10 +40,10 @@ _resc_keys = resc_functions_dict.keys()
 
 #------------------------------------------ XLABELS FOR SCALING ANSATZ
 scale_ansatz_label = {
-    'FGR':      lambda vs_str : "|" + vs_str + " - " + vs_str + "_c|^{\\nu} \\cdot e^{\\frac{ln2}{2}L}",
+    'FGR':      lambda vs_str : "|" + vs_str + " - " + vs_str + "_c|^{\\nu} \\cdot \\sqrt{D}",
     'KT':       lambda vs_str : "L / \\xi_{KT}\ \ \ \ \\xi_{KT}^{-1}=exp(\\nu\\cdot|" + vs_str + " - " + vs_str + "_c|^{-1/2})",
     'RG':       lambda vs_str: "L / \\xi_0\ \ \ \ \\xi_0^{-1}=|" + vs_str + " - " + vs_str + "_c|^{\\nu}",
-    'classic':  lambda vs_str: "(" + vs_str + " - " + vs_str + "_c) \\cdot L^{\\nu}",
+    'classic':  lambda vs_str: "(" + vs_str + " - " + vs_str + "_c) \\cdot L^{1/\\nu}",
     'exp':      lambda vs_str : "exp(\\nu\\cdot|" + vs_str + " - " + vs_str + "_c|) \\cdot e^{\\frac{ln2}{2}L}",
 }
 
