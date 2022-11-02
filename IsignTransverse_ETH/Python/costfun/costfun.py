@@ -40,7 +40,7 @@ _resc_keys = resc_functions_dict.keys()
 
 #------------------------------------------ XLABELS FOR SCALING ANSATZ
 scale_ansatz_label = {
-    'FGR':      lambda vs_str : "|" + vs_str + " - " + vs_str + "_c|^{\\nu} \\cdot \\sqrt{D}",
+    'FGR':      lambda vs_str : "|" + vs_str + " - " + vs_str + "_c|^{\\nu} \\cdot D^{1/\\mu}",
     'KT':       lambda vs_str : "L / \\xi_{KT}\ \ \ \ \\xi_{KT}^{-1}=exp(\\nu\\cdot|" + vs_str + " - " + vs_str + "_c|^{-1/2})",
     'RG':       lambda vs_str: "L / \\xi_0\ \ \ \ \\xi_0^{-1}=|" + vs_str + " - " + vs_str + "_c|^{\\nu}",
     'classic':  lambda vs_str: "(" + vs_str + " - " + vs_str + "_c) \\cdot L^{1/\\nu}",
@@ -88,19 +88,28 @@ def minimization_function(params, xvals, y, sizes, scaling_ansatz, crit_function
     
     rescale_fun = resc_functions_dict[scaling_ansatz]
     crit_fun = crit_functions_dict[crit_function]
-    
-    crit_pars=np.array(params[1:]) # critical parameters to find given in critical point scaling
+
+    num_of_exp = 1 if scaling_ansatz != 'FGR' else 2
+    crit_pars=np.array(params[num_of_exp:]) # critical parameters to find given in critical point scaling
 
     xdata = []
     fulldata = []
     
     for i in range(0, len(sizes)):
         for j in range(0, len(xvals[i])):
-            xvalue = rescale_fun(
+            xvalue = None
+            if scaling_ansatz == 'FGR':
+                xvalue = rescale_fun(
                     xvals[i][j], 
                     sizes[i], 
                     crit_fun, 
-                    params[0], *crit_pars)
+                    params[0], params[1], *crit_pars)
+            else:
+                xvalue = rescale_fun(
+                    xvals[i][j], 
+                    sizes[i], 
+                    crit_fun, 
+                    params[0],*crit_pars)
             xdata.append( xvalue )
             fulldata.append(y[i][j])
     
@@ -176,7 +185,7 @@ def cost_func_minization(x, y, sizes, bnds,
     return optimal_res / float(realisations), cost_fun / float(realisations), result.success
 
 
-def prepare_bounds(x, crit_fun, vals):
+def prepare_bounds(x, crit_fun, scaling_ansatz, vals):
     """
     Generate bounds for optimization procedure
     
@@ -201,15 +210,16 @@ def prepare_bounds(x, crit_fun, vals):
             if x_max is None or _x_ > x_max: 
                 x_max = _x_
 
-    bounds = [(0., 10.)]        # -- critical exponent
-
+    bounds = [(-10., 10.)]        # -- critical exponent
+    if scaling_ansatz == 'FGR':
+        bounds.append( (-10., 10.) )
     #-- number of bounds is number of different scaling parameters
     if crit_fun == 'free':  
         for i in range(len(vals)):  
             bounds.append((0, x_max))
     elif crit_fun == 'free_inv':  
         for i in range(len(vals)):  
-            bounds.append((1. / x_max, 1e3))
+            bounds.append((1. / x_max, 1e4))
     #-- constant value, only one new bounds
     elif crit_fun == 'const':   
         bounds.append((0, x_max))
@@ -244,7 +254,7 @@ def get_crit_points(x, y, vals, crit_fun='free', scaling_ansatz = 'classic', see
     """
     
     params = []
-    bounds = prepare_bounds(x, crit_fun, vals)
+    bounds = prepare_bounds(x, crit_fun, scaling_ansatz, vals)
 
     params, cost_fun, status = cost_func_minization(x=x, y=y, sizes=vals,
                                     scale_func=scaling_ansatz, 
@@ -255,6 +265,7 @@ def get_crit_points(x, y, vals, crit_fun='free', scaling_ansatz = 'classic', see
                                     seed = seed
                                 )
 
-    par = params[0]
-    crit_pars = np.array(params[1:])
+    num_of_exp = 1 if scaling_ansatz != 'FGR' else 2
+    par = params[:num_of_exp]
+    crit_pars = np.array(params[num_of_exp:])
     return par, crit_pars, cost_fun, status

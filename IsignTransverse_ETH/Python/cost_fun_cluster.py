@@ -38,7 +38,7 @@ if __name__ == '__main__':
         if os.path.exists(filename):
             #stats = pd.read_table(filename, sep="\t", header=None)
             stats = hfun.read_python_saved_dat_file(filename)
-            print(stats)
+            #print(stats)
             r_tmp = stats[1]
             
             xvals = np.array([stats[0][i] for i, r in enumerate(r_tmp) if r > 0.42])
@@ -92,11 +92,11 @@ if __name__ == '__main__':
 
 
     calculate_and_save(scaling_ansatz='FGR', crit_fun='free')
-    calculate_and_save(scaling_ansatz='KT', crit_fun='free')
-    calculate_and_save(scaling_ansatz='RG', crit_fun='free')
-    calculate_and_save(scaling_ansatz='classic', crit_fun='free')
-
-    calculate_and_save(scaling_ansatz='FGR', crit_fun='free_inv')
-    calculate_and_save(scaling_ansatz='KT', crit_fun='free_inv')
-    calculate_and_save(scaling_ansatz='RG', crit_fun='free_inv')
-    calculate_and_save(scaling_ansatz='classic', crit_fun='free_inv')
+    #calculate_and_save(scaling_ansatz='KT', crit_fun='free')
+    #calculate_and_save(scaling_ansatz='RG', crit_fun='free')
+    #calculate_and_save(scaling_ansatz='classic', crit_fun='free')
+#
+    #calculate_and_save(scaling_ansatz='FGR', crit_fun='free_inv')
+    #calculate_and_save(scaling_ansatz='KT', crit_fun='free_inv')
+    #calculate_and_save(scaling_ansatz='RG', crit_fun='free_inv')
+    #calculate_and_save(scaling_ansatz='classic', crit_fun='free_inv')
