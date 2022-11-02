@@ -7,10 +7,12 @@ ansatz, like KT for Kosterlitz-Thouless
 """
 
 import numpy as np
+from config import hamiltonian
+from scipy.special import binom
 
 def _rescale_classic(x, L, crit_fun, nu, *args):
     """Regular ansatz with power-law on L"""
-    return (x - crit_fun(L, *args)) * L**nu
+    return (x - crit_fun(L, *args)) * L**(nu)
 
 
 def _rescale_KT(x, L, crit_fun, nu, *args):
@@ -18,9 +20,10 @@ def _rescale_KT(x, L, crit_fun, nu, *args):
     return  np.sign(x - crit_fun(L, *args)) * L / np.exp(nu / np.sqrt(abs(x - crit_fun(L, *args) )) )
 
 
-def _rescale_FGR(x, L, crit_fun, nu, *args):
+def _rescale_FGR(x, L, crit_fun, nu, mu, *args):
     """Fermi Golden Rule"""
-    return np.sign(x - crit_fun(L, *args)) * abs(x - crit_fun(L, *args))**nu * np.exp(np.log(2) / 2 * abs(L))
+    dim = binom(L, L/2) if hamiltonian == 1 else 2**L
+    return np.sign(x - crit_fun(L, *args)) * abs(x - crit_fun(L, *args))**nu * dim**(1. / mu)
 
 
 def _rescale_RG(x, L, crit_fun, nu, *args):

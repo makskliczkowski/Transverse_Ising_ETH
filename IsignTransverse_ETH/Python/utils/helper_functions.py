@@ -41,7 +41,7 @@ def info_dis(L, J, J0, g, g0, h, w):
     for i, var in enumerate(arr):
         n = order_of_magnitude(var)
         info += str(",%s={:.%df}"%(names[i], n)).format(round(var, n))
-    #return info + ".dat"
+    return info + ".dat"
     return "_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat"%(L, J, J0, g, g0, h, w)
 
 def info(_L = cf.params_arr[0], _J = cf.params_arr[1], _J0 = cf.params_arr[8], 
