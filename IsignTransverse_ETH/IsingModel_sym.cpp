@@ -215,6 +215,45 @@ void IsingModel_sym::hamiltonian() {
 	#endif
 }
 
+void IsingModel_sym::hamiltonian_xyz(){
+		std::vector<std::vector<double>> parameters = {{1.0 * (1 - 0.5), 1.0 * (1 + 0.5), this->g},
+                                                        {this->J * (1 - 0.5), this->J * (1 + 0.5), this->J * this->g}
+                                                    };
+        for(auto& x : parameters)
+            std::cout << x << std::endl;
+        std::vector<op_type> XYZoperators = {operators::sigma_x, operators::sigma_y, operators::sigma_z };
+        std::vector<int> neighbor_distance = {1, 2};
+        for (size_t k = 0; k < this->N; k++) {
+			int base_state = map(k);
+		    for (int j = 0; j <= this->L - 1; j++) {
+                cpx val = 0.0;
+                u64 op_k;
+                std::tie(val, op_k) = operators::sigma_z(base_state, L, { j });
+                this->setHamiltonianElem(base_state, this->h * real(val), op_k);
+		    	
+                std::tie(val, op_k) = operators::sigma_x(base_state, L, { j });
+                double fieldX = 0.2;
+				this->setHamiltonianElem(base_state, fieldX * real(val), op_k);
+
+                for(int a = 0; a < neighbor_distance.size(); a++){
+                    int r = neighbor_distance[a];
+					int nei = j + r;
+					if(this->_BC && nei >= this->L) nei = -1;
+					else nei = nei % this->L;
+
+		    	    if (nei >= 0) {
+                        for(int b = 0; b < XYZoperators.size(); b++){
+                            op_type op = XYZoperators[b];
+			                auto [val1, op_k] = op(base_state, L, { j });
+			                auto [val2, opop_k] = op(op_k, L, { j + r });
+							this->setHamiltonianElem(base_state, parameters[a][b] * real(val1 * val2), opop_k);
+                        }
+		    	    }
+                }
+		    }
+	    }
+}
+
 void IsingModel_sym::hamiltonian_Ising(){
 	for (long int k = 0; k < this->N; k++) {
 		double s_i;
@@ -380,9 +419,8 @@ arma::cx_vec IsingModel_sym::symmetryRotation(const arma::cx_vec& state, std::ve
 				full_map = IsingModel_sym::generate_full_map(this->L, use_Sz_sym);
 		#endif
 	}
-
 	u64 max_dim = ULLPOW(this->L);
-	u64 dim_tot = full_map.empty()? full_map.size() : max_dim; 
+	u64 dim_tot = full_map.empty()? max_dim : full_map.size();
 	arma::cx_vec output(dim_tot, arma::fill::zeros);
 
 	auto find_index = [&](u64 index){

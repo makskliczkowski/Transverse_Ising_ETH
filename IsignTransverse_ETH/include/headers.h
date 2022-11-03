@@ -5,10 +5,10 @@
 
 #if defined(MY_MAC)
 	#if !defined(XYZ)
-		//#define XYZ
+		#define XYZ
 	#endif 
 	#if !defined(HEISENBERG) && !defined(XYZ)
-		#define HEISENBERG
+		//#define HEISENBERG
 	#endif
 	#if !defined(LOCAL_PERT)
 		//#define LOCAL_PERT

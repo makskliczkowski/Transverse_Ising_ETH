@@ -324,6 +324,8 @@ public:
 	void hamiltonian() override;
 	void hamiltonian_Ising() override;
 	void hamiltonian_heisenberg() override;
+	void hamiltonian_xyz();
+
 	void setHamiltonianElem(u64 k, double value, u64 new_idx) override;
 	double mean_level_spacing_analytical() const override {
 		const double chi = 0.341345;
