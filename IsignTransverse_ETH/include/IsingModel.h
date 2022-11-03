@@ -108,7 +108,8 @@ public:
 
 	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
 	virtual void hamiltonian_Ising() = 0;														// pure virtual Ising Hamiltonian creator
-	virtual void hamiltonian_heisenberg() = 0;													// pure virtual heisenberg hamiltonian creator
+	virtual void hamiltonian_heisenberg() = 0;
+	virtual void hamiltonian_xyz() = 0;															// pure virtual XYZ hamiltonian creator
 	virtual void setHamiltonianElem(u64 k, double value, u64 new_idx) = 0;						// sets the Hamiltonian elements in a virtual way
 	
 	int properSite(int site) const {
@@ -324,7 +325,7 @@ public:
 	void hamiltonian() override;
 	void hamiltonian_Ising() override;
 	void hamiltonian_heisenberg() override;
-	void hamiltonian_xyz();
+	void hamiltonian_xyz() override;
 
 	void setHamiltonianElem(u64 k, double value, u64 new_idx) override;
 	double mean_level_spacing_analytical() const override {
@@ -409,6 +410,8 @@ public:
 	void hamiltonian() override;
 	void hamiltonian_Ising() override;
 	void hamiltonian_heisenberg() override;
+	void hamiltonian_xyz() override;
+	
 	void setHamiltonianElem(u64 k, double value, u64 new_idx) override;
 	double mean_level_spacing_analytical() const override {
 		const double chi = 0.341345;

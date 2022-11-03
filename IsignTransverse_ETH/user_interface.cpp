@@ -10,6 +10,7 @@ void isingUI::ui::make_sim()
 	#if defined(MY_MAC)
 		//this->seed = static_cast<long unsigned int>(time(0));
 	#endif
+	compare_energies();
 	my_gen = randomGen(this->seed);
 	printAllOptions();
 	//auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
@@ -391,6 +392,7 @@ void isingUI::ui::compare_energies()
 	std::vector<std::string> symms = v_1d<std::string>();
 	// go for each symmetry sector
 	const int x_max = (this->h != 0) ? 0 : 1;
+	const int k_end = (this->boundary_conditions) ? 1 : this->L;
 	for (int k = 0; k < L; k++)
 	{
 		if (k == 0 || k == this->L / 2.)
