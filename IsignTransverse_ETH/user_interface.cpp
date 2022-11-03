@@ -10,6 +10,7 @@ void isingUI::ui::make_sim()
 	#if defined(MY_MAC)
 		//this->seed = static_cast<long unsigned int>(time(0));
 	#endif
+	compare_energies();
 	my_gen = randomGen(this->seed);
 	printAllOptions();
 	//auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
@@ -398,6 +399,7 @@ void isingUI::ui::compare_energies()
 	std::vector<std::string> symms = v_1d<std::string>();
 	// go for each symmetry sector
 	const int x_max = (this->h != 0) ? 0 : 1;
+	const int k_end = (this->boundary_conditions) ? 1 : this->L;
 	for (int k = 0; k < L; k++)
 	{
 		if (k == 0 || k == this->L / 2.)
@@ -1256,13 +1258,13 @@ void isingUI::ui::eigenstate_entropy(){
 	std::string dir = this->saving_dir + "Entropy" + kPSep + "Eigenstate" + kPSep;
 	createDirs(dir);
 	int LA = this->L / 2;
-	
+	size_t N = 0;
 	#ifdef HEISENBERG
-		size_t N = binomial(this->L, this->L / 2.);
+		N = binomial(this->L, this->L / 2.);
 	#elif defined ANDERSON
-		size_t N = this->L * this->L * this->L;
+		N = this->L * this->L * this->L;
 	#else
-		size_t N = ULLPOW(this->L);
+		N = ULLPOW(this->L);
 	#endif
 	arma::vec energies(N, arma::fill::zeros);
 	arma::vec entropies(N, arma::fill::zeros);
@@ -1282,9 +1284,10 @@ void isingUI::ui::eigenstate_entropy(){
 		const arma::vec E = alfa.get_eigenvalues();
 		
 		arma::vec S(N, arma::fill::zeros);
-	#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
+	//#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 		for(int n = 0; n < N; n++){
 			arma::cx_vec state = alfa.get_state_in_full_Hilbert(n);
+			std::cout << state.size() << std::endl;
 			double S_tmp = entropy::vonNeumann(state, LA, this->L, map);
 			S(n) = S_tmp;
 		}
@@ -1301,7 +1304,15 @@ void isingUI::ui::eigenstate_entropy(){
 	if(this->m){
 		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-		map = alfa->get_mapping();
+		#ifdef HEISENBERG
+			map = alfa->get_mapping();
+		#elif !defined(ANDERSON)
+			if(this->g == 0 && this->g0 == 0)
+				map = alfa->get_mapping();
+		#endif
+		N = alfa->get_hilbert_size();
+	 	energies = arma::vec(N, arma::fill::zeros);
+		entropies = arma::vec(N, arma::fill::zeros);
 		average_over_realisations<Ising_params::J>(*alfa, true, kernel);
 	} else{
 		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
