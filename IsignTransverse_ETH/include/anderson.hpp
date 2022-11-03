@@ -72,26 +72,6 @@ namespace anderson{
                 corr(r) = log(abs(val));
             }
             corr_func.col(i) = corr;
-            continue;
-
-
-            //<! OLD METHOD TO CALCULATE FOR EACH REALISATION SEPERATRELY
-            //<! ADD CHOICE BETWEEN OPTIONS!
-            arma::vec r_vals  = arma::linspace(0, system_size / 2., corr.size());
-            if(i % 100 == 0 || system_size < 20)
-                save_to_file("./results/ANDERSON/1D/PBC/CorrelationFunction/_L=" 
-                            + std::to_string(system_size) + "_n=" + std::to_string(i) + "_w=" + to_string_prec(W, 2) + ".dat", r_vals, corr);
-            //continue;
-
-            double _min = arma::min(corr);
-            if(!std::isfinite(_min) || _min < -20.0)
-                _min = -20.0;
-            arma::vec func_to_fit;
-            func_to_fit = exctract_vector_between_values(corr, _min, 1.0);
-            r_vals  = arma::linspace(0, func_to_fit.size(), func_to_fit.size());
-            arma::vec p = arma::polyfit(r_vals, func_to_fit, 1);
-            
-            loc_length(i) = -1. / p(0);
         }
         return std::make_pair(energies, corr_func);
     }

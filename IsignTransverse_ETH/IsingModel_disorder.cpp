@@ -133,8 +133,7 @@ void IsingModel_disorder::hamiltonian() {
 			this->hamiltonian_heisenberg();
 		#else
 			#ifdef XYZ
-				this->H = hamiltonian::XYZ_nnn_OBC(this->L, 1.0, 1.0, this->J, this->J0, this->g, this->g0, this->h, this->w);
-				std::cout << "Using XYZ Hamiltonian if you are wondering!" << std::endl;
+				this->hamiltonian_xyz();
 			#else
 				this->hamiltonian_Ising();
 			#endif
@@ -142,6 +141,48 @@ void IsingModel_disorder::hamiltonian() {
 	#endif
 }
 
+void IsingModel_disorder::hamiltonian_xyz(){
+	std::vector<std::vector<double>> parameters = { { 1.0 * (1 - this->g0), 1.0 * (1 + this->g0), this->g},
+                                                    {this->J * (1 - this->g0), this->J * (1 + this->g0), this->J * this->g }
+                                                };
+    for(auto& x : parameters)
+        std::cout << x << std::endl;
+    std::vector<op_type> XYZoperators = {operators::sigma_x, operators::sigma_y, operators::sigma_z };
+    std::vector<int> neighbor_distance = {1, 2};
+
+    for (size_t k = 0; k < this->N; k++) {
+		int base_state = map(k);
+	    for (int j = 0; j < this->L; j++) {
+            cpx val = 0.0;
+            u64 op_k;
+            std::tie(val, op_k) = operators::sigma_z(base_state, this->L, { j });
+			double fieldZ = (j == this->L - 1)? this->w : this->h;
+            this->setHamiltonianElem(k, fieldZ * real(val), op_k);
+	    	
+            //std::tie(val, op_k) = operators::sigma_x(base_state, this->L, { j });
+            //double fieldX = this->w;
+			//this->setHamiltonianElem(k, fieldX * real(val), op_k);
+
+            for(int a = 0; a < neighbor_distance.size(); a++){
+                int r = neighbor_distance[a];
+				int nei = j + r;
+				if(this->_BC && nei >= this->L) 
+					nei = -1;
+				else 
+					nei = nei % this->L;
+
+	    	    if (nei >= 0) {
+                    for(int b = 0; b < XYZoperators.size(); b++){
+                        op_type op = XYZoperators[b];
+		                auto [val1, op_k] = op(base_state, this->L, { j });
+		                auto [val2, opop_k] = op(op_k, this->L, { nei });
+						this->setHamiltonianElem(k, parameters[a][b] * real(val1 * val2), opop_k);
+                    }
+	    	    }
+            }
+	    }
+	}
+}
 void IsingModel_disorder::hamiltonian_Ising() {
 	for (u64 k = 0; k < N; k++) {
 		double s_i, s_j;

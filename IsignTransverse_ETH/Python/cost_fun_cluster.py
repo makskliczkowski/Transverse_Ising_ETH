@@ -31,22 +31,29 @@ if __name__ == '__main__':
     xarray = []
     gap_ratio = []
     vals = []
+    wH = []
     param_copy = copy.deepcopy(cf.params_arr)
+
+    r_min = 0.42
     for x in old_vals:
         cf.params_arr[settings['scaling_idx']] = x
         filename = cf.base_directory + "STATISTICS" + os.sep + hfun.remove_info(hfun.info_param(cf.params_arr), settings['vs']) + ".dat" 
         if os.path.exists(filename):
             #stats = pd.read_table(filename, sep="\t", header=None)
             stats = hfun.read_python_saved_dat_file(filename)
-            print(stats)
+            #print(stats)
             r_tmp = stats[1]
             
-            xarray.append(np.array([stats[0][i] for i, r in enumerate(r_tmp) if r > 0.37]))
-            gap_ratio.append(np.array([stats[1][i] for i, r in enumerate(r_tmp) if r > 0.37]))
+            xvals = np.array([stats[0][i] for i, r in enumerate(r_tmp) if r > r_min])
+            xarray.append(xvals[:25])
+            r = np.array([stats[1][i] for i, r in enumerate(r_tmp) if r > r_min])
+            gap_ratio.append(r[:25])
+            wH_tmp = np.array([stats[5][i] for i, r in enumerate(r_tmp) if r > r_min])
+            wH.append(wH_tmp[:25])
             
-            S = np.array([stats[4][i] for i, r in enumerate(r_tmp) if r > 0.37])
+            S = np.array([stats[4][i] for i, r in enumerate(r_tmp) if r > r_min])
             norm = x * np.log(2) / 2. + (0.5 - np.log(2)) / 2. - 0.5
-            entropy.append(S / norm)
+            entropy.append( S[:25] / norm )
             vals.append(x)
     vals = np.array(vals)
     
@@ -63,7 +70,7 @@ if __name__ == '__main__':
                      + "_critfun=%s_ansatz=%s_pert=%s_seed=%d"%(crit_fun, scaling_ansatz, settings['vs'], seed)
 
         #-- calculate gap ratio collapse
-        par, crit_pars, costfun, status = cost.get_crit_points(x=xarray, y=gap_ratio, vals=vals, crit_fun=crit_fun, scaling_ansatz=scaling_ansatz, seed=seed)
+        par, crit_pars, costfun, status = cost.get_crit_points(x=xarray, y=gap_ratio, vals=vals, crit_fun=crit_fun, scaling_ansatz=scaling_ansatz, seed=seed, wH=wH)
         print("Gap Ratio:\t", par, crit_pars, costfun, status)
         if status:
             filename = dir + os.sep + "GapRatio" + suffix
@@ -76,7 +83,7 @@ if __name__ == '__main__':
             np.savez(filename, **data)
 
         #-- calculate entropy collapse
-        #par, crit_pars, costfun, status = cost.get_crit_points(x=np.array(xarray), y=np.array(entropy), vals=vals, crit_fun=crit_fun, scaling_ansatz=scaling_ansatz, seed=seed)
+        #par, crit_pars, costfun, status = cost.get_crit_points(x=np.array(xarray), y=np.array(entropy), vals=vals, crit_fun=crit_fun, scaling_ansatz=scaling_ansatz, seed=seed, wH=wH)
         #print("Entropy:\t", par, crit_pars, costfun, status)
         #if status:
         #    filename = dir + os.sep + "Entropy" + suffix
@@ -89,7 +96,13 @@ if __name__ == '__main__':
         #    np.savez(filename, **data)
 
 
-    calculate_and_save(scaling_ansatz='FGR', crit_fun='free')
-    calculate_and_save(scaling_ansatz='KT', crit_fun='free')
-    calculate_and_save(scaling_ansatz='RG', crit_fun='free')
-    calculate_and_save(scaling_ansatz='classic', crit_fun='free')
+    #calculate_and_save(scaling_ansatz='FGR', crit_fun='free')
+    calculate_and_save(scaling_ansatz='spacing', crit_fun='free')
+    #calculate_and_save(scaling_ansatz='KT', crit_fun='free')
+    #calculate_and_save(scaling_ansatz='RG', crit_fun='free')
+    #calculate_and_save(scaling_ansatz='classic', crit_fun='free')
+#
+    #calculate_and_save(scaling_ansatz='FGR', crit_fun='free_inv')
+    #calculate_and_save(scaling_ansatz='KT', crit_fun='free_inv')
+    #calculate_and_save(scaling_ansatz='RG', crit_fun='free_inv')
+    #calculate_and_save(scaling_ansatz='classic', crit_fun='free_inv')
