@@ -142,8 +142,8 @@ void IsingModel_disorder::hamiltonian() {
 }
 
 void IsingModel_disorder::hamiltonian_xyz(){
-	std::vector<std::vector<double>> parameters = {{1.0 * (1 - 0.5), 1.0 * (1 + 0.5), this->g},
-                                                    {this->J * (1 - 0.5), this->J * (1 + 0.5), this->J * this->g}
+	std::vector<std::vector<double>> parameters = { { 1.0 * (1 - this->g0), 1.0 * (1 + this->g0), this->g},
+                                                    {this->J * (1 - this->g0), this->J * (1 + this->g0), this->J * this->g }
                                                 };
     for(auto& x : parameters)
         std::cout << x << std::endl;
@@ -156,11 +156,12 @@ void IsingModel_disorder::hamiltonian_xyz(){
             cpx val = 0.0;
             u64 op_k;
             std::tie(val, op_k) = operators::sigma_z(base_state, this->L, { j });
-            this->setHamiltonianElem(k, this->h * real(val), op_k);
+			double fieldZ = (j == this->L - 1)? this->w : this->h;
+            this->setHamiltonianElem(k, fieldZ * real(val), op_k);
 	    	
-            std::tie(val, op_k) = operators::sigma_x(base_state, this->L, { j });
-            double fieldX = 0.2;
-			this->setHamiltonianElem(k, fieldX * real(val), op_k);
+            //std::tie(val, op_k) = operators::sigma_x(base_state, this->L, { j });
+            //double fieldX = this->w;
+			//this->setHamiltonianElem(k, fieldX * real(val), op_k);
 
             for(int a = 0; a < neighbor_distance.size(); a++){
                 int r = neighbor_distance[a];
