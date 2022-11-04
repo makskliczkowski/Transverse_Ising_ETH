@@ -10,7 +10,6 @@ void isingUI::ui::make_sim()
 	#if defined(MY_MAC)
 		//this->seed = static_cast<long unsigned int>(time(0));
 	#endif
-	compare_energies();
 	my_gen = randomGen(this->seed);
 	printAllOptions();
 	//auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
@@ -108,12 +107,13 @@ void isingUI::ui::make_sim()
 							this->h = hx;
 							this->J = Jx;
 							this->w = wx;
-							//this->site = this->L / 2.;
+							this->site = this->L / 2.;
 							
 							const auto start_loop = std::chrono::system_clock::now();
 							stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
 							printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
 							//calculate_localisation_length(); continue;
+							calculate_statistics(); continue;
 
 							combine_spectrals(); continue;
 
@@ -821,7 +821,8 @@ void isingUI::ui::calculate_spectrals()
 				wH_typ_local += std::log(gap);
 			}
 		}
-		wH += wH_local / double(this->mu);
+		wH_local = wH_local / double(this->mu);
+		wH += wH_local;
 		counter++;
 
 		stout << "\t\t	--> finished statistics for " << info
@@ -911,6 +912,7 @@ void isingUI::ui::calculate_spectrals()
 	stout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - \n"
 			  << std::endl; // simulation end
 }
+
 //<! average separate spectral files for input operator
 void isingUI::ui::combine_spectrals(){
 	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
@@ -925,9 +927,8 @@ void isingUI::ui::combine_spectrals(){
 	std::string SpecFunDistDir = this->saving_dir + "MatrixElemDistribution" + kPSep + subdir + kPSep;
 	std::string HybridDir = this->saving_dir + "Hybrydization" + kPSep + "Distribution" + kPSep;
 
-	std::string dir_stat = this->saving_dir + "STATISTICS" + kPSep + "raw_data" + kPSep;
 	std::string dir_agp = this->saving_dir + "AGP" + kPSep + opName + kPSep + "raw_data" + kPSep;
-	createDirs(timeDir, intDir, specDir_der, dir_stat, dir_agp);
+	createDirs(timeDir, intDir, specDir_der, dir_agp);
 
 	int num_of_points = 1000;
 	arma::vec opEvol(num_of_points, arma::fill::zeros);
@@ -936,44 +937,29 @@ void isingUI::ui::combine_spectrals(){
 	arma::vec omegas = times;
 	arma::vec omegas_spec, mat_elem;
 	//---------------- PREAMBLE
-	int counter = 0;
 	int counter_agp = 0;
 	int counter_time = 0;
 	int counter_int = 0;
-	
-	arma::vec stats(10, arma::fill::zeros);
+	double wH = 0.0;
 	arma::vec agps(4, arma::fill::zeros);
 	
+	size_t N = 0;
+	#ifdef HEISENBERG
+		N = binomial(this->L, this->L / 2.);
+	#elif defined ANDERSON
+		N = this->L * this->L * this->L;
+	#else
+		N = ULLPOW(this->L);
+	#endif
+
 	auto start_loop = std::chrono::system_clock::now();
 	auto lambda_average = [&](int realis, double x){
 		
 		std::string filename = opName + info + ".dat";
 		std::ifstream file;
-		
-		//-------- STATISTICS
-		bool status = openFile(file, dir_stat + info + "_jobid=" + std::to_string(realis) + ".dat");
-		if(status){
-			std::string line;
-			int idx = 0;
-			while(std::getline(file, line)){
-				std::istringstream ss(line);
-				std::vector<std::string> datarow;
-				while(ss){
-					std::string element;	ss >> element;
-					datarow.push_back(element);
-				}
-				double value = std::stod(datarow[datarow.size()-2]);
-				stats(idx) += value;
-				idx++;
-			}
-			counter++;
-			stout << "\t\t	--> finished statistics for " << info
-			  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "s" << std::endl;
-		}
-		file.close();
 
 		//-------- AGP
-		status = openFile(file, dir_agp + info + "_jobid=" + std::to_string(realis) + ".dat");
+		bool status = openFile(file, dir_agp + info + "_jobid=" + std::to_string(realis) + ".dat");
 		if(status){
 			int idx = 0;
 			std::string line;
@@ -1012,6 +998,7 @@ void isingUI::ui::combine_spectrals(){
 		if(!data.empty()){
 			omegas = data[0];
 			opIntSpec += data[1];
+			wH += data[2][0] / double(0.5 * N);
 			counter_int++;
 			stout << "\t\t	--> finished integrated spectral function for " << info
 			  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "s" << std::endl;
@@ -1031,22 +1018,6 @@ void isingUI::ui::combine_spectrals(){
 		}
 	};
 	average_over_realisations<Ising_params::J>(false, lambda_average);
-	
-	if(counter > 0){
-		stats /= double(counter);
-
-		std::ofstream file_out;
-		openFile(file_out, dir_stat + info + ".dat");
-		printSeparated(file_out, "\t", 25, true, "'gap ratio'", 			   			stats(0));
-		printSeparated(file_out, "\t", 25, true, "'ipr'", 								stats(1));
-		printSeparated(file_out, "\t", 25, true, "'information entropy'", 				stats(2));
-		printSeparated(file_out, "\t", 25, true, "'entropy in ~100 states at E=0'", 	stats(3));
-		printSeparated(file_out, "\t", 25, true, "'mean level spacing'", 				stats(4));
-		printSeparated(file_out, "\t", 25, true, "'typical level spacing'", 	  		stats(5));
-		printSeparated(file_out, "\t", 25, true, "'entropy var in ~100 states at E=0'",	stats(6));
-		printSeparated(file_out, "\t", 25, true, "'entropy error over realisations'", 	stats(7));
-		file_out.close();
-	}
 
 	if(counter_agp > 0){
 		agps /= double(counter_agp);
@@ -1060,20 +1031,21 @@ void isingUI::ui::combine_spectrals(){
 	}
 	
 	std::string filename = opName + info;
-	if(counter_time > 0){
-		save_to_file(timeDir + filename + ".dat", times, opEvol / double(counter_time), 1.0 / stats(4), agps(3));		
-		smoothen_data(timeDir, opName + info + ".dat", 10);
-	}
 	if(counter_int > 0){
-		save_to_file(intDir + filename + ".dat", omegas, opIntSpec / double(counter_int), stats(4), agps(3));		
+		wH /= double(counter_int);
+		save_to_file(intDir + filename + ".dat", omegas, opIntSpec / double(counter_int), wH, agps(3));		
 		smoothen_data(intDir,  opName + info + ".dat", 10);
 		
 		std::ifstream file;
 		auto data = readFromFile(file, intDir + "smoothed" + kPSep + filename + ".dat");
 		auto specFun = non_uniform_derivative(data[0], data[1]);
 		arma::vec x = data[0];	x.shed_row(x.size() - 1);
-		save_to_file(specDir_der + opName + info + ".dat", x, specFun, stats(4), agps(3));		
+		save_to_file(specDir_der + opName + info + ".dat", x, specFun, wH, agps(3));		
 		smoothen_data(specDir_der, opName + info + ".dat");
+	}
+	if(counter_time > 0){
+		save_to_file(timeDir + filename + ".dat", times, opEvol / double(counter_time), 1.0 / wH, agps(3));		
+		smoothen_data(timeDir, opName + info + ".dat", 10);
 	}
 
 	if(!mat_elem.is_empty() && !omegas_spec.is_empty()){
@@ -1233,7 +1205,6 @@ void isingUI::ui::eigenstate_entropy(){
 	//#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 		for(int n = 0; n < N; n++){
 			arma::cx_vec state = alfa.get_state_in_full_Hilbert(n);
-			std::cout << state.size() << std::endl;
 			double S_tmp = entropy::vonNeumann(state, LA, this->L, map);
 			S(n) = S_tmp;
 		}
@@ -1250,24 +1221,16 @@ void isingUI::ui::eigenstate_entropy(){
 	if(this->m){
 		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-		#ifdef HEISENBERG
-			map = alfa->get_mapping();
-		#elif !defined(ANDERSON)
-			if(this->g == 0 && this->g0 == 0)
-				map = alfa->get_mapping();
-		#endif
+		if(alfa->using_Sz_symmetry())
+			map = generate_full_map(this->L, alfa->using_Sz_symmetry());
 		N = alfa->get_hilbert_size();
 	 	energies = arma::vec(N, arma::fill::zeros);
 		entropies = arma::vec(N, arma::fill::zeros);
 		average_over_realisations<Ising_params::J>(*alfa, true, kernel);
 	} else{
 		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-		#ifdef HEISENBERG
+		if(alfa->using_Sz_symmetry())
 			map = alfa->get_mapping();
-		#elif !defined(ANDERSON)
-			if(this->g == 0 && this->g0 == 0)
-				map = alfa->get_mapping();
-		#endif
 		average_over_realisations<Ising_params::J>(*alfa, true, kernel);
 	}
 	energies /= double(counter);
@@ -2158,7 +2121,6 @@ void isingUI::ui::calculate_statistics(){
 		std::cout << info << std::endl;
 		long int E_min = alfa.E_av_idx - long(mu / 2);
 		long int E_max = alfa.E_av_idx + long(mu / 2);
-		const arma::Mat<decltype(alfa.type_var)> U = alfa.get_eigenvectors();
 		const arma::vec E = alfa.get_eigenvalues();
 
 		double wH_typ_local = 0.0;
@@ -2177,12 +2139,12 @@ void isingUI::ui::calculate_statistics(){
         		}
 				gap_ratio += min / max;
 	
-				const arma::Col<decltype(alfa.type_var)> state = U.col(i);
+				arma::cx_vec state = alfa.get_state_in_full_Hilbert(i);
 				ipr += statistics::inverse_participation_ratio(state) / double(N);
 				info_entropy += statistics::information_entropy(state);
 				if(i >= alfa.E_av_idx - num_ent / 2. && i < alfa.E_av_idx + num_ent / 2.)
 				{
-					double Stmp= entropy::vonNeumann(cast_cx_vec(state), this->L / 2, this->L, map);
+					double Stmp= entropy::vonNeumann(state, this->L / 2, this->L, map);
 					S += Stmp;
 					S2 += Stmp * Stmp;
 				}
@@ -2203,16 +2165,14 @@ void isingUI::ui::calculate_statistics(){
 	if(this->m){
 		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-		map = alfa->get_mapping();
+		if(alfa->using_Sz_symmetry())
+			map = generate_full_map(this->L, alfa->using_Sz_symmetry());
+			
 		average_over_realisations<Ising_params::h>(*alfa, true, kernel);
 	} else{
 		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-		#ifdef HEISENBERG
+		if(alfa->using_Sz_symmetry())
 			map = alfa->get_mapping();
-		#elif !defined(ANDERSON)
-			if(this->g == 0 && this->g0 == 0)
-				map = alfa->get_mapping();
-		#endif
 		average_over_realisations<Ising_params::h>(*alfa, true, kernel);
 	}
 	errS_dis = errS_dis / double(counter) - entropy / double(counter) * entropy / double(counter);

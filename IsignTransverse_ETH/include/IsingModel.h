@@ -53,7 +53,7 @@ protected:
 	std::vector<cpx> normalisation;						// used for normalization in the symmetry case
 
 	virtual u64 map(u64 index) const = 0;				// function returning either the mapping(symmetries) or the input index (no-symmetry: 1to1 correspondance)
-
+	bool use_Sz_sym = false;
 public:
 	_type type_var = _type(0);
 	u64 E_av_idx = -1;										// average energy
@@ -87,6 +87,7 @@ public:
 		return tmp_str;
 	};
 	
+	bool using_Sz_symmetry()					const { return this->use_Sz_sym; }				 // tells user if Sz symmetry is invoked
 	auto get_hilbert_size()						const { return this->N; }						 // get the Hilbert space size 2^N
 	auto get_mapping()							const { return this->mapping; }					 // constant reference to the mapping
 	auto& get_hamiltonian()						const { return this->H; }						 // get the const reference to a Hamiltonian
@@ -303,15 +304,6 @@ private:
 	void mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id);							// multithreaded mapping
 	void generate_mapping();																													// utilizes the mapping kernel
 
-	static auto generate_full_map(int system_size, bool use_Sz_sym = 0){	
-		std::vector<u64> full_map;
-		for (u64 j = 0; j < (ULLPOW(system_size)); j++){
-			if (!use_Sz_sym || (__builtin_popcountll(j) == int(system_size / 2.)))
-				full_map.push_back(j);
-		}
-		return full_map;
-	}
-
 	u64 map(u64 index) const override;																												// finds a map corresponding to index (for inheritance purpose)
 public:
 	bool get_k_sector() const { return this->k_sector; }
@@ -509,6 +501,15 @@ std::unordered_map<uint64_t, uint64_t> mapping_sym_to_original(uint64_t _min, ui
 };
 
 
+inline auto generate_full_map(int system_size, bool use_Sz_sym = 0)
+{	
+	std::vector<u64> full_map;
+	for (u64 j = 0; j < (ULLPOW(system_size)); j++){
+		if (!use_Sz_sym || (__builtin_popcountll(j) == int(system_size / 2.)))
+			full_map.push_back(j);
+	}
+	return full_map;
+}
 
 
 

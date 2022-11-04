@@ -28,6 +28,17 @@ IsingModel_sym::IsingModel_sym(int L, double J, double g, double h, int k_sym, b
 
 	this->mapping = std::vector<u64>();
 	this->normalisation = std::vector<cpx>();
+
+	this->use_Sz_sym = false;
+	#ifdef HEISENBERG		// HEISENBERG
+		this->use_Sz_sym = true;
+	#elif defined(XYZ)		// XYZ
+		this->use_Sz_sym = false;
+	#else					//ISING
+		if(this->g == 0)
+			this->use_Sz_sym = true;
+	#endif	
+	
 	this->generate_mapping();
 	if (this->N <= 0) {
 		std::cout << "No states in Hilbert space" << std::endl;
@@ -134,11 +145,8 @@ cpx IsingModel_sym::get_symmetry_normalization(u64 base_idx) const {
 /// <param name="_id"> identificator for a given thread </param>
 void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id){
 	for (u64 j = start; j < stop; j++) {
-		#ifdef HEISENBERG
-			if (__builtin_popcountll(j) != this->L / 2.) continue;
-		#else
-			if (this->g == 0 && __builtin_popcountll(j) != this->L / 2.) continue;
-		#endif
+		if (!this->use_Sz_sym && __builtin_popcountll(j) != this->L / 2.) continue;
+		
 		auto [SEC, some_value] = find_SEC_representative(j);
 		if (SEC == j) {
 			cpx N = get_symmetry_normalization(j);					// normalisation condition -- check if state in basis
@@ -236,6 +244,7 @@ void IsingModel_sym::hamiltonian() {
 }
 
 void IsingModel_sym::hamiltonian_xyz(){
+	std::cout << this->N << std::endl;
 	std::vector<std::vector<double>> parameters = {{1.0 * (1 - 0.5), 1.0 * (1 + 0.5), this->g},
                                                     {this->J * (1 - 0.5), this->J * (1 + 0.5), this->J * this->g}
                                                 };
@@ -251,14 +260,14 @@ void IsingModel_sym::hamiltonian_xyz(){
             std::tie(val, op_k) = operators::sigma_z(base_state, L, { j });
             this->setHamiltonianElem(k, this->h * real(val), op_k);
 	    	
-            std::tie(val, op_k) = operators::sigma_x(base_state, L, { j });
-            double fieldX = 0.2;
-			this->setHamiltonianElem(k, fieldX * real(val), op_k);
+            //std::tie(val, op_k) = operators::sigma_x(base_state, L, { j });
+			//this->setHamiltonianElem(k, this->g0 * real(val), op_k);
             for(int a = 0; a < neighbor_distance.size(); a++){
                 int r = neighbor_distance[a];
 				int nei = j + r;
-				if(this->_BC && nei >= this->L) nei = -1;
-				else nei = nei % this->L;
+				if(nei >= this->L)
+					nei = (this->_BC)? -1 : nei % this->L;
+
 	    	    if (nei >= 0) {
                     for(int b = 0; b < XYZoperators.size(); b++){
                         op_type op = XYZoperators[b];
@@ -395,11 +404,11 @@ arma::sp_cx_mat IsingModel_sym::symmetryRotation() const {
 	std::vector<u64> full_map;
 	bool use_Sz_sym = this->g == 0;
 	#ifdef HEISENBERG	
-		full_map = IsingModel_sym::generate_full_map(this->L, true);
+		full_map = generate_full_map(this->L, true);
 		use_Sz_sym = true;
 	#else
 		if(use_Sz_sym)
-			full_map = IsingModel_sym::generate_full_map(this->L, use_Sz_sym);
+			full_map = generate_full_map(this->L, use_Sz_sym);
 	#endif
 
 	u64 max_dim = ULLPOW(this->L);
@@ -430,11 +439,11 @@ arma::cx_vec IsingModel_sym::symmetryRotation(const arma::cx_vec& state, std::ve
 	if(full_map.empty()){
 		bool use_Sz_sym = this->g == 0;
 		#ifdef HEISENBERG	
-			full_map = IsingModel_sym::generate_full_map(this->L, true);
+			full_map = generate_full_map(this->L, true);
 			use_Sz_sym = true;
 		#else
 			if(use_Sz_sym)
-				full_map = IsingModel_sym::generate_full_map(this->L, use_Sz_sym);
+				full_map = generate_full_map(this->L, use_Sz_sym);
 		#endif
 	}
 	u64 max_dim = ULLPOW(this->L);

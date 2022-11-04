@@ -23,12 +23,18 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 			",w=" + to_string_prec(this->w);
 	#endif
 	this->set_neighbors();
-	#ifndef HEISENBERG
+	this->use_Sz_sym = false;
+	#ifdef HEISENBERG		// HEISENBERG
+		this->use_Sz_sym = true;
+	#elif defined(XYZ)		// XYZ
+		if(this->J0 == 0 && this->g0 == 0)
+			this->use_Sz_sym = true;
+	#else					//ISING
 		if(this->g == 0 && this->g0 == 0)
-			generate_mapping();
-	#else
-		generate_mapping();
+			this->use_Sz_sym = true;
 	#endif	
+	if(use_Sz_sym)
+		generate_mapping();
 	this->hamiltonian();
 }
 
@@ -41,21 +47,11 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 /// <returns>index</returns>
 u64 IsingModel_disorder::map(u64 index) const {
 	if (index < 0 || index >= std::pow(2, L)) throw "Element out of range\n No such index in map\n";
-	#ifndef HEISENBERG
-		return index;
-		return (this->g == 0 && this->g0 == 0? mapping[index] : index);
-	#else
-		return mapping[index];
-	#endif
+	return this->use_Sz_sym? mapping[index] : index;
 }
 
 u64 IsingModel_disorder::find_in_map(u64 index) const {
-	#ifdef HEISENBERG
-		return binary_search(this->mapping, 0, this->N - 1, index);
-	#else
-		return index;
-		return (this->g == 0 && this->g0 == 0)? binary_search(this->mapping, 0, this->N - 1, index) : index;
-	#endif
+	return this->use_Sz_sym? binary_search(this->mapping, 0, this->N - 1, index) : index;
 }
 
 /// <summary>
@@ -80,6 +76,10 @@ void IsingModel_disorder::generate_mapping() {
 /// <param name="temp"> resulting vector form acting with the Hamiltonian operator on the k-th basis state </param>
 void IsingModel_disorder::setHamiltonianElem(u64 k, double value, u64 new_idx) {
 	u64 idx = find_in_map(new_idx);
+	#ifdef XYZ
+		if(this->use_Sz_sym && idx >= this->N)
+			return;
+	#endif
 	try{
 		H(idx, k) += value;
 		#ifdef HEISENBERG
@@ -89,7 +89,7 @@ void IsingModel_disorder::setHamiltonianElem(u64 k, double value, u64 new_idx) {
 	catch (const std::exception& err) {
 		stout << "Exception:\t" << err.what() << "\n";
 		stout << "SHit ehhh..." << std::endl;
-		printSeparated(std::cout, "\t", 14, true, new_idx, idx, k, value);
+		printSeparated(std::cout, "\t", 14, true, new_idx, idx, map(k), value);
 	}
 
 }
@@ -142,8 +142,9 @@ void IsingModel_disorder::hamiltonian() {
 }
 
 void IsingModel_disorder::hamiltonian_xyz(){
-	std::vector<std::vector<double>> parameters = { { 1.0 * (1 - this->g0), 1.0 * (1 + this->g0), this->g},
-                                                    {this->J * (1 - this->g0), this->J * (1 + this->g0), this->J * this->g }
+	std::cout << this->N << std::endl;
+	std::vector<std::vector<double>> parameters = { { 1.0 * (1 - this->J0), 1.0 * (1 + this->J0), this->g},
+                                                    {this->J * (1 - this->J0), this->J * (1 + this->J0), this->J * this->g }
                                                 };
     for(auto& x : parameters)
         std::cout << x << std::endl;
@@ -159,17 +160,15 @@ void IsingModel_disorder::hamiltonian_xyz(){
 			double fieldZ = (j == this->L - 1)? this->w : this->h;
             this->setHamiltonianElem(k, fieldZ * real(val), op_k);
 	    	
-            //std::tie(val, op_k) = operators::sigma_x(base_state, this->L, { j });
-            //double fieldX = this->w;
-			//this->setHamiltonianElem(k, fieldX * real(val), op_k);
-
+			if(j == 0){
+            	std::tie(val, op_k) = operators::sigma_x(base_state, this->L, { j });
+				this->setHamiltonianElem(k, this->g0  * real(val), op_k);
+			}
             for(int a = 0; a < neighbor_distance.size(); a++){
                 int r = neighbor_distance[a];
 				int nei = j + r;
-				if(this->_BC && nei >= this->L) 
-					nei = -1;
-				else 
-					nei = nei % this->L;
+				if(nei >= this->L)
+					nei = (this->_BC)? -1 : nei % this->L;
 
 	    	    if (nei >= 0) {
                     for(int b = 0; b < XYZoperators.size(); b++){
