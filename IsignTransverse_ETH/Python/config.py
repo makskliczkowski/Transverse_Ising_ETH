@@ -7,7 +7,7 @@ model = 0           # chooses model: 0-disorder / 1-symmetries / 2-local perturb
 hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
 BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
 
-L = 16                          # system size
+L = 18                          # system size
 J = 1.00                        # spin exchange (Ising-like)
 g = 0.55                       # trasnverse magnetic field (z-axis)
 h = 0.0                        # longitudal magnetic field (x-axis)
@@ -44,7 +44,7 @@ plot_settings_dict = {
 
 #---- operator options
     'operator':         2,         # chosen operator according to order set in IsingModel.h
-    'site':            8,          # chosen site for local operator
+    'site':            L/2,          # chosen site for local operator
     'smoothed':         1,          # choose running-smoothed option
 
 #---- instances set after
@@ -102,7 +102,7 @@ operator_names = [
 ]
 
 def operator_name(operator, site):
-    return operator_names[operator] + ("%s"%site if operator < 8 else "")
+    return operator_names[operator] + ("%d"%site if operator < 8 else "")
     
 def subdir(operator, site, smoothed = 1):
     return (f"EXTENSIVE{kPSep}" if operator > 7 else ("j=%d%s" if operator < 3 else "q=%d%s")%(site, kPSep) ) + (f"smoothed{kPSep}" if smoothed else "")

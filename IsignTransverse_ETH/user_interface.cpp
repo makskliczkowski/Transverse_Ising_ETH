@@ -11,6 +11,8 @@ void isingUI::ui::make_sim()
 		//this->seed = static_cast<long unsigned int>(time(0));
 	#endif
 	my_gen = randomGen(this->seed);
+	//compare_energies();
+	
 	printAllOptions();
 	//auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 	//auto alfa = std::make_unique<IsingModel_disorder>(this->L, 1, 0, 1, 0, 0, 0, this->boundary_conditions);
@@ -54,10 +56,10 @@ void isingUI::ui::make_sim()
 			var = Ising_params::g;
 	}
 
-	//for (auto& wx : w_list){
-	//	this->w = wx;
+	//for (auto& Ll : L_list){
+	//	this->L = Ll;
 	//	this->site = this->L / 2;
-	//	generate_statistic_map(var); 
+	//	generate_statistic_map(Ising_params::g); 
 	//	//thouless_times(var);
 	//}; return;
 
@@ -113,7 +115,7 @@ void isingUI::ui::make_sim()
 							stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
 							printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
 							//calculate_localisation_length(); continue;
-							calculate_statistics(); continue;
+							eigenstate_entropy(); continue;
 
 							combine_spectrals(); continue;
 
@@ -799,7 +801,7 @@ void isingUI::ui::calculate_spectrals()
 		stout << "\t\t	--> finished diagonalizing for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 		auto U = alfa.get_eigenvectors();
 		arma::vec E = alfa.get_eigenvalues();
-
+		
 		stout << "\t\t	--> got eigenvectors for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 		op = alfa.chooseOperator(this->op, this->site);
 		arma::cx_mat mat_elem = U.t() * op * U;
@@ -1177,15 +1179,7 @@ void isingUI::ui::eigenstate_entropy(){
 	createDirs(dir);
 	int LA = this->L / 2;
 	size_t N = 0;
-	#ifdef HEISENBERG
-		N = binomial(this->L, this->L / 2.);
-	#elif defined ANDERSON
-		N = this->L * this->L * this->L;
-	#else
-		N = ULLPOW(this->L);
-	#endif
-	arma::vec energies(N, arma::fill::zeros);
-	arma::vec entropies(N, arma::fill::zeros);
+	arma::vec energies, entropies;
 	
 	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
 					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
@@ -1229,6 +1223,9 @@ void isingUI::ui::eigenstate_entropy(){
 		average_over_realisations<Ising_params::J>(*alfa, true, kernel);
 	} else{
 		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+		N = alfa->get_hilbert_size();
+	 	energies = arma::vec(N, arma::fill::zeros);
+		entropies = arma::vec(N, arma::fill::zeros);
 		if(alfa->using_Sz_symmetry())
 			map = alfa->get_mapping();
 		average_over_realisations<Ising_params::J>(*alfa, true, kernel);
