@@ -28,6 +28,17 @@ IsingModel_sym::IsingModel_sym(int L, double J, double g, double h, int k_sym, b
 
 	this->mapping = std::vector<u64>();
 	this->normalisation = std::vector<cpx>();
+
+	this->use_Sz_sym = false;
+	#ifdef HEISENBERG		// HEISENBERG
+		this->use_Sz_sym = true;
+	#elif defined(XYZ)		// XYZ
+		this->use_Sz_sym = false;
+	#else					//ISING
+		if(this->g == 0)
+			this->use_Sz_sym = true;
+	#endif	
+	
 	this->generate_mapping();
 	if (this->N <= 0) {
 		std::cout << "No states in Hilbert space" << std::endl;
@@ -45,22 +56,38 @@ void IsingModel_sym::createSymmetryGroup() {
 	std::function<u64(u64, int)> T = e;											// in 1st iteration is neutral element
 	std::function<u64(u64, int)> Z = static_cast<u64(*)(u64, int)>(&flip);		// spin flip operator (all spins)
 	std::function<u64(u64, int)> P = reverseBits;								// parity operator
-	for (int k = 0; k < this->L; k++) {
-				this->symmetry_group.push_back(T);
-				this->symmetry_eigVal.push_back(this->k_exponents[k]);
+	if(this->_BC){
+		this->symmetry_group.push_back(e);
+		this->symmetry_eigVal.push_back(1.0);
+		this->symmetry_group.push_back(P);
+		this->symmetry_eigVal.push_back(double(this->symmetries.p_sym));
 		if (this->h == 0) {
-				this->symmetry_group.push_back(multiply_operators(Z, T));
-				this->symmetry_eigVal.push_back(this->k_exponents[k] * double(this->symmetries.x_sym));
+				this->symmetry_group.push_back(Z);
+				this->symmetry_eigVal.push_back(double(this->symmetries.x_sym));
+
+				this->symmetry_group.push_back(multiply_operators(P, Z));
+				this->symmetry_eigVal.push_back(double(this->symmetries.p_sym * (long)this->symmetries.x_sym));
 		}
-		if (this->k_sector) {
-				this->symmetry_group.push_back(multiply_operators(P, T));
-				this->symmetry_eigVal.push_back(this->k_exponents[k] * double(this->symmetries.p_sym));
+
+	}
+	else{
+		for (int k = 0; k < this->L; k++) {
+					this->symmetry_group.push_back(T);
+					this->symmetry_eigVal.push_back(this->k_exponents[k]);
 			if (this->h == 0) {
-				this->symmetry_group.push_back(multiply_operators(multiply_operators(P, Z), T));
-				NO_OVERFLOW(this->symmetry_eigVal.push_back(this->k_exponents[k] * double(this->symmetries.p_sym * (long)this->symmetries.x_sym));)
+					this->symmetry_group.push_back(multiply_operators(Z, T));
+					this->symmetry_eigVal.push_back(this->k_exponents[k] * double(this->symmetries.x_sym));
 			}
+			if (this->k_sector) {
+					this->symmetry_group.push_back(multiply_operators(P, T));
+					this->symmetry_eigVal.push_back(this->k_exponents[k] * double(this->symmetries.p_sym));
+				if (this->h == 0) {
+					this->symmetry_group.push_back(multiply_operators(multiply_operators(P, Z), T));
+					NO_OVERFLOW(this->symmetry_eigVal.push_back(this->k_exponents[k] * double(this->symmetries.p_sym * (long)this->symmetries.x_sym));)
+				}
+			}
+			T = multiply_operators(rotate_left, T);
 		}
-		T = multiply_operators(rotate_left, T);
 	}
 }
 
@@ -118,11 +145,10 @@ cpx IsingModel_sym::get_symmetry_normalization(u64 base_idx) const {
 /// <param name="_id"> identificator for a given thread </param>
 void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id){
 	for (u64 j = start; j < stop; j++) {
-		#ifdef HEISENBERG
-			if (__builtin_popcountll(j) != this->L / 2.) continue;
-		#else
-			if (this->g == 0 && __builtin_popcountll(j) != this->L / 2.) continue;
-		#endif
+		if (this->use_Sz_sym)
+			if (__builtin_popcountll(j) != this->L / 2.) 
+				continue;
+		
 		auto [SEC, some_value] = find_SEC_representative(j);
 		if (SEC == j) {
 			cpx N = get_symmetry_normalization(j);					// normalisation condition -- check if state in basis
@@ -211,8 +237,50 @@ void IsingModel_sym::hamiltonian() {
 	#ifdef HEISENBERG
 		this->hamiltonian_heisenberg();
 	#else
-		this->hamiltonian_Ising();
+			#ifdef XYZ
+				this->hamiltonian_xyz();
+			#else
+				this->hamiltonian_Ising();
+			#endif
 	#endif
+}
+
+void IsingModel_sym::hamiltonian_xyz(){
+	std::cout << this->N << std::endl;
+	std::vector<std::vector<double>> parameters = {{1.0 * (1 - 0.5), 1.0 * (1 + 0.5), this->g},
+                                                    {this->J * (1 - 0.5), this->J * (1 + 0.5), this->J * this->g}
+                                                };
+    for(auto& x : parameters)
+        std::cout << x << std::endl;
+    std::vector<op_type> XYZoperators = {operators::sigma_x, operators::sigma_y, operators::sigma_z };
+    std::vector<int> neighbor_distance = {1, 2};
+    for (size_t k = 0; k < this->N; k++) {
+		int base_state = map(k);
+	    for (int j = 0; j < this->L; j++) {
+            cpx val = 0.0;
+            u64 op_k;
+            std::tie(val, op_k) = operators::sigma_z(base_state, L, { j });
+            this->setHamiltonianElem(k, this->h * real(val), op_k);
+	    	
+            //std::tie(val, op_k) = operators::sigma_x(base_state, L, { j });
+			//this->setHamiltonianElem(k, this->g0 * real(val), op_k);
+            for(int a = 0; a < neighbor_distance.size(); a++){
+                int r = neighbor_distance[a];
+				int nei = j + r;
+				if(nei >= this->L)
+					nei = (this->_BC)? -1 : nei % this->L;
+
+	    	    if (nei >= 0) {
+                    for(int b = 0; b < XYZoperators.size(); b++){
+                        op_type op = XYZoperators[b];
+		                auto [val1, op_k] = op(base_state, L, { j });
+		                auto [val2, opop_k] = op(op_k, L, { nei });
+						this->setHamiltonianElem(k, parameters[a][b] * real(val1 * val2), opop_k);
+                    }
+	    	    }
+            }
+	    }
+	}
 }
 
 void IsingModel_sym::hamiltonian_Ising(){
@@ -338,11 +406,11 @@ arma::sp_cx_mat IsingModel_sym::symmetryRotation() const {
 	std::vector<u64> full_map;
 	bool use_Sz_sym = this->g == 0;
 	#ifdef HEISENBERG	
-		full_map = IsingModel_sym::generate_full_map(this->L, true);
+		full_map = generate_full_map(this->L, true);
 		use_Sz_sym = true;
 	#else
 		if(use_Sz_sym)
-			full_map = IsingModel_sym::generate_full_map(this->L, use_Sz_sym);
+			full_map = generate_full_map(this->L, use_Sz_sym);
 	#endif
 
 	u64 max_dim = ULLPOW(this->L);
@@ -373,16 +441,15 @@ arma::cx_vec IsingModel_sym::symmetryRotation(const arma::cx_vec& state, std::ve
 	if(full_map.empty()){
 		bool use_Sz_sym = this->g == 0;
 		#ifdef HEISENBERG	
-			full_map = IsingModel_sym::generate_full_map(this->L, true);
+			full_map = generate_full_map(this->L, true);
 			use_Sz_sym = true;
 		#else
 			if(use_Sz_sym)
-				full_map = IsingModel_sym::generate_full_map(this->L, use_Sz_sym);
+				full_map = generate_full_map(this->L, use_Sz_sym);
 		#endif
 	}
-
 	u64 max_dim = ULLPOW(this->L);
-	u64 dim_tot = full_map.empty()? full_map.size() : max_dim; 
+	u64 dim_tot = full_map.empty()? max_dim : full_map.size();
 	arma::cx_vec output(dim_tot, arma::fill::zeros);
 
 	auto find_index = [&](u64 index){

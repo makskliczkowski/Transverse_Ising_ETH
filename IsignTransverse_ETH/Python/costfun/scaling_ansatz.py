@@ -10,6 +10,10 @@ import numpy as np
 from config import hamiltonian
 from scipy.special import binom
 
+def _rescale_spacing(x, L, crit_fun, nu, *args):
+    """Regular ansatz with power-law on L"""
+    return np.sign(x - crit_fun(L, *args)) * abs(x - crit_fun(L, *args))**nu
+
 def _rescale_classic(x, L, crit_fun, nu, *args):
     """Regular ansatz with power-law on L"""
     return (x - crit_fun(L, *args)) * L**(nu)

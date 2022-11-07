@@ -40,6 +40,7 @@ _resc_keys = resc_functions_dict.keys()
 
 #------------------------------------------ XLABELS FOR SCALING ANSATZ
 scale_ansatz_label = {
+    'spacing':      lambda vs_str : "|" + vs_str + " - " + vs_str + "_c|^{\\nu} \\cdot \\omega_H^{-1/\\mu}",
     'FGR':      lambda vs_str : "|" + vs_str + " - " + vs_str + "_c|^{\\nu} \\cdot D^{1/\\mu}",
     'KT':       lambda vs_str : "L / \\xi_{KT}\ \ \ \ \\xi_{KT}^{-1}=exp(\\nu\\cdot|" + vs_str + " - " + vs_str + "_c|^{-1/2})",
     'RG':       lambda vs_str: "L / \\xi_0\ \ \ \ \\xi_0^{-1}=|" + vs_str + " - " + vs_str + "_c|^{\\nu}",
@@ -60,7 +61,7 @@ def calculate_cost_function(data):
 
 
 # FUNCTION TO BE MINIMIZED
-def minimization_function(params, xvals, y, sizes, scaling_ansatz, crit_function):
+def minimization_function(params, xvals, y, sizes, scaling_ansatz, crit_function, wH = None):
     """
     General function to used in minimization scheme
     Collects all data to a 1D array and sorts it according to non-decreasing values of the scaling ansatz
@@ -86,30 +87,33 @@ def minimization_function(params, xvals, y, sizes, scaling_ansatz, crit_function
                                                            _resc_keys)
         raise ValueError(err_message)
     
+    if wH is None and scaling_ansatz == 'spacing':
+        """
+        Check if level spacing is input if spacing rescale is chosen
+        """
+        err_message = ( 'Mean level spacing is empty sequence'
+                        'Need data of shape: {}').format(y.shape())
+        raise ValueError(err_message)
+
     rescale_fun = resc_functions_dict[scaling_ansatz]
     crit_fun = crit_functions_dict[crit_function]
 
-    num_of_exp = 1 if scaling_ansatz != 'FGR' else 2
+    num_of_exp = 2 if scaling_ansatz == 'FGR' or scaling_ansatz == 'spacing' else 1
     crit_pars=np.array(params[num_of_exp:]) # critical parameters to find given in critical point scaling
 
     xdata = []
     fulldata = []
-    
+    final_func = None
+    if scaling_ansatz == 'FGR':         
+        final_func = lambda params, i, j : rescale_fun(xvals[i][j], sizes[i], crit_fun, params[0], params[1], *crit_pars)
+    elif scaling_ansatz == 'spacing':   
+        final_func = lambda params, i, j : rescale_fun(xvals[i][j], sizes[i], crit_fun, params[0], *crit_pars) * wH[i][j]**params[1]
+    else:                               
+        final_func = lambda params, i, j : rescale_fun(xvals[i][j], sizes[i], crit_fun, params[0], *crit_pars)
+
     for i in range(0, len(sizes)):
         for j in range(0, len(xvals[i])):
-            xvalue = None
-            if scaling_ansatz == 'FGR':
-                xvalue = rescale_fun(
-                    xvals[i][j], 
-                    sizes[i], 
-                    crit_fun, 
-                    params[0], params[1], *crit_pars)
-            else:
-                xvalue = rescale_fun(
-                    xvals[i][j], 
-                    sizes[i], 
-                    crit_fun, 
-                    params[0],*crit_pars)
+            xvalue = final_func(params, i, j)
             xdata.append( xvalue )
             fulldata.append(y[i][j])
     
@@ -126,7 +130,7 @@ def minimization_function(params, xvals, y, sizes, scaling_ansatz, crit_function
 def cost_func_minization(x, y, sizes, bnds, 
                             scale_func, crit_func, 
                             population_size=1e2, maxiterarions=1e3, 
-                            workers=1, realisations=1, seed = None):
+                            workers=1, realisations=1, seed = None, wH = None):
     """
     Main function returning optimal parameters for given scaling ansatz
 
@@ -158,7 +162,7 @@ def cost_func_minization(x, y, sizes, bnds,
     result = differential_evolution(
                     minimization_function,
                     bounds=bnds,
-                    args=(x, y, sizes, scale_func, crit_func),
+                    args=(x, y, sizes, scale_func, crit_func, wH),
                     popsize=int(population_size), 
                     maxiter=int(maxiterarions), 
                     workers=workers, atol=1e-3,
@@ -173,7 +177,7 @@ def cost_func_minization(x, y, sizes, bnds,
             result = differential_evolution(
                         minimization_function,
                         bounds=bnds,
-                        args=(x, y, sizes, scale_func, crit_func),
+                        args=(x, y, sizes, scale_func, crit_func, wH),
                         popsize=int(population_size), 
                         maxiter=int(maxiterarions), 
                         workers=workers, atol=1e-2,
@@ -211,7 +215,7 @@ def prepare_bounds(x, crit_fun, scaling_ansatz, vals):
                 x_max = _x_
 
     bounds = [(-10., 10.)]        # -- critical exponent
-    if scaling_ansatz == 'FGR':
+    if scaling_ansatz == 'FGR' or scaling_ansatz == 'spacing':
         bounds.append( (-10., 10.) )
     #-- number of bounds is number of different scaling parameters
     if crit_fun == 'free':  
@@ -234,7 +238,7 @@ def prepare_bounds(x, crit_fun, scaling_ansatz, vals):
     return bounds
 
 
-def get_crit_points(x, y, vals, crit_fun='free', scaling_ansatz = 'classic', seed = None):
+def get_crit_points(x, y, vals, crit_fun='free', scaling_ansatz = 'classic', seed = None, wH = None):
     """
     Calculating critical points for each system size
 
@@ -261,11 +265,12 @@ def get_crit_points(x, y, vals, crit_fun='free', scaling_ansatz = 'classic', see
                                     crit_func=crit_fun,
                                     bnds=bounds,
                                     population_size=1e2,
-                                    maxiterarions=1e2, workers=10, realisations=1,
-                                    seed = seed
+                                    maxiterarions=1e3, workers=10, realisations=1,
+                                    seed = seed,
+                                    wH = wH
                                 )
 
-    num_of_exp = 1 if scaling_ansatz != 'FGR' else 2
+    num_of_exp = 2 if scaling_ansatz == 'FGR' or scaling_ansatz == 'spacing' else 1
     par = params[:num_of_exp]
     crit_pars = np.array(params[num_of_exp:])
     return par, crit_pars, cost_fun, status

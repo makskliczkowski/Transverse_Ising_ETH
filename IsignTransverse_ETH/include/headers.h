@@ -53,7 +53,7 @@ std::vector<std::string> split_str(std::string s, std::string delimiter);
 template <typename T>
 inline
 int order_of_magnitude(const T a_value) {
-	return 2;
+	
 	if(a_value < 1.0 && a_value != 0){
 		T m = std::abs(std::log10(std::abs(a_value)));
 		return int(std::max(std::ceil(m) + 1., 2.));
