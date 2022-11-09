@@ -47,10 +47,10 @@ def plot_agp(axis=None, settings_class = None,
         if exists(filename):
             data = pd.read_table(filename, sep="\t", header=None)
             if "nan" in data[1][1]: continue
-            stats = pd.read_table(filename2, sep="\t", header=None)
-            wH = (np.array(stats[5][1:])).astype(np.float)
+            stats = hfun.read_python_saved_dat_file(filename2)
             xdata = (np.array(data[0][1:])).astype(np.float)
             ydata = (np.array(data[which][1:])).astype(np.float)
+            wH = np.array([x for i, x in enumerate(stats[5]) if stats[0][i] in xdata])
             if which == 2:
                 ydata = ydata * binom(x, x/2) * np.power(wH, 2.0) / x**2
             elif which == 1:

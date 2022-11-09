@@ -8,9 +8,11 @@ int anderson_dim = 3;
 void isingUI::ui::make_sim()
 {	
 	#if defined(MY_MAC)
-		//this->seed = static_cast<long unsigned int>(time(0));
+		this->seed = static_cast<long unsigned int>(time(0));
 	#endif
 	my_gen = randomGen(this->seed);
+	//compare_energies();
+
 	printAllOptions();
 	//auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 	//auto alfa = std::make_unique<IsingModel_disorder>(this->L, 1, 0, 1, 0, 0, 0, this->boundary_conditions);
@@ -21,11 +23,9 @@ void isingUI::ui::make_sim()
 	//std::ifstream filee;
 	//auto data = readFromFile(filee, this->saving_dir + "random_vec.dat");
 	//arma::cx_vec random = cast_cx_vec(data[0]);
-//
 	//lanczos::Lanczos lancz(H, lanczosParams(this->mu, 1, false, false), random);
 	//lancz.diagonalization();
 	//auto T = lancz.get_lanczos_matrix();
-//
 	//std::cout << lancz.get_eigenvalues()(0) << std::endl;
 	//std::ofstream file;
 	//std::cout << T << std::endl;
@@ -54,10 +54,10 @@ void isingUI::ui::make_sim()
 			var = Ising_params::g;
 	}
 
-	//for (auto& wx : w_list){
-	//	this->w = wx;
+	//for (auto& Ll : L_list){
+	//	this->L = Ll;
 	//	this->site = this->L / 2;
-	//	generate_statistic_map(var); 
+	//	generate_statistic_map(Ising_params::g); 
 	//	//thouless_times(var);
 	//}; return;
 
@@ -799,7 +799,7 @@ void isingUI::ui::calculate_spectrals()
 		stout << "\t\t	--> finished diagonalizing for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 		auto U = alfa.get_eigenvectors();
 		arma::vec E = alfa.get_eigenvalues();
-
+		
 		stout << "\t\t	--> got eigenvectors for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 		op = alfa.chooseOperator(this->op, this->site);
 		arma::cx_mat mat_elem = U.t() * op * U;
@@ -1177,15 +1177,7 @@ void isingUI::ui::eigenstate_entropy(){
 	createDirs(dir);
 	int LA = this->L / 2;
 	size_t N = 0;
-	#ifdef HEISENBERG
-		N = binomial(this->L, this->L / 2.);
-	#elif defined ANDERSON
-		N = this->L * this->L * this->L;
-	#else
-		N = ULLPOW(this->L);
-	#endif
-	arma::vec energies(N, arma::fill::zeros);
-	arma::vec entropies(N, arma::fill::zeros);
+	arma::vec energies, entropies;
 	
 	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
 					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
@@ -1229,6 +1221,9 @@ void isingUI::ui::eigenstate_entropy(){
 		average_over_realisations<Ising_params::J>(*alfa, true, kernel);
 	} else{
 		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+		N = alfa->get_hilbert_size();
+	 	energies = arma::vec(N, arma::fill::zeros);
+		entropies = arma::vec(N, arma::fill::zeros);
 		if(alfa->using_Sz_symmetry())
 			map = alfa->get_mapping();
 		average_over_realisations<Ising_params::J>(*alfa, true, kernel);
@@ -2144,7 +2139,7 @@ void isingUI::ui::calculate_statistics(){
 				info_entropy += statistics::information_entropy(state);
 				if(i >= alfa.E_av_idx - num_ent / 2. && i < alfa.E_av_idx + num_ent / 2.)
 				{
-					double Stmp= entropy::vonNeumann(state, this->L / 2, this->L, map);
+					double Stmp = entropy::vonNeumann(state, this->L / 2, this->L, map);
 					S += Stmp;
 					S2 += Stmp * Stmp;
 				}
@@ -2508,14 +2503,30 @@ void user_interface::set_default_msg(T &value, string option, string message, co
 void isingUI::ui::printAllOptions() const
 {
 	stout << "------------------------------CHOSEN MODEL:" << std::endl;
-	#ifdef HEISENBERG
-		std::cout << "HEISENBERG:\n\t\t" << "H = \u03A3_i J_i(\u03C3^x_i \u03C3^x_i+1 + \u03C3^y_i \u03C3^y_i+1) + g_i \u03C3^z_i\u03C3^z_i+1 + h_i \u03C3^x_i" << std::endl << std::endl;
+
+	#if MODEL == 0
+		std::cout << "ISING:\n\t\t" << "H = \u03A3_i J_i \u03C3^z_i \u03C3^z_i+1 + g_i \u03C3^x_i + h_i \u03C3^x_i" << std::endl << std::endl;
+	#elif MODEL == 1
+		std::cout << "HEISENBERG:\n\t\t" << "H = \u03A3_i J_i(S^x_i S^x_i+1 + S^y_i S^y_i+1) + g_i S^z_iS^z_i+1 + h_i S^x_i" << std::endl << std::endl;
+	#elif MODEL == 2
+		std::cout << "ANDERSON:\n\t\t" << "H = J/2 \u03A3_i (S^x_i S^x_i+1 + S^y_i S^y_i+1) + h_i S^z_i" << std::endl << std::endl;
+		std::cout << "h_i \u03B5 [-w, w]" << std::endl;
+		std::cout << "h_c^{3D} ~ 4.1 (rescale by 4 when using 3D in plots)" << std::endl;
+	#elif MODEL == 3
+		std::cout << "XYZ:\n\t\t" << "H = \u03A3_r J_r\u03A3_i [ (1 - J0)S^x_i S^x_i+r + (1 + J0)S^y_i S^y_i+r) + g S^z_iS^z_i+1 + g0 S^x_i + h S^z_i + w(S^z_{L-1} + S^x_0)" << std::endl << std::endl;
+	#elif MODEL == 4
+		std::cout << "QUANTUM SUN:\n\t\t" << "H = R_GOE + \u03A3_i g0 * alfa^{u_j} S^x_i S^x_i+1 + h_i S^x_i" << std::endl << std::endl;
+		std::cout << "u_j in [j - J0, j + J0]"  << std::endl;
+		std::cout << "h_i \u03B5 [h - w, h + w]" << std::endl;
 	#else
 		std::cout << "ISING:\n\t\t" << "H = \u03A3_i J_i \u03C3^z_i \u03C3^z_i+1 + g_i \u03C3^x_i + h_i \u03C3^x_i" << std::endl << std::endl;
 	#endif
-	std::cout << "J_i \u03B5 [J - J0, J + J0]" << std::endl;
-	std::cout << "g_i \u03B5 [g - g0, g + g0]" << std::endl;
-	std::cout << "h_i \u03B5 [h - w, h + w]" << std::endl;
+	#if MODEL == 0 || MODEL == 1
+		std::cout << "J_i \u03B5 [J - J0, J + J0]" << std::endl;
+		std::cout << "g_i \u03B5 [g - g0, g + g0]" << std::endl;
+		std::cout << "h_i \u03B5 [h - w, h + w]" << std::endl;
+	#endif
+	stout << "Chosen spin species is S = " << S << std::endl << std::endl;
 	stout << "------------------------------CHOSEN OPTIONS:" << std::endl;
 	std::string opName = std::get<0>(IsingModel_disorder::opName(this->op, this->site));
 	stout << "DIR = " << this->saving_dir << std::endl
@@ -2828,32 +2839,37 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv)
 	#ifdef ANDERSON
 		str_model = std::to_string(this->dim) + "D" + kPSep;
 	#endif
-	// make boundary condition folder
-	switch (this->boundary_conditions)
-	{
-	case 0:
-		str_model += "PBC" + std::string(kPathSeparator);
-		break;
-	case 1:
-		str_model += "OBC" + std::string(kPathSeparator);
-		break;
-	default:
-		str_model += "PBC" + std::string(kPathSeparator);
-		break;
-	}
 
-	#ifdef HEISENBERG
+	// make boundary condition folder
+	#if !defined(QUANTUM_SUN)
+		switch (this->boundary_conditions)
+		{
+		case 0:
+			str_model += "PBC" + std::string(kPathSeparator);
+			break;
+		case 1:
+			str_model += "OBC" + std::string(kPathSeparator);
+			break;
+		default:
+			str_model += "PBC" + std::string(kPathSeparator);
+			break;
+		}
+	#endif
+
+	#if MODEL == 0
+		std::string folder = saving_dir + "ISING" + kPSep + str_model;
+	#elif MODEL == 1
 		std::string folder = saving_dir + "HEISENBERG" + kPSep + str_model;
+	#elif MODEL == 2
+		std::string folder = saving_dir + "ANDERSON" + kPSep + str_model;
+	#elif MODEL == 3
+		std::string folder = saving_dir + "XYZ" + kPSep + str_model;
+	#elif MODEL == 4
+		std::string folder = saving_dir + "QUANTUM_SUN" + kPSep + str_model;
 	#else
-		#ifdef XYZ
-			std::string folder = saving_dir + "XYZ" + kPSep + str_model;
-		#else
-			std::string folder = saving_dir + "ISING" + kPSep + str_model;
-		#endif
+		std::string folder = saving_dir + "ISING" + kPSep + str_model;
 	#endif
-	#ifdef ANDERSON
-		folder = saving_dir + "ANDERSON" + kPSep + str_model;
-	#endif
+
 	if (!argv[argc - 1].empty() && argc % 2 != 0) {
 		// only if the last command is non-even
 		folder = argv[argc - 1] + str_model;

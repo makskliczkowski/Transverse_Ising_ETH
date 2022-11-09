@@ -263,9 +263,11 @@ inline void normaliseOp(arma::sp_cx_mat& op) {
 	else
 		std::cout << "normalisation <A^2>=0 - somethings wrong, boi.. " << std::scientific << operator_normalisation << std::endl;
 }
-inline void normaliseMat(arma::cx_mat& _matrix) {
+
+template <typename _type>
+inline void normaliseMat(arma::Mat<_type>& _matrix) {
 	const u64 N = _matrix.n_cols;
-	cpx operator_normalisation = arma::norm(_matrix, "fro"); // has already square root
+	_type operator_normalisation = arma::norm(_matrix, "fro"); // has already square root
 	operator_normalisation = operator_normalisation / std::sqrt(N);
 	_matrix = _matrix / operator_normalisation;
 }
@@ -403,6 +405,7 @@ public:
 	void hamiltonian_Ising() override;
 	void hamiltonian_heisenberg() override;
 	void hamiltonian_xyz() override;
+	void hamiltonian_qsun();
 	
 	void setHamiltonianElem(u64 k, double value, u64 new_idx) override;
 	double mean_level_spacing_analytical() const override {

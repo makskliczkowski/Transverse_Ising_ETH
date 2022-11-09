@@ -328,16 +328,19 @@ def get_relax_times(vals = None, set_class = None, operator = -1, site = -2):
                                                                         )
         
         if status2:
-            cut = 30
-            if x <= 0.2: cut = 120
+            cut = 50
+            num = 500
+            if x <= 0.2: 
+                cut = 50
+                num = 4000
             xfull = xdata2
-            xdata2 = np.array([xdata2[i] for i in range(0,len(xdata2)) if (xdata2[i] < 5000 and xdata2[i] > cut)])
-            ydata2 = np.array([ydata2[i] for i in range(0,len(ydata2)) if (xfull[i] < 5000 and xfull[i] > cut)])
+            xdata2 = np.array([xdata2[i] for i in range(0,len(xdata2)) if (xdata2[i] < num and xdata2[i] > cut)])
+            ydata2 = np.array([ydata2[i] for i in range(0,len(ydata2)) if (xfull[i] < num and xfull[i] > cut)])
             
             ydata2 = np.log10(np.abs(ydata2))
             idx_zero = np.argmin((ydata2))
-            ydata2 = ydata2[:idx_zero - 15]
-            xdata2 = xdata2[:idx_zero - 15]
+            ydata2 = ydata2[:idx_zero - 10]
+            xdata2 = xdata2[:idx_zero - 10]
             #print(pars)
             
             pars, sth = fit(f=lin_fit, 

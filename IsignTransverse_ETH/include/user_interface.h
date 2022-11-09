@@ -183,7 +183,7 @@ namespace isingUI
 				auto str_tmp = split_str(substr, "=");
 				if(str_tmp[0] == var){
 					// found position of parameter with name var
-					if(str_tmp[1].find(".") != std::string::npos) str_tmp[1] = to_string_prec(new_value, 2);	// print double value
+					if(str_tmp[1].find(".") != std::string::npos) str_tmp[1] = to_string_prec(new_value);	// print double value
 					else str_tmp[1] = std::to_string(int(new_value));											// print int value
 				}
 				// reconstruct the info

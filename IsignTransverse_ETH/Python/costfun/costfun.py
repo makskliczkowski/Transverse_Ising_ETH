@@ -40,7 +40,7 @@ _resc_keys = resc_functions_dict.keys()
 
 #------------------------------------------ XLABELS FOR SCALING ANSATZ
 scale_ansatz_label = {
-    'spacing':      lambda vs_str : "|" + vs_str + " - " + vs_str + "_c|^{\\nu} \\cdot \\omega_H^{\\mu}",
+    'spacing':      lambda vs_str : "|" + vs_str + " - " + vs_str + "_c|^{\\nu} \\cdot \\omega_H^{-1/\\mu}",
     'FGR':      lambda vs_str : "|" + vs_str + " - " + vs_str + "_c|^{\\nu} \\cdot D^{1/\\mu}",
     'KT':       lambda vs_str : "L / \\xi_{KT}\ \ \ \ \\xi_{KT}^{-1}=exp(\\nu\\cdot|" + vs_str + " - " + vs_str + "_c|^{-1/2})",
     'RG':       lambda vs_str: "L / \\xi_0\ \ \ \ \\xi_0^{-1}=|" + vs_str + " - " + vs_str + "_c|^{\\nu}",
@@ -56,8 +56,8 @@ def calculate_cost_function(data):
     """
     cost_func = 0
     for i in range(0, len(data) - 1):
-        cost_func = cost_func + abs(data[i+1] - data[i])
-    return cost_func / ( max(data) - min(data)) - 1
+        cost_func = cost_func + abs(data[i + 1] - data[i])
+    return cost_func / ( max(data) - min(data) ) - 1
 
 
 # FUNCTION TO BE MINIMIZED
@@ -107,7 +107,7 @@ def minimization_function(params, xvals, y, sizes, scaling_ansatz, crit_function
     if scaling_ansatz == 'FGR':         
         final_func = lambda params, i, j : rescale_fun(xvals[i][j], sizes[i], crit_fun, params[0], params[1], *crit_pars)
     elif scaling_ansatz == 'spacing':   
-        final_func = lambda params, i, j : rescale_fun(xvals[i][j], sizes[i], crit_fun, params[0], *crit_pars) * wH[i][j]**params[1]
+        final_func = lambda params, i, j : rescale_fun(xvals[i][j], sizes[i], crit_fun, params[0], *crit_pars) * wH[i][j]**(-1. / params[1])
     else:                               
         final_func = lambda params, i, j : rescale_fun(xvals[i][j], sizes[i], crit_fun, params[0], *crit_pars)
 
@@ -214,9 +214,9 @@ def prepare_bounds(x, crit_fun, scaling_ansatz, vals):
             if x_max is None or _x_ > x_max: 
                 x_max = _x_
 
-    bounds = [(-10., 10.)]        # -- critical exponent
+    bounds = [(0.0, 5.)]        # -- critical exponent
     if scaling_ansatz == 'FGR' or scaling_ansatz == 'spacing':
-        bounds.append( (-10., 10.) )
+        bounds.append( (0.0, 5.) )
     #-- number of bounds is number of different scaling parameters
     if crit_fun == 'free':  
         for i in range(len(vals)):  
