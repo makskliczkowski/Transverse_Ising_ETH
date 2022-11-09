@@ -1,8 +1,9 @@
+#pragma once
 
-#if defined(HEISENBERG) || defined(XYZ)
-	const double S = 0.5;
-#else
+#if MODEL == 0
 	const double S = 1.0;
+#else
+	const double S = 0.5;
 #endif
 
 namespace operators{

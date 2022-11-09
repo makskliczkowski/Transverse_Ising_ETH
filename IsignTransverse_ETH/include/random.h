@@ -52,7 +52,7 @@ public:
 		{ return std::uniform_real_distribution<_type>(_min, _max)(engine); }
 
 	template <typename _type> 
-	arma::Col<_type> create_random_vec(const uint64_t size, double h = 1.0) 
+	arma::Col<_type> create_random_vec(const uint64_t size, double h) 
 	{
 		arma::Col<_type> random_vec(size, arma::fill::zeros);
 		for (u64 j = 0; j <= size / 2.; j++) {
@@ -63,6 +63,33 @@ public:
 		}
 		return random_vec;
 	}
+
+	template <typename _type> 
+	arma::Col<_type> create_random_vec(const uint64_t size, _type min = _type(0), _type max = _type(1)) 
+	{
+		arma::Col<_type> random_vec(size, arma::fill::zeros);
+		for (u64 j = 0; j <= size / 2.; j++) {
+			u64 idx = size / (long)2 - j;
+			random_vec(idx) = random_uni<_type>(min, max);
+			idx += 2 * j;
+			if (idx < size) random_vec(idx) = random_uni<_type>(min, max);
+		}
+		return random_vec;
+	}
+	template <typename _type> 
+	arma::Mat<_type> create_goe_matrix(const uint64_t size){
+		arma::Mat<_type> matrix(size, size);
+		std::normal_distribution<_type> diag(0.0, 2.0);
+		std::normal_distribution<_type> offdiag(0.0, 1.0);
+		for(int n = 0; n < size; n++){
+			matrix(n, n) = diag(engine);
+			for(int m = n + 1; m < size; m++){
+				matrix(n, m) = offdiag(engine);
+				matrix(m, n) = matrix(n, m);
+			}
+		}
+		return matrix;
+	};
 };
 
 template <> 
