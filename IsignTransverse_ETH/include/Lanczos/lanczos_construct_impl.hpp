@@ -8,7 +8,7 @@ namespace lanczos {
 				this->params.use_reorthogonalization 
 			&& !this->params.memory_over_performance;
 		this->ran = randomGen();
-		this->initial_random_vec = this->ran.create_random_vec<cpx>(N);
+		this->initial_random_vec = arma::normalise(this->ran.create_random_vec<cpx>(N, 1.0));
 		//this->model->saving_dir += "Lanczos/";
 		std::cout
 			<< "Model transfered to Lanczos wrapper with:\n"

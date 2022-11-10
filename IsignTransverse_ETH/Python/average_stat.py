@@ -5,6 +5,7 @@ from fnmatch import fnmatch as fn
 from fnmatch import translate
 import utils.helper_functions as hfun
 from config import *
+import h5py    
 
 if __name__ == '__main__':
     vs = sys.argv[1]
@@ -14,9 +15,10 @@ if __name__ == '__main__':
     set_class.set_scaling(vs)
     
     settings = getattr(set_class, 'settings')
-    
+    print(base_directory)
     dir_out = f"{base_directory}STATISTICS{os.sep}"
     dir_in = f"{base_directory}STATISTICS{os.sep}raw_data{os.sep}"
+    dirS = f"{base_directory}Entropy{os.sep}Eigenstate{os.sep}raw_data{os.sep}"
     
     sizes = []
     collected_pars = []
@@ -106,15 +108,26 @@ if __name__ == '__main__':
             for r in realis:
                 info_in = base_info + "_jobid=%d"%r + ext
                 if os.path.exists(dir_in + info_in):
-                    #counter += 1
                     data = pd.read_table(dir_in + info_in, sep="\t", header=None)
                     for i in range(len(data[0])):
                         indices = hfun.findOccurrences(data[0][i], "'")
-                        variable_name = data[0][i][indices[0]+1:indices[1]]
-                        stats[variable_name] += float(data[1][i])
-                        counter[variable_name] += 1
-            
-            
+                        variable_name = "".join(list(data[0][i][indices[0]+1:indices[1]]))
+                        if (variable_name != 'entropy in ~100 states at E=0' and variable_name != 'entropy var in ~100 states at E=0') or L >= 14 or hamiltonian == 2:
+                            if np.isnan(float(data[1][i])) == False and np.abs(float(data[1][i])) > 0.0:
+                                stats[variable_name] += float(data[1][i])
+                                counter[variable_name] += 1
+
+                infoS = base_info + "_subsize=%d_jobid=%d"%(L/2, r) + ".hdf5"
+                if os.path.exists(dirS + infoS):
+                    with h5py.File(dirS + infoS, "r") as f:
+                        # Print all root level object names (aka keys) 
+                        # these can be group or dataset names 
+                        ent = np.array(f.get('entropy')[0])
+
+                        ent = ent[int(0.5 * ent.size) - 250 : int(0.5 * ent.size) + 250]
+                        stats['entropy in ~100 states at E=0'] += np.mean(ent);      counter['entropy in ~100 states at E=0'] += 1
+                        stats['entropy var in ~100 states at E=0'] += np.var(ent);      counter['entropy var in ~100 states at E=0'] += 1
+                        
             #--------------------------------------- SAVE DATA TO SCALING FILE
             for keys in stats:
                 if counter[keys] == 0:

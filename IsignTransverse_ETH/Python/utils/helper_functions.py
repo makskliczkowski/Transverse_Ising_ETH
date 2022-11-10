@@ -11,6 +11,13 @@ import re
 user_settings = getattr(cf.plot_settings, 'settings')
 var_name = "\\Delta" if cf.hamiltonian else "g"
 
+def heisenberg_time(system_size, dim):
+    chi = 0.341345
+    par_term = np.sqrt(cf.J * cf.J + cf.h * cf.h + cf.g * cf.g + (cf.w * cf.w + cf.g0 * cf.g0 + cf.J0 * cf.J0) / 3.)
+    if cf.hamiltonian == 1:
+        par_term = np.sqrt( cf.J * cf.J / 8. + cf.h * cf.h + cf.g * cf.g / 16. + (cf.w * cf.w + cf.g0 * cf.g0 + cf.J0 * cf.J0) / 12.)
+    return (chi * dim) / ( system_size**(0.5) * par_term)
+
 def order_of_magnitude(a_value):
     #return 2
     if np.abs(a_value) < 1.0 and a_value != 0:
@@ -186,8 +193,8 @@ def get_scaling_array(settings = None, x0 = 0.1, xend = 1.0, dx = 0.1):
     vals = []
     length = int((xend-x0) / dx) + 1
     if settings['scaling_idx'] == 0:
-        if cf.hamiltonian: vals = range(12, 19, 2)
-        else: vals = range(11, 17, 1)
+        if cf.hamiltonian == 1: vals = range(12, 19, 2)
+        else: vals = range(10, 17, 1)
     elif settings['scaling_idx'] == 5:
         vals = range(1, int(cf.params_arr[0] / 2) + 1)
     else :

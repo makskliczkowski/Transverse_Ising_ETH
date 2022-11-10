@@ -53,7 +53,7 @@ protected:
 	std::vector<cpx> normalisation;						// used for normalization in the symmetry case
 
 	virtual u64 map(u64 index) const = 0;				// function returning either the mapping(symmetries) or the input index (no-symmetry: 1to1 correspondance)
-
+	bool use_Sz_sym = false;
 public:
 	_type type_var = _type(0);
 	u64 E_av_idx = -1;										// average energy
@@ -87,6 +87,7 @@ public:
 		return tmp_str;
 	};
 	
+	bool using_Sz_symmetry()					const { return this->use_Sz_sym; }				 // tells user if Sz symmetry is invoked
 	auto get_hilbert_size()						const { return this->N; }						 // get the Hilbert space size 2^N
 	auto get_mapping()							const { return this->mapping; }					 // constant reference to the mapping
 	auto& get_hamiltonian()						const { return this->H; }						 // get the const reference to a Hamiltonian
@@ -262,9 +263,11 @@ inline void normaliseOp(arma::sp_cx_mat& op) {
 	else
 		std::cout << "normalisation <A^2>=0 - somethings wrong, boi.. " << std::scientific << operator_normalisation << std::endl;
 }
-inline void normaliseMat(arma::cx_mat& _matrix) {
+
+template <typename _type>
+inline void normaliseMat(arma::Mat<_type>& _matrix) {
 	const u64 N = _matrix.n_cols;
-	cpx operator_normalisation = arma::norm(_matrix, "fro"); // has already square root
+	_type operator_normalisation = arma::norm(_matrix, "fro"); // has already square root
 	operator_normalisation = operator_normalisation / std::sqrt(N);
 	_matrix = _matrix / operator_normalisation;
 }
@@ -302,15 +305,6 @@ private:
 	cpx get_symmetry_normalization(u64 base_idx) const;
 	void mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id);							// multithreaded mapping
 	void generate_mapping();																													// utilizes the mapping kernel
-
-	static auto generate_full_map(int system_size, bool use_Sz_sym = 0){	
-		std::vector<u64> full_map;
-		for (u64 j = 0; j < (ULLPOW(system_size)); j++){
-			if (!use_Sz_sym || (__builtin_popcountll(j) == int(system_size / 2.)))
-				full_map.push_back(j);
-		}
-		return full_map;
-	}
 
 	u64 map(u64 index) const override;																												// finds a map corresponding to index (for inheritance purpose)
 public:
@@ -411,6 +405,7 @@ public:
 	void hamiltonian_Ising() override;
 	void hamiltonian_heisenberg() override;
 	void hamiltonian_xyz() override;
+	void hamiltonian_qsun();
 	
 	void setHamiltonianElem(u64 k, double value, u64 new_idx) override;
 	double mean_level_spacing_analytical() const override {
@@ -509,6 +504,15 @@ std::unordered_map<uint64_t, uint64_t> mapping_sym_to_original(uint64_t _min, ui
 };
 
 
+inline auto generate_full_map(int system_size, bool use_Sz_sym = 0)
+{	
+	std::vector<u64> full_map;
+	for (u64 j = 0; j < (ULLPOW(system_size)); j++){
+		if (!use_Sz_sym || (__builtin_popcountll(j) == int(system_size / 2.)))
+			full_map.push_back(j);
+	}
+	return full_map;
+}
 
 
 

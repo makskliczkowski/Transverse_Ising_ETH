@@ -1,22 +1,9 @@
 #pragma once
+#include "config.hpp"
 #include "commons.h"
 #include "random.h"
 #include "digamma.h"
 
-#if defined(MY_MAC)
-	#if !defined(XYZ)
-		#define XYZ
-	#endif 
-	#if !defined(HEISENBERG) && !defined(XYZ)
-		//#define HEISENBERG
-	#endif
-	#if !defined(LOCAL_PERT)
-		//#define LOCAL_PERT
-	#endif
-	#if !defined(ANDERSON)
-		//#define ANDERSON
-	#endif
-#endif
 extern int num_of_threads;													// number of threads
 extern int anderson_dim;
 extern std::mt19937::result_type seed_global;
@@ -29,9 +16,7 @@ using namespace std;
 
 
 // ----------------------------------------------------------------------------- User compiler macro -----------------------------------------------------------------------------
-#if !defined(DEGENERACIES)
-	//#define DEGENERACIES
-#endif
+
 
 /// <summary>
 /// Calculates the sign of a value
@@ -53,7 +38,7 @@ std::vector<std::string> split_str(std::string s, std::string delimiter);
 template <typename T>
 inline
 int order_of_magnitude(const T a_value) {
-	return 2;
+	
 	if(a_value < 1.0 && a_value != 0){
 		T m = std::abs(std::log10(std::abs(a_value)));
 		return int(std::max(std::ceil(m) + 1., 2.));

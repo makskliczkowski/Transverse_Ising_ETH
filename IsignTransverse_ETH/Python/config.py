@@ -4,16 +4,16 @@ import utils.plot_settings as ps
 importlib.reload(ps)
 #---------------------------------------------------- MODEL PARAMETERS
 model = 0           # chooses model: 0-disorder / 1-symmetries / 2-local perturbation
-hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
+hamiltonian = 2     # which hamiltonian?: 0-Ising / 1-Heisenberg
 BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
 
-L = 16                          # system size
+L = 18                          # system size
 J = 1.00                        # spin exchange (Ising-like)
 g = 0.55                       # trasnverse magnetic field (z-axis)
-h = 0.0                        # longitudal magnetic field (x-axis)
+h = 1.0                        # longitudal magnetic field (x-axis)
 #---- DISORDER PARAMETERS
-w = 0.7                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
-J0 = 0.0                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
+w = 0.5                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
+J0 = 0.2                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
 g0 = 0.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 #---- SYMETRY PARAMETERS
 k_sym = 0                       # translational symmetry sector
@@ -44,7 +44,7 @@ plot_settings_dict = {
 
 #---- operator options
     'operator':         2,         # chosen operator according to order set in IsingModel.h
-    'site':            8,          # chosen site for local operator
+    'site':            L/2,          # chosen site for local operator
     'smoothed':         1,          # choose running-smoothed option
 
 #---- instances set after
@@ -65,7 +65,7 @@ names.extend(['p','x','J0','x0'])
 
 #---- DIR
 model_dir = ""
-if model == 0:
+if model == 0 or hamiltonian == 2:
     model_dir = f"disorder{kPSep}"
 elif model == 1:
     model_dir = f"symmetries{kPSep}"
@@ -73,9 +73,16 @@ elif model == 2:
     model_dir = f"local_pert{kPSep}"
 else:
     model_dir = ""
-base_directory = f"..{kPSep}results{kPSep}" + (f"HEISENBERG{kPSep}" if hamiltonian else f"ISING{kPSep}")\
-                                             + model_dir \
-                                              + (f"PBC{kPSep}" if BC else f"OBC{kPSep}") 
+
+base_directory = f"..{kPSep}results{kPSep}"
+if hamiltonian == 0:
+    base_directory += f"ISING{kPSep}" + model_dir + (f"PBC{kPSep}" if BC else f"OBC{kPSep}") 
+elif hamiltonian == 1:
+    base_directory += f"HEISENBERG{kPSep}" + model_dir + (f"PBC{kPSep}" if BC else f"OBC{kPSep}") 
+elif hamiltonian == 2:
+    base_directory += f"QUANTUM_SUN{kPSep}" + model_dir
+else:
+    base_directory += ""
 
 #---- INSTANCE OF PLOT SETTINGS CLASS --> plot_settings.py
 plot_settings = ps.plot_settings_class(plot_settings_dict)
@@ -102,7 +109,7 @@ operator_names = [
 ]
 
 def operator_name(operator, site):
-    return operator_names[operator] + ("%s"%site if operator < 8 else "")
+    return operator_names[operator] + ("%d"%site if operator < 8 else "")
     
 def subdir(operator, site, smoothed = 1):
     return (f"EXTENSIVE{kPSep}" if operator > 7 else ("j=%d%s" if operator < 3 else "q=%d%s")%(site, kPSep) ) + (f"smoothed{kPSep}" if smoothed else "")

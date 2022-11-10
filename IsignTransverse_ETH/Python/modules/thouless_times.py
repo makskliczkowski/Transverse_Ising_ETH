@@ -51,10 +51,8 @@ def get_tau_data_from_all_file(tau_data, settings) :
                     try:
                         stats = hfun.load_stats(filename)
                         wH = 1. / stats['mean level spacing']
-                    except FileNotFoundError:
-                        wH = tau_data[9][i] / np.sqrt(tau_data[0][i]) 
-                    if np.isnan(wH):
-                        wH = tau_data[9][i] / np.sqrt(tau_data[0][i]) 
+                    except FileNotFoundError:   wH = 0.0#hfun.heisenberg_time( system_size = tau_data[0][i], dim = tau_data[9][i])
+                    if np.isnan(wH):            wH = 0.0#hfun.heisenberg_time( system_size = tau_data[0][i], dim = tau_data[9][i])
                     
                     taus[f"%.5f"%(par)] = (tau_data[5][i] * (wH if settings['physical_units'] else 1.0), tau_data[7][i])
         x_float = [];   tau = [];   gap = []
