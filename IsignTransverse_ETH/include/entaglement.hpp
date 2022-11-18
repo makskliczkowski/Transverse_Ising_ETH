@@ -57,7 +57,7 @@ namespace entaglement{
     			long idx = true_n / dimB;
                 long long m = find_index(j);
                 if(m >= 0)
-                    rho(idx, counter) += conj(state(n)) * state(m);
+                    rho(idx, counter) += std::conj(state(n)) * state(m);
                 counter++;  // increase counter to move along reduced basis
     		}
     	}

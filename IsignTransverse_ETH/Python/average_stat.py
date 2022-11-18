@@ -123,8 +123,11 @@ if __name__ == '__main__':
                         # Print all root level object names (aka keys) 
                         # these can be group or dataset names 
                         ent = np.array(f.get('entropy')[0])
+                        energies = np.array(f.get('energies')[0])
 
-                        ent = ent[int(0.5 * ent.size) - 250 : int(0.5 * ent.size) + 250]
+                        E_av = np.mean(energies)
+                        idx = min(range(len(energies)), key=lambda i: abs(energies[i] - E_av))
+                        ent = ent[idx - 100 : idx + 100]
                         stats['entropy in ~100 states at E=0'] += np.mean(ent);      counter['entropy in ~100 states at E=0'] += 1
                         stats['entropy var in ~100 states at E=0'] += np.var(ent);      counter['entropy var in ~100 states at E=0'] += 1
                         

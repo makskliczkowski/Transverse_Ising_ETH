@@ -9,7 +9,7 @@ importlib.reload(cf)
 import re
 
 user_settings = getattr(cf.plot_settings, 'settings')
-var_name = "\\Delta" if cf.hamiltonian else "g"
+var_name = "\\Delta" if cf.hamiltonian == 1 else ("\\alpha" if cf.hamiltonian == 2 else "g")
 
 def heisenberg_time(system_size, dim):
     chi = 0.341345
@@ -256,6 +256,7 @@ def read_python_saved_dat_file(filename):
     return np.array(result)
 
 
+#--------------- LOAD STATISTICAL DATA
 def load_stats(filename):
     """
     Loading statistical data to dictionairy from raw file
@@ -272,3 +273,13 @@ def load_stats(filename):
         result[line[2 : index[0]-1]] = int(x) if x.isdigit() else float(x)
     
     return result
+
+
+#--------------- REMOVE FLUCTUATIONS FROM DATA
+def remove_fluctuations(data, bucket_size=10):
+    new_data = data;
+    half_bucket = int(bucket_size / 2)
+    for k in range(half_bucket, len(data)):
+        average = np.sum(data[k - half_bucket: k + half_bucket])
+        new_data[k - half_bucket] = average / bucket_size
+    return new_data

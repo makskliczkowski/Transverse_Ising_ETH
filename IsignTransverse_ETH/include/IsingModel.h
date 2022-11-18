@@ -90,7 +90,7 @@ public:
 	bool using_Sz_symmetry()					const { return this->use_Sz_sym; }				 // tells user if Sz symmetry is invoked
 	auto get_hilbert_size()						const { return this->N; }						 // get the Hilbert space size 2^N
 	auto get_mapping()							const { return this->mapping; }					 // constant reference to the mapping
-	auto& get_hamiltonian()						const { return this->H; }						 // get the const reference to a Hamiltonian
+	auto get_hamiltonian()						const { return this->H; }						 // get the const reference to a Hamiltonian
 	auto& get_eigenvectors()					const { return this->eigenvectors; }			 // get the const reference to the eigenvectors
 	auto get_eigenvalues()						const { return this->eigenvalues; }				 // get the const reference to eigenvalues
 	auto get_eigenEnergy(u64 idx)				const { return this->eigenvalues(idx); }		 // get eigenenergy at a given idx
@@ -253,6 +253,7 @@ public:
 	virtual arma::vec get_non_interacting_energies() = 0;
 	virtual arma::cx_vec get_state_in_full_Hilbert(const arma::cx_vec& state) = 0;
 	virtual arma::cx_vec get_state_in_full_Hilbert(u64 state_id) = 0;
+	virtual arma::cx_mat get_eigenvectors_full() = 0;
 };
 
 inline void normaliseOp(arma::sp_cx_mat& op) {
@@ -356,6 +357,7 @@ public:
 	
 	arma::sp_cx_mat symmetryRotation() const;
 	arma::cx_vec symmetryRotation(const arma::cx_vec& state, std::vector<u64> full_map = std::vector<u64>()) const;
+	arma::cx_vec symmetryRotation(u64 state_idx, std::vector<u64> full_map = std::vector<u64>()) const;
 
 	//friend sp_cx_mat create_operatorDistinctSectors()
 	arma::sp_cx_mat create_operator(std::initializer_list<op_type> operators, arma::cx_vec prefactors = arma::cx_vec()) const override;													
@@ -373,7 +375,9 @@ public:
 	virtual arma::cx_vec get_state_in_full_Hilbert(const arma::cx_vec& state) override
 		{ return symmetryRotation(state); };
 	virtual arma::cx_vec get_state_in_full_Hilbert(u64 state_id) override
-		{ return symmetryRotation(this->eigenvectors.col(state_id)); };
+		{ return symmetryRotation(state_id); };
+	virtual arma::cx_mat get_eigenvectors_full() override
+		{ return this->symmetryRotation() * this->eigenvectors; }
 };
 //-------------------------------------------------------------------------------------------------------------------------------
 /// <summary>
@@ -469,6 +473,8 @@ public:
 			arma::vec state = this->eigenvectors.col(state_id);
 			return cast_cx_vec(state); 
 		};
+	virtual arma::cx_mat get_eigenvectors_full() override
+		{ return arma::cx_mat( this->eigenvectors, arma::mat(this->N, this->N, arma::fill::zeros) ); }
 };
 // ---------------------------------- HELPERS ----------------------------------
 template <typename _type>
