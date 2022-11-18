@@ -4,16 +4,16 @@ import utils.plot_settings as ps
 importlib.reload(ps)
 #---------------------------------------------------- MODEL PARAMETERS
 model = 0           # chooses model: 0-disorder / 1-symmetries / 2-local perturbation
-hamiltonian = 2     # which hamiltonian?: 0-Ising / 1-Heisenberg
+hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
 BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
 
 L = 18                          # system size
 J = 1.00                        # spin exchange (Ising-like)
 g = 0.55                       # trasnverse magnetic field (z-axis)
-h = 1.0                        # longitudal magnetic field (x-axis)
+h = 0.0                        # longitudal magnetic field (x-axis)
 #---- DISORDER PARAMETERS
-w = 0.5                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
-J0 = 0.2                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
+w = 0.38                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
+J0 = 0.0                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
 g0 = 0.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 #---- SYMETRY PARAMETERS
 k_sym = 0                       # translational symmetry sector

@@ -82,13 +82,13 @@ public:
 		std::normal_distribution<_type> diag(0.0, 2.0);
 		std::normal_distribution<_type> offdiag(0.0, 1.0);
 		for(int n = 0; n < size; n++){
-			matrix(n, n) = diag(engine);
-			for(int m = n + 1; m < size; m++){
+			//matrix(n, n) = diag(engine);
+			for(int m = 0; m < size; m++){
 				matrix(n, m) = offdiag(engine);
-				matrix(m, n) = matrix(n, m);
+				//matrix(m, n) = matrix(n, m);
 			}
 		}
-		return matrix;
+		return 0.15 * (matrix + matrix.t());
 	};
 };
 

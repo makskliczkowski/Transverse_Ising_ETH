@@ -3,6 +3,8 @@ from scipy.optimize import differential_evolution
 from . import critical_func as crit
 from . import scaling_ansatz as rescale
 import importlib
+from random import seed as set_seed
+from random import random
 importlib.reload(crit)
 importlib.reload(rescale)
 
@@ -40,8 +42,8 @@ _resc_keys = resc_functions_dict.keys()
 
 #------------------------------------------ XLABELS FOR SCALING ANSATZ
 scale_ansatz_label = {
-    'spacing':      lambda vs_str : "|" + vs_str + " - " + vs_str + "_c|^{\\nu} \\cdot \\omega_H^{-1/\\mu}",
-    'FGR':      lambda vs_str : "|" + vs_str + " - " + vs_str + "_c|^{\\nu} \\cdot D^{1/\\mu}",
+    'spacing':      lambda vs_str : "(" + vs_str + " - " + vs_str + "_c) \\cdot \\omega_H^{-1/\\nu}",
+    'FGR':      lambda vs_str : "(" + vs_str + " - " + vs_str + "_c) \\cdot D^{1/\\nu}",
     'KT':       lambda vs_str : "L / \\xi_{KT}\ \ \ \ \\xi_{KT}^{-1}=exp(\\nu\\cdot|" + vs_str + " - " + vs_str + "_c|^{-1/2})",
     'RG':       lambda vs_str: "L / \\xi_0\ \ \ \ \\xi_0^{-1}=|" + vs_str + " - " + vs_str + "_c|^{\\nu}",
     'classic':  lambda vs_str: "(" + vs_str + " - " + vs_str + "_c) \\cdot L^{1/\\nu}",
@@ -98,20 +100,21 @@ def minimization_function(params, xvals, y, sizes, scaling_ansatz, crit_function
     rescale_fun = resc_functions_dict[scaling_ansatz]
     crit_fun = crit_functions_dict[crit_function]
 
-    num_of_exp = 2 if scaling_ansatz == 'FGR' or scaling_ansatz == 'spacing' else 1
-    crit_pars=np.array(params[num_of_exp:]) # critical parameters to find given in critical point scaling
+    crit_pars=np.array(params[1:]) # critical parameters to find given in critical point scaling
 
     xdata = []
     fulldata = []
     final_func = None
     if scaling_ansatz == 'FGR':         
-        final_func = lambda params, i, j : rescale_fun(xvals[i][j], sizes[i], crit_fun, params[0], params[1], *crit_pars)
+        final_func = lambda params, i, j : rescale_fun(xvals[i][j], sizes[i], crit_fun, params[0], *crit_pars)
     elif scaling_ansatz == 'spacing':   
-        final_func = lambda params, i, j : rescale_fun(xvals[i][j], sizes[i], crit_fun, params[0], *crit_pars) * wH[i][j]**(-1. / params[1])
+        final_func = lambda params, i, j : rescale_fun(xvals[i][j], sizes[i], crit_fun, *crit_pars) * wH[i][j]**(-1. / params[0])
     else:                               
         final_func = lambda params, i, j : rescale_fun(xvals[i][j], sizes[i], crit_fun, params[0], *crit_pars)
 
+    center_of_range = []
     for i in range(0, len(sizes)):
+        center_of_range.append( final_func(params, i, int(len(xvals[i]) / 2)) )
         for j in range(0, len(xvals[i])):
             xvalue = final_func(params, i, j)
             xdata.append( xvalue )
@@ -121,9 +124,22 @@ def minimization_function(params, xvals, y, sizes, scaling_ansatz, crit_function
     permut = np.argsort(xdata)
     fulldata = fulldata[permut]
 
+    # constraint
+    """
+    If rescaled datapoints for any system size exceed the rest of
+    the data the constrint is not satisfied. In other words, the center of each range has to be inside the other ranges.
+    """
+    constraint_satisfied = True
+    for center in center_of_range:
+        for i in range(len(sizes)):
+            if center < final_func(params, i, 0) or center > final_func(params, i, len(xvals[i])-1):
+                constraint_satisfied = False
+                break;
+
+
     cost_fun = calculate_cost_function(fulldata)
     #if cost_fun < 1.: print(cost_fun)
-    return cost_fun
+    return cost_fun if constraint_satisfied else 1000 + (random() * 1e10)
 
 
 
@@ -159,13 +175,15 @@ def cost_func_minization(x, y, sizes, bnds,
     """
 
     if seed is None: seed = np.random.default_rng();
+    set_seed(seed)
+
     result = differential_evolution(
                     minimization_function,
                     bounds=bnds,
                     args=(x, y, sizes, scale_func, crit_func, wH),
                     popsize=int(population_size), 
                     maxiter=int(maxiterarions), 
-                    workers=workers, atol=1e-3,
+                    workers=workers, atol=1e-2,
                     seed=seed
             )
     optimal_res = np.array(result.x)
@@ -213,10 +231,8 @@ def prepare_bounds(x, crit_fun, scaling_ansatz, vals):
         for _x_ in a: 
             if x_max is None or _x_ > x_max: 
                 x_max = _x_
-
-    bounds = [(0.0, 5.)]        # -- critical exponent
-    if scaling_ansatz == 'FGR' or scaling_ansatz == 'spacing':
-        bounds.append( (0.0, 5.) )
+    x_max = 1.0
+    bounds = [(0.0, 5.)] if scaling_ansatz == 'FGR' or scaling_ansatz == 'spacing' else [(0.0, 10.)]
     #-- number of bounds is number of different scaling parameters
     if crit_fun == 'free':  
         for i in range(len(vals)):  
@@ -270,7 +286,6 @@ def get_crit_points(x, y, vals, crit_fun='free', scaling_ansatz = 'classic', see
                                     wH = wH
                                 )
 
-    num_of_exp = 2 if scaling_ansatz == 'FGR' or scaling_ansatz == 'spacing' else 1
-    par = params[:num_of_exp]
-    crit_pars = np.array(params[num_of_exp:])
+    par = params[0]
+    crit_pars = np.array(params[1:])
     return par, crit_pars, cost_fun, status

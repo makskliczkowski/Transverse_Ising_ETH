@@ -234,21 +234,23 @@ void IsingModel_sym::hamiltonian() {
 		std::cout << "Memory exceeded" << e.what() << "\n";
 		assert(false);
 	}
-	#ifdef HEISENBERG
+	#if MODEL == 0
+		this->hamiltonian_Ising();
+	#elif MODEL == 1
 		this->hamiltonian_heisenberg();
+	#elif MODEL == 3
+		this->hamiltonian_xyz();
+		std::cout << "Using XYZ " << std::endl;
 	#else
-			#ifdef XYZ
-				this->hamiltonian_xyz();
-			#else
-				this->hamiltonian_Ising();
-			#endif
+		this->hamiltonian_Ising();
 	#endif
 }
 
 void IsingModel_sym::hamiltonian_xyz(){
 	std::cout << this->N << std::endl;
-	std::vector<std::vector<double>> parameters = {{1.0 * (1 - 0.5), 1.0 * (1 + 0.5), this->g},
-                                                    {this->J * (1 - 0.5), this->J * (1 + 0.5), this->J * this->g}
+	double eta = this->use_Sz_sym? 0.0 : 0.5;
+	std::vector<std::vector<double>> parameters = {{1.0 * (1 - eta), 1.0 * (1 + eta), this->g},
+                                                    {this->J * (1 - eta), this->J * (1 + eta), this->J * this->g}
                                                 };
     for(auto& x : parameters)
         std::cout << x << std::endl;
@@ -261,6 +263,9 @@ void IsingModel_sym::hamiltonian_xyz(){
             u64 op_k;
             std::tie(val, op_k) = operators::sigma_z(base_state, L, { j });
             this->setHamiltonianElem(k, this->h * real(val), op_k);
+
+            std::tie(val, op_k) = operators::sigma_x(base_state, L, { j });
+            this->setHamiltonianElem(k, 0.4 * real(val), op_k);
 	    	
             //std::tie(val, op_k) = operators::sigma_x(base_state, L, { j });
 			//this->setHamiltonianElem(k, this->g0 * real(val), op_k);
@@ -404,26 +409,16 @@ void IsingModel_sym::set_OperatorElem(std::vector<op_type> operators, cpx prefac
 
 arma::sp_cx_mat IsingModel_sym::symmetryRotation() const {
 	std::vector<u64> full_map;
-	bool use_Sz_sym = this->g == 0;
-	#ifdef HEISENBERG	
+	if (this->use_Sz_sym)
 		full_map = generate_full_map(this->L, true);
-		use_Sz_sym = true;
-	#else
-		if(use_Sz_sym)
-			full_map = generate_full_map(this->L, use_Sz_sym);
-	#endif
-
-	u64 max_dim = ULLPOW(this->L);
-	u64 dim_tot = use_Sz_sym? full_map.size() : max_dim; 
-	arma::sp_cx_mat U(dim_tot, this->N);
+	u64 dim_tot = this->use_Sz_sym? full_map.size() : ULLPOW(this->L);
+	arma::cx_vec output(dim_tot, arma::fill::zeros);
 
 	auto find_index = [&](u64 index){
-		#ifdef HEISENBERG
-			return binary_search(full_map, 0, dim_tot - 1, index);
-		#else
-			return use_Sz_sym? binary_search(full_map, 0, dim_tot - 1, index) : index;
-		#endif
+		return this->use_Sz_sym? binary_search(full_map, 0, dim_tot - 1, index) : index;
 	};
+
+	arma::sp_cx_mat U(dim_tot, this->N);
 
 #pragma omp parallel for
 	for (long int k = 0; k < this->N; k++) {
@@ -438,26 +433,13 @@ arma::sp_cx_mat IsingModel_sym::symmetryRotation() const {
 	return U;
 }
 arma::cx_vec IsingModel_sym::symmetryRotation(const arma::cx_vec& state, std::vector<u64> full_map) const {
-	if(full_map.empty()){
-		bool use_Sz_sym = this->g == 0;
-		#ifdef HEISENBERG	
-			full_map = generate_full_map(this->L, true);
-			use_Sz_sym = true;
-		#else
-			if(use_Sz_sym)
-				full_map = generate_full_map(this->L, use_Sz_sym);
-		#endif
-	}
-	u64 max_dim = ULLPOW(this->L);
-	u64 dim_tot = full_map.empty()? max_dim : full_map.size();
+	if(full_map.empty() && this->use_Sz_sym)	
+		full_map = generate_full_map(this->L, true);
+	u64 dim_tot = this->use_Sz_sym? full_map.size() : ULLPOW(this->L);
 	arma::cx_vec output(dim_tot, arma::fill::zeros);
 
 	auto find_index = [&](u64 index){
-		#ifdef HEISENBERG
-			return binary_search(full_map, 0, dim_tot - 1, index);
-		#else
-			return full_map.empty()? binary_search(full_map, 0, dim_tot - 1, index) : index;
-		#endif
+		return this->use_Sz_sym? binary_search(full_map, 0, dim_tot - 1, index) : index;
 	};
 
 #pragma omp parallel for
@@ -467,6 +449,26 @@ arma::cx_vec IsingModel_sym::symmetryRotation(const arma::cx_vec& state, std::ve
 			u64 idx = find_index(new_idx);
 			if(idx < dim_tot) // only if exists in sector
 				output(idx) += conj(this->symmetry_eigVal[i] / (this->normalisation[k] * sqrt(this->symmetry_group.size())) * state(k));
+		}
+	}
+	return output;
+}
+arma::cx_vec IsingModel_sym::symmetryRotation(u64 state_idx, std::vector<u64> full_map) const {
+	if(this->use_Sz_sym || full_map.empty())	
+		full_map = generate_full_map(this->L, true);
+	u64 dim_tot = this->use_Sz_sym? full_map.size() : ULLPOW(this->L);
+	arma::cx_vec output(dim_tot, arma::fill::zeros);
+
+	auto find_index = [&](u64 index){
+		return this->use_Sz_sym? binary_search(full_map, 0, dim_tot - 1, index) : index;
+	};
+#pragma omp parallel for
+	for (long int k = 0; k < this->N; k++) {
+		for (int i = 0; i < this->symmetry_group.size(); i++) {
+			auto new_idx = this->symmetry_group[i](this->mapping[k], this->L);
+			u64 idx = find_index(new_idx);
+			if(idx < dim_tot) // only if exists in sector
+				output(idx) += conj(this->symmetry_eigVal[i] / (this->normalisation[k] * sqrt(this->symmetry_group.size())) * this->eigenvectors(k, state_idx));
 		}
 	}
 	return output;
