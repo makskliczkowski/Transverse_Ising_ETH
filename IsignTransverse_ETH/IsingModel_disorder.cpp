@@ -29,6 +29,8 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 	#elif defined(XYZ)		// XYZ
 		if(this->J0 == 0 && this->g0 == 0)
 			this->use_Sz_sym = true;
+	#elif defined(QUANTUM_SUN)
+		this->use_Sz_sym = false;
 	#else					//ISING
 		if(this->g == 0 && this->g0 == 0)
 			this->use_Sz_sym = true;
@@ -94,15 +96,11 @@ void IsingModel_disorder::setHamiltonianElem(u64 k, double value, u64 new_idx) {
 
 }
 
-/// <summary>
-/// Generates the total Hamiltonian of the system. The diagonal part is straightforward,
-/// while the non-diagonal terms need the specialized setHamiltonainElem(...) function
-/// </summary>
-void hamiltonian_qsun(){
-	
-}
-
 void IsingModel_disorder::hamiltonian() {
+	#ifdef ANDERSON
+		auto lattice = std::make_unique<lattice3D>(this->L);
+		this->N = lattice->volume;
+	#endif
 	try {
 		this->H = arma::sp_mat(N, N);                                //  hamiltonian memory reservation
 	}
@@ -124,21 +122,57 @@ void IsingModel_disorder::hamiltonian() {
 			this->dg = my_gen.create_random_vec<double>(L, this->g0);                              // creates random transverse field vector
 		#endif
 	}
-	#ifdef ANDERSON
-		auto lattice = std::make_unique<lattice3D>(this->L);
+	#if MODEL == 0
+		this->hamiltonian_Ising();
+	#elif MODEL == 1
+		this->hamiltonian_heisenberg();
+	#elif MODEL == 2
 		this->H = anderson::hamiltonian(*lattice, this->J, this->w);
-		this->N = lattice->volume;
+	#elif MODEL == 3
+		this->hamiltonian_xyz();
+	#elif MODEL == 4
+		this->hamiltonian_qsun();
 	#else
-		#ifdef HEISENBERG
-			this->hamiltonian_heisenberg();
-		#else
-			#ifdef XYZ
-				this->hamiltonian_xyz();
-			#else
-				this->hamiltonian_Ising();
-			#endif
-		#endif
+		this->hamiltonian_Ising();
 	#endif
+}
+
+/// <summary>
+/// Generates the total Hamiltonian of the system. The diagonal part is straightforward,
+/// while the non-diagonal terms need the specialized setHamiltonainElem(...) function
+/// </summary>
+void IsingModel_disorder::hamiltonian_qsun()
+{
+	int M = 3; // bubble size
+	
+	/* Create GOE Matrix */
+	arma::mat H_grain = my_gen.create_goe_matrix<double>(ULLPOW(M));
+	//normaliseMat(R);
+	H_grain = arma::kron(H_grain, arma::eye(ULLPOW((L - M)), ULLPOW((L - M))));
+
+	/* Create Rest of Hamiltonian */
+	arma::Col<int> random_neigh(this->L, arma::fill::zeros);
+	for(int i = M; i < this->L; i++)
+		random_neigh(i) = my_gen.randomInt_uni(0, M);
+
+	for (int j = 0; j < L; j++) 
+	 	this->dJ(j) = j < M? 0.0 : this->J * std::pow(this->g, j - M + 1 + this->dJ(j));
+	
+	for (u64 k = 0; k < N; k++) {
+		double s_i, s_j;
+		u64 base_state = map(k);
+		for (int j = M; j < L; j++) {
+            auto [val, Sz_k] = operators::sigma_z(base_state, this->L, { j });
+            this->setHamiltonianElem(k, (this->h + this->dh(j)) * real(val), Sz_k);
+
+			/* coupling of localised spins to GOE grain */
+			int nei = random_neigh(j);
+		    auto [val1, Sx_k] = operators::sigma_x(base_state, this->L, { j });
+		    auto [val2, SxSx_k] = operators::sigma_x(Sx_k, this->L, { nei });
+			this->setHamiltonianElem(k, this->dJ(j) * real(val1 * val2), SxSx_k);
+		}
+	}
+	this->H = this->H + H_grain;
 }
 
 void IsingModel_disorder::hamiltonian_xyz(){
@@ -160,10 +194,10 @@ void IsingModel_disorder::hamiltonian_xyz(){
 			double fieldZ = (j == this->L - 1)? this->w : this->h;
             this->setHamiltonianElem(k, fieldZ * real(val), op_k);
 	    	
-			if(j == 0){
-            	std::tie(val, op_k) = operators::sigma_x(base_state, this->L, { j });
-				this->setHamiltonianElem(k, this->g0  * real(val), op_k);
-			}
+            std::tie(val, op_k) = operators::sigma_x(base_state, this->L, { j });
+			double fieldX = (j == 0)? this->w : this->g0;
+            this->setHamiltonianElem(k, fieldX * real(val), op_k);
+
             for(int a = 0; a < neighbor_distance.size(); a++){
                 int r = neighbor_distance[a];
 				int nei = j + r;

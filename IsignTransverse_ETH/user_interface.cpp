@@ -8,12 +8,14 @@ int anderson_dim = 3;
 void isingUI::ui::make_sim()
 {	
 	#if defined(MY_MAC)
-		//this->seed = static_cast<long unsigned int>(time(0));
+		this->seed = static_cast<long unsigned int>(time(0));
 	#endif
 	my_gen = randomGen(this->seed);
-	//compare_energies();
-	
 	printAllOptions();
+
+	//check_symmetry_rotation(); return;
+	//compare_energies();	return;
+	
 	//auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 	//auto alfa = std::make_unique<IsingModel_disorder>(this->L, 1, 0, 1, 0, 0, 0, this->boundary_conditions);
 	//auto H = alfa->get_hamiltonian();
@@ -23,11 +25,9 @@ void isingUI::ui::make_sim()
 	//std::ifstream filee;
 	//auto data = readFromFile(filee, this->saving_dir + "random_vec.dat");
 	//arma::cx_vec random = cast_cx_vec(data[0]);
-//
 	//lanczos::Lanczos lancz(H, lanczosParams(this->mu, 1, false, false), random);
 	//lancz.diagonalization();
 	//auto T = lancz.get_lanczos_matrix();
-//
 	//std::cout << lancz.get_eigenvalues()(0) << std::endl;
 	//std::ofstream file;
 	//std::cout << T << std::endl;
@@ -36,6 +36,15 @@ void isingUI::ui::make_sim()
 	//file.close();
 	//return;
 
+	auto kernel = [&](int k, int p, int x)
+	{
+		this->symmetries.k_sym = k;
+		this->symmetries.p_sym = p;
+		this->symmetries.x_sym = x;
+		this->eigenstate_entropy();
+	};
+	loopSymmetrySectors(kernel);
+	return;
 
 	clk::time_point start = std::chrono::system_clock::now();
 	auto L_list = this->get_params_array(Ising_params::L);
@@ -115,7 +124,7 @@ void isingUI::ui::make_sim()
 							stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
 							printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
 							//calculate_localisation_length(); continue;
-							eigenstate_entropy(); continue;
+							calculate_statistics(); continue;
 
 							combine_spectrals(); continue;
 
@@ -385,7 +394,7 @@ arma::vec isingUI::ui::get_params_array(Ising_params par){
 void isingUI::ui::compare_energies()
 {
 	// handle disorder
-	auto Hamil = std::make_unique<IsingModel_disorder>(this->L, this->J, 0.0, this->g, 0.0, this->h, 0.0, boundary_conditions);
+	auto Hamil = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, boundary_conditions);
 	Hamil->diagonalization();
 	const arma::vec E_dis = Hamil->get_eigenvalues();
 	Hamil.release();
@@ -395,7 +404,7 @@ void isingUI::ui::compare_energies()
 	// go for each symmetry sector
 	const int x_max = (this->h != 0) ? 0 : 1;
 	const int k_end = (this->boundary_conditions) ? 1 : this->L;
-	for (int k = 0; k < L; k++)
+	for (int k = 0; k < k_end; k++)
 	{
 		if (k == 0 || k == this->L / 2.)
 		{
@@ -435,10 +444,10 @@ void isingUI::ui::compare_energies()
 	stout << endl
 		  << E_sym.size() << endl;
 	stout << "symmetry sector\t\tEnergy sym\t\tEnergy total\t\tdifference\t\t <n|X|n>" << endl;
+	printSeparated(std::cout, "\t", 20, true, "symmetry sector", "Energy sym", "Energy total", "difference");
 	for (int k = 0; k < E_dis.size(); k++)
-	{
-		stout << symms[k] << "\t\t" << E_sym[k] << "\t\t" << E_dis(k) << "\t\t" << E_sym[k] - E_dis(k) << endl;
-	}
+		printSeparated(std::cout, "\t", 20, true, symms[k], E_sym[k], E_dis(k), E_sym[k] - E_dis(k));
+	
 }
 void isingUI::ui::compare_matrix_elements(op_type op, int k_alfa, int k_beta, int p_alfa, int p_beta, int x_alfa, int x_beta)
 {
@@ -727,14 +736,14 @@ void isingUI::ui::check_symmetry_rotation(){
 	arma::sp_mat HH = arma::real(H);
 	auto N = H0.n_cols;
 	arma::sp_cx_mat res = arma::sp_cx_mat(HH - H0, arma::imag(H));
-	printSeparated(std::cout, "\t", 32, true, "index i", "index j", "difference", "original hamil");
+	printSeparated(std::cout, "\t", 32, true, "index i", "index j", "difference", "original hamil", "symmetry hamil");
 	cpx x = 0;
 	for(int i = 0; i < N; i++){
 		for(int j = 0; j < N; j++){
 			cpx val = res(i, j);
-			if(abs(val) > 1e-15){
+			if(abs(H0(i, j)) > 1e-15){
 				x += val;
-				printSeparated(std::cout, "\t", 32, true, i, j, res(i, j), H0(i, j));
+				printSeparated(std::cout, "\t", 32, true, i, j, res(i, j), H0(i, j), H(i, j));
 			}
 		}
 	}
@@ -1192,18 +1201,18 @@ void isingUI::ui::eigenstate_entropy(){
 		std::string dir_realis = this->saving_dir + "Entropy" + kPSep + "Eigenstate" + kPSep + "realisation=" + std::to_string(realis) + kPSep;
 		createDirs(dir_realis);
 
-		const arma::Mat<decltype(alfa.type_var)> U = alfa.get_eigenvectors();
 		const arma::vec E = alfa.get_eigenvalues();
-		
+		const arma::cx_mat V = alfa.get_eigenvectors_full();
 		arma::vec S(N, arma::fill::zeros);
 	//#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 		for(int n = 0; n < N; n++){
-			arma::cx_vec state = alfa.get_state_in_full_Hilbert(n);
+			//arma::cx_vec state = alfa.get_state_in_full_Hilbert(n);
+			arma::cx_vec state = V.col(n);
 			double S_tmp = entropy::vonNeumann(state, LA, this->L, map);
 			S(n) = S_tmp;
 		}
 		E.save(arma::hdf5_name(dir_realis + filename + ".hdf5", "energies"));
-		S.save(arma::hdf5_name(dir_realis + filename + ".hdf5", "entropy",arma::hdf5_opts::append));
+		S.save(arma::hdf5_name(dir_realis + filename + ".hdf5", "entropy", arma::hdf5_opts::append));
 		//alfa.get_eigenvectors().save(arma::hdf5_name(filename + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
 		//save_to_file(filename + ".dat", E, entropies);
 		energies += E;
@@ -1215,8 +1224,10 @@ void isingUI::ui::eigenstate_entropy(){
 	if(this->m){
 		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-		if(alfa->using_Sz_symmetry())
+		if(alfa->using_Sz_symmetry()){
+			std::cout << "Using Sz symmetry!!" << std::endl;
 			map = generate_full_map(this->L, alfa->using_Sz_symmetry());
+		}
 		N = alfa->get_hilbert_size();
 	 	energies = arma::vec(N, arma::fill::zeros);
 		entropies = arma::vec(N, arma::fill::zeros);
@@ -1542,7 +1553,7 @@ void isingUI::ui::spectral_form_factor(){
 	int time_end = (int)std::ceil(std::log10(5 * tH));
 	time_end = (time_end / std::log10(tH) < 1.5) ? time_end + 1 : time_end;
 
-	arma::vec times = arma::logspace(log10(1.0 / (two_pi * N)), 2, num_times);
+	arma::vec times = arma::logspace(log10(1.0 / (two_pi * N)), 1, num_times);
 	arma::vec times_fold = arma::logspace(-2, time_end, num_times);
 	arma::vec sff(num_times, arma::fill::zeros);
 	double Z = 0.0;
@@ -2141,7 +2152,7 @@ void isingUI::ui::calculate_statistics(){
 				info_entropy += statistics::information_entropy(state);
 				if(i >= alfa.E_av_idx - num_ent / 2. && i < alfa.E_av_idx + num_ent / 2.)
 				{
-					double Stmp= entropy::vonNeumann(state, this->L / 2, this->L, map);
+					double Stmp = entropy::vonNeumann(state, this->L / 2, this->L, map);
 					S += Stmp;
 					S2 += Stmp * Stmp;
 				}
@@ -2505,14 +2516,30 @@ void user_interface::set_default_msg(T &value, string option, string message, co
 void isingUI::ui::printAllOptions() const
 {
 	stout << "------------------------------CHOSEN MODEL:" << std::endl;
-	#ifdef HEISENBERG
-		std::cout << "HEISENBERG:\n\t\t" << "H = \u03A3_i J_i(\u03C3^x_i \u03C3^x_i+1 + \u03C3^y_i \u03C3^y_i+1) + g_i \u03C3^z_i\u03C3^z_i+1 + h_i \u03C3^x_i" << std::endl << std::endl;
+
+	#if MODEL == 0
+		std::cout << "ISING:\n\t\t" << "H = \u03A3_i J_i \u03C3^z_i \u03C3^z_i+1 + g_i \u03C3^x_i + h_i \u03C3^x_i" << std::endl << std::endl;
+	#elif MODEL == 1
+		std::cout << "HEISENBERG:\n\t\t" << "H = \u03A3_i J_i(S^x_i S^x_i+1 + S^y_i S^y_i+1) + g_i S^z_iS^z_i+1 + h_i S^x_i" << std::endl << std::endl;
+	#elif MODEL == 2
+		std::cout << "ANDERSON:\n\t\t" << "H = J/2 \u03A3_i (S^x_i S^x_i+1 + S^y_i S^y_i+1) + h_i S^z_i" << std::endl << std::endl;
+		std::cout << "h_i \u03B5 [-w, w]" << std::endl;
+		std::cout << "h_c^{3D} ~ 4.1 (rescale by 4 when using 3D in plots)" << std::endl;
+	#elif MODEL == 3
+		std::cout << "XYZ:\n\t\t" << "H = \u03A3_r J_r\u03A3_i [ (1 - J0)S^x_i S^x_i+r + (1 + J0)S^y_i S^y_i+r) + g S^z_iS^z_i+1 + g0 S^x_i + h S^z_i + w(S^z_{L-1} + S^x_0)" << std::endl << std::endl;
+	#elif MODEL == 4
+		std::cout << "QUANTUM SUN:\n\t\t" << "H = R_GOE + \u03A3_i g0 * alfa^{u_j} S^x_i S^x_i+1 + h_i S^x_i" << std::endl << std::endl;
+		std::cout << "u_j in [j - J0, j + J0]"  << std::endl;
+		std::cout << "h_i \u03B5 [h - w, h + w]" << std::endl;
 	#else
 		std::cout << "ISING:\n\t\t" << "H = \u03A3_i J_i \u03C3^z_i \u03C3^z_i+1 + g_i \u03C3^x_i + h_i \u03C3^x_i" << std::endl << std::endl;
 	#endif
-	std::cout << "J_i \u03B5 [J - J0, J + J0]" << std::endl;
-	std::cout << "g_i \u03B5 [g - g0, g + g0]" << std::endl;
-	std::cout << "h_i \u03B5 [h - w, h + w]" << std::endl;
+	#if MODEL == 0 || MODEL == 1
+		std::cout << "J_i \u03B5 [J - J0, J + J0]" << std::endl;
+		std::cout << "g_i \u03B5 [g - g0, g + g0]" << std::endl;
+		std::cout << "h_i \u03B5 [h - w, h + w]" << std::endl;
+	#endif
+	stout << "Chosen spin species is S = " << S << std::endl << std::endl;
 	stout << "------------------------------CHOSEN OPTIONS:" << std::endl;
 	std::string opName = std::get<0>(IsingModel_disorder::opName(this->op, this->site));
 	stout << "DIR = " << this->saving_dir << std::endl
@@ -2825,32 +2852,37 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv)
 	#ifdef ANDERSON
 		str_model = std::to_string(this->dim) + "D" + kPSep;
 	#endif
-	// make boundary condition folder
-	switch (this->boundary_conditions)
-	{
-	case 0:
-		str_model += "PBC" + std::string(kPathSeparator);
-		break;
-	case 1:
-		str_model += "OBC" + std::string(kPathSeparator);
-		break;
-	default:
-		str_model += "PBC" + std::string(kPathSeparator);
-		break;
-	}
 
-	#ifdef HEISENBERG
+	// make boundary condition folder
+	#if !defined(QUANTUM_SUN)
+		switch (this->boundary_conditions)
+		{
+		case 0:
+			str_model += "PBC" + std::string(kPathSeparator);
+			break;
+		case 1:
+			str_model += "OBC" + std::string(kPathSeparator);
+			break;
+		default:
+			str_model += "PBC" + std::string(kPathSeparator);
+			break;
+		}
+	#endif
+
+	#if MODEL == 0
+		std::string folder = saving_dir + "ISING" + kPSep + str_model;
+	#elif MODEL == 1
 		std::string folder = saving_dir + "HEISENBERG" + kPSep + str_model;
+	#elif MODEL == 2
+		std::string folder = saving_dir + "ANDERSON" + kPSep + str_model;
+	#elif MODEL == 3
+		std::string folder = saving_dir + "XYZ" + kPSep + str_model;
+	#elif MODEL == 4
+		std::string folder = saving_dir + "QUANTUM_SUN" + kPSep + str_model;
 	#else
-		#ifdef XYZ
-			std::string folder = saving_dir + "XYZ" + kPSep + str_model;
-		#else
-			std::string folder = saving_dir + "ISING" + kPSep + str_model;
-		#endif
+		std::string folder = saving_dir + "ISING" + kPSep + str_model;
 	#endif
-	#ifdef ANDERSON
-		folder = saving_dir + "ANDERSON" + kPSep + str_model;
-	#endif
+
 	if (!argv[argc - 1].empty() && argc % 2 != 0) {
 		// only if the last command is non-even
 		folder = argv[argc - 1] + str_model;

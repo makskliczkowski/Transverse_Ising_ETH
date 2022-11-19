@@ -51,10 +51,8 @@ def get_tau_data_from_all_file(tau_data, settings) :
                     try:
                         stats = hfun.load_stats(filename)
                         wH = 1. / stats['mean level spacing']
-                    except FileNotFoundError:
-                        wH = tau_data[9][i] / np.sqrt(tau_data[0][i]) 
-                    if np.isnan(wH):
-                        wH = tau_data[9][i] / np.sqrt(tau_data[0][i]) 
+                    except FileNotFoundError:   wH = 0.0#hfun.heisenberg_time( system_size = tau_data[0][i], dim = tau_data[9][i])
+                    if np.isnan(wH):            wH = 0.0#hfun.heisenberg_time( system_size = tau_data[0][i], dim = tau_data[9][i])
                     
                     taus[f"%.5f"%(par)] = (tau_data[5][i] * (wH if settings['physical_units'] else 1.0), tau_data[7][i])
         x_float = [];   tau = [];   gap = []
@@ -132,7 +130,7 @@ def load(settings = None, vals = None) :
 
 
 def replot_taus(axis, vals, xvals, tau, gap_ratio, settings = None,
-                linewidth=0, fontsize=14, use_grid=False):
+                linewidth=0, fontsize=14, use_grid=False, markersize=30):
     #--- plot first panel with thouless times
     ec = []
     y_min = 1.0e10;     y_max = -1.0e10;
@@ -160,8 +158,8 @@ def replot_taus(axis, vals, xvals, tau, gap_ratio, settings = None,
             fc.append( p[0].get_color() if abs(r-0.53) <= 0.02 else 'none' )
         for j in range(0, len(tau[i])) :
             if linewidth == 0 and j == 0:   
-                axis.scatter(xx[j], yvals[j], edgecolors=ec[i], marker=m[j], s=30, facecolor=fc[j], label=hfun.key_title(vals[i], settings))
-            else: axis.scatter(xx[j], yvals[j], edgecolors=ec[i], marker=m[j], s=30, facecolor=fc[j])
+                axis.scatter(xx[j], yvals[j], edgecolors=ec[i], marker=m[j], s=markersize, facecolor=fc[j], label=hfun.key_title(vals[i], settings))
+            else: axis.scatter(xx[j], yvals[j], edgecolors=ec[i], marker=m[j], s=markersize, facecolor=fc[j])
         
 
     #-- set panel1 details
@@ -180,7 +178,7 @@ def replot_taus(axis, vals, xvals, tau, gap_ratio, settings = None,
 #--- Function to plot thouless data given by plot_settings
 
 def plot_taus(axis, settings = None, vals = None, 
-                linewidth=0, fontsize=14, return_data=False):
+                linewidth=0, fontsize=14, markersize=30, return_data=False):
     """
     Plotter of Thouless times with plot_settings defining x-axis and scaling
     
@@ -205,7 +203,8 @@ def plot_taus(axis, settings = None, vals = None,
                     gap_ratio=gap_ratio,
                     settings=settings,
                     linewidth=linewidth,
-                    fontsize=fontsize)
+                    fontsize=fontsize,
+                    markersize=markersize)
     if return_data: return vals, xvals, tau, gap_ratio, ec
     #title = ""
     #if (settings['vs_idx'] == 3 or settings['scaling_idx'] == 3) and cf.J0 == 0 and cf.g0 == 0:
