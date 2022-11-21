@@ -106,7 +106,8 @@ namespace isingUI
 		{"scale", "0"},					// scale: linear-0 or log-1
 		{"seed", "87178291199L"},		// seed foir random generator
 		{"jobid", "0"},					// unique job id
-		{"dim", "1"}					// dimensionality of anderson model
+		{"dim", "1"},					// dimensionality of anderson model
+		{"q_ipr", "1.0"}				// q for participation ratio calculation
 	};
 
 	// ----------------------------------- UI CLASS SPECIALISATION -----------------------------------
@@ -124,6 +125,7 @@ namespace isingUI
 		size_t seed;										// radnom seed for random generator
 		int jobid;											// unique _id given to current job
 
+		double q_ipr;										// q for participation ratio calculation
 		int mu;												// small bucket for the operator fluctuations to be averaged onto
 		int site;											// site for operator averages
 		int op;												// choose operator
@@ -254,7 +256,10 @@ namespace isingUI
 
 		//<! gap ratio map
 		void level_spacing();
-
+		
+		//<! multifractal analysis
+		void multifractal_analysis();
+		
 		//<! spectral form factor calculated from eigenvalues in file or diagonalize matrix
 		void spectral_form_factor();
 		

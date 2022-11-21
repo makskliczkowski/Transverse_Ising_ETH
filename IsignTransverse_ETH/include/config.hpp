@@ -7,7 +7,7 @@
 3 - XYZ
 4 - Quantum Sun
 */
-	#define MODEL 3
+	#define MODEL 1
 
 	#if MODEL == 0
 		#define ISING

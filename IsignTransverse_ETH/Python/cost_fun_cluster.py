@@ -87,7 +87,7 @@ if __name__ == '__main__':
         #-- calculate entropy collapse
         par, crit_pars, costfun, status = cost.get_crit_points(x=np.array(xarray), y=np.array(entropy), vals=vals, crit_fun=crit_fun, scaling_ansatz=scaling_ansatz, seed=seed, wH=wH)
         print("Entropy:\t", par, crit_pars, costfun, status)
-        if True or status:
+        if status:
             filename = dir + os.sep + "Entropy" + suffix
             data = {
                 "costfun": costfun,
@@ -99,10 +99,10 @@ if __name__ == '__main__':
 
 
     #calculate_and_save(scaling_ansatz='FGR', crit_fun='free')
-    #calculate_and_save(scaling_ansatz='spacing', crit_fun='free')
+    calculate_and_save(scaling_ansatz='spacing', crit_fun='free')
     #calculate_and_save(scaling_ansatz='KT', crit_fun='free')
     #calculate_and_save(scaling_ansatz='RG', crit_fun='free')
-    calculate_and_save(scaling_ansatz='classic', crit_fun='free')
+    #calculate_and_save(scaling_ansatz='classic', crit_fun='free')
 #
     #calculate_and_save(scaling_ansatz='FGR', crit_fun='free_inv')
     #calculate_and_save(scaling_ansatz='KT', crit_fun='free_inv')

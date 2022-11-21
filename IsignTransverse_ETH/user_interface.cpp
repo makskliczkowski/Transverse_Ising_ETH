@@ -36,16 +36,6 @@ void isingUI::ui::make_sim()
 	//file.close();
 	//return;
 
-	auto kernel = [&](int k, int p, int x)
-	{
-		this->symmetries.k_sym = k;
-		this->symmetries.p_sym = p;
-		this->symmetries.x_sym = x;
-		this->eigenstate_entropy();
-	};
-	loopSymmetrySectors(kernel);
-	return;
-
 	clk::time_point start = std::chrono::system_clock::now();
 	auto L_list = this->get_params_array(Ising_params::L);
 	auto J_list = this->get_params_array(Ising_params::J);
@@ -106,6 +96,9 @@ void isingUI::ui::make_sim()
 		break;
 	case 10:
 		eigenstate_entropy();
+		break;
+	case 11:
+		multifractal_analysis();
 		break;
 	default:
 		for (auto& system_size : L_list){
@@ -1948,6 +1941,64 @@ void isingUI::ui::thouless_times(Ising_params var)
 	*/
 }
 
+void isingUI::ui::multifractal_analysis(){
+
+	//---- KERNEL LAMBDA
+	std::string dir = this->saving_dir + "MultiFractality" + kPSep + "ParticipationRatio" + kPSep;
+	createDirs(dir);
+	size_t N = 0;
+	arma::vec energies, participatio_ratio;
+	
+	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
+					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
+	int counter = 0;
+	std::string filename = info + "_q=" + to_string_prec(this->q_ipr, 2);
+	auto kernel = [&](auto& alfa, int realis)
+	{
+		realis += this->jobid;
+
+		std::string dir_realis = this->saving_dir + "MultiFractality" + kPSep + "ParticipationRatio" + kPSep + "realisation=" + std::to_string(realis) + kPSep;
+		createDirs(dir_realis);
+
+		const arma::vec E = alfa.get_eigenvalues();
+		const arma::cx_mat V = alfa.get_eigenvectors_full();
+		arma::vec pr(N, arma::fill::zeros);
+	//#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
+		for(int n = 0; n < N; n++){
+			arma::cx_vec state = V.col(n);
+			double pr_tmp = statistics::participation_ratio(state, this->q_ipr);
+			pr(n) = pr_tmp;
+		}
+		E.save(arma::hdf5_name(dir_realis + filename + ".hdf5", "energies"));
+		pr.save(arma::hdf5_name(dir_realis + filename + ".hdf5", "entropy", arma::hdf5_opts::append));
+		//alfa.get_eigenvectors().save(arma::hdf5_name(filename + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
+		//save_to_file(filename + ".dat", E, entropies);
+		energies += E;
+		participatio_ratio += pr;
+		counter++;
+	};
+
+	//---- START COMPUTATION
+	if(this->m){
+		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
+								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+		N = alfa->get_hilbert_size();
+	 	energies = arma::vec(N, arma::fill::zeros);
+		participatio_ratio = arma::vec(N, arma::fill::zeros);
+		average_over_realisations<Ising_params::J>(*alfa, true, kernel);
+	} else{
+		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+		N = alfa->get_hilbert_size();
+	 	energies = arma::vec(N, arma::fill::zeros);
+		participatio_ratio = arma::vec(N, arma::fill::zeros);
+		average_over_realisations<Ising_params::J>(*alfa, true, kernel);
+	}
+	energies /= double(counter);
+	participatio_ratio /= double(counter);
+
+	energies.save(arma::hdf5_name(dir + filename + "_jobid=" + std::to_string(this->jobid) + ".hdf5", "energies"));
+	participatio_ratio.save(arma::hdf5_name(dir + filename + "_jobid=" + std::to_string(this->jobid) + ".hdf5", "entropy", arma::hdf5_opts::append));
+}
 
 void isingUI::ui::level_spacing(){
 	clk::time_point start = std::chrono::system_clock::now();
@@ -2565,7 +2616,8 @@ void isingUI::ui::printAllOptions() const
 		  << "boolean value = " << this->ch << std::endl
 		  << "scale = " << (this->scale == 1 ? "log" : "linear") << std::endl
 		  << "realisations = " << this->realisations << std::endl
-		  << "seed = " << this->seed << std::endl;
+		  << "seed = " << this->seed << std::endl
+		  << "q_ipr = " << this->q_ipr << std::endl;
 
 	if (this->m == 0)
 		stout << "J0  = " << this->J0 << std::endl
@@ -2634,6 +2686,7 @@ void isingUI::ui::set_default()
 	this->op = 0;
 	this->fun = INT_MAX;
 	this->mu = 5;
+	this->q_ipr = 1.0;
 
 	this->boundary_conditions = 0;
 	this->m = 0;
@@ -2763,6 +2816,10 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv)
 	// choose operator
 	choosen_option = "-op";
 	this->set_option(this->op, argv, choosen_option);
+	
+	// q for participation ration calculation
+	choosen_option = "-q_ipr";
+	this->set_option(this->q_ipr, argv, choosen_option);
 
 	// time step and boolean value and scale
 	choosen_option = "-dt";

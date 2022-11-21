@@ -3,6 +3,24 @@
 namespace statistics{
 
 //! ---------------------------------------------------------------- IPR
+//<! calculate participation ratio of input state for any q (q=1 is the typically used one)
+template <typename _type> 
+[[nodiscard]]
+inline
+double participation_ratio(
+    const arma::Col<_type>& _state,   //<! input state
+    double q = 1.0
+    ) {
+    double pr = 0;
+    const size_t N = _state.size();
+#pragma omp parallel for reduction(+: pr)
+	for (int n = 0; n < N; n++) {
+		double value = abs(conj(_state(n)) * _state(n));
+		pr += std::pow(value, q);
+	}
+	return pr;
+}
+
 //<! calculate inverse participation ratio of input state
 template <typename _type> 
 [[nodiscard]]
