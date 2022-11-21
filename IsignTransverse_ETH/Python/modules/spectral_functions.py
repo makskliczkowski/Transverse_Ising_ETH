@@ -51,7 +51,6 @@ def load_spectral(dir = "", settings = None, parameter = None,
         operator, site : int
             Values definining which operator to choose, if None the default from config.py is chosen
     """
-    importlib.reload(cf)
 
     if operator < 0: operator = settings['operator']
     if site < -1: site = settings['site']
@@ -64,15 +63,20 @@ def load_spectral(dir = "", settings = None, parameter = None,
     if settings['scaling_idx'] == 3 and cf.J0 == 0 and cf.g0 == 0:
         cf.params_arr[4] = int(100 * parameter / 2.) / 100.
     filename = (hfun.info_param(cf.params_arr) if cf.hamiltonian else hfun.remove_info(hfun.info_param(cf.params_arr), 'J') + ".dat")
-    
+
+    prefix = None
     if settings['scaling_idx'] == 5 and operator < 8:
-        filename = dir + cf.subdir(operator, parameter, settings['smoothed']) + cf.operator_names[operator] + "%d"%parameter + filename
+        prefix = dir + cf.subdir(operator, parameter, settings['smoothed']) + cf.operator_names[operator] + "%d"%parameter
     elif settings['scaling_idx'] == 0 and site < 0 and operator < 8:
-        filename = dir + cf.subdir(operator, parameter / 2, settings['smoothed']) + cf.operator_names[operator] + "%d"%(parameter/2) + filename
+        prefix = dir + cf.subdir(operator, parameter / 2, settings['smoothed']) + cf.operator_names[operator] + "%d"%(parameter/2)
     else :
-        filename = dir + cf.subdir(operator, site, settings['smoothed']) + cf.operator_name(operator, site) + filename
-    
+        prefix = dir + cf.subdir(operator, site, settings['smoothed']) + cf.operator_name(operator, site)
+    filename = prefix + filename
+    if not exists(filename):
+        filename = prefix + (hfun.info_param(cf.params_arr, use_log_data=False) if cf.hamiltonian else hfun.remove_info(hfun.info_param(cf.params_arr, use_log_data=False), 'J') + ".dat")
     filename2 = cf.base_directory + "STATISTICS" + kPSep + "raw_data" + kPSep + hfun.info_param(cf.params_arr)
+    if not exists(filename2):
+        filename2 = cf.base_directory + "STATISTICS" + kPSep + "raw_data" + kPSep + hfun.info_param(cf.params_arr, use_log_data=False)
     #--- reset defaults
     cf.params_arr = param_copy
     #print(filename)
@@ -262,7 +266,7 @@ def get_thouless_time(par, set_class = None, vals = None):
         idx = list(tau_data[0]).index(par)
         if vals is None:    vals = tau_data[1][idx]
         for x in vals:
-            idx2 = hfun.find_index(tau_data[1][idx], x)
+            idx2 = min(range(len(tau_data[1][idx])), key=lambda i: abs(tau_data[1][idx][i] - x));
             if idx2 >= 0:   
                 taus.append(tau_data[2][idx][idx2])
                 gap_ratio.append(tau_data[3][idx][idx2])
@@ -274,13 +278,13 @@ def get_thouless_time(par, set_class = None, vals = None):
 
 # ------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------
-def get_relax_times(vals = None, set_class = None, operator = -1, site = -2):
+def get_relax_times(vals = None, set_class = None, operator = -1, site = -2, with_thouless = True):
     """ 
     Find relaxation times from both integrated spectral function at I(w)=1/2 and fitting autocorrelation function
     """
     if set_class is None:   set_class = cf.plot_settings 
     settings = getattr(set_class, 'settings')
-
+    
     if operator < 0: operator = settings['operator']
     if site < -1: site = settings['site']
     if vals is None:    vals = hfun.get_scaling_array()
@@ -289,12 +293,12 @@ def get_relax_times(vals = None, set_class = None, operator = -1, site = -2):
     set_class_th = copy.deepcopy(set_class)
     set_class_th.set_vs(settings['scaling'])
     set_class_th.set_scaling('L')
-
-    status_time, xvals, taus, gap_ratio = get_thouless_time(par = cf.L, set_class=set_class_th, vals=vals)
+                        
+    status_th, xvals, taus, gap_ratio = get_thouless_time(par = cf.params_arr[0], set_class=set_class_th, vals=vals) if with_thouless else False, None, None, None
     relax_time = []
-    
+
+    print(cf.params_arr)
     relaxt_time_fit = [];   tH = [];    tH_typ = [];
-    
     for i in range(0, len(vals)):
         x = vals[i]
 
@@ -328,11 +332,16 @@ def get_relax_times(vals = None, set_class = None, operator = -1, site = -2):
                                                                         )
         
         if status2:
-            cut = 50
+            cut = 10
             num = 500
             if x <= 0.2: 
                 cut = 50
-                num = 4000
+                num = np.array([400, 1000, 3000, 10000])[int( (cf.params_arr[0] - 12) / 2 )]
+            
+            if operator == 8 or cf.model == 2:   
+                num = np.array([500, 1000, 5000, 5e4])[int( (cf.params_arr[0] - 12) / 2 )]
+                cut = 30 if x <= 0.2 else 5
+
             xfull = xdata2
             xdata2 = np.array([xdata2[i] for i in range(0,len(xdata2)) if (xdata2[i] < num and xdata2[i] > cut)])
             ydata2 = np.array([ydata2[i] for i in range(0,len(ydata2)) if (xfull[i] < num and xfull[i] > cut)])
@@ -341,16 +350,24 @@ def get_relax_times(vals = None, set_class = None, operator = -1, site = -2):
             idx_zero = np.argmin((ydata2))
             ydata2 = ydata2[:idx_zero - 10]
             xdata2 = xdata2[:idx_zero - 10]
+            
+            if cf.model == 2 or operator == 8:
+                xdata2 = np.array([xdata2[i] for i in range(0,len(xdata2)) if (ydata2[i] < -1.0 and ydata2[i] > -3.6)])
+                ydata2 = np.array([ydata2[i] for i in range(0,len(ydata2)) if (ydata2[i] < -1.0 and ydata2[i] > -3.6)])
             #print(pars)
             
-            pars, sth = fit(f=lin_fit, 
+            pars, pcov = fit(f=lin_fit, 
                                 xdata=xdata2, 
                                 ydata=ydata2)
-            relaxt_time_fit.append(pars[0] / np.log10(math.e))
+            tol = 0.05 if operator == 8 else 10.0
+            if any((np.diag(pcov)) / pars > tol):
+                relaxt_time_fit.append(np.nan)
+            else:
+                relaxt_time_fit.append(pars[0] / np.log10(math.e))
         else:
             relaxt_time_fit.append(np.nan)
 
-    return status_time, np.array(taus), np.array(relax_time), np.array(relaxt_time_fit), np.array(tH), np.array(tH_typ), np.array(gap_ratio)
+    return status_th, np.array(taus), np.array(relax_time), np.array(relaxt_time_fit), np.array(tH), np.array(tH_typ), np.array(gap_ratio)
 
 # ------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------
@@ -359,14 +376,14 @@ def set_inset_style(axis, vals, settings, ylim = None, ylabel = None):
     Sets style of plot with relaxation times
     """
     if ylim is None:    ylim = (1e-1, 7e3)
-    if ylabel is None:  ylabel = "\\tau_{rel}"
+    if ylabel is None:  ylabel = "t_{rel}"
     
     ii = settings['scaling_idx']
-    xlab = "q/\\pi" if ii == 5 else (hfun.var_name if ii == 2 else settings['scaling'])
-
+    xlab = "q/\\pi" if ii == 5 else (hfun.var_name if ii == 2 else ("\\varepsilon" if ii == 4 and cf.model == 2 else settings['scaling']))
+    
     hfun.set_plot_elements(axis = axis, xlim = (0.95*min(vals), 1.05*max(vals)), 
                                         ylim = ylim, ylabel = ylabel, xlabel = xlab, 
-                                        settings=settings, font_size=16, set_legend=True)
+                                        settings=settings, font_size=18, set_legend=True)
     
     axis.set_yscale('log')
     axis.set_xscale('log')
@@ -385,13 +402,13 @@ def set_inset(axis, settings, vals, taus, relax_time, relaxt_time_fit, tH, tH_ty
     if settings is None:
         settings = user_settings
 
-    axis.plot(vals, relax_time, marker='o', label='int-fit')
+    #axis.plot(vals, relax_time, marker='o', label='int-fit')
     axis.plot(vals, relaxt_time_fit, marker='o', label='exp fit')
     axis.plot(vals, tH, linestyle='--', label=r"$t_H$", color='gray')
     #axis.plot(vals, tH_typ, linestyle=':', label=r"$t_H^{typ}$", color='gray')
 
-    axis.plot(vals, 2e0 / vals**2, linestyle='--', color='red', label=r"$%s^{-2}$"%xlab)
-    axis.plot(vals, 1e0 / vals**1., linestyle='--', color='black', label=r"$%s^{-1}$"%xlab)
+    axis.plot(vals, 2e1 / vals**2, linestyle='--', color='red', label=r"$%s^{-2}$"%xlab)
+    #axis.plot(vals, 1e0 / vals**1., linestyle='--', color='black', label=r"$%s^{-1}$"%xlab)
 
     if status_time and settings['scaling_idx'] == 5: 
         axis.axhline(y=taus[0], ls='--', color='black')

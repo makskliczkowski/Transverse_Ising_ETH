@@ -84,6 +84,9 @@ if __name__ == '__main__':
             new_pars[ii] = par
             info_in = hfun.info_param(new_pars)
             base_info, ext = os.path.splitext(info_in)
+
+            info_in2 = hfun.info_param(new_pars, use_log_data=False)
+            base_info2, ext2 = os.path.splitext(info_in2)
             
             stats = {
                 'gap ratio':                            0.0,
@@ -106,7 +109,8 @@ if __name__ == '__main__':
                 'entropy error over realisations':      0
             }
             for r in realis:
-                info_in = base_info + "_jobid=%d"%r + ext
+                base = base_info + "_jobid=%d"%r + ext
+                info_in = base# if os.path.exists(dir_in + base) else base_info2 + "_jobid=%d"%r + ext2
                 if os.path.exists(dir_in + info_in):
                     data = pd.read_table(dir_in + info_in, sep="\t", header=None)
                     for i in range(len(data[0])):
@@ -117,14 +121,18 @@ if __name__ == '__main__':
                                 stats[variable_name] += float(data[1][i])
                                 counter[variable_name] += 1
 
-                infoS = base_info + "_subsize=%d_jobid=%d"%(L/2, r) + ".hdf5"
+                base = base_info + "_subsize=%d_jobid=%d"%(L/2, r) + ".hdf5"
+                infoS = base if os.path.exists(dirS + base) else base_info2 + "_subsize=%d_jobid=%d"%(L/2, r) + ".hdf5"
                 if os.path.exists(dirS + infoS):
                     with h5py.File(dirS + infoS, "r") as f:
                         # Print all root level object names (aka keys) 
                         # these can be group or dataset names 
                         ent = np.array(f.get('entropy')[0])
+                        energies = np.array(f.get('energies')[0])
 
-                        ent = ent[int(0.5 * ent.size) - 250 : int(0.5 * ent.size) + 250]
+                        E_av = np.mean(energies)
+                        idx = min(range(len(energies)), key=lambda i: abs(energies[i] - E_av))
+                        ent = ent[idx - 100 : idx + 100]
                         stats['entropy in ~100 states at E=0'] += np.mean(ent);      counter['entropy in ~100 states at E=0'] += 1
                         stats['entropy var in ~100 states at E=0'] += np.var(ent);      counter['entropy var in ~100 states at E=0'] += 1
                         

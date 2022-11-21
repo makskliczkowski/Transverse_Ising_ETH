@@ -3,17 +3,17 @@ from os import sep as kPSep
 import utils.plot_settings as ps
 importlib.reload(ps)
 #---------------------------------------------------- MODEL PARAMETERS
-model = 0           # chooses model: 0-disorder / 1-symmetries / 2-local perturbation
-hamiltonian = 2     # which hamiltonian?: 0-Ising / 1-Heisenberg
-BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
+model = 2           # chooses model: 0-disorder / 1-symmetries / 2-local perturbation
+hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
+BC = 0              # boundaary condition: 0 - OBC / 1 - PBC
 
 L = 18                          # system size
 J = 1.00                        # spin exchange (Ising-like)
 g = 0.55                       # trasnverse magnetic field (z-axis)
-h = 1.0                        # longitudal magnetic field (x-axis)
+h = 0.0                        # longitudal magnetic field (x-axis)
 #---- DISORDER PARAMETERS
-w = 0.5                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
-J0 = 0.2                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
+w = 0.7                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
+J0 = 0.0                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
 g0 = 0.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 #---- SYMETRY PARAMETERS
 k_sym = 0                       # translational symmetry sector
@@ -43,7 +43,7 @@ plot_settings_dict = {
     'nu_x':             -1.0,           # power of inversion
 
 #---- operator options
-    'operator':         2,         # chosen operator according to order set in IsingModel.h
+    'operator':         8,         # chosen operator according to order set in IsingModel.h
     'site':            L/2,          # chosen site for local operator
     'smoothed':         1,          # choose running-smoothed option
 
@@ -135,7 +135,24 @@ operator_formuals = [
     r"$\frac{1}{\sqrt{L}}\sum_\ell(-1)^\ell\sigma^z_\ell$"			
 ]
 
-
+operator_names_latex = [
+    "\sigma^z_j",
+    "\sigma^x_j",
+    "H_j",
+    "\sigma^z_q",
+    "\sigma^x_q",
+    "H_q",
+    "TFIM_LIOM_plus_n=...",
+    "TFIM_LIOM_minus_n=...",
+    "\mathcal{J}_{spin}",
+    "\sigma^x_{tot}",
+    "\sigma^z_{tot}",
+    "U^x_n",
+    "U^z_n",
+    "U^x_{nn}",
+    "U^z_{nn}",
+    "\mathcal{I}_{spin}"
+]
 
 
 #---------------------------------------------------- SHORT USER FUNCTIONS
@@ -153,6 +170,10 @@ def set_params(_L = None, _J = None, _J0 = None, _g = None, _g0 = None, _h = Non
     if(_x != None):     x_sym = _x
     params_arr = [L, J, g, h, w, k_sym, p_sym, x_sym, J0, g0]
 
+def set_params2(**kwargs):
+    print(kwargs)
+    for key in kwargs:
+        params_arr[ps.options.index(key)] = kwargs[key]
 
 def set_plot_dict_value(option, value):
     plot_settings_dict[option] = value

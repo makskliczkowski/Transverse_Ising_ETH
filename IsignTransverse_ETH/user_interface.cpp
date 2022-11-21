@@ -11,9 +11,11 @@ void isingUI::ui::make_sim()
 		this->seed = static_cast<long unsigned int>(time(0));
 	#endif
 	my_gen = randomGen(this->seed);
-	//compare_energies();
-
 	printAllOptions();
+
+	//check_symmetry_rotation(); return;
+	//compare_energies();	return;
+	
 	//auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 	//auto alfa = std::make_unique<IsingModel_disorder>(this->L, 1, 0, 1, 0, 0, 0, this->boundary_conditions);
 	//auto H = alfa->get_hamiltonian();
@@ -33,7 +35,6 @@ void isingUI::ui::make_sim()
 	//file << T;
 	//file.close();
 	//return;
-
 
 	clk::time_point start = std::chrono::system_clock::now();
 	auto L_list = this->get_params_array(Ising_params::L);
@@ -95,6 +96,9 @@ void isingUI::ui::make_sim()
 		break;
 	case 10:
 		eigenstate_entropy();
+		break;
+	case 11:
+		multifractal_analysis();
 		break;
 	default:
 		for (auto& system_size : L_list){
@@ -390,7 +394,7 @@ arma::vec isingUI::ui::get_params_array(Ising_params par){
 void isingUI::ui::compare_energies()
 {
 	// handle disorder
-	auto Hamil = std::make_unique<IsingModel_disorder>(this->L, this->J, 0.0, this->g, 0.0, this->h, 0.0, boundary_conditions);
+	auto Hamil = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, boundary_conditions);
 	Hamil->diagonalization();
 	const arma::vec E_dis = Hamil->get_eigenvalues();
 	Hamil.release();
@@ -400,7 +404,7 @@ void isingUI::ui::compare_energies()
 	// go for each symmetry sector
 	const int x_max = (this->h != 0) ? 0 : 1;
 	const int k_end = (this->boundary_conditions) ? 1 : this->L;
-	for (int k = 0; k < L; k++)
+	for (int k = 0; k < k_end; k++)
 	{
 		if (k == 0 || k == this->L / 2.)
 		{
@@ -440,10 +444,10 @@ void isingUI::ui::compare_energies()
 	stout << endl
 		  << E_sym.size() << endl;
 	stout << "symmetry sector\t\tEnergy sym\t\tEnergy total\t\tdifference\t\t <n|X|n>" << endl;
+	printSeparated(std::cout, "\t", 20, true, "symmetry sector", "Energy sym", "Energy total", "difference");
 	for (int k = 0; k < E_dis.size(); k++)
-	{
-		stout << symms[k] << "\t\t" << E_sym[k] << "\t\t" << E_dis(k) << "\t\t" << E_sym[k] - E_dis(k) << endl;
-	}
+		printSeparated(std::cout, "\t", 20, true, symms[k], E_sym[k], E_dis(k), E_sym[k] - E_dis(k));
+	
 }
 void isingUI::ui::compare_matrix_elements(op_type op, int k_alfa, int k_beta, int p_alfa, int p_beta, int x_alfa, int x_beta)
 {
@@ -732,14 +736,14 @@ void isingUI::ui::check_symmetry_rotation(){
 	arma::sp_mat HH = arma::real(H);
 	auto N = H0.n_cols;
 	arma::sp_cx_mat res = arma::sp_cx_mat(HH - H0, arma::imag(H));
-	printSeparated(std::cout, "\t", 32, true, "index i", "index j", "difference", "original hamil");
+	printSeparated(std::cout, "\t", 32, true, "index i", "index j", "difference", "original hamil", "symmetry hamil");
 	cpx x = 0;
 	for(int i = 0; i < N; i++){
 		for(int j = 0; j < N; j++){
 			cpx val = res(i, j);
-			if(abs(val) > 1e-15){
+			if(abs(H0(i, j)) > 1e-15){
 				x += val;
-				printSeparated(std::cout, "\t", 32, true, i, j, res(i, j), H0(i, j));
+				printSeparated(std::cout, "\t", 32, true, i, j, res(i, j), H0(i, j), H(i, j));
 			}
 		}
 	}
@@ -1197,18 +1201,18 @@ void isingUI::ui::eigenstate_entropy(){
 		std::string dir_realis = this->saving_dir + "Entropy" + kPSep + "Eigenstate" + kPSep + "realisation=" + std::to_string(realis) + kPSep;
 		createDirs(dir_realis);
 
-		const arma::Mat<decltype(alfa.type_var)> U = alfa.get_eigenvectors();
 		const arma::vec E = alfa.get_eigenvalues();
-		
+		const arma::cx_mat V = alfa.get_eigenvectors_full();
 		arma::vec S(N, arma::fill::zeros);
 	//#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 		for(int n = 0; n < N; n++){
-			arma::cx_vec state = alfa.get_state_in_full_Hilbert(n);
+			//arma::cx_vec state = alfa.get_state_in_full_Hilbert(n);
+			arma::cx_vec state = V.col(n);
 			double S_tmp = entropy::vonNeumann(state, LA, this->L, map);
 			S(n) = S_tmp;
 		}
 		E.save(arma::hdf5_name(dir_realis + filename + ".hdf5", "energies"));
-		S.save(arma::hdf5_name(dir_realis + filename + ".hdf5", "entropy",arma::hdf5_opts::append));
+		S.save(arma::hdf5_name(dir_realis + filename + ".hdf5", "entropy", arma::hdf5_opts::append));
 		//alfa.get_eigenvectors().save(arma::hdf5_name(filename + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
 		//save_to_file(filename + ".dat", E, entropies);
 		energies += E;
@@ -1220,8 +1224,10 @@ void isingUI::ui::eigenstate_entropy(){
 	if(this->m){
 		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-		if(alfa->using_Sz_symmetry())
+		if(alfa->using_Sz_symmetry()){
+			std::cout << "Using Sz symmetry!!" << std::endl;
 			map = generate_full_map(this->L, alfa->using_Sz_symmetry());
+		}
 		N = alfa->get_hilbert_size();
 	 	energies = arma::vec(N, arma::fill::zeros);
 		entropies = arma::vec(N, arma::fill::zeros);
@@ -1547,7 +1553,7 @@ void isingUI::ui::spectral_form_factor(){
 	int time_end = (int)std::ceil(std::log10(5 * tH));
 	time_end = (time_end / std::log10(tH) < 1.5) ? time_end + 1 : time_end;
 
-	arma::vec times = arma::logspace(log10(1.0 / (two_pi * N)), 2, num_times);
+	arma::vec times = arma::logspace(log10(1.0 / (two_pi * N)), 1, num_times);
 	arma::vec times_fold = arma::logspace(-2, time_end, num_times);
 	arma::vec sff(num_times, arma::fill::zeros);
 	double Z = 0.0;
@@ -1952,6 +1958,64 @@ void isingUI::ui::thouless_times(Ising_params var)
 	*/
 }
 
+void isingUI::ui::multifractal_analysis(){
+
+	//---- KERNEL LAMBDA
+	std::string dir = this->saving_dir + "MultiFractality" + kPSep + "ParticipationRatio" + kPSep;
+	createDirs(dir);
+	size_t N = 0;
+	arma::vec energies, participatio_ratio;
+	
+	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
+					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
+	int counter = 0;
+	std::string filename = info + "_q=" + to_string_prec(this->q_ipr, 2);
+	auto kernel = [&](auto& alfa, int realis)
+	{
+		realis += this->jobid;
+
+		std::string dir_realis = this->saving_dir + "MultiFractality" + kPSep + "ParticipationRatio" + kPSep + "realisation=" + std::to_string(realis) + kPSep;
+		createDirs(dir_realis);
+
+		const arma::vec E = alfa.get_eigenvalues();
+		const arma::cx_mat V = alfa.get_eigenvectors_full();
+		arma::vec pr(N, arma::fill::zeros);
+	//#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
+		for(int n = 0; n < N; n++){
+			arma::cx_vec state = V.col(n);
+			double pr_tmp = statistics::participation_ratio(state, this->q_ipr);
+			pr(n) = pr_tmp;
+		}
+		E.save(arma::hdf5_name(dir_realis + filename + ".hdf5", "energies"));
+		pr.save(arma::hdf5_name(dir_realis + filename + ".hdf5", "entropy", arma::hdf5_opts::append));
+		//alfa.get_eigenvectors().save(arma::hdf5_name(filename + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
+		//save_to_file(filename + ".dat", E, entropies);
+		energies += E;
+		participatio_ratio += pr;
+		counter++;
+	};
+
+	//---- START COMPUTATION
+	if(this->m){
+		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
+								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
+		N = alfa->get_hilbert_size();
+	 	energies = arma::vec(N, arma::fill::zeros);
+		participatio_ratio = arma::vec(N, arma::fill::zeros);
+		average_over_realisations<Ising_params::J>(*alfa, true, kernel);
+	} else{
+		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+		N = alfa->get_hilbert_size();
+	 	energies = arma::vec(N, arma::fill::zeros);
+		participatio_ratio = arma::vec(N, arma::fill::zeros);
+		average_over_realisations<Ising_params::J>(*alfa, true, kernel);
+	}
+	energies /= double(counter);
+	participatio_ratio /= double(counter);
+
+	energies.save(arma::hdf5_name(dir + filename + "_jobid=" + std::to_string(this->jobid) + ".hdf5", "energies"));
+	participatio_ratio.save(arma::hdf5_name(dir + filename + "_jobid=" + std::to_string(this->jobid) + ".hdf5", "entropy", arma::hdf5_opts::append));
+}
 
 void isingUI::ui::level_spacing(){
 	clk::time_point start = std::chrono::system_clock::now();
@@ -2569,7 +2633,8 @@ void isingUI::ui::printAllOptions() const
 		  << "boolean value = " << this->ch << std::endl
 		  << "scale = " << (this->scale == 1 ? "log" : "linear") << std::endl
 		  << "realisations = " << this->realisations << std::endl
-		  << "seed = " << this->seed << std::endl;
+		  << "seed = " << this->seed << std::endl
+		  << "q_ipr = " << this->q_ipr << std::endl;
 
 	if (this->m == 0)
 		stout << "J0  = " << this->J0 << std::endl
@@ -2638,6 +2703,7 @@ void isingUI::ui::set_default()
 	this->op = 0;
 	this->fun = INT_MAX;
 	this->mu = 5;
+	this->q_ipr = 1.0;
 
 	this->boundary_conditions = 0;
 	this->m = 0;
@@ -2767,6 +2833,10 @@ void isingUI::ui::parseModel(int argc, std::vector<std::string> argv)
 	// choose operator
 	choosen_option = "-op";
 	this->set_option(this->op, argv, choosen_option);
+	
+	// q for participation ration calculation
+	choosen_option = "-q_ipr";
+	this->set_option(this->q_ipr, argv, choosen_option);
 
 	// time step and boolean value and scale
 	choosen_option = "-dt";

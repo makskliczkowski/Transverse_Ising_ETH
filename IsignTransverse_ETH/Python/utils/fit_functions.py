@@ -26,6 +26,10 @@ def lin_fit_inv(x, a, b):
     """Linear function to fit and find decay rate from ln( f(t) )"""
     return a / x + b
 
+def lin_fit_inv2(x, a):
+    """Linear function to fit and find decay rate from ln( f(t) ) without offset"""
+    return a / x 
+
 def power_law(x, alfa, a):
     """ Power-law fit function """
     return a * x**alfa

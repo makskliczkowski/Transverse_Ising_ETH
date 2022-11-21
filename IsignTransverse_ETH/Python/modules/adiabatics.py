@@ -50,12 +50,12 @@ def plot_agp(axis=None, settings_class = None,
             stats = hfun.read_python_saved_dat_file(filename2)
             xdata = (np.array(data[0][1:])).astype(np.float)
             ydata = (np.array(data[which][1:])).astype(np.float)
-            wH = np.array([x for i, x in enumerate(stats[5]) if stats[0][i] in xdata])
+            wH = stats[5]
             if which == 2:
-                ydata = ydata * binom(x, x/2) * np.power(wH, 2.0) / x**2
+                ydata = ydata * np.power(np.sqrt(x) / (binom(x, x/2)), 2.0) / x * (binom(x, x/2))
             elif which == 1:
                 ydata = ydata / (binom(x, x/2))
-            axis.plot(xdata, ydata, label=hfun.key_title(x, settings))
+            axis.plot(xdata, ydata, label=hfun.key_title(x, settings), marker='o')
             
             #-- xy-ranges
             mini = ydata.min();  maxi = ydata.max();

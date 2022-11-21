@@ -4,12 +4,13 @@ import config as cf
 from matplotlib.markers import MarkerStyle
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from math import ceil
 importlib.reload(cf)
 import re
 
 user_settings = getattr(cf.plot_settings, 'settings')
-var_name = "\\Delta" if cf.hamiltonian else "g"
+var_name = "\\Delta" if cf.hamiltonian == 1 else ("\\alpha" if cf.hamiltonian == 2 else "g")
 
 def heisenberg_time(system_size, dim):
     chi = 0.341345
@@ -31,40 +32,40 @@ def findOccurrences(s, ch):
     Find all occurences of character ch in string s
     """
     return [i for i, letter in enumerate(s) if letter == ch]
+    
 #-------------------------- SET INFO
-def info_sym(L, J, g, h, k, p, x):
+def info_sym(L, J, g, h, k, p, x, use_log_data =True):
     arr = [J, g, h]
     names = ['J', 'g', 'h']
     info = "_L=%d"%L
     for i, var in enumerate(arr):
-        n = order_of_magnitude(var)
+        n = order_of_magnitude(var) if use_log_data else 2
         info += str(",%s={:.%df}"%(names[i], n)).format(round(var, n))
     return info + ",k=%d,p=%d,x=%d.dat"%(k,p,x)
     
-def info_dis(L, J, J0, g, g0, h, w):
+def info_dis(L, J, J0, g, g0, h, w, use_log_data = True):
     arr = [J, J0, g, g0, h, w]
     names = ['J', 'J0', 'g', 'g0', 'h', 'w']
     info = "_L=%d"%L
     for i, var in enumerate(arr):
-        n = order_of_magnitude(var)
+        n = order_of_magnitude(var) if use_log_data else 2
         info += str(",%s={:.%df}"%(names[i], n)).format(round(var, n))
     return info + ".dat"
-    return "_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat"%(L, J, J0, g, g0, h, w)
 
 def info(_L = cf.params_arr[0], _J = cf.params_arr[1], _J0 = cf.params_arr[8], 
             _g = cf.params_arr[2], _g0 = cf.params_arr[9], 
             _h = cf.params_arr[3], _w = cf.params_arr[4], 
-          _k = cf.params_arr[5], _p = cf.params_arr[6], _x = cf.params_arr[7]
+          _k = cf.params_arr[5], _p = cf.params_arr[6], _x = cf.params_arr[7], use_log_data = True
     ):
     if(cf.model == 1) :
-        return info_sym(_L, _J, _g, _h, _k, _p, _x)
+        return info_sym(_L, _J, _g, _h, _k, _p, _x, use_log_data)
     else :
-        return info_dis(_L, _J, _J0, _g, _g0, _h, _w)
-def info_param(params):
+        return info_dis(_L, _J, _J0, _g, _g0, _h, _w, use_log_data)
+def info_param(params, use_log_data = True):
     return info(_L = params[0], _J = params[1], _J0 = params[8], 
             _g = params[2], _g0 = params[9], 
             _h = params[3], _w = params[4], 
-          _k = params[5], _p = params[6], _x = params[7]
+          _k = params[5], _p = params[6], _x = params[7], use_log_data=use_log_data
     )
 
 def get_params_from_info(info):
@@ -128,6 +129,8 @@ def key_title(x, settings):
     scaling_str = settings['scaling']
     if settings['scaling_idx'] == 2:
         scaling_str = var_name
+    if settings['scaling_idx'] == 4 and cf.model == 2:
+        scaling_str = "\\varepsilon"
     n = order_of_magnitude(x)
     return r"$" + (scaling_str + (f"=%d"%(x) if settings['scaling_idx'] == 0 or settings['scaling_idx'] == 5 else str("={:.%df}"%(n)).format(round(x, n)))) + "$"
 
@@ -147,24 +150,23 @@ def mscatter(x,y,ax=None, m=None, fc=None, **kw):
     return sc
 
 #--------- Set user settings on plot
-def set_plot_elements(axis, xlim =[], ylim=[], xlabel = None, ylabel = 'y', settings = None, set_legend = True, font_size = 10):
+def set_plot_elements(axis, xlim =[], ylim=[], xlabel = None, ylabel = None, settings = None, set_legend = True, font_size = 10):
     if settings == None:
         settings = user_settings
-    
-    xlab = list(settings['func_x_name'])
-    x_idx = xlab.index('Q')
-    if xlabel == None :
-        xlab[x_idx] = settings['vs']
-    else :
+
+    if xlabel is not None:
+        xlab = list(settings['func_x_name'])
+        x_idx = xlab.index('Q')
         xlabel = list(xlabel)
         xlab.remove('Q')
         for i in range(0,len(xlabel)):
             xlab.insert(i + x_idx, xlabel[i]) 
-    ylab = list(settings['func_y_name'])
-    ylab[ylab.index('Q')] = ylabel
+        axis.set_xlabel("".join(xlab), rotation=0, fontsize=font_size+2, labelpad=font_size-8)
+    if ylabel is not None:
+        ylab = list(settings['func_y_name'])
+        ylab[ylab.index('Q')] = ylabel
+        axis.set_ylabel("".join(ylab), rotation=90, fontsize=font_size+2)
     
-    axis.set_ylabel("".join(ylab), rotation=90, fontsize=font_size+2)
-    axis.set_xlabel("".join(xlab), rotation=0, fontsize=font_size+2, labelpad=font_size-8)
     axis.set_yscale(settings['y_scale'])
     axis.set_xscale(settings['x_scale'])
     axis.tick_params(axis='both', which='major', labelsize=font_size, length=font_size-4, width=0.05*font_size)
@@ -240,22 +242,35 @@ def read_python_saved_dat_file(filename):
     """
     Loading statistical data from scaling file (as funciton of paramter) and return 2D-array of them
     """
-    f = open(filename, "r")
-    data = f.read()
-    indices = findOccurrences(data, "\n")
-    num_of_cols = len(findOccurrences(data[:indices[0]], "\t")) + 2  
-    data = data[indices[0]:]
-    data = data.split('\n')[1:]
-    result = [[] for i in range(num_of_cols)]
-    
-    for line in data[:-1]:
-        line = [int(x) if x.isdigit() else float(x) for x in line.split('\t')[:-1]]
-        for i in range(0, num_of_cols):
-            result[i].append(line[i])
+    status = True
+    try:
+        stats = pd.read_table(filename, sep="\t", header=None)
+    except Exception as e:
+        #print("Pandas broke down")
+        status = False
+    if status:
+        result = []
+        for i in range(7):
+            arr = np.array(stats[i][1:]).astype(float)
+            result.append(arr)
+    else:
+        f = open(filename, "r")
+        data = f.read()
+        indices = findOccurrences(data, "\n")
+        num_of_cols = len(findOccurrences(data[:indices[0]], "\t")) + 2  
+        data = data[indices[0]:]
+        data = data.split('\n')[1:]
+        result = [[] for i in range(num_of_cols)]
+
+        for line in data[:-1]:
+            line = [int(x) if x.isdigit() else float(x) for x in line.split('\t')[:-1]]
+            for i in range(0, num_of_cols):
+                result[i].append(line[i])
 
     return np.array(result)
 
 
+#--------------- LOAD STATISTICAL DATA
 def load_stats(filename):
     """
     Loading statistical data to dictionairy from raw file
@@ -272,3 +287,13 @@ def load_stats(filename):
         result[line[2 : index[0]-1]] = int(x) if x.isdigit() else float(x)
     
     return result
+
+
+#--------------- REMOVE FLUCTUATIONS FROM DATA
+def remove_fluctuations(data, bucket_size=10):
+    new_data = data;
+    half_bucket = int(bucket_size / 2)
+    for k in range(half_bucket, len(data)):
+        average = np.sum(data[k - half_bucket: k + half_bucket])
+        new_data[k - half_bucket] = average / bucket_size
+    return new_data
