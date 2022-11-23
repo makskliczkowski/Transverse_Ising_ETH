@@ -123,10 +123,10 @@ def plot(axis, settings = None,
 
     for x in vals:
 
-        status, xdata, ydata, tH, tau, r, dim = load(settings=settings, parameter=x)
+        status, xdata, ydata, tH, tau, r, dimensions = load(settings=settings, parameter=x)
         
         if status:
-            dim = dim
+            dim = dimensions
             times = xdata
             gap_ratio.append(r)
             xdata = func_x(xdata, x)
@@ -140,7 +140,7 @@ def plot(axis, settings = None,
             taus.append(np.nan)
             val_at_taus.append(np.nan)
             gap_ratio.append(np.nan)
-    
+    print(dim, vals)
     hfun.set_plot_elements(axis = axis, xlim = (func_x(1. / (2 * np.pi * dim), min(vals)), func_x(10, max(vals))), 
                                     ylim = (None, None), ylabel = ylab, xlabel = xlab, settings=settings, font_size=font, set_legend=True)
     axis.legend(loc='lower right')

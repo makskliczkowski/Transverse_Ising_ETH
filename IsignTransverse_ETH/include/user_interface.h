@@ -106,7 +106,8 @@ namespace isingUI
 		{"scale", "0"},					// scale: linear-0 or log-1
 		{"seed", "87178291199L"},		// seed foir random generator
 		{"jobid", "0"},					// unique job id
-		{"dim", "1"}					// dimensionality of anderson model
+		{"dim", "1"},					// dimensionality of anderson model
+		{"q_ipr", "1.0"}				// q for participation ratio calculation
 	};
 
 	// ----------------------------------- UI CLASS SPECIALISATION -----------------------------------
@@ -124,6 +125,7 @@ namespace isingUI
 		size_t seed;										// radnom seed for random generator
 		int jobid;											// unique _id given to current job
 
+		double q_ipr;										// q for participation ratio calculation
 		int mu;												// small bucket for the operator fluctuations to be averaged onto
 		int site;											// site for operator averages
 		int op;												// choose operator
@@ -254,7 +256,10 @@ namespace isingUI
 
 		//<! gap ratio map
 		void level_spacing();
-
+		
+		//<! multifractal analysis
+		void multifractal_analysis();
+		
 		//<! spectral form factor calculated from eigenvalues in file or diagonalize matrix
 		void spectral_form_factor();
 		
@@ -336,6 +341,7 @@ namespace isingUI
 					case Ising_params::J: x = this->J;	break;
 					case Ising_params::h: x = this->h;	break;
 					case Ising_params::g: x = this->g;	break;
+					case Ising_params::w: x = this->w;	break;
 				default:				  x = 0.0;		break;
 				}
 			if(this->m){
@@ -349,7 +355,7 @@ namespace isingUI
 							case Ising_params::h: model.h = _vec(r);	break;
 							case Ising_params::g: model.g = _vec(r);	break;
 						default: 
-							std::cout << "No default mode, average only performed over J, g, h" << std::endl;	
+							std::cout << "dsofsf" << std::endl;
 							break;
 						}
 					}
@@ -386,11 +392,12 @@ namespace isingUI
 					case Ising_params::J: x = this->J;	break;
 					case Ising_params::h: x = this->h;	break;
 					case Ising_params::g: x = this->g;	break;
+					case Ising_params::w: x = this->w;	break;
 				default:				  x = 0.0;		break;
 				}
-			if(this->m){
-				arma::vec _vec = x + my_gen.create_random_vec<double>(this->realisations, x / 50.);
+				arma::vec _vec = x + my_gen.create_random_vec<double>(this->realisations, 0.05);
 				stout << _vec << std::endl;
+			if(this->m){
 			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 				for(int r = 0; r < _vec.size(); r++){
 					auto dummy_lambda = [&lambda](int real, double x, auto... args){
@@ -404,7 +411,11 @@ namespace isingUI
 					auto dummy_lambda = [&lambda](int real, double x, auto... args){
 						lambda(real, x, args...);
 					};
-					dummy_lambda(r, x, args...);
+					#if defined(XYZ) || defined(LOCAL_PERT)
+						dummy_lambda(r, _vec(r), args...);
+					#else
+						dummy_lambda(r, x, args...);
+					#endif
 				}
 			}
 		};

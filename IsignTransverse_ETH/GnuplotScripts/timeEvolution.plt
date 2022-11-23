@@ -1,6 +1,6 @@
 
-dir_base='../results/ISING/disorder/PBC/'
-dir = dir_base.'TimeEvolution/'
+dir_base='../results/HEISENBERG/disorder/PBC/'
+dir = dir_base.'timeEvolution/'
 out_dir = 'Time_Evolution/'
 reset 
 
@@ -40,21 +40,21 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 10;
+L = 16;
 J=1.0 
-g = 0.9;
-h = 0.8;
+g = 0.55;
+h = 0.0;
 J0 = 0.; g_knot = 0.; 
-w = 1.0;
+w = 0.7;
 rescale = 0				# rescale the spectral function by f(w, L)?
 power = 0.5				# power in scaling with omega
 operator = 1	 		# 1-SigmaZ , 0-Hq :local
-site = 0				# site at which the operator acts
+site = L/2				# site at which the operator acts
 cor = 0					# correlations
-scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation-scaling=4 or 5-user defined
+scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or w-scaling=4 or 5-user defined
 q_vs_j = 0				# =1 - evolution of Sz_q, else ecol of Sz_j
 compare = 0
-smoothed_data = 0		# plot smoothed data?
+smoothed_data = 1		# plot smoothed data?
 plot_exponent = 0		# plot exponent to find relaxation time
 
 if(plot_exponent) smoothed_data = 0;
@@ -70,6 +70,7 @@ local = 0
 
 	h0 = 10;	hend = 70;		dh = 10;
 	g0 = 10;	gend = 100;		dg = 10;
+	w0 = 10;	wend = 100;		dw = 10;
 	L0 = 10;	Lend = 15; 		dL = 1;
 
 use_fit = 0
@@ -108,23 +109,28 @@ if(operator > 1){ str(x) = "n".sprintf("=%d",x); }
 #exit;
 output_name = ""
 _name(x) = 0; _key_title(x) = 0;
+ssf_name_base(gx, Lx, wx) = dir_base.sprintf("SpectralFormFactor/folded_L=%d,J=1.00,J0=0.00,g=%.2f,g0=0.00,h=0.00,w=%.2f.dat", Lx, gx, wx)
+ssf_name(x) = 0
 i0 = 0; iend = 0; di = 1;
 		if(scaling == 0){
 			_name(x) = dir.str(site).'/'.op.sprintf("_".str(site)."_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J, J0, g, g_knot, 0.01*x, w);	_key_title(x) = sprintf("h=%.2f", x/100.)
 			i0 = h0; iend = hend; di = dh; 	out_dir = out_dir."h_scaling/";
 			output_name = output_name.op.sprintf("_".str(site)."_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,w=%.2f", L, J, J0, g, g_knot, w);
+			ssf_name(x) = ssf_name_base(g, x, w)
 		}else{
 			if(scaling == 1){
 				__str(x) = site == -1 ? str(x/2) : str(site)
 				_name(x) = dir.__str(x).'/'.op.sprintf("_".__str(x)."_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", x, J0, g, g_knot, h, w);	_key_title(x) = sprintf("L=%d",x);
 				i0 = L0; iend = Lend; di = dL; 	out_dir = out_dir."size_scaling/"
 				output_name = output_name.op.sprintf("_".str(site)."_J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", J, J0, g, g_knot, h, w);
+				ssf_name(x) = ssf_name_base(g, x, w)
 			} else{
 				if(scaling == 2){
 					_name(x) = dir.str(site).'/'.op.sprintf("_".str(site)."_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J, J0, 0.01*x, g_knot, h, w); 
 					_key_title(x) = sprintf("g=%.2f",0.01*x)
 					i0 = g0; iend = gend; di = dg; 	out_dir = out_dir."g_scaling/"
 					output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J, J0, g_knot, h, w);
+					ssf_name(x) = ssf_name_base(0.01 * x, L, w)
 				} else{
 					if(scaling == 3){
 						_name(x) = dir.str(x).'/'.op."_".str(x).sprintf("_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J, J0, g, g_knot, h, w);
@@ -133,13 +139,14 @@ i0 = 0; iend = 0; di = 1;
 						i0 = 0; iend = q_vs_j? L / 2 : L-1; di=1; if(operator > 1){ iend = 6;} 
 						out_dir = out_dir.(q_vs_j? "q" : "j")."_scaling/"
 						output_name = output_name.op.sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J, J0, g, g_knot, h, w);
+						ssf_name(x) = ssf_name_base(g, L, w)
 					} else{
 						if(scaling == 4){
-							_dir(x) = dir.str(site).'/realisation='.sprintf("%d",x).'/';
-							_name(x) = _dir(x).op.sprintf("_".str(site)."_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J, J0, g, g_knot, h, w);
-							_key_title(x) = sprintf("r=%d",x);
-							i0 = 0; iend = 9; di=1; 	out_dir = out_dir."realisation_scaling/"
-							output_name = output_name.op.sprintf("_".str(site)."_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J, J0, g, g_knot, h, w);
+							_name(x) = dir.str(site).'/'.op.sprintf("_".str(site)."_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J, J0, g, g_knot, h, 0.01*x); 
+							_key_title(x) = sprintf("g=%.2f",0.01*x)
+							i0 = w0; iend = wend; di = dw; 	out_dir = out_dir."w_scaling/"
+							output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f", L, J, J0, f, g_knot, h);
+							ssf_name(x) = ssf_name_base(g, L, 0.01 * x)
 						} else{
 							_name(x) = x==i0? dir.str(site).'/'.op.sprintf("_q=%d_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", site, L, J0, g, g_knot, h, w)\
 									: dir.sprintf("j=%d", x-1).'/'.op.sprintf("_j=%d_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", x - 1, L, J0, g, g_knot, h, w);
@@ -257,11 +264,10 @@ size = (iend - i0) / di+1
 			#set label 1 at 0.012,0.4 sprintf("%s",label_fit) front
 			unset logscale y; set format y '%g'; set logscale x; unset ylabel; @MARGIN3; @RANGE; plot for[i=i0:iend:di] _name(i) u (rescale_x($1, i)):($2-sub(i,i0,di)) w l lw 1.5 notitle
 		}
-		#ssf_name(gx,Lx) = dir_base.sprintf("SpectralFormFactor/_L=%d,J=1.00,J0=0.00,g=%.2f,g0=0.00,h=0.80,w=0.10.dat", Lx, gx)
-		#dim=2.0**L
-		#scale=dim / (dim*dim-dim)
-		#print scale
-		#@MARGIN; @RANGE; plot for[i=i0:iend:di] ssf_name(0.01*i, L) u ($1*tH[(i-i0)/di+1]):( scale*($2 - 1.0) + LTA[(i-i0)/di+1] * ( 1.0 + scale - scale*$2) ) w p pt 6 lw 0.5 notitle		
+		dim=gamma(L+1) / (gamma(L/2+1)**2)
+		scale=dim / (dim*dim-dim)
+		print scale
+		@MARGIN; @RANGE; plot for[i=i0:iend:di] ssf_name(i) u ($1*tH[(i-i0)/di+1]):( scale*($2 - 1.0) + LTA[(i-i0)/di+1] * ( 1.0 + scale - scale*$2) ) w p pt 6 lw 0.5 notitle		
 		if(use_fit){
 			@UNSET; @MARGIN; @RANGE; 
 			if(compare){ set logscale xy;}
