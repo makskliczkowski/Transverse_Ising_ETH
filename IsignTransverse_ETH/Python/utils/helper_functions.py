@@ -195,7 +195,7 @@ def get_scaling_array(settings = None, x0 = 0.1, xend = 1.0, dx = 0.1):
     vals = []
     length = int((xend-x0) / dx) + 1
     if settings['scaling_idx'] == 0:
-        if cf.hamiltonian == 1: vals = range(12, 19, 2)
+        if cf.hamiltonian == 1: vals = range(10, 19, 2)
         else: vals = range(10, 17, 1)
     elif settings['scaling_idx'] == 5:
         vals = range(1, int(cf.params_arr[0] / 2) + 1)

@@ -701,7 +701,7 @@ void isingUI::ui::benchmark()
 	}
 }
 void isingUI::ui::check_symmetry_rotation(){
-	auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, 0, this->boundary_conditions);
+	auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 	arma::sp_mat H0 = alfa->get_hamiltonian();
 
 	auto lambda = [this](int k, int p, int x, arma::sp_cx_mat& H){
@@ -715,7 +715,8 @@ void isingUI::ui::check_symmetry_rotation(){
 	arma::sp_cx_mat H(H0.n_rows, H0.n_cols);
 
 	const int x_max = (abs(this->h) > 0) ? 0 : 1;
-	for (int k = 0; k < this->L; k++) {
+	const int k_end = (this->boundary_conditions) ? 1 : this->L;
+	for (int k = 0; k < k_end; k++) {
 		if (k == 0 || k == this->L / 2.) {
 			for (int p = 0; p <= 1; p++)
 				for (int x = 0; x <= x_max; x++)
@@ -1552,7 +1553,7 @@ void isingUI::ui::spectral_form_factor(){
 	double Z = 0.0;
 	double wH_mean = 0.0;
 	double wH_typ  = 0.0;
-	const Ising_params par = Ising_params::h;
+	const Ising_params par = Ising_params::w;
 	// ------ SET LAMBDA
 	auto lambda_average = [&](
 		int realis, double x
@@ -1561,20 +1562,22 @@ void isingUI::ui::spectral_form_factor(){
 		double Jx, gx, hx;
 		switch (par)
 		{
-			case Ising_params::J: Jx = x; 		gx = this->g; 	hx = this->h;	break;
-			case Ising_params::g: Jx = this->J; gx = x;			hx = this->h;	break;
-			case Ising_params::h: Jx = this->J; gx = this->g;	hx = x;			break;
-		default: 				  Jx = 0.0; 	gx = 0.0;		hx = 0.0;		break;
+			case Ising_params::J: this->J = x;	break;
+			case Ising_params::g: this->g = x;	break;
+			case Ising_params::h: this->h = x;	break;
+			case Ising_params::w: this->w = x;	break;
+		default: 
+			break;
 		}
 		arma::vec eigenvalues;
 		std::string suffix = "_real=" + std::to_string(realis + this->jobid);
 		if(this->m){
-			auto alfa = std::make_unique<IsingModel_sym>(this->L, Jx, gx, hx,
+			auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 			eigenvalues = this->get_eigenvalues(*alfa, suffix);
 			info = IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym);
 		} else{
-			auto alfa = std::make_unique<IsingModel_disorder>(this->L, Jx, this->J0, gx, this->g0, hx, this->w, this->boundary_conditions);
+			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 			eigenvalues = this->get_eigenvalues(*alfa, suffix);
 		}
 		if(this->fun == 3) stout << "\t\t	--> finished loading eigenvalues for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
@@ -1586,6 +1589,7 @@ void isingUI::ui::spectral_form_factor(){
 			const u64 num2 = this->L <= 12? 50 : 500;
 
 		// ------------------------------------- calculate level statistics
+			//double r1_tmp = 0, r2_tmp = 0, wH_mean_r = 0, wH_typ_r = 0;
 			double r1_tmp = statistics::eigenlevel_statistics((E_av_idx - num / 2) + eigenvalues.begin(), (E_av_idx + num / 2) + eigenvalues.begin());
 			double r2_tmp = statistics::eigenlevel_statistics((E_av_idx - num2 / 2) + eigenvalues.begin(), (E_av_idx + num2 / 2) + eigenvalues.begin());
 			double wH_mean_r = statistics::mean_level_spacing((E_av_idx - num / 2) + eigenvalues.begin(), (E_av_idx + num / 2) + eigenvalues.begin());

@@ -28,8 +28,10 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 		this->use_Sz_sym = true;
 		std::cout << "Using Heisenberg with Sz sym" << std::endl;
 	#elif defined(XYZ)		// XYZ
-		if(this->J0 == 0 && this->g0 == 0)
+		if(this->J0 == 0 && this->g0 == 0){
 			this->use_Sz_sym = true;
+			std::cout << "Using XYZ with Sz sym" << std::endl;
+		} else
 			std::cout << "Using XYZ with Sz sym" << std::endl;
 	#elif defined(QUANTUM_SUN)
 		this->use_Sz_sym = false;
@@ -202,7 +204,7 @@ void IsingModel_disorder::hamiltonian_xyz(){
 	    	
             std::tie(val, op_k) = operators::sigma_x(base_state, this->L, { j });
 			double fieldX = (j == 0)? this->w : this->g0;
-            this->setHamiltonianElem(k, fieldX * real(val), op_k);
+            this->setHamiltonianElem(k, this->g0 * real(val), op_k);
 
             for(int a = 0; a < neighbor_distance.size(); a++){
                 int r = neighbor_distance[a];
