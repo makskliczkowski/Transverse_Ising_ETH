@@ -3,16 +3,16 @@ from os import sep as kPSep
 import utils.plot_settings as ps
 importlib.reload(ps)
 #---------------------------------------------------- MODEL PARAMETERS
-model = 2           # chooses model: 0-disorder / 1-symmetries / 2-local perturbation
+model = 0           # chooses model: 0-disorder / 1-symmetries / 2-local perturbation
 hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
-BC = 0              # boundaary condition: 0 - OBC / 1 - PBC
+BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
 
 L = 18                          # system size
 J = 1.00                        # spin exchange (Ising-like)
 g = 0.55                       # trasnverse magnetic field (z-axis)
 h = 0.0                        # longitudal magnetic field (x-axis)
 #---- DISORDER PARAMETERS
-w = 0.7                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
+w = 0.2                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 J0 = 0.0                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
 g0 = 0.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 #---- SYMETRY PARAMETERS

@@ -371,7 +371,7 @@ def get_relax_times(vals = None, set_class = None, operator = -1, site = -2, wit
 
 # ------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------
-def set_inset_style(axis, vals, settings, ylim = None, ylabel = None):
+def set_inset_style(axis, vals, settings, ylim = None, ylabel = None, font_size = 20):
     """ 
     Sets style of plot with relaxation times
     """
@@ -383,7 +383,8 @@ def set_inset_style(axis, vals, settings, ylim = None, ylabel = None):
     
     hfun.set_plot_elements(axis = axis, xlim = (0.95*min(vals), 1.05*max(vals)), 
                                         ylim = ylim, ylabel = ylabel, xlabel = xlab, 
-                                        settings=settings, font_size=18, set_legend=True)
+                                        settings=settings, font_size=font_size, set_legend=True)
+    axis.legend(loc='best', frameon=False, fontsize=font_size, handletextpad=0.25, handlelength = 1.25)
     
     axis.set_yscale('log')
     axis.set_xscale('log')

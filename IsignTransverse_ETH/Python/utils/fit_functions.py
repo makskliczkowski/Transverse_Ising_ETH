@@ -22,6 +22,10 @@ def lin_fit(x, mu, a):
     """Linear function to fit and find decay rate from ln( f(t) )"""
     return -x / mu + a
 
+def lin_fit2(x, a, b):
+    """Linear function to fit and find decay rate from ln( f(t) )"""
+    return a * x + b
+
 def lin_fit_inv(x, a, b):
     """Linear function to fit and find decay rate from ln( f(t) )"""
     return a / x + b
