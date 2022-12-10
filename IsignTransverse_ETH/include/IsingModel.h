@@ -106,6 +106,9 @@ public:
 	// ---------------------------------- GENERAL METHODS ----------------------------------
 	void set_neighbors();																		// create neighbors list according to the boundary conditions
 	void diagonalization(bool get_eigenvectors = true, const char* method = "dc");				// diagonalize the Hamiltonian
+	virtual void diag_sparse(bool get_eigenvectors = true, int maxiter = 5000, 
+							double tol = 0, double sigma = 0) = 0;							// diagonalize the Hamiltonian with shift-invert
+
 
 	virtual void hamiltonian() = 0;																// pure virtual Hamiltonian creator
 	virtual void hamiltonian_Ising() = 0;														// pure virtual Ising Hamiltonian creator
@@ -250,6 +253,8 @@ public:
 	void set_coefficients(const arma::cx_vec& initial_state);
 
 	//--------------------------------------------------------- dummy functions
+	virtual arma::sp_cx_mat symmetryRotation() const = 0;
+
 	virtual arma::vec get_non_interacting_energies() = 0;
 	virtual arma::cx_vec get_state_in_full_Hilbert(const arma::cx_vec& state) = 0;
 	virtual arma::cx_vec get_state_in_full_Hilbert(u64 state_id) = 0;
@@ -316,6 +321,9 @@ public:
 	v_1d<std::function<u64(u64, int)>> get_sym_group() const { return this->symmetry_group; }
 	v_1d<cpx> get_sym_eigVal() const { return this->symmetry_eigVal; }
 	
+
+	virtual void diag_sparse(bool get_eigenvectors = true, int maxiter = 5000, 
+							double tol = 0, double sigma = 0) override;							// diagonalize the Hamiltonian with shift-invert
 	// OVERRIDES OF THE MODEL METHODS
 	void hamiltonian() override;
 	void hamiltonian_Ising() override;
@@ -355,7 +363,7 @@ public:
 		return tmp_str;
 	}
 	
-	arma::sp_cx_mat symmetryRotation() const;
+	virtual arma::sp_cx_mat symmetryRotation() const override;
 	arma::cx_vec symmetryRotation(const arma::cx_vec& state, std::vector<u64> full_map = std::vector<u64>()) const;
 	arma::cx_vec symmetryRotation(u64 state_idx, std::vector<u64> full_map = std::vector<u64>()) const;
 
@@ -404,6 +412,8 @@ private:
 
 public:
 
+	virtual void diag_sparse(bool get_eigenvectors = true, int maxiter = 5000, 
+							double tol = 0, double sigma = 0) override;							// diagonalize the Hamiltonian with shift-invert
 	// METHODS
 	void hamiltonian() override;
 	void hamiltonian_Ising() override;
@@ -463,6 +473,9 @@ public:
 	}
 
 	//--------------------------------------------------------- dummy functions
+	virtual arma::sp_cx_mat symmetryRotation() const override	
+		{ return arma::sp_cx_mat( arma::speye<arma::sp_mat>( this->N, this->N ), arma::sp_mat(this->N, this->N) ); }
+		
 	virtual arma::vec get_non_interacting_energies() override;
 	virtual arma::cx_vec get_state_in_full_Hilbert(const arma::cx_vec& state) override
 		{ return state; };

@@ -41,7 +41,7 @@ def info_sym(L, J, g, h, k, p, x, use_log_data =True):
     for i, var in enumerate(arr):
         n = order_of_magnitude(var) if use_log_data else 2
         info += str(",%s={:.%df}"%(names[i], n)).format(round(var, n))
-    return info + ",k=%d,p=%d,x=%d.dat"%(k,p,x)
+    return info + ",k=%d,p=%d,x=%d.dat"%(k,1 if p == 1 else -1,1 if x == 1 else -1)
     
 def info_dis(L, J, J0, g, g0, h, w, use_log_data = True):
     arr = [J, J0, g, g0, h, w]
@@ -279,12 +279,12 @@ def load_stats(filename):
     data = f.read()
     
     result = {}
-    endline = findOccurrences(data, "\n")
+    endline = [0] + findOccurrences(data, "\n")
     for i in range(len(endline) - 1):
         line = data[endline[i] : endline[i+1]]
         index = findOccurrences(line, "\t")
         x = line[index[0] + 1 :]
-        result[line[2 : index[0]-1]] = int(x) if x.isdigit() else float(x)
+        result[line[2 if endline[i] > 0 else 1 : index[0]-1]] = int(x) if x.isdigit() else float(x)
     
     return result
 

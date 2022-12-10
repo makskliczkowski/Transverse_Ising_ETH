@@ -22,6 +22,10 @@ def lin_fit(x, mu, a):
     """Linear function to fit and find decay rate from ln( f(t) )"""
     return -x / mu + a
 
+def lin_fit2(x, a, b):
+    """Linear function to fit and find decay rate from ln( f(t) )"""
+    return a * x + b
+
 def lin_fit_inv(x, a, b):
     """Linear function to fit and find decay rate from ln( f(t) )"""
     return a / x + b
@@ -43,9 +47,9 @@ def power_law_inv(x, alfa, a):
     """ Power-law fit function """
     return a / x**alfa
     
-def stretch_exp(x, alfa, a):
+def stretch_exp(x, alfa, a, b):
     """ Ffit function for exponential decay with arbitrary exponent """
-    return a * np.exp(x*alfa)
+    return a * np.exp(b * x**alfa)
 
 
 def log_fit(x, a, b):

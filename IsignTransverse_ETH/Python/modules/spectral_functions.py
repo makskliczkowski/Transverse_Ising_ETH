@@ -262,7 +262,7 @@ def get_thouless_time(par, set_class = None, vals = None):
         print("No Thouless data present")
         
     taus = [];  gap_ratio = []; xvalues = []
-    if status_time:    
+    if status_time:
         idx = list(tau_data[0]).index(par)
         if vals is None:    vals = tau_data[1][idx]
         for x in vals:
@@ -294,7 +294,9 @@ def get_relax_times(vals = None, set_class = None, operator = -1, site = -2, wit
     set_class_th.set_vs(settings['scaling'])
     set_class_th.set_scaling('L')
                         
-    status_th, xvals, taus, gap_ratio = get_thouless_time(par = cf.params_arr[0], set_class=set_class_th, vals=vals) if with_thouless else False, None, None, None
+    status_th, xvals, taus, gap_ratio = False, None, None, None
+    if with_thouless:
+        status_th, xvals, taus, gap_ratio = get_thouless_time(par = cf.params_arr[0], set_class=set_class_th, vals=vals)
     relax_time = []
 
     print(cf.params_arr)
@@ -371,7 +373,7 @@ def get_relax_times(vals = None, set_class = None, operator = -1, site = -2, wit
 
 # ------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------
-def set_inset_style(axis, vals, settings, ylim = None, ylabel = None):
+def set_inset_style(axis, vals, settings, ylim = None, ylabel = None, font_size = 20):
     """ 
     Sets style of plot with relaxation times
     """
@@ -383,7 +385,8 @@ def set_inset_style(axis, vals, settings, ylim = None, ylabel = None):
     
     hfun.set_plot_elements(axis = axis, xlim = (0.95*min(vals), 1.05*max(vals)), 
                                         ylim = ylim, ylabel = ylabel, xlabel = xlab, 
-                                        settings=settings, font_size=18, set_legend=True)
+                                        settings=settings, font_size=font_size, set_legend=True)
+    axis.legend(loc='best', frameon=False, fontsize=font_size, handletextpad=0.25, handlelength = 1.25)
     
     axis.set_yscale('log')
     axis.set_xscale('log')
@@ -392,6 +395,8 @@ def set_inset_style(axis, vals, settings, ylim = None, ylabel = None):
     #axis.grid(b=True, which='major', color='0.75', linestyle='-')
     #axis.grid(b=True, which='minor', color='0.85', linestyle='--')
     axis.legend(ncol=3, loc='lower center')
+    axis.tick_params(axis="both",which='major',direction="in",length=6)
+    axis.tick_params(axis="both",which='minor',direction="in",length=3)
 
 def set_inset(axis, settings, vals, taus, relax_time, relaxt_time_fit, tH, tH_typ, status_time = True):
     """ 

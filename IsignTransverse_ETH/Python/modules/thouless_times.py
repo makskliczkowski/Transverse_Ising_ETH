@@ -169,12 +169,14 @@ def replot_taus(axis, vals, xvals, tau, gap_ratio, settings = None,
     ylab = "t_{Th}"
     vs_str = settings['vs']
     if settings['vs_idx'] == 2: vs_str = hfun.var_name
+    elif settings['vs_idx'] == 4 and cf.model == 2: vs_str = "\\varepsilon"
 
     xlab = vs_str
     hfun.set_plot_elements(axis = axis, xlim = (x_min - np.sign(x_min) * 0.02*x_min, 1.02*x_max), 
-                                ylim = yrange, ylabel = ylab, xlabel = xlab, settings=settings, font_size=fontsize)
+                                ylim = yrange, ylabel = ylab, xlabel = xlab, settings=settings, font_size=fontsize, set_legend=True)
     if use_grid: axis.grid()
-    axis.legend()
+    axis.tick_params(axis="both",which='major',direction="in",length=6)
+    axis.tick_params(axis="both",which='minor',direction="in",length=3)
 
     return ec               
 #--- Function to plot thouless data given by plot_settings
