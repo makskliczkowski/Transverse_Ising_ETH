@@ -18,7 +18,7 @@ if __name__ == '__main__':
     print(base_directory)
     dir_out = f"{base_directory}STATISTICS{os.sep}"
     dir_in = f"{base_directory}STATISTICS{os.sep}raw_data{os.sep}"
-    dirS = f"{base_directory}Entropy{os.sep}Eigenstate{os.sep}raw_data{os.sep}"
+    dirS = f"{base_directory}Entropy{os.sep}Eigenstate{os.sep}"
     
     sizes = []
     collected_pars = []
@@ -110,7 +110,7 @@ if __name__ == '__main__':
             }
             for r in realis:
                 base = base_info + "_jobid=%d"%r + ext
-                info_in = base# if os.path.exists(dir_in + base) else base_info2 + "_jobid=%d"%r + ext2
+                info_in = base if os.path.exists(dir_in + base) else base_info2 + "_jobid=%d"%r + ext2
                 if os.path.exists(dir_in + info_in):
                     data = pd.read_table(dir_in + info_in, sep="\t", header=None)
                     for i in range(len(data[0])):
@@ -120,9 +120,9 @@ if __name__ == '__main__':
                             if np.isnan(float(data[1][i])) == False and np.abs(float(data[1][i])) > 0.0:
                                 stats[variable_name] += float(data[1][i])
                                 counter[variable_name] += 1
-
-                base = base_info + "_subsize=%d_jobid=%d"%(L/2, r) + ".hdf5"
-                infoS = base if os.path.exists(dirS + base) else base_info2 + "_subsize=%d_jobid=%d"%(L/2, r) + ".hdf5"
+                Lx = L if ii != 0 else new_pars[0]
+                base = base_info + "_subsize=%d"%(Lx / 2.) + ("_jobid=%d"%(r) if model != 2 else "") + ".hdf5"
+                infoS = base if os.path.exists(dirS + base) else base_info2 + "_subsize=%d"%(Lx / 2.) + ("_jobid=%d"%(r) if model != 2 else "") + ".hdf5"
                 if os.path.exists(dirS + infoS):
                     with h5py.File(dirS + infoS, "r") as f:
                         # Print all root level object names (aka keys) 
@@ -135,7 +135,8 @@ if __name__ == '__main__':
                         ent = ent[idx - 100 : idx + 100]
                         stats['entropy in ~100 states at E=0'] += np.mean(ent);      counter['entropy in ~100 states at E=0'] += 1
                         stats['entropy var in ~100 states at E=0'] += np.var(ent);      counter['entropy var in ~100 states at E=0'] += 1
-                        
+                else:
+                    print(dirS + infoS)  
             #--------------------------------------- SAVE DATA TO SCALING FILE
             for keys in stats:
                 if counter[keys] == 0:

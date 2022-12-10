@@ -216,7 +216,7 @@ mean_level_spacing(const arma::vec& eigenvalues)
 	}
 	return sqrt(trace_H2 / double(N) - trace_H * trace_H / double(N * N)) / (chi * N);
 }
-// ----------------------------------------- MEAN LEVEL SPACING
+// ----------------------------------------- TYPICAL LEVEL SPACING
 //<! typical level spacing between iterators
 template <typename iterator_type>
 [[nodiscard]]
@@ -235,26 +235,30 @@ typical_level_spacing(
 	return exp(omega_H_typ / double(size));
 }
 // ----------------------------------------- SPECTRAL FORM FACTOR (SFF)
-//<! ssf at time-point
+//<! Finite-Temperature sff at time-point
 [[nodiscard]]
 inline 
 std::pair<double, double> 
 spectral_form_factor(
     const arma::vec& eigenvalues,   //<! eigenvalues to generate SFF
-    double t                        //<! time point at which SFF calculated
+    double t,                       //<! time point at which SFF calculated
+    double beta = 0.0               //<! inverse temperature 
     ){
     const size_t N = eigenvalues.size();
-	double ssf_re = 0, ssf_im = 0;
+	double sff_re = 0, sff_im = 0;
+    double Z = 0;
 	for (long n = 0; n < N; n++) {
-		cpx ssf = std::exp(-im * eigenvalues(n) * t);
-		ssf_re += real(ssf);
-		ssf_im += imag(ssf);
+        Z += std::exp(- beta * eigenvalues(n));
+		cpx sff = std::exp(- (beta + im * t) * eigenvalues(n));
+		sff_re += real(sff);
+		sff_im += imag(sff);
 	}
-	double ssf = abs(cpx(ssf_re, ssf_im));
-	ssf *= ssf;
-	return std::make_pair(ssf, double(N));
+	double sff = abs(cpx(sff_re, sff_im));
+	sff = sff * sff / (Z * Z);
+	return std::make_pair(sff, 1.0 / double(N));
 }
-//<! ssf at time-point with gaussian filter
+
+//<! sff at time-point with gaussian filter
 [[nodiscard]]
 inline 
 std::pair<double, double>
@@ -264,7 +268,7 @@ spectral_form_factor_filter(
     double eta = 0.5                //<! filter controling fractioon of eigenstates
     ){
     const size_t N = eigenvalues.size();
-	double ssf_re = 0, ssf_im = 0;
+	double sff_re = 0, sff_im = 0;
     const double mean = arma::mean(eigenvalues);
     const double stddev = arma::stddev(eigenvalues);
     const double denom = 2.0 * eta * eta * stddev * stddev;
@@ -272,36 +276,37 @@ spectral_form_factor_filter(
 	for (long n = 0; n < N; n++) {
         const double filter = exp( -(eigenvalues(n) - mean) * (eigenvalues(n) - mean) / denom );
         Z += abs(filter * filter);
-		cpx ssf = filter * std::exp(-im * double(two_pi) * eigenvalues(n) * t);
-		ssf_re += real(ssf);
-		ssf_im += imag(ssf);
+		cpx sff = filter * std::exp(-im * double(two_pi) * eigenvalues(n) * t);
+		sff_re += real(sff);
+		sff_im += imag(sff);
 	}
-	double ssf = abs(cpx(ssf_re, ssf_im));
-	ssf *= ssf;
-	return std::make_pair(ssf, Z);
+	double sff = abs(cpx(sff_re, sff_im));
+	sff *= sff;
+	return std::make_pair(sff, Z);
 }
 
-//<! ssf for time range
+//<! sff for time range
 [[nodiscard]]
 inline
 std::pair<arma::vec, double>
 spectral_form_factor(
     const arma::vec& eigenvalues,   //<! eigenvalues to generate SFF
     const arma::vec& times,         //<! time range to calculate within
+    double beta = 0.0,              //<! inverse temperature
     double eta = 0.5                //<! filter parameter
     ){
     double Z = 0;
-	arma::vec ssf(times.size(), arma::fill::zeros);
-//#pragma omp parallel for
-	for (long i = 0; i < ssf.size(); i++){
-        double ssf_temp = 0;
-		if(eta < 0.0 || eta > 1.0)
-            std::tie(ssf_temp, Z) = spectral_form_factor(eigenvalues, times(i));
+	arma::vec sff(times.size(), arma::fill::zeros);
+#pragma omp parallel for
+	for (long i = 0; i < sff.size(); i++){
+        double sff_temp = 0;
+		if((eta < 0.0 || eta > 1.0) || beta > 0)
+            std::tie(sff_temp, Z) = spectral_form_factor(eigenvalues, times(i), beta);
         else
-            std::tie(ssf_temp, Z) = spectral_form_factor_filter(eigenvalues, times(i), eta);
-        ssf(i) = ssf_temp;
+            std::tie(sff_temp, Z) = spectral_form_factor_filter(eigenvalues, times(i), eta);
+        sff(i) = sff_temp;
     }
-	return std::make_pair(ssf, Z);
+	return std::make_pair(sff, Z);
 }
 
 

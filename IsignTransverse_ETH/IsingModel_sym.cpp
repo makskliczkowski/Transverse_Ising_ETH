@@ -33,7 +33,8 @@ IsingModel_sym::IsingModel_sym(int L, double J, double g, double h, int k_sym, b
 	#ifdef HEISENBERG		// HEISENBERG
 		this->use_Sz_sym = true;
 	#elif defined(XYZ)		// XYZ
-		this->use_Sz_sym = false;
+		if(this->g == 0)
+			this->use_Sz_sym = true;
 	#else					//ISING
 		if(this->g == 0)
 			this->use_Sz_sym = true;
@@ -249,8 +250,9 @@ void IsingModel_sym::hamiltonian() {
 void IsingModel_sym::hamiltonian_xyz(){
 	std::cout << this->N << std::endl;
 	double eta = this->use_Sz_sym? 0.0 : 0.5;
-	std::vector<std::vector<double>> parameters = {{1.0 * (1 - eta), 1.0 * (1 + eta), this->g},
-                                                    {this->J * (1 - eta), this->J * (1 + eta), this->J * this->g}
+	double delta = 0.3;
+	std::vector<std::vector<double>> parameters = {{1.0 * (1 - eta), 1.0 * (1 + eta), delta},
+                                                    {this->J * (1 - eta), this->J * (1 + eta), this->J * delta}
                                                 };
     for(auto& x : parameters)
         std::cout << x << std::endl;
@@ -265,7 +267,7 @@ void IsingModel_sym::hamiltonian_xyz(){
             this->setHamiltonianElem(k, this->h * real(val), op_k);
 
             std::tie(val, op_k) = operators::sigma_x(base_state, L, { j });
-            this->setHamiltonianElem(k, 0.4 * real(val), op_k);
+            this->setHamiltonianElem(k, this->g * real(val), op_k);
 	    	
             //std::tie(val, op_k) = operators::sigma_x(base_state, L, { j });
 			//this->setHamiltonianElem(k, this->g0 * real(val), op_k);
@@ -336,6 +338,17 @@ void IsingModel_sym::hamiltonian_heisenberg() {
 	//std::cout << std::endl << arma::mat(this->H) << std::endl;
 }
 
+
+
+void IsingModel_sym::diag_sparse(bool get_eigenvectors, int maxiter, double tol, double sigma){
+	arma::eigs_opts opts;
+	opts.maxiter = maxiter;
+	opts.tol = tol;
+	int num = 500;
+	arma::cx_vec E;
+	//arma::eigs_gen(E, this->eigenvectors, this->H, num, sigma, opts);
+	this->eigenvalues = arma::real(E);
+}
 // ------------------------------------------------------------------------------------------------ PHYSICAL QUANTITTIES ------------------------------------------------------------------------------------------------
 
 

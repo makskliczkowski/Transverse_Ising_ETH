@@ -10,15 +10,14 @@
 	#define MODEL 1
 
 	#if !defined(LOCAL_PERT)
-		
-		#define LOCAL_PERT
-
-		#ifdef LOCAL_PERT
-			#pragma message ("Using Heisenberg Model with local perturbation at center")
-		#endif
+		//#define LOCAL_PERT
 	#endif
 #endif
 
+
+#ifdef LOCAL_PERT
+	#pragma message ("Using Heisenberg Model with local perturbation at center")
+#endif
 #if !defined(DEGENERACIES)
 	//#define DEGENERACIES
 #endif

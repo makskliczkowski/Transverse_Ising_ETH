@@ -107,7 +107,8 @@ namespace isingUI
 		{"seed", "87178291199L"},		// seed foir random generator
 		{"jobid", "0"},					// unique job id
 		{"dim", "1"},					// dimensionality of anderson model
-		{"q_ipr", "1.0"}				// q for participation ratio calculation
+		{"q_ipr", "1.0"},				// q for participation ratio calculation
+		{"beta", "0.0"}					// inverse temperature
 	};
 
 	// ----------------------------------- UI CLASS SPECIALISATION -----------------------------------
@@ -126,6 +127,7 @@ namespace isingUI
 		int jobid;											// unique _id given to current job
 
 		double q_ipr;										// q for participation ratio calculation
+		double beta;										// inverse temperature
 		int mu;												// small bucket for the operator fluctuations to be averaged onto
 		int site;											// site for operator averages
 		int op;												// choose operator
@@ -346,7 +348,7 @@ namespace isingUI
 				}
 			if(this->m){
 				arma::vec _vec = x + my_gen.create_random_vec<double>(this->realisations, x / 50.);
-				stout << _vec << std::endl;
+				//stout << _vec << std::endl;
 				for(int r = 0; r < _vec.size(); r++){
 					if(this->realisations > 1){
 						switch (par)
@@ -396,7 +398,7 @@ namespace isingUI
 				default:				  x = 0.0;		break;
 				}
 				arma::vec _vec = x + my_gen.create_random_vec<double>(this->realisations, 0.05);
-				stout << _vec << std::endl;
+				//stout << _vec << std::endl;
 			if(this->m){
 			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 				for(int r = 0; r < _vec.size(); r++){
