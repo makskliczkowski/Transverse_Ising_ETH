@@ -202,8 +202,7 @@ void IsingModel_disorder::hamiltonian_xyz(){
 			double fieldZ = (j == this->L - 1)? this->w : this->h;
             this->setHamiltonianElem(k, fieldZ * real(val), op_k);
 	    	
-            std::tie(val, op_k) = operators::sigma_x(base_state, this->L, { j });
-			double fieldX = (j == 0)? this->w : this->g0;
+            std::tie(val, op_k) = operators::sigma_x(base_state, this->L, { j });			
             this->setHamiltonianElem(k, this->g0 * real(val), op_k);
 
             for(int a = 0; a < neighbor_distance.size(); a++){
@@ -275,7 +274,16 @@ void IsingModel_disorder::hamiltonian_heisenberg(){
 }
 
 
+void IsingModel_disorder::diag_sparse(bool get_eigenvectors, int maxiter, double tol, double sigma){
+	arma::eigs_opts opts;
+	opts.maxiter = maxiter;
+	opts.tol = tol;
+	int num = 500;
+	arma::eigs_sym(this->eigenvalues, this->eigenvectors, this->H, num, sigma, opts);
+}
 // ----------------------------------------------------------------------------- PHYSICAL QUANTITES -----------------------------------------------------------------------------
+
+
 
 // ----------------------------------------------------------------------------- CREATE OPERATOR TO CALCULATE MATRIX ELEMENTS -----------------------------------------------------------------------------
 arma::sp_cx_mat IsingModel_disorder::create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const {
