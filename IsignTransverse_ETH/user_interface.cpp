@@ -56,12 +56,12 @@ void isingUI::ui::make_sim()
 			var = Ising_params::g;
 	}
 
-	//for (auto& Ll : L_list){
-	//	this->L = Ll;
-	//	this->site = this->L / 2;
-	//	generate_statistic_map(Ising_params::g); 
-	//	//thouless_times(var);
-	//}; return;
+	for (auto& Ll : L_list){
+		this->L = Ll;
+		this->site = this->L / 2;
+		generate_statistic_map(Ising_params::w); 
+		//thouless_times(var);
+	}; return;
 
 	//for(this->beta = 0.0; this->beta < 3.0; this->beta += 0.1)
 	//	spectral_form_factor();
@@ -120,6 +120,8 @@ void isingUI::ui::make_sim()
 							const auto start_loop = std::chrono::system_clock::now();
 							stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
 							printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
+							
+							eigenstate_entropy(); continue;
 							//calculate_localisation_length(); continue;
 							calculate_statistics(); continue;
 
@@ -1240,14 +1242,14 @@ void isingUI::ui::eigenstate_entropy(){
 	 	energies = arma::vec(size, arma::fill::zeros);
 		entropies = arma::vec(size, arma::fill::zeros);
 
-		average_over_realisations<Ising_params::J>(*alfa, true, kernel);
+		average_over_realisations<Ising_params::J>(*alfa, !(this->ch), kernel);
 		energies /= double(counter);
 		entropies /= double(counter);
 
 		std::string suffix = this->realisations > 1? "_jobid=" + std::to_string(this->jobid) : "";
 		energies.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "energies"));
 		entropies.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "entropy", arma::hdf5_opts::append));
-		if(this->ch){
+		if(true || this->ch){
 			auto V = alfa->get_eigenvectors();
 			V.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
 		}
@@ -1260,14 +1262,14 @@ void isingUI::ui::eigenstate_entropy(){
 
 		if(alfa->using_Sz_symmetry())
 			map = alfa->get_mapping();
-		average_over_realisations<Ising_params::J>(*alfa, true, kernel);
+		average_over_realisations<Ising_params::J>(*alfa, !(this->ch), kernel);
 		energies /= double(counter);
 		entropies /= double(counter);
 
 		std::string suffix = this->realisations > 1? "_jobid=" + std::to_string(this->jobid) : "";
 		energies.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "energies"));
 		entropies.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "entropy", arma::hdf5_opts::append));
-		if(this->ch){
+		if(true || this->ch){
 			auto V = alfa->get_eigenvectors();
 			V.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
 		}

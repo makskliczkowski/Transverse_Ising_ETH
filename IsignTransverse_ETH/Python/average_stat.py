@@ -116,7 +116,7 @@ if __name__ == '__main__':
                     for i in range(len(data[0])):
                         indices = hfun.findOccurrences(data[0][i], "'")
                         variable_name = "".join(list(data[0][i][indices[0]+1:indices[1]]))
-                        if (variable_name != 'entropy in ~100 states at E=0' and variable_name != 'entropy var in ~100 states at E=0') or L >= 14 or hamiltonian == 2:
+                        if (variable_name != 'entropy in ~100 states at E=0' and variable_name != 'entropy var in ~100 states at E=0') or hamiltonian == 2:
                             if np.isnan(float(data[1][i])) == False and np.abs(float(data[1][i])) > 0.0:
                                 stats[variable_name] += float(data[1][i])
                                 counter[variable_name] += 1

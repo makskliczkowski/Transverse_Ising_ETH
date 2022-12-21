@@ -293,7 +293,7 @@ def load_stats(filename):
 def remove_fluctuations(data, bucket_size=10):
     new_data = data;
     half_bucket = int(bucket_size / 2)
-    for k in range(half_bucket, len(data)):
-        average = np.sum(data[k - half_bucket: k + half_bucket])
+    for k in range(half_bucket, len(data) - half_bucket):
+        average = np.sum(data[k - half_bucket : k + half_bucket])
         new_data[k - half_bucket] = average / bucket_size
     return new_data
