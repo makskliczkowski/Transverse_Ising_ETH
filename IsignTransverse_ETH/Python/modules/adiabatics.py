@@ -58,6 +58,8 @@ def plot_agp(axis=None, settings_class = None,
                 ydata = ydata * (binom(x, x/2))**1.0 * np.power(wH, 2.) / x
             elif which == 1:
                 ydata = ydata / (binom(x, x/2))
+            elif which == 3:
+                ydata = ydata / x**1.5
             elif which == 4:
                 ydata *= x*np.log(x)
             axis.plot(xdata, ydata, label=hfun.key_title(x, settings), marker='o')

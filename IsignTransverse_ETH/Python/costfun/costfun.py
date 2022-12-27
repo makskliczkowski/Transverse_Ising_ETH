@@ -105,9 +105,7 @@ def minimization_function(params, xvals, y, sizes, scaling_ansatz, crit_function
     xdata = []
     fulldata = []
     final_func = None
-    if scaling_ansatz == 'FGR':         
-        final_func = lambda params, i, j : rescale_fun(xvals[i][j], sizes[i], crit_fun, params[0], *crit_pars)
-    elif scaling_ansatz == 'spacing':   
+    if scaling_ansatz == 'spacing':   
         final_func = lambda params, i, j : rescale_fun(xvals[i][j], sizes[i], crit_fun, *crit_pars) * wH[i][j]**(-1. / params[0])
     else:                               
         final_func = lambda params, i, j : rescale_fun(xvals[i][j], sizes[i], crit_fun, params[0], *crit_pars)
@@ -134,7 +132,7 @@ def minimization_function(params, xvals, y, sizes, scaling_ansatz, crit_function
         for i in range(len(sizes)):
             if center < final_func(params, i, 0) or center > final_func(params, i, len(xvals[i])-1):
                 constraint_satisfied = False
-                break;
+                break
 
 
     cost_fun = calculate_cost_function(fulldata)
@@ -183,7 +181,7 @@ def cost_func_minization(x, y, sizes, bnds,
                     args=(x, y, sizes, scale_func, crit_func, wH),
                     popsize=int(population_size), 
                     maxiter=int(maxiterarions), 
-                    workers=workers, atol=1e-2,
+                    workers=workers, atol=1e-4,
                     seed=seed
             )
     optimal_res = np.array(result.x)
@@ -198,7 +196,7 @@ def cost_func_minization(x, y, sizes, bnds,
                         args=(x, y, sizes, scale_func, crit_func, wH),
                         popsize=int(population_size), 
                         maxiter=int(maxiterarions), 
-                        workers=workers, atol=1e-2,
+                        workers=workers, atol=1e-4,
                         seed=seed_r
                 )
             optimal_res = optimal_res + np.array(result.x)
@@ -231,12 +229,12 @@ def prepare_bounds(x, crit_fun, scaling_ansatz, vals):
         for _x_ in a: 
             if x_max is None or _x_ > x_max: 
                 x_max = _x_
-    x_max = 1.0
-    bounds = [(0.0, 5.)] if scaling_ansatz == 'FGR' or scaling_ansatz == 'spacing' else [(0.0, 10.)]
+    x_max = (1.0 + x_max) / 2
+    bounds = [(0.2, 5.)] if scaling_ansatz == 'FGR' or scaling_ansatz == 'spacing' else [(0.1, 10.)]
     #-- number of bounds is number of different scaling parameters
     if crit_fun == 'free':  
         for i in range(len(vals)):  
-            bounds.append((0, x_max))
+            bounds.append((1e-3, x_max))
     elif crit_fun == 'free_inv':  
         for i in range(len(vals)):  
             bounds.append((1. / x_max, 1e4))
@@ -280,8 +278,8 @@ def get_crit_points(x, y, vals, crit_fun='free', scaling_ansatz = 'classic', see
                                     scale_func=scaling_ansatz, 
                                     crit_func=crit_fun,
                                     bnds=bounds,
-                                    population_size=1e2,
-                                    maxiterarions=1e3, workers=10, realisations=1,
+                                    population_size=1e3,
+                                    maxiterarions=1e4, workers=4, realisations=1,
                                     seed = seed,
                                     wH = wH
                                 )

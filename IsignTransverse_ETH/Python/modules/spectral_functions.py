@@ -224,7 +224,7 @@ def plot_spectral(axis, settings = None,
             ydata = func_y(ydata, x)
 
             if use_derivative == 0 and spec == "spec": 
-                ydata = ydata * (2**x / x if settings['scaling_idx'] == 0 else 2**cf.L / cf.L) # rescale by D
+                ydata = ydata * np.sqrt(2**x / x if settings['scaling_idx'] == 0 else 2**cf.L / cf.L) # rescale by D
 
             #idx_cut = 0
             #if use_derivative == 1 and spec == "spec": idx_cut = 200

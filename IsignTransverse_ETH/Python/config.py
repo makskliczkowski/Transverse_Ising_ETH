@@ -43,7 +43,7 @@ plot_settings_dict = {
     'nu_x':             -1.0,           # power of inversion
 
 #---- operator options
-    'operator':         2,         # chosen operator according to order set in IsingModel.h
+    'operator':         8,         # chosen operator according to order set in IsingModel.h
     'site':            L/2,          # chosen site for local operator
     'smoothed':        0,          # choose running-smoothed option
 
