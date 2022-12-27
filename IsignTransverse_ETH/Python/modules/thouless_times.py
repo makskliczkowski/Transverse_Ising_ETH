@@ -50,7 +50,9 @@ def get_tau_data_from_all_file(tau_data, settings) :
                     wH = 0; stats = {}
                     try:
                         stats = hfun.load_stats(filename)
-                        wH = 1. / stats['mean level spacing']
+                        
+                        wH = stats['mean level spacing']
+                        wH = hfun.heisenberg_time( system_size = tau_data[0][i], dim = tau_data[9][i]) if np.isnan(wH) else 1. / wH
                     except FileNotFoundError:   wH = 0.0#hfun.heisenberg_time( system_size = tau_data[0][i], dim = tau_data[9][i])
                     if np.isnan(wH):            wH = 0.0#hfun.heisenberg_time( system_size = tau_data[0][i], dim = tau_data[9][i])
                     
@@ -164,15 +166,17 @@ def replot_taus(axis, vals, xvals, tau, gap_ratio, settings = None,
 
     #-- set panel1 details
     yrange = (0.9*y_min, 1.1*y_max)
-    ylab = "\\tau_{Th}"
+    ylab = "t_{Th}"
     vs_str = settings['vs']
     if settings['vs_idx'] == 2: vs_str = hfun.var_name
+    elif settings['vs_idx'] == 4 and cf.model == 2: vs_str = "\\varepsilon"
 
     xlab = vs_str
     hfun.set_plot_elements(axis = axis, xlim = (x_min - np.sign(x_min) * 0.02*x_min, 1.02*x_max), 
-                                ylim = yrange, ylabel = ylab, xlabel = xlab, settings=settings, font_size=fontsize)
+                                ylim = yrange, ylabel = ylab, xlabel = xlab, settings=settings, font_size=fontsize, set_legend=True)
     if use_grid: axis.grid()
-    axis.legend()
+    axis.tick_params(axis="both",which='major',direction="in",length=6)
+    axis.tick_params(axis="both",which='minor',direction="in",length=3)
 
     return ec               
 #--- Function to plot thouless data given by plot_settings
