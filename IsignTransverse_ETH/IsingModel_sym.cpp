@@ -269,8 +269,6 @@ void IsingModel_sym::hamiltonian_xyz(){
             std::tie(val, op_k) = operators::sigma_x(base_state, L, { j });
             this->setHamiltonianElem(k, this->g * real(val), op_k);
 	    	
-            //std::tie(val, op_k) = operators::sigma_x(base_state, L, { j });
-			//this->setHamiltonianElem(k, this->g0 * real(val), op_k);
             for(int a = 0; a < neighbor_distance.size(); a++){
                 int r = neighbor_distance[a];
 				int nei = j + r;

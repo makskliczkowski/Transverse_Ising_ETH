@@ -56,12 +56,12 @@ void isingUI::ui::make_sim()
 			var = Ising_params::g;
 	}
 
-	for (auto& Ll : L_list){
-		this->L = Ll;
-		this->site = this->L / 2;
-		generate_statistic_map(Ising_params::w); 
-		//thouless_times(var);
-	}; return;
+	//for (auto& Ll : L_list){
+	//	this->L = Ll;
+	//	this->site = this->L / 2;
+	//	generate_statistic_map(Ising_params::w); 
+	//	//thouless_times(var);
+	//}; return;
 
 	//for(this->beta = 0.0; this->beta < 3.0; this->beta += 0.1)
 	//	spectral_form_factor();
@@ -131,6 +131,8 @@ void isingUI::ui::make_sim()
 
 							analyze_spectra(); continue;
 							spectral_form_factor(); continue;
+							stout << "\t\t - - - - - - FINISHED ITERATIO IN : " << tim_s(start_loop) << " seconds - - - - - - " << std::endl; // simulation end
+
 						}}}}}
 		}
 	stout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - " << std::endl; // simulation end
@@ -614,23 +616,11 @@ void isingUI::ui::compare_entaglement()
 }
 void isingUI::ui::benchmark()
 {
-	auto save_eigs = [this](auto& alfa){
-		auto eigenvalues = alfa.get_eigenvalues();
-		std::string info = alfa.get_info({});
-		std::string dir = this->saving_dir + "EIGENVALUES" + kPSep;
-		createDirs(dir);
-		eigenvalues.save(arma::hdf5_name(dir + kPSep + info + ".h5", "eigenvalues"));
-		dir = this->saving_dir + "EIGENVECTORS" + kPSep;
-		createDirs(dir);
-		auto V = alfa.get_eigenvectors();
-		V.save(arma::hdf5_name(dir + kPSep + info + ".h5", "eigenvectors"));
-	};
 	if (!this->ch)
 	{
 		const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
-		int th_max = this->thread_number;
 		std::ofstream file;
-		std::vector th_list = {1, 2, 4, 8, 16, 24, 32, 40, 48, 64};
+		std::vector th_list = {1, 2, 4, 8, 16, 24, 32, 48, 64, 128, 256, 512};
 		std::string info = this->m ? IsingModel_sym::set_info(L, J, g, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"L"}, ",")
 								   : IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, {"L"}, ",");
 		openFile(file, this->saving_dir + "benchmark" + info + ".dat", std::ios::out);
@@ -648,7 +638,6 @@ void isingUI::ui::benchmark()
 																 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 					auto start = std::chrono::system_clock::now();
 					alfa->diagonalization(true, "dc");
-					save_eigs(*alfa);
 					double tim1 = tim_s(start);
 					start = std::chrono::system_clock::now();
 					alfa->diagonalization(false);
@@ -661,7 +650,6 @@ void isingUI::ui::benchmark()
 					auto alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 					auto start = std::chrono::system_clock::now();
 					alfa->diagonalization(true, "dc");
-					save_eigs(*alfa);
 					double tim1 = tim_s(start);
 					start = std::chrono::system_clock::now();
 					alfa->diagonalization(false);
@@ -681,7 +669,6 @@ void isingUI::ui::benchmark()
 			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 			auto start = std::chrono::system_clock::now();
 			alfa->diagonalization(true, "dc");
-			save_eigs(*alfa);
 			double tim1 = tim_s(start);
 			start = std::chrono::system_clock::now();
 			alfa->diagonalization(false);
@@ -695,7 +682,6 @@ void isingUI::ui::benchmark()
 			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 			auto start = std::chrono::system_clock::now();
 			alfa->diagonalization(true, "dc");
-			save_eigs(*alfa);
 			double tim1 = tim_s(start);
 			start = std::chrono::system_clock::now();
 			alfa->diagonalization(false);
@@ -774,8 +760,7 @@ void isingUI::ui::calculate_spectrals()
 			 AGP = 0.0,	//<! adiabatic gauge potential
 		typ_susc = 0.0,	//<! typical fidelity susceptibility
 			susc = 0.0,	//<! fidelity susceptibility
-	   		  wH = 0.0,	//<! mean level spacing
-	   	  wH_typ = 0.0;	//<! typical level spacing
+	   		  wH = 0.0;	//<! mean level spacing
 	
 	const double chi = 0.341345;
 	size_t N = ULLPOW(this->L);
@@ -824,12 +809,10 @@ void isingUI::ui::calculate_spectrals()
 		long int E_max = alfa.E_av_idx + long(mu / 2);
 	
 		double wH_local = 0.0;
-		double wH_typ_local = 0.0;
 		for(int i = 0; i < N; i++){
 			if(i >= E_min && i < E_max){
 				const double gap = E(i + 1) - E(i);
 				wH_local += gap;
-				wH_typ_local += std::log(gap);
 			}
 		}
 		wH_local = wH_local / double(this->mu);
@@ -874,7 +857,6 @@ void isingUI::ui::calculate_spectrals()
 	
 	//---------------- SIMULATION FOR INPUT MODEL
 	
-	int M;
 	auto prefix_kernel = [&](auto& alfa){
 		op = alfa.chooseOperator(this->op, this->site);
 		stout << "\n\t\t--> finished generating operator and omega bins for " << info << " - in time : " << tim_s(start) << "s" << std::endl;;	
@@ -974,7 +956,6 @@ void isingUI::ui::combine_spectrals(){
 		if(status){
 			int idx = 0;
 			std::string line;
-			bool isnan = false;
 			while(std::getline(file, line)){
 				std::istringstream ss(line);
 				std::vector<std::string> datarow;
@@ -1182,6 +1163,7 @@ void isingUI::ui::entropy_evolution(){
 //<! -s sets the subsystem size, if-s=0 the L/2 is assumed 
 void isingUI::ui::eigenstate_entropy(){
 
+	clk::time_point start = std::chrono::system_clock::now();
 	//---- KERNEL LAMBDA
 	std::vector<u64> map;
 	std::string dir = this->saving_dir + "Entropy" + kPSep + "Eigenstate" + kPSep;
@@ -1200,11 +1182,17 @@ void isingUI::ui::eigenstate_entropy(){
 		const int size = this->ch? 500 : N;
 		if(this->ch)
 			alfa.diag_sparse(true);
+		std::cout << " - - - - - - FINISHED DIAGONALIZATION IN : " << tim_s(start) << " seconds - - - - - - " << std::endl; // simulation end
+
 		const arma::vec E = alfa.get_eigenvalues();
 		const arma::sp_cx_mat U = alfa.symmetryRotation();
 		arma::vec S(size, arma::fill::zeros);
 
-	//#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
+		int th_num = this->thread_number;
+		omp_set_num_threads(1);
+		std::cout << th_num << "\t\t" << omp_get_num_threads() << std::endl;
+		
+	#pragma omp parallel for num_threads(th_num) schedule(dynamic)
 		for(int n = 0; n < size; n++){
 			arma::Col<decltype(alfa.type_var)> eigenstate = alfa.get_eigenState(n);
 			arma::cx_vec state = U * eigenstate;
@@ -1250,7 +1238,7 @@ void isingUI::ui::eigenstate_entropy(){
 		energies.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "energies"));
 		entropies.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "entropy", arma::hdf5_opts::append));
 		if(true || this->ch){
-			auto V = alfa->get_eigenvectors();
+			arma::Mat<decltype(alfa->type_var)> V = alfa->get_eigenvectors().submat(0, alfa->E_av_idx - 100, N, alfa->E_av_idx + 100);
 			V.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
 		}
 	} else{
@@ -1270,7 +1258,7 @@ void isingUI::ui::eigenstate_entropy(){
 		energies.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "energies"));
 		entropies.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "entropy", arma::hdf5_opts::append));
 		if(true || this->ch){
-			auto V = alfa->get_eigenvectors();
+			arma::Mat<decltype(alfa->type_var)> V = alfa->get_eigenvectors().submat(0, alfa->E_av_idx - 100, N, alfa->E_av_idx + 100);
 			V.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
 		}
 	}
@@ -1425,7 +1413,7 @@ void isingUI::ui::analyze_spectra(){
 							 || energies_all.is_zero() || energies_unfolded_all.is_zero()) return;
 
 	wH /= norm;	wH_typ /= norm;	wH_typ_unfolded /= norm;
-	std:string prefix = this->ch ? "_500_states" : "";
+	std::string prefix = this->ch ? "_500_states" : "";
 	statistics::probability_distribution(dir_spacing, prefix + info, spacing, -1, exp(wH_typ_unfolded), wH, exp(wH_typ));
 	statistics::probability_distribution(dir_spacing, prefix + "_log" + info, spacing_log, -1, wH_typ_unfolded, wH, wH_typ);
 	statistics::probability_distribution(dir_spacing, prefix + "unfolded" + info, spacing_unfolded, -1, exp(wH_typ_unfolded), wH, exp(wH_typ));
@@ -1462,8 +1450,6 @@ void isingUI::ui::adiabatic_gauge_potential(){
 	auto kernel = [&](auto& alfa, int realis, const arma::sp_cx_mat& opMat)
 	{
 		const u64 N = alfa.get_hilbert_size();
-		const double omegaH = alfa.mean_level_spacing_analytical();
-		const double rescale = (double)N * omegaH * omegaH / (double)L;
 		this->mu = long(0.5 * N);
 		info = alfa.get_info();
 
@@ -1597,7 +1583,6 @@ void isingUI::ui::spectral_form_factor(){
 		int realis, double x
 		)
 	{
-		double Jx, gx, hx;
 		switch (par)
 		{
 			case Ising_params::J: this->J = x;	break;
@@ -1792,7 +1777,7 @@ void isingUI::ui::average_SFF(){
 		auto data = readFromFile(file, dir_re + info + ".dat");
 		if(data.empty()) return;
 		if(data[0].size() != sff.size()) {
-			std:cout << "Incompatible data dimensions" << std::endl;
+			std::cout << "Incompatible data dimensions" << std::endl;
 			return;
 		}
 		file.close();
@@ -1959,6 +1944,7 @@ void isingUI::ui::thouless_times(Ising_params var)
 	map.close();
 
 	return;
+	/*
 	auto xarr = get_params_array(var); 
 	std::string var_name = get_params_name(var);
 	
@@ -1966,7 +1952,7 @@ void isingUI::ui::thouless_times(Ising_params var)
 	auto K_GOE = [](double t){
 		return t < 1? 2 * t - t * log(1 + 2*t) : 2 - t * log( (2*t + 1) / (2*t - 1) );
 	};
-/*
+
 	std::string dir = this->saving_dir + "ThoulessTime" + kPSep;	createDirs(dir);
 	std::ofstream map;
 	std::string sep = var_name == "L"? "," : "_";
@@ -2370,7 +2356,6 @@ void isingUI::ui::generate_statistic_map(Ising_params varname){
 		bool status = openFile(datafile, dir + "raw_data" + kPSep + info_loc + ".dat");
 		if(!status) continue;
 		std::string line;
-		double value;
 		printSeparated(map, "\t", 25, false, x);
 		while(std::getline(datafile, line)){
 			std::istringstream ss(line);
@@ -2421,7 +2406,6 @@ void isingUI::ui::generate_statistic_map(Ising_params varname1, Ising_params var
 			bool status = openFile(datafile, dir + "raw_data" + kPSep + info_loc + ".dat");
 			if(!status) continue;
 			std::string line;
-			double value;
 			printSeparated(map, "\t", 25, false, x, y);
 			while(std::getline(datafile, line)){
 				std::istringstream ss(line);

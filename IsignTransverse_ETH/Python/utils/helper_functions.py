@@ -170,7 +170,7 @@ def set_plot_elements(axis, xlim =[], ylim=[], xlabel = None, ylabel = None, set
     axis.set_yscale(settings['y_scale'])
     axis.set_xscale(settings['x_scale'])
     axis.tick_params(axis='both', which='major', labelsize=font_size, length=font_size-4, width=0.05*font_size)
-    axis.tick_params(axis='both', which='minor', labelsize=font_size, length=0.3*(font_size-4), width=0.05*font_size)
+    axis.tick_params(axis='both', which='minor', labelsize=font_size, length=0.2*(font_size-4), width=0.05*font_size)
     
     if set_legend:
         axis.legend(frameon=False

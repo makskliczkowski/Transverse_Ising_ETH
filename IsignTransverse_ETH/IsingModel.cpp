@@ -53,7 +53,8 @@ template <typename T> void IsingModel<T>::diagonalization(bool get_eigenvectors,
 	catch (...) {
 		handle_exception(std::current_exception(), 
 			"sparse - dim(H) = " + std::to_string(H.n_nonzero * sizeof(H(0, 0)))
-			+ " bytes\ndense - dim(H) = " + std::to_string(H_temp.n_alloc * sizeof(H_temp(0, 0))) + " bytes"
+			+ " bytes\ndense - dim(H) = " + std::to_string(H_temp.n_cols * H_temp.n_rows * sizeof(H_temp(0, 0))) + " bytes"
+			+ "\n spectrum size: " + std::to_string(this->N)
 		);
 	}
 	//for (long int i = 0; i < N; i++)
@@ -64,8 +65,8 @@ template <typename T> void IsingModel<T>::diagonalization(bool get_eigenvectors,
 		return abs(x - E_av) < abs(y - E_av);
 		});
 	this->E_av_idx = i - begin(eigenvalues);
-	printSeparated(std::cout, "\t", 16, true, "mean energy", "energies close to this value (-1,0,+1 around found index");
-	printSeparated(std::cout, "\t", 16, true, E_av, eigenvalues(this->E_av_idx - 1), eigenvalues(this->E_av_idx),  eigenvalues(this->E_av_idx + 1));
+	printSeparated(std::cout, "\t", 16, true, "spectrum size", "mean energy", "energies close to this value (-1,0,+1 around found index");
+	printSeparated(std::cout, "\t", 16, true, this->N, E_av, eigenvalues(this->E_av_idx - 1), eigenvalues(this->E_av_idx),  eigenvalues(this->E_av_idx + 1));
 }
 
 // ----------------------------------------------------------- OPERATORS AND AVERAGES -------------------------------------------------------

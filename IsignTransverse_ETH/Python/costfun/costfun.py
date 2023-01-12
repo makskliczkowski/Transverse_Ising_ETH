@@ -144,7 +144,7 @@ def minimization_function(params, xvals, y, sizes, scaling_ansatz, crit_function
 def cost_func_minization(x, y, sizes, bnds, 
                             scale_func, crit_func, 
                             population_size=1e2, maxiterarions=1e3, 
-                            workers=1, realisations=1, seed = None, wH = None):
+                            workers=1, seed = None, wH = None):
     """
     Main function returning optimal parameters for given scaling ansatz
 
@@ -181,28 +181,14 @@ def cost_func_minization(x, y, sizes, bnds,
                     args=(x, y, sizes, scale_func, crit_func, wH),
                     popsize=int(population_size), 
                     maxiter=int(maxiterarions), 
-                    workers=workers, atol=1e-4,
+                    workers=workers, atol=1e-2,
                     seed=seed
             )
     optimal_res = np.array(result.x)
     cost_fun = result.fun
     if result.success ==  False: print('Failed convergence')
-    if realisations > 1:
-        for r in range(realisations - 1):
-            seed_r = np.random.default_rng();
-            result = differential_evolution(
-                        minimization_function,
-                        bounds=bnds,
-                        args=(x, y, sizes, scale_func, crit_func, wH),
-                        popsize=int(population_size), 
-                        maxiter=int(maxiterarions), 
-                        workers=workers, atol=1e-4,
-                        seed=seed_r
-                )
-            optimal_res = optimal_res + np.array(result.x)
-            cost_fun = cost_fun + result.fun
-            if result.success ==  False: print('Failed convergence')    
-    return optimal_res / float(realisations), cost_fun / float(realisations), result.success
+      
+    return optimal_res, cost_fun, result.success
 
 
 def prepare_bounds(x, crit_fun, scaling_ansatz, vals):
@@ -225,19 +211,20 @@ def prepare_bounds(x, crit_fun, scaling_ansatz, vals):
             scaling parameters: system sizes
     """
     x_max = -1e6
+    x_min = 1e6
     for a in x: 
         for _x_ in a: 
-            if x_max is None or _x_ > x_max: 
-                x_max = _x_
-    x_max = (1.0 + x_max) / 2
+            if x_max is None or _x_ > x_max:   x_max = _x_
+            if x_min is None or _x_ < x_min:    x_min = _x_
+
     bounds = [(0.2, 5.)] if scaling_ansatz == 'FGR' or scaling_ansatz == 'spacing' else [(0.1, 10.)]
     #-- number of bounds is number of different scaling parameters
     if crit_fun == 'free':  
         for i in range(len(vals)):  
-            bounds.append((1e-3, x_max))
+            bounds.append((x_min, x_max))
     elif crit_fun == 'free_inv':  
         for i in range(len(vals)):  
-            bounds.append((1. / x_max, 1e4))
+            bounds.append((1. / x_max, 1. / x_min))
     #-- constant value, only one new bounds
     elif crit_fun == 'const':   
         bounds.append((0, x_max))
@@ -278,8 +265,8 @@ def get_crit_points(x, y, vals, crit_fun='free', scaling_ansatz = 'classic', see
                                     scale_func=scaling_ansatz, 
                                     crit_func=crit_fun,
                                     bnds=bounds,
-                                    population_size=1e3,
-                                    maxiterarions=1e4, workers=4, realisations=1,
+                                    population_size=1e2,
+                                    maxiterarions=1e3, workers=10,
                                     seed = seed,
                                     wH = wH
                                 )

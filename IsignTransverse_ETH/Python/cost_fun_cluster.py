@@ -77,7 +77,7 @@ if __name__ == '__main__':
         print("Gap Ratio:\t", par, crit_pars, costfun, status)
         if costfun > 3: 
             status = Failed
-            assert False, "Cost function too high: CF = %d"%cost_fun
+            assert False, "Cost function too high: CF = %d"%costfun
         if status:
             filename = dir + os.sep + "GapRatio" + suffix
             data = {

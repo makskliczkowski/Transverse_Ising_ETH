@@ -7,7 +7,7 @@
 3 - XYZ
 4 - Quantum Sun
 */
-	#define MODEL 1
+	#define MODEL 0
 
 	#if !defined(LOCAL_PERT)
 		#define LOCAL_PERT

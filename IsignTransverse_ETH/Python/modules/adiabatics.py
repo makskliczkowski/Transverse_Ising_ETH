@@ -55,11 +55,11 @@ def plot_agp(axis=None, settings_class = None,
             wH = stats[5]
             wH = np.array([wH[i] for i, xx in enumerate(stats[0]) if xx in xdata])
             if which == 2:
-                ydata = ydata * (binom(x, x/2))**1.0 * np.power(wH, 2.) / x
+                ydata = ydata * (binom(x, x/2))**1.0 * np.power(wH, 1.5) / x
             elif which == 1:
                 ydata = ydata / (binom(x, x/2))
             elif which == 3:
-                ydata = ydata / x**1.5
+                ydata = ydata / x**2
             elif which == 4:
                 ydata *= x*np.log(x)
             axis.plot(xdata, ydata, label=hfun.key_title(x, settings), marker='o')

@@ -45,6 +45,7 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 	#endif	
 	if(use_Sz_sym)
 		generate_mapping();
+	std::cout << "Spectrum size:\t" << this->N << std::endl;
 	this->hamiltonian();
 }
 
