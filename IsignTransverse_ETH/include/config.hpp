@@ -10,7 +10,7 @@
 	#define MODEL 3
 
 	#if !defined(LOCAL_PERT)
-		#define LOCAL_PERT
+		//#define LOCAL_PERT
 	#endif
 #endif
 

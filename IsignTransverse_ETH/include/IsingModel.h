@@ -330,7 +330,8 @@ public:
 	auto get_sym_group()   const { return this->symmetry_group; }
 	auto get_sym_eigVal()  const { return this->symmetry_eigVal; }
 	virtual arma::vec get_real_state(u64 idx) override { return this->eigenvectors_re.col(idx); }
-	
+	auto& get_real_eigenvectors() const { return this->eigenvectors_re;}
+
 	virtual void diagonalization(bool get_eigenvectors = true, const char* method = "dc") override;				// diagonalize the Hamiltonian
 	virtual void diag_sparse(bool get_eigenvectors = true, int maxiter = 5000, 
 							double tol = 0, double sigma = 0) override;											// diagonalize the Hamiltonian with shift-invert

@@ -34,7 +34,7 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 			this->use_Sz_sym = true;
 			std::cout << "Using XYZ with Sz sym" << std::endl;
 		} else
-			std::cout << "Using XYZ with Sz sym" << std::endl;
+			std::cout << "Using XYZ" << std::endl;
 	#elif defined(QUANTUM_SUN)
 		this->use_Sz_sym = false;
 		std::cout << "Using Quantum Sun" << std::endl;

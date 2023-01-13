@@ -1160,7 +1160,18 @@ void isingUI::ui::entropy_evolution(){
 	}
 	
 }
-	
+
+template <typename _ty>
+arma::Col<_ty> cast_state_to_full(const arma::Col<_ty>& state, const std::vector<u64>& map, size_t dim_max){
+	if(map.empty())
+		return state;
+	else{
+		arma::Col<_ty> full_state(dim_max, arma::fill::zeros);
+		for(int i = 0; i < map.size(); i++)
+			full_state(map[i]) = state(i);
+		return full_state;
+	}
+};
 //<! calculate entaglement in eigenstates and saves to file
 //<! -s sets the subsystem size, if-s=0 the L/2 is assumed 
 void isingUI::ui::eigenstate_entropy(){
@@ -1185,29 +1196,36 @@ void isingUI::ui::eigenstate_entropy(){
 		if(this->ch)
 			alfa.diag_sparse(true);
 		std::cout << " - - - - - - FINISHED DIAGONALIZATION IN : " << tim_s(start) << " seconds - - - - - - " << std::endl; // simulation end
-
+		
+		start = std::chrono::system_clock::now();
 		const arma::vec E = alfa.get_eigenvalues();
 		const arma::sp_cx_mat U = alfa.symmetryRotation();
-		arma::vec S(size, arma::fill::zeros);
+		std::cout << " - - - - - - FINISHED CREATING SYMMETRY TRANSFORMATION IN : " << tim_s(start) << " seconds - - - - - - " << std::endl; // simulation end
 
+		arma::vec S(size, arma::fill::zeros);
+		
 		int th_num = this->thread_number;
 		omp_set_num_threads(1);
 		std::cout << th_num << "\t\t" << omp_get_num_threads() << std::endl;
+		size_t dim_max = ULLPOW(this->L);
 		
+		start = std::chrono::system_clock::now();
 	#pragma omp parallel for num_threads(th_num) schedule(dynamic)
 		for(int n = 0; n < size; n++){
-			arma::cx_vec state;
 			if(alfa.use_real_matrix){
-				arma::Col<double> eigenstate = alfa.get_real_state(n);
-				state = U * eigenstate;
+				arma::vec state = arma::real(U * alfa.get_real_state(n));
+				auto state_full = cast_state_to_full(state, map, dim_max);
+				S(n) = entropy::schmidt_decomposition(state_full, LA, this->L);
 			} else {
 				auto eigenstate = alfa.get_eigenState(n);
-				state = U * eigenstate;
+				arma::cx_vec state = U * eigenstate;
+				auto state_full = cast_state_to_full(state, map, dim_max);
+				S(n) = entropy::schmidt_decomposition(state_full, LA, this->L);
 			}
-			double S_tmp = entropy::vonNeumann(state, LA, this->L, map);
-			S(n) = S_tmp;
 		}
-
+		std::cout << " - - - - - - FINISHED ENTROPY CALCULATION IN : " << tim_s(start) << " seconds - - - - - - " << std::endl; // simulation end
+		
+		
 		if( this-> realisations > 1){
 			std::string dir_realis = this->saving_dir + "Entropy" + kPSep + "Eigenstate" + kPSep + "realisation=" + std::to_string(realis) + kPSep;
 			createDirs(dir_realis);
@@ -1215,7 +1233,7 @@ void isingUI::ui::eigenstate_entropy(){
 			S.save(arma::hdf5_name(dir_realis + filename + ".hdf5", "entropy", arma::hdf5_opts::append));
 			if(this->ch || false)
 			{
-				arma::Mat<decltype(alfa.type_var)> V = alfa.get_eigenvectors().submat(0, alfa.E_av_idx - 250, N, alfa.E_av_idx + 250);
+				arma::Mat<decltype(alfa.type_var)> V = alfa.get_eigenvectors().submat(0, alfa.E_av_idx - 250, N - 1, alfa.E_av_idx + 250);
 				V.save(arma::hdf5_name(dir_realis + filename + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
 			}
 			//save_to_file(filename + ".dat", E, entropies);
@@ -1246,8 +1264,13 @@ void isingUI::ui::eigenstate_entropy(){
 		energies.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "energies"));
 		entropies.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "entropy", arma::hdf5_opts::append));
 		if(true || this->ch){
-			arma::Mat<decltype(alfa->type_var)> V = alfa->get_eigenvectors().submat(0, alfa->E_av_idx - 100, N, alfa->E_av_idx + 100);
-			V.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
+			if(alfa->use_real_matrix){
+				arma::mat V = alfa->get_real_eigenvectors().submat(0, alfa->E_av_idx - 100, N - 1, alfa->E_av_idx + 100);
+				V.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
+			} else {
+				arma::Mat<decltype(alfa->type_var)> V = alfa->get_eigenvectors().submat(0, alfa->E_av_idx - 100, N - 1, alfa->E_av_idx + 100);
+				V.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
+			}
 		}
 	} else{
 		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
@@ -1256,8 +1279,10 @@ void isingUI::ui::eigenstate_entropy(){
 	 	energies = arma::vec(size, arma::fill::zeros);
 		entropies = arma::vec(size, arma::fill::zeros);
 
-		if(alfa->using_Sz_symmetry())
+		if(alfa->using_Sz_symmetry()){
+			std::cout << "Using Sz symmetry!!" << std::endl;
 			map = alfa->get_mapping();
+		}
 		average_over_realisations<Ising_params::J>(*alfa, !(this->ch), kernel);
 		energies /= double(counter);
 		entropies /= double(counter);
@@ -1266,7 +1291,7 @@ void isingUI::ui::eigenstate_entropy(){
 		energies.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "energies"));
 		entropies.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "entropy", arma::hdf5_opts::append));
 		if(true || this->ch){
-			arma::Mat<decltype(alfa->type_var)> V = alfa->get_eigenvectors().submat(0, alfa->E_av_idx - 100, N, alfa->E_av_idx + 100);
+			arma::Mat<decltype(alfa->type_var)> V = alfa->get_eigenvectors().submat(0, alfa->E_av_idx - 100, N - 1, alfa->E_av_idx + 100);
 			V.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
 		}
 	}

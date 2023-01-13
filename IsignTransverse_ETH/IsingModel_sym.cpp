@@ -351,12 +351,12 @@ void IsingModel_sym::diagonalization(bool get_eigenvectors, const char* method) 
 		}
 		catch (...) {
 			handle_exception(std::current_exception(), 
-				"sparse - dim(H) = " + matrix_size(this->H.n_nonzero * sizeof(this->H(0, 0)))
+				"sparse - dim(H) = " + matrix_size(this->H_re.n_nonzero * sizeof(this->H_re(0, 0)))
 			+ "\ndense - dim(H) = " + matrix_size(H_temp.n_cols * H_temp.n_rows * sizeof(H_temp(0, 0)))
 			+ "\nspectrum size: " + std::to_string(this->N)
 			);
 		}
-		std::cout << "\tTYPE: DOUBLE\n\tsparse - dim(H) = " + matrix_size(this->H.n_nonzero * sizeof(this->H(0, 0)))
+		std::cout << "\tTYPE: DOUBLE\n\tsparse - dim(H) = " + matrix_size(this->H_re.n_nonzero * sizeof(this->H_re(0, 0)))
 			+ "\n\tdense - dim(H) = " + matrix_size(H_temp.n_cols * H_temp.n_rows * sizeof(H_temp(0, 0)))
 			+ "\n\tspectrum size: " + std::to_string(this->N) << std::endl << std::endl;
 	} else{
@@ -370,8 +370,8 @@ void IsingModel_sym::diagonalization(bool get_eigenvectors, const char* method) 
 		return abs(x - E_av) < abs(y - E_av);
 		});
 	this->E_av_idx = i - begin(eigenvalues);
-	printSeparated(std::cout, "\t", 16, true, "mean energy", "energies close to this value (-1,0,+1 around found index");
-	printSeparated(std::cout, "\t", 16, true, E_av, eigenvalues(this->E_av_idx - 1), eigenvalues(this->E_av_idx),  eigenvalues(this->E_av_idx + 1));
+	printSeparated(std::cout, "\t", 16, true, "guessed index", "mean energy", "energies close to this value (-1,0,+1 around found index");
+	printSeparated(std::cout, "\t", 16, true, this->E_av_idx, E_av, eigenvalues(this->E_av_idx - 1), eigenvalues(this->E_av_idx),  eigenvalues(this->E_av_idx + 1));
 }
 void IsingModel_sym::diag_sparse(bool get_eigenvectors, int maxiter, double tol, double sigma){
 	arma::eigs_opts opts;
