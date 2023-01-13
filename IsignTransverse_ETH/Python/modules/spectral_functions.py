@@ -290,7 +290,7 @@ def plot_spectral(axis, settings = None,
                     print("not found")
         axis.title.set_text(r"$%s$"%title[1:])
         axis.title.set_fontsize(10)
-    if spec != 'Hybrid' and spec != 'MatElem': 
+    if xscale == 'log' and (spec != 'Hybrid' and spec != 'MatElem'): 
         axis.plot(wH, LTA, linestyle='--', marker='o', color='black', linewidth=int(font / 6), markersize=font-4)
         axis.plot(wH_typ, val_at_typ, linestyle='--', marker='o', color='black', markerfacecolor='None', linewidth=int(font / 6), markersize=font-4)
    
@@ -399,12 +399,12 @@ def get_relax_times(vals = None, set_class = None, operator = -1, site = -2, wit
             
             ydata2 = np.log10(np.abs(ydata2))
             idx_zero = np.argmin((ydata2))
-            ydata2 = ydata2[:idx_zero - 8]
-            xdata2 = xdata2[:idx_zero - 8]
+            ydata2 = ydata2[:idx_zero - 25]
+            xdata2 = xdata2[:idx_zero - 25]
             
             if cf.model == 2 or operator == 8:
-                xdata2 = np.array([xdata2[i] for i in range(0,len(xdata2)) if (ydata2[i] < -0.5 and ydata2[i] > -4)])
-                ydata2 = np.array([ydata2[i] for i in range(0,len(ydata2)) if (ydata2[i] < -0.5 and ydata2[i] > -4)])
+                xdata2 = np.array([xdata2[i] for i in range(0,len(xdata2)) if (ydata2[i] < -0.5 and ydata2[i] > -4.2)])
+                ydata2 = np.array([ydata2[i] for i in range(0,len(ydata2)) if (ydata2[i] < -0.5 and ydata2[i] > -4.2)])
             #print(pars)
             try:
                 pars, pcov = fit(f=lin_fit, 

@@ -11,7 +11,7 @@ from os.path import exists
 from scipy.special import binom
 
 def plot_agp(axis=None, settings_class = None, 
-                which=1, operator = -1, site = -3, vals = None):
+                which=1, operator = -1, site = -3, vals = None, plot_title=False):
 
     if which < 1 or which > 4: 
         print("Parameter 'which' entered with illegal value")
@@ -26,7 +26,7 @@ def plot_agp(axis=None, settings_class = None,
     #--- prepare scaling - axis
     if vals is None:
         vals = hfun.get_scaling_array(settings=settings)
-    print(vals)
+        print(vals)
 
     y_min = 1.0e10;     y_max = -1.0e10;
     x_min = 1.0e10;     x_max = -1.0e10;
@@ -43,7 +43,7 @@ def plot_agp(axis=None, settings_class = None,
             filename = dir + cf.operator_names[operator] + "%d"%(x/2) + kPSep + filename
         else :
             filename = dir + cf.operator_name(operator, site) + kPSep + filename
-        print(filename)
+        
         filename2 = cf.base_directory + "STATISTICS" + kPSep + hfun.remove_info(hfun.info_param(cf.params_arr), settings['vs']) + ".dat"
         if exists(filename):
             data = pd.read_table(filename, sep="\t", header=None)
@@ -54,14 +54,19 @@ def plot_agp(axis=None, settings_class = None,
             ydata = (np.array(data[which][1:])).astype(np.float)
             wH = stats[5]
             wH = np.array([wH[i] for i, xx in enumerate(stats[0]) if xx in xdata])
+
+            Lx = x if settings['scaling_idx'] == 0 else cf.L
+            dim = 2**Lx if cf.model == 0 else binom(Lx, Lx/2)
             if which == 2:
-                ydata = ydata * (binom(x, x/2))**1.0 * np.power(wH, 1.5) / x
+                rescale = dim * np.power(wH, 2) / Lx if operator != 8 else 1./Lx**2
+                if operator == 12: rescale /= Lx**1.5
+                ydata = ydata * rescale
             elif which == 1:
-                ydata = ydata / (binom(x, x/2))
+                ydata = ydata / dim
             elif which == 3:
-                ydata = ydata / x**2
+                ydata = ydata / Lx**2
             elif which == 4:
-                ydata *= x*np.log(x)
+                ydata *= x * np.log(x) if operator != 12 else x
             axis.plot(xdata, ydata, label=hfun.key_title(x, settings), marker='o')
             
             #-- xy-ranges
@@ -77,29 +82,30 @@ def plot_agp(axis=None, settings_class = None,
     if which == 1:
         ylab = "||\\mathcal{A}(A)||^2 / D"
     elif which == 2:
-        ylab = "D\\cdot\\omega_H^2\\cdot\\chi^{typ}(A) / L"
+        ylab = "D\\cdot\\omega_H^2\\cdot\\chi^{typ}(A) / L" if operator != 8 else "\\chi^{typ}(A) / L^2"
     elif which == 3:
         ylab = "\\chi(A)"
     else :
-      ylab = "||A||^2_{diag}\\cdot L\\cdot\\ln L"  
+      ylab = "||A||^2_{diag}\\cdot L\\cdot\\ln L" if operator != 12 else "||A||^2_{diag}\\cdot L"
+    xlab = hfun.var_name if settings['vs_idx'] == 2 else ("\\varepsilon" if settings['vs_idx'] == 4 and cf.model == 2 else settings['vs'])
     hfun.set_plot_elements(axis = axis, xlim = (x_min, x_max), 
-                                    ylim = (0.95*y_min, 1.05*y_max), ylabel = ylab, xlabel = settings['vs'], settings=settings, font_size=8)
+                                    ylim = (0.95*y_min, 1.05*y_max), ylabel = ylab, xlabel = xlab, settings=settings, font_size=18)
   
-    
-    title = ""
-    if (settings['vs_idx'] == 3 or settings['scaling_idx'] == 3) and cf.J0 == 0 and cf.g0 == 0 and cf.h != 0:
-        title = hfun.remove_info(hfun.info_param(cf.params_arr), settings['vs'], settings['scaling'], 'w') + ',w=0.5h'
-    else :
-        title = hfun.remove_info(hfun.info_param(cf.params_arr), settings['vs'], settings['scaling'])
-    if settings['vs_idx'] != 2 :
-        try : 
-            title = list(title);    title[title.index('g')] = hfun.var_name;   title = "".join(title) # g
-            #title = list(title);    title[title.index('g')] = hfun.var_name;   title = "".join(title) # g0
-        except ValueError:
-                print("not found")
-    axis.title.set_text(r"$%s$"%title[1:])
-    axis.title.set_fontsize(10)
-    #---Thouless times
+
+    if plot_title: 
+        title = ""
+        if (settings['vs_idx'] == 3 or settings['scaling_idx'] == 3) and cf.J0 == 0 and cf.g0 == 0 and cf.h != 0:
+            title = hfun.remove_info(hfun.info_param(cf.params_arr), settings['vs'], settings['scaling'], 'w') + ',w=0.5h'
+        else :
+            title = hfun.remove_info(hfun.info_param(cf.params_arr), settings['vs'], settings['scaling'])
+        if settings['vs_idx'] != 2 :
+            try : 
+                title = list(title);    title[title.index('g')] = hfun.var_name;   title = "".join(title) # g
+                #title = list(title);    title[title.index('g')] = hfun.var_name;   title = "".join(title) # g0
+            except ValueError:
+                    print("not found")
+        axis.title.set_text(r"$%s$"%title[1:])
+        axis.title.set_fontsize(10)
     
     #--- reset defaults
     cf.params_arr = param_copy

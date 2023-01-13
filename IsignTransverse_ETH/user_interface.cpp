@@ -767,9 +767,10 @@ void isingUI::ui::calculate_spectrals()
 	const double wooH = sqrt(this->L) / (chi * N) * sqrt(this->J * this->J + this->h * this->h + this->g * this->g
 												 + ( this->m? 0.0 : (this->w * this->w + this->g0 * this->g0 + this->J0 * this->J0) / 3. ));
 	double tH = 1. / wooH;
-	int num_of_points = 1000;
-	int time_end = (int)std::ceil(std::log10(1.75 * tH));
-	time_end = (time_end / std::log10(tH) < 2.0) ? time_end + 1 : time_end;
+	int num_of_points = 3000;
+	int time_end = (int)std::ceil(std::log10(1.25 * tH));
+	time_end = (time_end / std::log10(tH) < 1.25) ? time_end + 1 : time_end;
+
 	auto times = arma::logspace(-2, time_end, num_of_points);
 	auto omegas = arma::logspace(-time_end, 2, num_of_points);
 	arma::vec omega_spec = omegas; omega_spec.shed_row(omega_spec.size() - 1);
@@ -832,7 +833,8 @@ void isingUI::ui::calculate_spectrals()
 		stout << "\t\t	--> finished integrated spectral function for " << info
 			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 
-		spectrals::preset_omega set_omega(E, 0.0025 * alfa.L, E(alfa.E_av_idx));
+		const double window_width = (this->L > 18? 0.025 : 0.075) * (E(N - 1) - E(0));// 0.025 * alfa.L;
+		spectrals::preset_omega set_omega(E, window_width, E(alfa.E_av_idx));
 		set_omega.save_matrix_elements(specdir_real_mat_elem + opName + info, mat_elem);
 
 		//auto specfun_r = spectrals::spectralFunction(mat_elem, set_omega, omega_spec);
@@ -923,7 +925,7 @@ void isingUI::ui::combine_spectrals(){
 	std::string dir_agp = this->saving_dir + "AGP" + kPSep + opName + kPSep + "raw_data" + kPSep;
 	createDirs(timeDir, intDir, specDir_der, dir_agp);
 
-	int num_of_points = 1000;
+	int num_of_points = 3000;
 	arma::vec opEvol(num_of_points, arma::fill::zeros);
 	arma::vec opIntSpec(num_of_points, arma::fill::zeros);
 	arma::vec times(num_of_points);
@@ -1049,8 +1051,8 @@ void isingUI::ui::combine_spectrals(){
 		statistics::probability_distribution(HybridDir, filename, hybrid, -1, arma::mean(hybrid), arma::var(hybrid));
 		statistics::probability_distribution(HybridDir, filename + "_log", 0.5 * arma::log(hybrid), -1, arma::mean(hybrid), arma::var(hybrid));
 
-		std::vector<int> numss = {500, 2000, 6000, 10000};
-		const long num = (this->realisations == 1)? numss[ (this->L - 12) / 2] : ULLPOW(this->L / 2) * std::sqrt(counter_int);
+		std::vector<int> numss = {150, 500, 2000, 5000, 10000};
+		const long num = (this->realisations == 1)? numss[ (this->L - 10) / 2] : ULLPOW(this->L / 2) * std::sqrt(counter_int);
 		spectrals::spectralFunction(omegas_spec, mat_elem, specDir + filename, num);	smoothen_data(specDir, filename + ".dat");
 	}
 }
@@ -1194,8 +1196,14 @@ void isingUI::ui::eigenstate_entropy(){
 		
 	#pragma omp parallel for num_threads(th_num) schedule(dynamic)
 		for(int n = 0; n < size; n++){
-			arma::Col<decltype(alfa.type_var)> eigenstate = alfa.get_eigenState(n);
-			arma::cx_vec state = U * eigenstate;
+			arma::cx_vec state;
+			if(alfa.use_real_matrix){
+				arma::Col<double> eigenstate = alfa.get_real_state(n);
+				state = U * eigenstate;
+			} else {
+				auto eigenstate = alfa.get_eigenState(n);
+				state = U * eigenstate;
+			}
 			double S_tmp = entropy::vonNeumann(state, LA, this->L, map);
 			S(n) = S_tmp;
 		}

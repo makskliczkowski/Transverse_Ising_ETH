@@ -7,6 +7,8 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 	this->N = ULLPOW(this->L);
 	this->_BC = _BC;
 	
+	this->use_real_matrix = true;
+
 	//change info
 	#ifdef ANDERSON
 		this->info = "_L=" + std::to_string(this->L) + \

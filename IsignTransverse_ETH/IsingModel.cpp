@@ -42,18 +42,33 @@ template <typename T> void IsingModel<T>::set_neighbors() {
 /// <summary>
 /// General procedure to diagonalize the Hamiltonian using eig_sym from the Armadillo library
 /// </summary>
+template <typename _ty>
+std::string type_name(_ty a){
+	if(typeid(_ty) == typeid(cpx))			
+		return "COMPLEX";
+	else if(typeid(_ty) == typeid(double))	
+		return "DOUBLE";
+	else if(typeid(_ty) == typeid(float))	
+		return "FLOAT";
+	else 
+		return "UNKNOWN";
+}
 template <typename T> void IsingModel<T>::diagonalization(bool get_eigenvectors, const char* method) {
 	//out << real(H) << endl;
 	arma::Mat<T> H_temp;
 	try {
+		T dummy;
 		H_temp = arma::Mat<T>(this->H);
 		if (get_eigenvectors) arma::eig_sym(this->eigenvalues, this->eigenvectors, H_temp, method);
 		else arma::eig_sym(this->eigenvalues, H_temp);
+		std::cout << "\tTYPE: " + type_name(dummy) + "\n\tsparse - dim(H) = " + matrix_size(this->H.n_nonzero * sizeof(this->H(0, 0)))
+			+ "\n\tdense - dim(H) = " + matrix_size(H_temp.n_cols * H_temp.n_rows * sizeof(H_temp(0, 0)))
+			+ "\n\tspectrum size: " + std::to_string(this->N) << std::endl << std::endl;
 	}
 	catch (...) {
 		handle_exception(std::current_exception(), 
-			"sparse - dim(H) = " + std::to_string(H.n_nonzero * sizeof(H(0, 0)))
-			+ " bytes\ndense - dim(H) = " + std::to_string(H_temp.n_cols * H_temp.n_rows * sizeof(H_temp(0, 0))) + " bytes"
+			"sparse - dim(H) = " + matrix_size(this->H.n_nonzero * sizeof(this->H(0, 0)))
+			+ "\ndense - dim(H) = " + matrix_size(H_temp.n_cols * H_temp.n_rows * sizeof(H_temp(0, 0)))
 			+ "\n spectrum size: " + std::to_string(this->N)
 		);
 	}
