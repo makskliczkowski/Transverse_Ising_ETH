@@ -777,15 +777,14 @@ void isingUI::ui::calculate_spectrals()
 
 	arma::vec opEvol(times.size(), arma::fill::zeros);
 	arma::vec opIntSpec(omegas.size(), arma::fill::zeros);
-	std::vector<u64> map;
 	
 	//---------------- SET KERNEL
 	double LTA = 0;
-	arma::sp_cx_mat op;
 	auto start_loop = std::chrono::system_clock::now();
 	auto kernel = [&](
-		auto& alfa, int r
+		auto& alfa, int r, const arma::sp_cx_mat& oper
 		){
+		stout << "\n\t\t--> finished generating operator for " << info << " - in time : " << tim_s(start) << "s" << std::endl;
 		r += this->jobid;
 		std::string tdir_realisation = timeDir + "realisation=" + std::to_string(r) + kPSep;
 		std::string intdir_realisation = intDir + "realisation=" + std::to_string(r) + kPSep;
@@ -793,16 +792,12 @@ void isingUI::ui::calculate_spectrals()
 		std::string specdir_real_mat_elem = specdir_realisation + "mat_elem" + kPSep;
 		createDirs(tdir_realisation, intdir_realisation, specdir_realisation, specdir_real_mat_elem);
 		
-		stout << "\t\t	--> finished diagonalizing for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
-		auto U = alfa.get_eigenvectors();
-		arma::vec E = alfa.get_eigenvalues();
-		
-		stout << "\t\t	--> got eigenvectors for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
-		op = alfa.chooseOperator(this->op, this->site);
-		arma::cx_mat mat_elem = U.t() * op * U;
-		normaliseMat(mat_elem);
-		stout << "\t\t	--> set matrix elements for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+		if(oper.is_zero(1e-15))
+			assert(false && "Something went wrong. No set operator\n\n");
 
+
+		stout << "\t\t	--> finished diagonalizing for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+		arma::vec E = alfa.get_eigenvalues();
 
 		N = alfa.get_hilbert_size();
 		this->mu = long(0.5 * N);
@@ -819,66 +814,85 @@ void isingUI::ui::calculate_spectrals()
 		wH_local = wH_local / double(this->mu);
 		wH += wH_local;
 		counter++;
+		std::cout << "\t\t	--> finished statistics for " << info
+			<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 
-		stout << "\t\t	--> finished statistics for " << info
-			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+		auto kernel_spectrals = [&]<typename _ty>(arma::Mat<_ty>& mat_elem){
+			normaliseMat(mat_elem);
+			std::cout << "\t\t	--> set matrix elements for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 
-		auto [op_tmp, LTA_tmp] = spectrals::autocorrelation_function(mat_elem, E, times);
-		save_to_file(tdir_realisation + opName + info + ".dat", times, op_tmp, 1.0 / wH_local, LTA_tmp);
-		stout << "\t\t	--> finished time evolution for " << info
-			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
-		
-		auto res = spectrals::integratedSpectralFunction(mat_elem, E, omegas);
-		save_to_file(intdir_realisation + opName + info + ".dat", omegas, res, wH_local, LTA_tmp);
-		stout << "\t\t	--> finished integrated spectral function for " << info
-			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+			_ty dummy;
+			std::cout << "\t\t MATRIX-ELEMENTS TYPE: " + type_name(dummy)
+				+ "\n\t\tdense - dim(H) = " + matrix_size(mat_elem.n_cols * mat_elem.n_rows * sizeof(mat_elem(0, 0))) << std::endl << std::endl;
 
-		const double window_width = (this->L > 18? 0.025 : 0.075) * (E(N - 1) - E(0));// 0.025 * alfa.L;
-		spectrals::preset_omega set_omega(E, window_width, E(alfa.E_av_idx));
-		set_omega.save_matrix_elements(specdir_real_mat_elem + opName + info, mat_elem);
+			auto [op_tmp, LTA_tmp] = spectrals::autocorrelation_function(mat_elem, E, times);
+			save_to_file(tdir_realisation + opName + info + ".dat", times, op_tmp, 1.0 / wH_local, LTA_tmp);
+			std::cout << "\t\t	--> finished time evolution for " << info
+				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+			
+			auto res = spectrals::integratedSpectralFunction(mat_elem, E, omegas);
+			save_to_file(intdir_realisation + opName + info + ".dat", omegas, res, wH_local, LTA_tmp);
+			std::cout << "\t\t	--> finished integrated spectral function for " << info
+				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 
-		//auto specfun_r = spectrals::spectralFunction(mat_elem, set_omega, omega_spec);
-		//save_to_file(specdir_realisation + opName + info + ".dat", omega_spec, specfun_r, wH_local, LTA_tmp);
-		stout << "\t\t	--> finished saving matrix elements for " << info
-			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+			const double window_width = (N > 5e4? 0.025 : 0.075) * (E(N - 1) - E(0));// 0.025 * alfa.L;
+			spectrals::preset_omega set_omega(E, window_width, E(alfa.E_av_idx));
+			set_omega.save_matrix_elements(specdir_real_mat_elem + opName + info, mat_elem);
 
-		LTA += LTA_tmp;
-		opEvol += op_tmp;
-		opIntSpec += res;
+			//auto specfun_r = spectrals::spectralFunction(mat_elem, set_omega, omega_spec);
+			//save_to_file(specdir_realisation + opName + info + ".dat", omega_spec, specfun_r, wH_local, LTA_tmp);
+			std::cout << "\t\t	--> finished saving matrix elements for " << info
+				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 
-		auto [AGP_local, typ_susc_local, susc_local] = adiabatics::gauge_potential(mat_elem, E, this->L);
-		typ_susc += typ_susc_local;
-		AGP += AGP_local;
-		susc += susc_local;
+			LTA += LTA_tmp;
+			opEvol += op_tmp;
+			opIntSpec += res;
 
-		stout << "\t\t	--> finished adiabatic gauge potential for " << info
-			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
+			auto [AGP_local, typ_susc_local, susc_local] = adiabatics::gauge_potential(mat_elem, E, this->L);
+			typ_susc += typ_susc_local;
+			AGP += AGP_local;
+			susc += susc_local;
+			std::cout << "\t\t	--> finished adiabatic gauge potential for " << info
+				  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
+
+		};
+		std::cout << oper << std::endl;
+
+		if(alfa.use_real_matrix){
+			if(arma::imag(oper).is_zero(1e-15)){
+				arma::mat U = alfa.get_real_eigenvectors();
+				arma::sp_mat oper_re = arma::real(oper);
+				arma::mat mat_elem = U.t() * oper_re * U;
+				kernel_spectrals(mat_elem);
+			} else {
+				arma::cx_mat U(N, N, arma::fill::zeros);
+				U.set_real(alfa.get_real_eigenvectors());
+				arma::cx_mat mat_elem = U.t() * oper * U;
+				kernel_spectrals(mat_elem);
+			}
+		} else {
+			auto U = alfa.get_eigenvectors();
+			arma::cx_mat mat_elem = U.t() * oper * U;
+			kernel_spectrals(mat_elem);
+		}
+
 
 		start_loop = std::chrono::system_clock::now();
 	};
 	
 	//---------------- SIMULATION FOR INPUT MODEL
 	
-	auto prefix_kernel = [&](auto& alfa){
-		op = alfa.chooseOperator(this->op, this->site);
-		stout << "\n\t\t--> finished generating operator and omega bins for " << info << " - in time : " << tim_s(start) << "s" << std::endl;;	
-	};
 	if(this->m){
 		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-		prefix_kernel(*alfa);
-		map = alfa->get_mapping();
-		average_over_realisations<Ising_params::h>(*alfa, true, kernel);
+		arma::sp_cx_mat oper = alfa->chooseOperator(this->op, this->site);
+		std::cout << oper << std::endl;
+		average_over_realisations<Ising_params::h>(*alfa, true, kernel, oper);
 	} else{
 		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-		prefix_kernel(*alfa);
-		#ifdef HEISENBERG
-			map = alfa->get_mapping();
-		#elif !defined(ANDERSON)
-			if(this->g == 0 && this->g0 == 0)
-				map = alfa->get_mapping();
-		#endif
-		average_over_realisations<Ising_params::h>(*alfa, true, kernel);
+		arma::sp_cx_mat oper = alfa->chooseOperator(this->op, this->site);
+		std::cout << oper << std::endl;
+		average_over_realisations<Ising_params::h>(*alfa, true, kernel, oper);
 	}
 
 	std::string dir_agp = this->saving_dir + "AGP" + kPSep + opName + kPSep + "raw_data" + kPSep;

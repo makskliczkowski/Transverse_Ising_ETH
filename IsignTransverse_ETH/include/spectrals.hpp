@@ -100,7 +100,9 @@ namespace spectrals{
 
 
 		//--------------------------- SAVERS
-		auto save_matrix_elements(std::string filename, const arma::cx_mat& mat_elem) const {
+		template <typename _ty>
+		inline
+		auto save_matrix_elements(std::string filename, const arma::Mat<_ty>& mat_elem) const {
 			arma::vec omegas = this->energy_diferences;
 			arma::vec mat_elem_to_save = arma::vec(this->energy_diferences.size(), arma::fill::zeros);
 			for(int i = 0; i < this->energy_diferences.size(); i++){

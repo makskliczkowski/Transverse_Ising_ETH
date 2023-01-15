@@ -98,6 +98,7 @@ public:
 	auto get_eigenState(u64 idx)				const { return this->eigenvectors.col(idx); }	 // get an eigenstate at a given idx
 	auto get_eigenStateValue(u64 idx, u64 elem) const { return this->eigenvectors(elem, idx);}	 // get an eigenstate at a given idx
 
+	virtual arma::mat& get_real_eigenvectors() = 0;
 	virtual arma::vec get_real_state(u64 idx) = 0;
 	auto calculate_energy(const arma::cx_vec& input) const{
 		return real(arma::cdot(input, this->H * input));
@@ -330,7 +331,7 @@ public:
 	auto get_sym_group()   const { return this->symmetry_group; }
 	auto get_sym_eigVal()  const { return this->symmetry_eigVal; }
 	virtual arma::vec get_real_state(u64 idx) override { return this->eigenvectors_re.col(idx); }
-	auto& get_real_eigenvectors() const { return this->eigenvectors_re;}
+	virtual arma::mat& get_real_eigenvectors() override { return this->eigenvectors_re;}
 
 	virtual void diagonalization(bool get_eigenvectors = true, const char* method = "dc") override;				// diagonalize the Hamiltonian
 	virtual void diag_sparse(bool get_eigenvectors = true, int maxiter = 5000, 
@@ -423,6 +424,7 @@ private:
 
 public:
 
+	virtual arma::mat& get_real_eigenvectors() override { return this->eigenvectors;}
 	virtual arma::vec get_real_state(u64 idx) override { return this->eigenvectors.col(idx); }
 
 	virtual void diag_sparse(bool get_eigenvectors = true, int maxiter = 5000, 
