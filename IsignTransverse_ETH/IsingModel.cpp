@@ -46,14 +46,19 @@ template <typename T> void IsingModel<T>::diagonalization(bool get_eigenvectors,
 	//out << real(H) << endl;
 	arma::Mat<T> H_temp;
 	try {
+		T dummy;
 		H_temp = arma::Mat<T>(this->H);
 		if (get_eigenvectors) arma::eig_sym(this->eigenvalues, this->eigenvectors, H_temp, method);
 		else arma::eig_sym(this->eigenvalues, H_temp);
+		std::cout << "\t HAMILTONIAN TYPE: " + type_name(dummy) + "\n\tsparse - dim(H) = " + matrix_size(this->H.n_nonzero * sizeof(this->H(0, 0)))
+			+ "\n\tdense - dim(H) = " + matrix_size(H_temp.n_cols * H_temp.n_rows * sizeof(H_temp(0, 0)))
+			+ "\n\tspectrum size: " + std::to_string(this->N) << std::endl << std::endl;
 	}
 	catch (...) {
 		handle_exception(std::current_exception(), 
-			"sparse - dim(H) = " + std::to_string(H.n_nonzero * sizeof(H(0, 0)))
-			+ " bytes\ndense - dim(H) = " + std::to_string(H_temp.n_alloc * sizeof(H_temp(0, 0))) + " bytes"
+			"sparse - dim(H) = " + matrix_size(this->H.n_nonzero * sizeof(this->H(0, 0)))
+			+ "\ndense - dim(H) = " + matrix_size(H_temp.n_cols * H_temp.n_rows * sizeof(H_temp(0, 0)))
+			+ "\n spectrum size: " + std::to_string(this->N)
 		);
 	}
 	//for (long int i = 0; i < N; i++)
@@ -64,8 +69,8 @@ template <typename T> void IsingModel<T>::diagonalization(bool get_eigenvectors,
 		return abs(x - E_av) < abs(y - E_av);
 		});
 	this->E_av_idx = i - begin(eigenvalues);
-	printSeparated(std::cout, "\t", 16, true, "mean energy", "energies close to this value (-1,0,+1 around found index");
-	printSeparated(std::cout, "\t", 16, true, E_av, eigenvalues(this->E_av_idx - 1), eigenvalues(this->E_av_idx),  eigenvalues(this->E_av_idx + 1));
+	printSeparated(std::cout, "\t", 16, true, "guessed index", "mean energy", "energies close to this value (-1,0,+1 around found index");
+	printSeparated(std::cout, "\t", 16, true, this->E_av_idx, E_av, eigenvalues(this->E_av_idx - 1), eigenvalues(this->E_av_idx),  eigenvalues(this->E_av_idx + 1));
 }
 
 // ----------------------------------------------------------- OPERATORS AND AVERAGES -------------------------------------------------------

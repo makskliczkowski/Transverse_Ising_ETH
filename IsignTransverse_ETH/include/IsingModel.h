@@ -55,6 +55,7 @@ protected:
 	virtual u64 map(u64 index) const = 0;				// function returning either the mapping(symmetries) or the input index (no-symmetry: 1to1 correspondance)
 	bool use_Sz_sym = false;
 public:
+	bool use_real_matrix = false;
 	_type type_var = _type(0);
 	u64 E_av_idx = -1;										// average energy
 	/* MODEL BASED PARAMETERS */
@@ -96,6 +97,9 @@ public:
 	auto get_eigenEnergy(u64 idx)				const { return this->eigenvalues(idx); }		 // get eigenenergy at a given idx
 	auto get_eigenState(u64 idx)				const { return this->eigenvectors.col(idx); }	 // get an eigenstate at a given idx
 	auto get_eigenStateValue(u64 idx, u64 elem) const { return this->eigenvectors(elem, idx);}	 // get an eigenstate at a given idx
+
+	virtual arma::mat& get_real_eigenvectors() = 0;
+	virtual arma::vec get_real_state(u64 idx) = 0;
 	auto calculate_energy(const arma::cx_vec& input) const{
 		return real(arma::cdot(input, this->H * input));
 	};
@@ -105,7 +109,7 @@ public:
 
 	// ---------------------------------- GENERAL METHODS ----------------------------------
 	void set_neighbors();																		// create neighbors list according to the boundary conditions
-	void diagonalization(bool get_eigenvectors = true, const char* method = "dc");				// diagonalize the Hamiltonian
+	virtual void diagonalization(bool get_eigenvectors = true, const char* method = "dc");				// diagonalize the Hamiltonian
 	virtual void diag_sparse(bool get_eigenvectors = true, int maxiter = 5000, 
 							double tol = 0, double sigma = 0) = 0;							// diagonalize the Hamiltonian with shift-invert
 
@@ -286,8 +290,13 @@ public:
 	/* Constructors */
 	IsingModel_sym() = default;
 	IsingModel_sym(int L, double J, double g, double h, int k_sym = 0, bool p_sym = true, bool x_sym = true, int _BC = 0);
+	
+	// FIELDS FOR REAL SYMMETRY SECTORS
+	arma::SpMat<double> H_re;								// the Hamiltonian
+	arma::Mat<double> eigenvectors_re;						// matrix of the eigenvectors in increasing order
 
 private:
+
 	// REDUCED BASIS AS A SYMMETRY SECTOR
 	struct sym{
 		double k_sym;															// translational symmetry generator
@@ -314,16 +323,19 @@ private:
 
 	u64 map(u64 index) const override;																												// finds a map corresponding to index (for inheritance purpose)
 public:
-	bool get_k_sector() const { return this->k_sector; }
-	v_1d<cpx> get_k_exponents() const { return this->k_exponents; }
-	sym get_symmetries() const { return this->symmetries;}
-	v_1d<cpx> get_norm() const { return this->normalisation; }
-	v_1d<std::function<u64(u64, int)>> get_sym_group() const { return this->symmetry_group; }
-	v_1d<cpx> get_sym_eigVal() const { return this->symmetry_eigVal; }
-	
 
+	bool get_k_sector()    const { return this->k_sector; }
+	auto get_k_exponents() const { return this->k_exponents; }
+	auto get_symmetries()  const { return this->symmetries;}
+	auto get_norm() 	   const { return this->normalisation; }
+	auto get_sym_group()   const { return this->symmetry_group; }
+	auto get_sym_eigVal()  const { return this->symmetry_eigVal; }
+	virtual arma::vec get_real_state(u64 idx) override { return this->eigenvectors_re.col(idx); }
+	virtual arma::mat& get_real_eigenvectors() override { return this->eigenvectors_re;}
+
+	virtual void diagonalization(bool get_eigenvectors = true, const char* method = "dc") override;				// diagonalize the Hamiltonian
 	virtual void diag_sparse(bool get_eigenvectors = true, int maxiter = 5000, 
-							double tol = 0, double sigma = 0) override;							// diagonalize the Hamiltonian with shift-invert
+							double tol = 0, double sigma = 0) override;											// diagonalize the Hamiltonian with shift-invert
 	// OVERRIDES OF THE MODEL METHODS
 	void hamiltonian() override;
 	void hamiltonian_Ising() override;
@@ -411,6 +423,9 @@ private:
 	u64 find_in_map(u64 index) const;			// method to binary search state in reduced basis
 
 public:
+
+	virtual arma::mat& get_real_eigenvectors() override { return this->eigenvectors;}
+	virtual arma::vec get_real_state(u64 idx) override { return this->eigenvectors.col(idx); }
 
 	virtual void diag_sparse(bool get_eigenvectors = true, int maxiter = 5000, 
 							double tol = 0, double sigma = 0) override;							// diagonalize the Hamiltonian with shift-invert
@@ -533,8 +548,4 @@ inline auto generate_full_map(int system_size, bool use_Sz_sym = 0)
 	return full_map;
 }
 
-
-
-using IsingSym 		= std::unique_ptr<IsingModel_sym>;
-using IsingDisorder = std::unique_ptr<IsingModel_disorder>;
 #endif

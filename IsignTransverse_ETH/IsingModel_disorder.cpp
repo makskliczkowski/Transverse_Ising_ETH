@@ -7,6 +7,8 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 	this->N = ULLPOW(this->L);
 	this->_BC = _BC;
 	
+	this->use_real_matrix = true;
+
 	//change info
 	#ifdef ANDERSON
 		this->info = "_L=" + std::to_string(this->L) + \
@@ -32,7 +34,7 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 			this->use_Sz_sym = true;
 			std::cout << "Using XYZ with Sz sym" << std::endl;
 		} else
-			std::cout << "Using XYZ with Sz sym" << std::endl;
+			std::cout << "Using XYZ" << std::endl;
 	#elif defined(QUANTUM_SUN)
 		this->use_Sz_sym = false;
 		std::cout << "Using Quantum Sun" << std::endl;
@@ -45,6 +47,7 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 	#endif	
 	if(use_Sz_sym)
 		generate_mapping();
+	std::cout << "Spectrum size:\t" << this->N << std::endl;
 	this->hamiltonian();
 }
 

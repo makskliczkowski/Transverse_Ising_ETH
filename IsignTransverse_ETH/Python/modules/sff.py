@@ -98,8 +98,8 @@ def load(settings = None, parameter = None, folded = False, beta = 0.0):
             times = np.logspace(-2, time_end, sff.size)
 
         if settings['smoothed'] == 1:    
-            sff = savgol_filter(sff, window_length=int(0.1 * sff.size) + int(0.1 * sff.size) % 2 - 1, polyorder=5, mode="mirror")
-            sff = hfun.remove_fluctuations(sff, 200)
+            #sff = savgol_filter(sff, window_length=int(0.01 * sff.size) + int(0.01 * sff.size) % 2 - 1, polyorder=5, mode="mirror")
+            sff = hfun.remove_fluctuations(sff, 20)
             #idx = min(range(len(times)), key=lambda i: abs(times[i] - 3.0)); 
             #sff /= sff[idx]
         if wH == 0.0: 

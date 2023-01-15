@@ -1,10 +1,11 @@
 
 namespace adiabatics{
 
+	template <typename _ty>
 	inline
 	auto 
 	gauge_potential(
-    	const arma::cx_mat& mat_elem,
+    	const arma::Mat<_ty>& mat_elem,
     	const arma::vec& eigenvalues,
     	int L
     ) -> std::tuple<double, double, double> 

@@ -246,3 +246,17 @@ namespace _traits {
 	template <class _ty, class... fixed>
 	inline constexpr bool is_any_of_v = is_any_of<_ty, fixed...>::value;
 };
+
+
+template <typename _ty>
+inline
+std::string type_name(_ty a){
+	if(typeid(_ty) == typeid(cpx))			
+		return "COMPLEX";
+	else if(typeid(_ty) == typeid(double))	
+		return "DOUBLE";
+	else if(typeid(_ty) == typeid(float))	
+		return "FLOAT";
+	else 
+		return "UNKNOWN";
+}
