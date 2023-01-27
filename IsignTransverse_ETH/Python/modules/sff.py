@@ -64,11 +64,13 @@ def load(settings = None, parameter = None, folded = False, beta = 0.0):
         dir += str("beta={:.%df}"%n).format(round(beta, n)) + kPSep
     #dir += "smoothed" + kPSep
 
-    filename = dir + ("folded" if folded else "") + hfun.info_param(cf.params_arr)
     info = hfun.info_param(cf.params_arr)
+    filename = dir + ("folded" if folded else "") + hfun.info_param(cf.params_arr)
+    if not exists(filename): filename = dir + ("folded" if folded else "") + hfun.info_param(cf.params_arr, use_log_data=False)
     
     # ------ GET STATISTICAL DATA
     filename_stats = cf.base_directory + "STATISTICS" + kPSep + "raw_data" + kPSep + hfun.info_param(cf.params_arr)
+    if not exists(filename_stats): filename_stats = cf.base_directory + "STATISTICS" + kPSep + "raw_data" + kPSep + hfun.info_param(cf.params_arr, use_log_data=False)
     wH = 0; gap_ratio = 0
     stats = {}
     try:

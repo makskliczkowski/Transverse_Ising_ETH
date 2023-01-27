@@ -169,8 +169,8 @@ def set_plot_elements(axis, xlim =[], ylim=[], xlabel = None, ylabel = None, set
     
     axis.set_yscale(settings['y_scale'])
     axis.set_xscale(settings['x_scale'])
-    axis.tick_params(axis='both', which='major', labelsize=font_size, length=font_size-4, width=0.05*font_size)
-    axis.tick_params(axis='both', which='minor', labelsize=font_size, length=0.2*(font_size-4), width=0.05*font_size)
+    axis.tick_params(axis='both', which='major', direction="in",length=6, labelsize=font_size)#, length=font_size-4, width=0.05*font_size)
+    axis.tick_params(axis='both', which='minor', direction="in",length=6, labelsize=font_size)#, length=0.2*(font_size-4), width=0.05*font_size)
     
     if set_legend:
         axis.legend(frameon=False
@@ -250,7 +250,7 @@ def read_python_saved_dat_file(filename):
         status = False
     if status:
         result = []
-        for i in range(7):
+        for i in range(len(stats) - 1):
             arr = np.array(stats[i][1:]).astype(float)
             result.append(arr)
     else:

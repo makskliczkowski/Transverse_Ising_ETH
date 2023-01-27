@@ -2,9 +2,14 @@ import numpy as np
 import pandas as pd
 import os
 from os import sep as kPSep
+from modules.sff import GOE
 import config as cf
+import utils.helper_functions as hfun
 import importlib
 importlib.reload(cf)
+importlib.reload(hfun)
+from scipy.signal import savgol_filter
+
 user_settings = getattr(cf.plot_settings, 'settings')
 
 def info(L, J, W):
@@ -35,19 +40,29 @@ def load_sff(L, W, dim = 3, settings = None):
     if settings is None:    settings = user_settings
 
     dir = f"..{kPSep}results{kPSep}" + f"ANDERSON{kPSep}%dD{kPSep}PBC{kPSep}SpectralFormFactor{kPSep}"%dim
-    if settings['smoothed'] == 1: dir = dir + f"smoothed{kPSep}"
+    #if settings['smoothed'] == 1: dir = dir + f"smoothed{kPSep}"
 
     filename = dir + info(L, 1.0, W)
     
+    epsilon = 2e-1
     if os.path.exists(filename):
         data = pd.read_table(filename, sep="\t", header=None)
-        xdata = np.array(data[0])
-        ydata = np.array(data[1])
+        times = np.array(data[0])
+        sff = np.array(data[1])
+        if settings['smoothed'] == 1:
+            sff = hfun.remove_fluctuations(sff, 60)
+            #sff = savgol_filter(sff, window_length=51, polyorder=5, mode="mirror")
         tH = data[2][0]
         tau = data[3][0]
+        sff_dev = np.abs(np.log10(sff / GOE(times)))
+        for i, K in reversed(list(enumerate(sff_dev))):
+            if K > epsilon and times[i] < (3):
+                tau = times[i-1]
+                break
         gap_ratio = data[4][0]
-        return True, xdata, ydata, tH, tau, gap_ratio
+        return True, times, sff, tH, tau, gap_ratio
     else:
+        #print(filename)
         return False, np.array([]), np.array([]), None, None, None
 
 
