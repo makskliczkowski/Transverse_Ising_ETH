@@ -299,13 +299,13 @@ namespace isingUI
 			callable& lambda, //!< callable function
 			_types... args										   //!< arguments passed to callable interface lambda
 		) {
-			const int x_max = (this->h != 0) ? 0 : 1;
-			const int k_end = (this->boundary_conditions) ? 1 : this->L;
+			const int x_min = (this->h != 0) ? 1 : 0;
+			const int k_end = (this->boundary_conditions) ? 1 : this->L / 2 + 1;
 		#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 			for (int k = 0; k < k_end; k++) {
 				if (k == 0 || k == this->L / 2.) {
 					for (int p = 0; p <= 1; p++){
-						for (int x = 0; x <= x_max; x++){
+						for (int x = x_min; x <= 1; x++){
 							auto dummy_lambda = [&lambda](int k, int p, int x, auto... args){
 								lambda(k, p, x, args...);
 							};
@@ -314,11 +314,11 @@ namespace isingUI
 					}
 				}
 				else {
-					for (int x = 0; x <= x_max; x++){
+					for (int x = x_min; x <= 1; x++){
 							auto dummy_lambda = [&lambda](int k, int p, int x, auto... args){
 								lambda(k, p, x, args...);
 							};
-							dummy_lambda(k, 0, x, args...);
+							dummy_lambda(k, 1, x, args...);
 					}
 				}
 			}
