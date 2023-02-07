@@ -296,7 +296,7 @@ def plot_spectral(axis, settings = None,
    
 # ------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------
-def get_thouless_time(par, set_class = None, vals = None):
+def get_thouless_time(par, set_class = None, vals = None, scaling_vals = None):
     if set_class is None:   set_class = cf.plot_settings    
     if par is None:         
         print("No parameter input!")
@@ -306,23 +306,26 @@ def get_thouless_time(par, set_class = None, vals = None):
     tau_data = []
     status_time = False
     try :
-        tau_data = thouless.load(getattr(set_class, 'settings'))
+        tau_data = thouless.load(getattr(set_class, 'settings'), vals=scaling_vals)
         status_time = True
     except OSError:
         print("No Thouless data present")
         
     taus = [];  gap_ratio = []; xvalues = []
     if status_time:
-        idx = list(tau_data[0]).index(par)
-        if vals is None:    vals = tau_data[1][idx]
-        for x in vals:
-            idx2 = min(range(len(tau_data[1][idx])), key=lambda i: abs(tau_data[1][idx][i] - x));
-            if idx2 >= 0:   
-                taus.append(tau_data[2][idx][idx2])
-                gap_ratio.append(tau_data[3][idx][idx2])
-            else:           
-                taus.append(np.nan)
-                gap_ratio.append(np.nan)
+        #idx = list(tau_data[0]).index(par)
+        idx = min(range(len(tau_data[0])), key=lambda i: abs(tau_data[0][i] - par));
+        if np.abs(par -  tau_data[0][idx]) < 1e-10:
+            if vals is None:    
+                vals = tau_data[1][idx]
+            for x in vals:
+                idx2 = min(range(len(tau_data[1][idx])), key=lambda i: abs(tau_data[1][idx][i] - x));
+                if idx2 >= 0:   
+                    taus.append(tau_data[2][idx][idx2])
+                    gap_ratio.append(tau_data[3][idx][idx2])
+                else:           
+                    taus.append(np.nan)
+                    gap_ratio.append(np.nan)
     xvalues = vals
     return status_time, np.array(xvalues), np.array(taus), np.array(gap_ratio)
 

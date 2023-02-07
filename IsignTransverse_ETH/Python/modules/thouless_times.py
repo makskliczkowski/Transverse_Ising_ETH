@@ -53,8 +53,8 @@ def get_tau_data_from_all_file(tau_data, settings) :
                         
                         wH = stats['mean level spacing']
                         wH = hfun.heisenberg_time( system_size = tau_data[0][i], dim = tau_data[9][i]) if np.isnan(wH) else 1. / wH
-                    except FileNotFoundError:   wH = 0.0#hfun.heisenberg_time( system_size = tau_data[0][i], dim = tau_data[9][i])
-                    if np.isnan(wH):            wH = 0.0#hfun.heisenberg_time( system_size = tau_data[0][i], dim = tau_data[9][i])
+                    except FileNotFoundError:   wH = hfun.heisenberg_time( system_size = tau_data[0][i], dim = tau_data[9][i])
+                    if np.isnan(wH):            wH = hfun.heisenberg_time( system_size = tau_data[0][i], dim = tau_data[9][i])
                     
                     taus[f"%.5f"%(par)] = (tau_data[5][i] * (wH if settings['physical_units'] else 1.0), tau_data[7][i])
         x_float = [];   tau = [];   gap = []
@@ -108,7 +108,7 @@ def load(settings = None, vals = None) :
     
     tau_data = load_taus()
     new_vals = []
-    print(vals)
+    #print(vals)
     for x in vals:
         cf.params_arr[settings['scaling_idx']] = x
         if settings['scaling_idx'] == 3 and cf.J0 == 0 and cf.g0 == 0:

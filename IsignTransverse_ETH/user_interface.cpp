@@ -13,7 +13,7 @@ void isingUI::ui::make_sim()
 	#endif
 	my_gen = randomGen(this->seed);
 	printAllOptions();
-
+	
 	//check_symmetry_rotation(); return;
 	//compare_energies();	return;
 	
@@ -56,6 +56,13 @@ void isingUI::ui::make_sim()
 			var = Ising_params::g;
 	}
 
+	auto kernel = [&](int k, int p, int x)
+	{
+		this->symmetries.k_sym = k;
+		this->symmetries.p_sym = p;
+		this->symmetries.x_sym = x;
+		eigenstate_entropy();
+	};
 	//for (auto& Ll : L_list){
 	//	this->L = Ll;
 	//	this->site = this->L / 2;
@@ -120,6 +127,8 @@ void isingUI::ui::make_sim()
 							const auto start_loop = std::chrono::system_clock::now();
 							stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
 							printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
+							
+							loopSymmetrySectors(kernel); continue;
 							
 							eigenstate_entropy(); continue;
 							//calculate_localisation_length(); continue;
@@ -1276,7 +1285,7 @@ void isingUI::ui::eigenstate_entropy(){
 		const int size = this->ch? 500 : N;
 	 	energies = arma::vec(size, arma::fill::zeros);
 		entropies = arma::vec(size, arma::fill::zeros);
-
+		const int num = N > 150? 100 : N / 2;
 		average_over_realisations<Ising_params::J>(*alfa, !(this->ch), kernel);
 		energies /= double(counter);
 		entropies /= double(counter);
@@ -1286,10 +1295,10 @@ void isingUI::ui::eigenstate_entropy(){
 		entropies.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "entropy", arma::hdf5_opts::append));
 		if(true || this->ch){
 			if(alfa->use_real_matrix){
-				arma::mat V = alfa->get_real_eigenvectors().submat(0, alfa->E_av_idx - 100, N - 1, alfa->E_av_idx + 100);
+				arma::mat V = alfa->get_real_eigenvectors().submat(0, alfa->E_av_idx - num / 2, N - 1, alfa->E_av_idx + num / 2);
 				V.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
 			} else {
-				arma::Mat<decltype(alfa->type_var)> V = alfa->get_eigenvectors().submat(0, alfa->E_av_idx - 100, N - 1, alfa->E_av_idx + 100);
+				arma::Mat<decltype(alfa->type_var)> V = alfa->get_eigenvectors().submat(0, alfa->E_av_idx - num / 2, N - 1, alfa->E_av_idx + num / 2);
 				V.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
 			}
 		}
@@ -1299,6 +1308,8 @@ void isingUI::ui::eigenstate_entropy(){
 		const int size = this->ch? 500 : N;
 	 	energies = arma::vec(size, arma::fill::zeros);
 		entropies = arma::vec(size, arma::fill::zeros);
+		
+		const int num = N > 150? 100 : N / 2;
 
 		if(alfa->using_Sz_symmetry()){
 			std::cout << "Using Sz symmetry!!" << std::endl;
@@ -1312,7 +1323,7 @@ void isingUI::ui::eigenstate_entropy(){
 		energies.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "energies"));
 		entropies.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "entropy", arma::hdf5_opts::append));
 		if(true || this->ch){
-			arma::Mat<decltype(alfa->type_var)> V = alfa->get_eigenvectors().submat(0, alfa->E_av_idx - 100, N - 1, alfa->E_av_idx + 100);
+			arma::Mat<decltype(alfa->type_var)> V = alfa->get_eigenvectors().submat(0, alfa->E_av_idx - num / 2, N - 1, alfa->E_av_idx + num / 2);
 			V.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
 		}
 	}
@@ -1500,9 +1511,22 @@ void isingUI::ui::adiabatic_gauge_potential(){
 	const long num_ent = L >= 10? 100 : 20;
 	
 
+	auto [opName, str] = IsingModel_disorder::opName(this->op, this->site);
+	std::string dir = this->saving_dir + "STATISTICS" + kPSep + "raw_data" + kPSep;
+	std::string dir_agp = this->saving_dir + "AGP" + kPSep + opName + kPSep + "raw_data" + kPSep;
+
+	createDirs(dir, dir_agp);
 	//---- KERNEL LAMBDA
+	auto start = std::chrono::system_clock::now();
+	auto start_diag = std::chrono::system_clock::now();
 	auto kernel = [&](auto& alfa, int realis, const arma::sp_cx_mat& opMat)
 	{
+		realis += this->jobid;
+		auto start_loop = std::chrono::system_clock::now();
+		stout << "\t\t	--> finished diagonalizing for " << info << " - in time : " << tim_s(start_diag) << "s" << std::endl;
+		std::string dir_agp_realisation = dir_agp + "realisation=" + std::to_string(realis) + kPSep;
+		createDirs(dir_agp_realisation);
+
 		const u64 N = alfa.get_hilbert_size();
 		this->mu = long(0.5 * N);
 		info = alfa.get_info();
@@ -1511,41 +1535,100 @@ void isingUI::ui::adiabatic_gauge_potential(){
 		long int E_max = alfa.E_av_idx + long(mu / 2);
 		const arma::Mat<decltype(alfa.type_var)> U = alfa.get_eigenvectors();
 		const arma::vec E = alfa.get_eigenvalues();
-		arma::cx_mat mat_elem = U.t() * opMat * U;
 
-		auto [AGP_local, typ_susc_local, susc_local] = adiabatics::gauge_potential(mat_elem, E, this->L);
-		typ_susc += typ_susc_local;
-		AGP += AGP_local;
-		susc += susc_local;
+		auto kernel_agp = [&](auto& mat_elem, auto dummy){
+			normaliseMat(mat_elem);
+			std::cout << "\t\t	--> set matrix elements for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 
-		double wH_typ_local = 0.0;
-		for(int i = 0; i < N; i++){
-			diag_norm += abs(mat_elem(i,i) * conj(mat_elem(i,i)));
-			if(i >= E_min && i < E_max){
-				const double gap1 = E(i) - E(i - 1);
-				const double gap2 = E(i + 1) - E(i);
-				const double min = std::min(gap1, gap2);
-				const double max = std::max(gap1, gap2);
-				wH += gap2;
-				wH_typ_local += std::log(gap2);
-        		if (abs(gap1) <= 1e-15 || abs(gap2) <= 1e-15){ 
-        		    std::cout << "Index: " << i << std::endl;
-        		    assert(false && "Degeneracy!!!\n");
-        		}
-				gap_ratio += min / max;
-	
-				const arma::Col<decltype(alfa.type_var)> state = U.col(i);
-				ipr += statistics::inverse_participation_ratio(state) / double(N);
-				info_entropy += statistics::information_entropy(state);
-				if(i >= alfa.E_av_idx - num_ent / 2. && i <= alfa.E_av_idx + num_ent / 2.)
-					entropy += entropy::vonNeumann(cast_cx_vec(state), this->L / 2, this->L);
+			std::cout << "\t\t MATRIX-ELEMENTS TYPE: " + type_name(dummy)
+				+ "\n\t\tdense - dim(H) = " + matrix_size(mat_elem.n_cols * mat_elem.n_rows * sizeof(mat_elem(0, 0))) << std::endl << std::endl;
+
+
+			auto [AGP_local, typ_susc_local, susc_local] = adiabatics::gauge_potential(mat_elem, E, this->L);
+		
+			std::cout << "\t\t	--> finished adiabatic gauge potential for " << info
+				  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
+
+			typ_susc += typ_susc_local;
+			AGP += AGP_local;
+			susc += susc_local;
+			double pert_2nd_term = 0;
+			double wH_typ_local = 0.0;
+
+			int th_num = 1;
+			if(this->thread_number > 1){
+				th_num = this->thread_number / 2;
+				omp_set_num_threads(2);
 			}
-		}
-		wH_typ += std::exp(wH_typ_local / double(this->mu));
 
-		auto state = this->set_init_state(N, 0);
-		info_ent_rnd += statistics::information_entropy(state);
-		counter++;
+		#pragma omp parallel for num_threads(th_num) schedule(dynamic)
+			for(long int i = 0; i < N; i++){
+				diag_norm += abs(mat_elem(i,i) * conj(mat_elem(i,i)));
+				std::cout << i << std::endl;
+				if(i >= E_min && i < E_max){
+					const double gap1 = E(i) - E(i - 1);
+					const double gap2 = E(i + 1) - E(i);
+					const double min = std::min(gap1, gap2);
+					const double max = std::max(gap1, gap2);
+					wH += gap2;
+					wH_typ_local += std::log(gap2);
+					if (abs(gap1) <= 1e-15 || abs(gap2) <= 1e-15){ 
+						std::cout << "Index: " << i << std::endl;
+						assert(false && "Degeneracy!!!\n");
+					}
+					gap_ratio += min / max;
+		
+					const arma::Col<decltype(alfa.type_var)> state = U.col(i);
+					ipr += statistics::inverse_participation_ratio(state) / double(N);
+					info_entropy += statistics::information_entropy(state);
+					//if(i >= alfa.E_av_idx - num_ent / 2. && i <= alfa.E_av_idx + num_ent / 2.)
+					//	entropy += entropy::vonNeumann(cast_cx_vec(state), this->L / 2, this->L);
+				}
+				for (long int j = 0; j < N && j != i; j++)
+					pert_2nd_term += abs(mat_elem(i,j) * conj(mat_elem(i,j))) / (E(j) - E(i));
+			}
+			wH_typ += std::exp(wH_typ_local / double(this->mu));
+
+			std::cout << "\t\t	--> finished statistics for " << info
+				  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
+			//auto state = this->set_init_state(N, 0);
+			//info_ent_rnd += statistics::information_entropy(state);
+			counter++;
+
+			std::ofstream file;
+			openFile(file, dir_agp_realisation + info + ".dat");
+			printSeparated(file, "\t", 25, true, "'adiabatic gauge potential'", 	 			  AGP_local);
+			printSeparated(file, "\t", 25, true, "'typical fidelity susceptibility'", 	 	 typ_susc_local);
+			printSeparated(file, "\t", 25, true, "'fidelity susceptibility'", 			 	 	 susc_local);
+			printSeparated(file, "\t", 25, true, "'diagonal normalisation factor'", 		  pert_2nd_term);
+
+			file.close();
+				
+			omp_set_num_threads(this->thread_number);
+		};
+
+		if(alfa.use_real_matrix){
+			if(arma::imag(opMat).is_zero(1e-15)){
+				arma::mat U = alfa.get_real_eigenvectors();
+				arma::sp_mat oper_re = arma::real(opMat);
+				arma::mat mat_elem = U.t() * oper_re * U;
+				double dummy;
+				kernel_agp(mat_elem, dummy);
+			} else {
+				arma::cx_mat U(N, N, arma::fill::zeros);
+				U.set_real(alfa.get_real_eigenvectors());
+				arma::cx_mat mat_elem = U.t() * opMat * U;
+				cpx dummy;
+				kernel_agp(mat_elem, dummy);
+			}
+		} else {
+			auto U = alfa.get_eigenvectors();
+			arma::cx_mat mat_elem = U.t() * opMat * U;
+			cpx dummy;
+			kernel_agp(mat_elem, dummy);
+		}
+		
+		start_diag = std::chrono::system_clock::now();
 	};
 
 	//---- START COMPUTATION
@@ -1560,10 +1643,6 @@ void isingUI::ui::adiabatic_gauge_potential(){
 		average_over_realisations<Ising_params::h>(*alfa, true, kernel, opMat);
 	}
 
-	auto [opName, str] = IsingModel_disorder::opName(this->ch, this->site);
-	std::string dir = this->saving_dir + "STATISTICS" + kPSep + "raw_data" + kPSep;
-	std::string dir_agp = this->saving_dir + "AGP" + kPSep + opName + kPSep + "raw_data" + kPSep;
-	createDirs(dir, dir_agp);
 	std::ofstream file;
 
 	openFile(file, dir + info + "_jobid=" + std::to_string(jobid) + ".dat");

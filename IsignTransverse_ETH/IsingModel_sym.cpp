@@ -378,8 +378,8 @@ void IsingModel_sym::diag_sparse(bool get_eigenvectors, int maxiter, double tol,
 	opts.maxiter = maxiter;
 	opts.tol = tol;
 	int num = 500;
-	arma::cx_vec E;
-	//arma::eigs_gen(E, this->eigenvectors, this->H, num, sigma, opts);
+	arma::cx_vec E(num, arma::fill::zeros);
+	//arma::eigs_gen(E, this->eigenvectors, this->H, num, sigma);
 	this->eigenvalues = arma::real(E);
 }
 // ------------------------------------------------------------------------------------------------ PHYSICAL QUANTITTIES ------------------------------------------------------------------------------------------------

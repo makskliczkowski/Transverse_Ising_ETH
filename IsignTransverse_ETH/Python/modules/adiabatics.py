@@ -47,7 +47,9 @@ def plot_agp(axis=None, settings_class = None,
         filename2 = cf.base_directory + "STATISTICS" + kPSep + hfun.remove_info(hfun.info_param(cf.params_arr), settings['vs']) + ".dat"
         if exists(filename):
             data = pd.read_table(filename, sep="\t", header=None)
-            if "nan" in data[1][1]: continue
+            #data = hfun.read_python_saved_dat_file(filename)
+            
+            #if "nan" in data[1][1]: continue
 
             stats = hfun.read_python_saved_dat_file(filename2)
             xdata = (np.array(data[0][1:])).astype(np.float)
@@ -58,13 +60,13 @@ def plot_agp(axis=None, settings_class = None,
             Lx = x if settings['scaling_idx'] == 0 else cf.L
             dim = 2**Lx if cf.model == 0 else binom(Lx, Lx/2)
             if which == 2:
-                rescale = dim * np.power(wH, 2) / Lx if operator != 8 else 1./Lx**2
+                rescale = dim * np.power(wH, 2) / Lx if operator != 8 else (1./Lx**2 if cf.model == 2 else ydata * np.power(wH, 2) / Lx)
                 if operator == 12: rescale /= Lx**1.5
                 ydata = ydata * rescale
             elif which == 1:
                 ydata = ydata / dim
             elif which == 3:
-                ydata = ydata / Lx**2
+                ydata = (ydata * np.power(wH, 1) / Lx if cf.model != 2 else ydata / Lx**1.95) if operator == 8 else ydata
             elif which == 4:
                 ydata *= x * np.log(x) if operator != 12 else x
             axis.plot(xdata, ydata, label=hfun.key_title(x, settings), marker='o')
@@ -82,9 +84,9 @@ def plot_agp(axis=None, settings_class = None,
     if which == 1:
         ylab = "||\\mathcal{A}(A)||^2 / D"
     elif which == 2:
-        ylab = "D\\cdot\\omega_H^2\\cdot\\chi^{typ}(A) / L" if operator != 8 else "\\chi^{typ}(A) / L^2"
+        ylab = "D\\cdot\\omega_H^2\\cdot\\chi^{typ}(A) / L" if operator != 8 else ("\\chi^{typ}(A) / L^2" if cf.model == 2 else "\\chi^{typ}(A) \\cdot\\omega_H^2/ L")
     elif which == 3:
-        ylab = "\\chi(A)"
+        ylab = ("\\chi(A) \\cdot\\omega_H/ L" if cf.model != 2 else "\\chi(A)\ / L^{1.95}") if operator == 8 else "\\chi(A)"
     else :
       ylab = "||A||^2_{diag}\\cdot L\\cdot\\ln L" if operator != 12 else "||A||^2_{diag}\\cdot L"
     xlab = hfun.var_name if settings['vs_idx'] == 2 else ("\\varepsilon" if settings['vs_idx'] == 4 and cf.model == 2 else settings['vs'])

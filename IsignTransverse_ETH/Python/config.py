@@ -3,11 +3,11 @@ from os import sep as kPSep
 import utils.plot_settings as ps
 importlib.reload(ps)
 #---------------------------------------------------- MODEL PARAMETERS
-model = 2           # chooses model: 0-disorder / 1-symmetries / 2-local perturbation
+model = 0           # chooses model: 0-disorder / 1-symmetries / 2-local perturbation
 hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
-BC = 0              # boundaary condition: 0 - OBC / 1 - PBC
+BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
 
-L = 18                          # system size
+L = 16                          # system size
 J = 1.00                        # spin exchange (Ising-like)
 g = 0.55                       # trasnverse magnetic field (z-axis)
 h = 0.0                        # longitudal magnetic field (x-axis)
@@ -43,7 +43,7 @@ plot_settings_dict = {
     'nu_x':             -1.0,           # power of inversion
 
 #---- operator options
-    'operator':         2,         # chosen operator according to order set in IsingModel.h
+    'operator':         0,         # chosen operator according to order set in IsingModel.h
     'site':            L/2,          # chosen site for local operator
     'smoothed':        1,          # choose running-smoothed option
 
