@@ -1,8 +1,12 @@
 #pragma once
+
+//#ifndef 
 #include "config.hpp"
+#include "metaprograming/traits.h"
 #include "commons.h"
-#include "random.h"
+#include "random_and_disorder/disorder.hpp"
 #include "digamma.h"
+
 
 extern int num_of_threads;													// number of threads
 extern int anderson_dim;
@@ -55,7 +59,7 @@ inline
 std::string to_string_prec(const T a_value, int n = -1) {
 	if(n < 0)
 		n = order_of_magnitude(a_value);
-	std::cout << n << std::endl;
+	//std::cout << n << std::endl;
 	std::ostringstream outie;
 	outie.precision(n);
 	outie << std::fixed << a_value;
@@ -546,6 +550,20 @@ private:
 
 //! ----------------------------------------------------------------------------- ARMADILLO HELPERS -----------------------------------------------------------------------------
 //<! calculate commutator of two input matrix types, which have overloaded * operator
+inline std::string matrix_size(u64 dim){
+	 if(dim < 1e3)
+	 	return std::to_string(dim) + " bytes";
+	 else if(dim < 1e6)
+	 	return to_string_prec(dim / 1e3, 2) + " kB";
+	 else if(dim < 1e9)
+	 	return to_string_prec(dim / 1e6, 2) + " MB";
+	 else if(dim < 1e12)
+	 	return to_string_prec(dim / 1e9, 2) + " GB";
+	else 
+	 	return to_string_prec(dim / 1e12, 2) + " TB";
+}
+
+
 template <typename matrix>
 matrix commutator(const matrix& A, const matrix& B)
 	{ return A * B - B * A; }

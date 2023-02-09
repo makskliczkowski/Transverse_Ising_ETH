@@ -25,6 +25,7 @@ slurm-*.out
 *.sh
 *.txt
 *.dat
+*.npy
 # whole folders will be ignored
 
 # User-specific files (MonoDevelop/Xamarin Studio)

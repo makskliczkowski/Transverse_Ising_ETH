@@ -4,15 +4,17 @@
 IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, double g0, double h, double w, int _BC) {
 	this->L = L; this->J = J; this->g = g; this->h = h;
 	this->J0 = J0; this->g0 = g0;  this->w = w;
-	this->N = ULLPOW(this->L);
 	this->_BC = _BC;
 	
+	this->use_real_matrix = true;
+
 	//change info
 	#ifdef ANDERSON
 		this->info = "_L=" + std::to_string(this->L) + \
 			",J=" + to_string_prec(this->J, 2) + \
 			",J0=" + to_string_prec(this->J0, 2) + \
 			",w=" + to_string_prec(this->w, 2);
+		this->N = this->L * this->L * this->L;
 	#else
 		this->info = "_L=" + std::to_string(this->L) + \
 			",J=" + to_string_prec(this->J) + \
@@ -21,6 +23,7 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 			",g0=" + to_string_prec(this->g0) + \
 			",h=" + to_string_prec(this->h) + \
 			",w=" + to_string_prec(this->w);
+		this->N = ULLPOW(this->L);
 	#endif
 	this->set_neighbors();
 	this->use_Sz_sym = false;
@@ -32,7 +35,9 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 			this->use_Sz_sym = true;
 			std::cout << "Using XYZ with Sz sym" << std::endl;
 		} else
-			std::cout << "Using XYZ with Sz sym" << std::endl;
+			std::cout << "Using XYZ" << std::endl;
+	#elif defined(ANDERSON)
+			std::cout << "Using 3D Anderson model" << std::endl;
 	#elif defined(QUANTUM_SUN)
 		this->use_Sz_sym = false;
 		std::cout << "Using Quantum Sun" << std::endl;
@@ -45,6 +50,7 @@ IsingModel_disorder::IsingModel_disorder(int L, double J, double J0, double g, d
 	#endif	
 	if(use_Sz_sym)
 		generate_mapping();
+	std::cout << "Spectrum size:\t" << this->N << std::endl;
 	this->hamiltonian();
 }
 
@@ -118,16 +124,16 @@ void IsingModel_disorder::hamiltonian() {
 	}
 	#pragma omp critical
 	{
-		this->dh = arma::vec(this->L, arma::fill::zeros);
-		this->dJ = arma::vec(this->L, arma::fill::zeros);
-		this->dg = arma::vec(this->L, arma::fill::zeros);
+		this->dh = disorder::uniform<double>(this->L, 0);
+		this->dJ = disorder::uniform<double>(this->L, 0);
+		this->dg = disorder::uniform<double>(this->L, 0);
 		#if defined(LOCAL_PERT)
 			this->dh(this->L / 2.) = this->w;
 			this->dh(0) = 0.1;
 		#else
-			this->dh = my_gen.create_random_vec<double>(L, this->w);                               // creates random disorder vector
-			this->dJ = my_gen.create_random_vec<double>(L, this->J0);                              // creates random exchange vector
-			this->dg = my_gen.create_random_vec<double>(L, this->g0);                              // creates random transverse field vector
+			this->dh.reset(this->L, this->w);                               // creates random disorder vector
+			this->dJ.reset(this->L, this->J0);                              // creates random exchange vector
+			this->dg.reset(this->L, this->g0);                              // creates random transverse field vector
 		#endif
 	}
 	#if MODEL == 0
@@ -152,35 +158,39 @@ void IsingModel_disorder::hamiltonian() {
 void IsingModel_disorder::hamiltonian_qsun()
 {
 	int M = 3; // bubble size
+	const size_t dim_loc = ULLPOW((L - M));
+	const size_t dim_erg = ULLPOW((M));
 	
 	/* Create GOE Matrix */
-	arma::mat H_grain = my_gen.create_goe_matrix<double>(ULLPOW(M));
-	//normaliseMat(R);
-	H_grain = arma::kron(H_grain, arma::eye(ULLPOW((L - M)), ULLPOW((L - M))));
+	arma::mat H_grain = my_gen.create_goe_matrix<double>(dim_erg);
+	
 
 	/* Create Rest of Hamiltonian */
 	arma::Col<int> random_neigh(this->L, arma::fill::zeros);
-	for(int i = M; i < this->L; i++)
-		random_neigh(i) = my_gen.randomInt_uni(0, M);
+	for(int i = 0; i < this->L; i++)
+		random_neigh(i) = i < M? -1 : my_gen.randomInt_uni(0, M - 1);
+
+	std::cout << random_neigh.t() << std::endl;
 
 	for (int j = 0; j < L; j++) 
-	 	this->dJ(j) = j < M? 0.0 : this->J * std::pow(this->g, j - M + 1 + this->dJ(j));
-	
+	 	this->dJ(j) = j < M? 0.0 : std::pow(this->g, j - M + 1 + this->dJ(j));
+
 	for (u64 k = 0; k < N; k++) {
 		double s_i, s_j;
 		u64 base_state = map(k);
 		for (int j = M; j < L; j++) {
+			/* disorder on localised spins */
             auto [val, Sz_k] = operators::sigma_z(base_state, this->L, { j });
-            this->setHamiltonianElem(k, (this->h + this->dh(j)) * real(val), Sz_k);
+			this->setHamiltonianElem(k, (this->h + this->dh(j)) * real(val), Sz_k);
 
 			/* coupling of localised spins to GOE grain */
 			int nei = random_neigh(j);
 		    auto [val1, Sx_k] = operators::sigma_x(base_state, this->L, { j });
 		    auto [val2, SxSx_k] = operators::sigma_x(Sx_k, this->L, { nei });
-			this->setHamiltonianElem(k, this->dJ(j) * real(val1 * val2), SxSx_k);
+			this->setHamiltonianElem(k, this->J * this->dJ(j) * real(val1 * val2), SxSx_k);
 		}
 	}
-	this->H = this->H + H_grain;
+	this->H = this->H + arma::kron(H_grain, arma::eye(dim_loc, dim_loc));
 }
 
 void IsingModel_disorder::hamiltonian_xyz(){
@@ -275,11 +285,15 @@ void IsingModel_disorder::hamiltonian_heisenberg(){
 
 
 void IsingModel_disorder::diag_sparse(bool get_eigenvectors, int maxiter, double tol, double sigma){
-	arma::eigs_opts opts;
-	opts.maxiter = maxiter;
-	opts.tol = tol;
-	int num = 500;
-	arma::eigs_sym(this->eigenvalues, this->eigenvectors, this->H, num, sigma, opts);
+	#ifdef ARMA_USE_SUPERLU
+		arma::eigs_opts opts;
+		opts.maxiter = maxiter;
+		opts.tol = tol;
+		int num = 500;
+		arma::eigs_sym(this->eigenvalues, this->eigenvectors, this->H, num, sigma, opts);
+	#else
+		#pragma message ("No SuperLu defined. Ignoring shift-invert possibility.")
+	#endif
 }
 // ----------------------------------------------------------------------------- PHYSICAL QUANTITES -----------------------------------------------------------------------------
 

@@ -13,7 +13,7 @@ void isingUI::ui::make_sim()
 	#endif
 	my_gen = randomGen(this->seed);
 	printAllOptions();
-
+	
 	//check_symmetry_rotation(); return;
 	//compare_energies();	return;
 	
@@ -56,12 +56,19 @@ void isingUI::ui::make_sim()
 			var = Ising_params::g;
 	}
 
-	for (auto& Ll : L_list){
-		this->L = Ll;
-		this->site = this->L / 2;
-		generate_statistic_map(Ising_params::w); 
-		//thouless_times(var);
-	}; return;
+	auto kernel = [&](int k, int p, int x)
+	{
+		this->symmetries.k_sym = k;
+		this->symmetries.p_sym = p;
+		this->symmetries.x_sym = x;
+		eigenstate_entropy();
+	};
+	//for (auto& Ll : L_list){
+	//	this->L = Ll;
+	//	this->site = this->L / 2;
+	//	generate_statistic_map(Ising_params::w); 
+	//	//thouless_times(var);
+	//}; return;
 
 	//for(this->beta = 0.0; this->beta < 3.0; this->beta += 0.1)
 	//	spectral_form_factor();
@@ -121,6 +128,8 @@ void isingUI::ui::make_sim()
 							stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
 							printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
 							
+							loopSymmetrySectors(kernel); continue;
+							
 							eigenstate_entropy(); continue;
 							//calculate_localisation_length(); continue;
 							calculate_statistics(); continue;
@@ -131,6 +140,8 @@ void isingUI::ui::make_sim()
 
 							analyze_spectra(); continue;
 							spectral_form_factor(); continue;
+							stout << "\t\t - - - - - - FINISHED ITERATIO IN : " << tim_s(start_loop) << " seconds - - - - - - " << std::endl; // simulation end
+
 						}}}}}
 		}
 	stout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - " << std::endl; // simulation end
@@ -255,7 +266,7 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 	}
 	if(!loaded){
 		bool status = false;
-		#if !defined(ANDERSON) && !defined(HEISENBRG)
+		#if defined(ISING)
 			status = true;
 		#endif
 		if(status && alfa.g == 0){
@@ -614,23 +625,11 @@ void isingUI::ui::compare_entaglement()
 }
 void isingUI::ui::benchmark()
 {
-	auto save_eigs = [this](auto& alfa){
-		auto eigenvalues = alfa.get_eigenvalues();
-		std::string info = alfa.get_info({});
-		std::string dir = this->saving_dir + "EIGENVALUES" + kPSep;
-		createDirs(dir);
-		eigenvalues.save(arma::hdf5_name(dir + kPSep + info + ".h5", "eigenvalues"));
-		dir = this->saving_dir + "EIGENVECTORS" + kPSep;
-		createDirs(dir);
-		auto V = alfa.get_eigenvectors();
-		V.save(arma::hdf5_name(dir + kPSep + info + ".h5", "eigenvectors"));
-	};
 	if (!this->ch)
 	{
 		const int Lmin = this->L, Lmax = this->L + this->Ln * this->Ls;
-		int th_max = this->thread_number;
 		std::ofstream file;
-		std::vector th_list = {1, 2, 4, 8, 16, 24, 32, 40, 48, 64};
+		std::vector th_list = {1, 2, 4, 8, 16, 24, 32, 48, 64, 128, 256, 512};
 		std::string info = this->m ? IsingModel_sym::set_info(L, J, g, h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, {"L"}, ",")
 								   : IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, {"L"}, ",");
 		openFile(file, this->saving_dir + "benchmark" + info + ".dat", std::ios::out);
@@ -648,7 +647,6 @@ void isingUI::ui::benchmark()
 																 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 					auto start = std::chrono::system_clock::now();
 					alfa->diagonalization(true, "dc");
-					save_eigs(*alfa);
 					double tim1 = tim_s(start);
 					start = std::chrono::system_clock::now();
 					alfa->diagonalization(false);
@@ -661,7 +659,6 @@ void isingUI::ui::benchmark()
 					auto alfa = std::make_unique<IsingModel_disorder>(system_size, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 					auto start = std::chrono::system_clock::now();
 					alfa->diagonalization(true, "dc");
-					save_eigs(*alfa);
 					double tim1 = tim_s(start);
 					start = std::chrono::system_clock::now();
 					alfa->diagonalization(false);
@@ -681,7 +678,6 @@ void isingUI::ui::benchmark()
 			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 			auto start = std::chrono::system_clock::now();
 			alfa->diagonalization(true, "dc");
-			save_eigs(*alfa);
 			double tim1 = tim_s(start);
 			start = std::chrono::system_clock::now();
 			alfa->diagonalization(false);
@@ -695,7 +691,6 @@ void isingUI::ui::benchmark()
 			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 			auto start = std::chrono::system_clock::now();
 			alfa->diagonalization(true, "dc");
-			save_eigs(*alfa);
 			double tim1 = tim_s(start);
 			start = std::chrono::system_clock::now();
 			alfa->diagonalization(false);
@@ -774,32 +769,31 @@ void isingUI::ui::calculate_spectrals()
 			 AGP = 0.0,	//<! adiabatic gauge potential
 		typ_susc = 0.0,	//<! typical fidelity susceptibility
 			susc = 0.0,	//<! fidelity susceptibility
-	   		  wH = 0.0,	//<! mean level spacing
-	   	  wH_typ = 0.0;	//<! typical level spacing
+	   		  wH = 0.0;	//<! mean level spacing
 	
 	const double chi = 0.341345;
 	size_t N = ULLPOW(this->L);
 	const double wooH = sqrt(this->L) / (chi * N) * sqrt(this->J * this->J + this->h * this->h + this->g * this->g
 												 + ( this->m? 0.0 : (this->w * this->w + this->g0 * this->g0 + this->J0 * this->J0) / 3. ));
 	double tH = 1. / wooH;
-	int num_of_points = 1000;
-	int time_end = (int)std::ceil(std::log10(1.75 * tH));
-	time_end = (time_end / std::log10(tH) < 2.0) ? time_end + 1 : time_end;
+	int num_of_points = 3000;
+	int time_end = (int)std::ceil(std::log10(1.25 * tH));
+	time_end = (time_end / std::log10(tH) < 1.25) ? time_end + 1 : time_end;
+
 	auto times = arma::logspace(-2, time_end, num_of_points);
 	auto omegas = arma::logspace(-time_end, 2, num_of_points);
 	arma::vec omega_spec = omegas; omega_spec.shed_row(omega_spec.size() - 1);
 
 	arma::vec opEvol(times.size(), arma::fill::zeros);
 	arma::vec opIntSpec(omegas.size(), arma::fill::zeros);
-	std::vector<u64> map;
-	
+	arma::vec susc_vec;
 	//---------------- SET KERNEL
 	double LTA = 0;
-	arma::sp_cx_mat op;
 	auto start_loop = std::chrono::system_clock::now();
 	auto kernel = [&](
-		auto& alfa, int r
+		auto& alfa, int r, const arma::sp_cx_mat& oper
 		){
+		stout << "\n\t\t--> finished generating operator for " << info << " - in time : " << tim_s(start) << "s" << std::endl;
 		r += this->jobid;
 		std::string tdir_realisation = timeDir + "realisation=" + std::to_string(r) + kPSep;
 		std::string intdir_realisation = intDir + "realisation=" + std::to_string(r) + kPSep;
@@ -807,16 +801,12 @@ void isingUI::ui::calculate_spectrals()
 		std::string specdir_real_mat_elem = specdir_realisation + "mat_elem" + kPSep;
 		createDirs(tdir_realisation, intdir_realisation, specdir_realisation, specdir_real_mat_elem);
 		
-		stout << "\t\t	--> finished diagonalizing for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
-		auto U = alfa.get_eigenvectors();
-		arma::vec E = alfa.get_eigenvalues();
-		
-		stout << "\t\t	--> got eigenvectors for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
-		op = alfa.chooseOperator(this->op, this->site);
-		arma::cx_mat mat_elem = U.t() * op * U;
-		normaliseMat(mat_elem);
-		stout << "\t\t	--> set matrix elements for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+		if(oper.is_zero(1e-15))
+			assert(false && "Something went wrong. No set operator\n\n");
 
+
+		stout << "\t\t	--> finished diagonalizing for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+		arma::vec E = alfa.get_eigenvalues();
 
 		N = alfa.get_hilbert_size();
 		this->mu = long(0.5 * N);
@@ -824,77 +814,97 @@ void isingUI::ui::calculate_spectrals()
 		long int E_max = alfa.E_av_idx + long(mu / 2);
 	
 		double wH_local = 0.0;
-		double wH_typ_local = 0.0;
 		for(int i = 0; i < N; i++){
 			if(i >= E_min && i < E_max){
 				const double gap = E(i + 1) - E(i);
 				wH_local += gap;
-				wH_typ_local += std::log(gap);
 			}
 		}
 		wH_local = wH_local / double(this->mu);
 		wH += wH_local;
 		counter++;
+		std::cout << "\t\t	--> finished statistics for " << info
+			<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 
-		stout << "\t\t	--> finished statistics for " << info
-			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+		auto kernel_spectrals = [&](auto& mat_elem, auto dummy){
+			normaliseMat(mat_elem);
+			std::cout << "\t\t	--> set matrix elements for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 
-		auto [op_tmp, LTA_tmp] = spectrals::autocorrelation_function(mat_elem, E, times);
-		save_to_file(tdir_realisation + opName + info + ".dat", times, op_tmp, 1.0 / wH_local, LTA_tmp);
-		stout << "\t\t	--> finished time evolution for " << info
-			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
-		
-		auto res = spectrals::integratedSpectralFunction(mat_elem, E, omegas);
-		save_to_file(intdir_realisation + opName + info + ".dat", omegas, res, wH_local, LTA_tmp);
-		stout << "\t\t	--> finished integrated spectral function for " << info
-			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+			std::cout << "\t\t MATRIX-ELEMENTS TYPE: " + type_name(dummy)
+				+ "\n\t\tdense - dim(H) = " + matrix_size(mat_elem.n_cols * mat_elem.n_rows * sizeof(mat_elem(0, 0))) << std::endl << std::endl;
 
-		spectrals::preset_omega set_omega(E, 0.0025 * alfa.L, E(alfa.E_av_idx));
-		set_omega.save_matrix_elements(specdir_real_mat_elem + opName + info, mat_elem);
+			auto [op_tmp, LTA_tmp] = spectrals::autocorrelation_function(mat_elem, E, times);
+			save_to_file(tdir_realisation + opName + info + ".dat", times, op_tmp, 1.0 / wH_local, LTA_tmp);
+			std::cout << "\t\t	--> finished time evolution for " << info
+				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+			
+			auto res = spectrals::integratedSpectralFunction(mat_elem, E, omegas);
+			save_to_file(intdir_realisation + opName + info + ".dat", omegas, res, wH_local, LTA_tmp);
+			std::cout << "\t\t	--> finished integrated spectral function for " << info
+				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 
-		//auto specfun_r = spectrals::spectralFunction(mat_elem, set_omega, omega_spec);
-		//save_to_file(specdir_realisation + opName + info + ".dat", omega_spec, specfun_r, wH_local, LTA_tmp);
-		stout << "\t\t	--> finished saving matrix elements for " << info
-			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+			const double window_width = (N > 5e4? 0.025 : 0.075) * (E(N - 1) - E(0));// 0.025 * alfa.L;
+			spectrals::preset_omega set_omega(E, window_width, E(alfa.E_av_idx));
+			set_omega.save_matrix_elements(specdir_real_mat_elem + opName + info, mat_elem);
 
-		LTA += LTA_tmp;
-		opEvol += op_tmp;
-		opIntSpec += res;
+			//auto specfun_r = spectrals::spectralFunction(mat_elem, set_omega, omega_spec);
+			//save_to_file(specdir_realisation + opName + info + ".dat", omega_spec, specfun_r, wH_local, LTA_tmp);
+			std::cout << "\t\t	--> finished saving matrix elements for " << info
+				<< " realisation: " << r << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 
-		auto [AGP_local, typ_susc_local, susc_local] = adiabatics::gauge_potential(mat_elem, E, this->L);
-		typ_susc += typ_susc_local;
-		AGP += AGP_local;
-		susc += susc_local;
+			LTA += LTA_tmp;
+			opEvol += op_tmp;
+			opIntSpec += res;
 
-		stout << "\t\t	--> finished adiabatic gauge potential for " << info
-			  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
+			auto [AGP_local, typ_susc_local, susc_local, susc_vec_local] = adiabatics::gauge_potential(mat_elem, E, this->L);
+			typ_susc += typ_susc_local;
+			AGP += AGP_local;
+			susc += susc_local;
+			susc_vec += susc_vec_local;
+			std::cout << "\t\t	--> finished adiabatic gauge potential for " << info
+				  << " realisation: " << r << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
+
+		};
+		std::cout << oper << std::endl;
+
+		if(alfa.use_real_matrix){
+			if(arma::imag(oper).is_zero(1e-15)){
+				arma::mat U = alfa.get_real_eigenvectors();
+				arma::sp_mat oper_re = arma::real(oper);
+				arma::mat mat_elem = U.t() * oper_re * U;
+				double dummy;
+				kernel_spectrals(mat_elem, dummy);
+			} else {
+				arma::cx_mat U(N, N, arma::fill::zeros);
+				U.set_real(alfa.get_real_eigenvectors());
+				arma::cx_mat mat_elem = U.t() * oper * U;
+				cpx dummy;
+				kernel_spectrals(mat_elem, dummy);
+			}
+		} else {
+			auto U = alfa.get_eigenvectors();
+			arma::cx_mat mat_elem = U.t() * oper * U;
+			cpx dummy;
+			kernel_spectrals(mat_elem, dummy);
+		}
+
 
 		start_loop = std::chrono::system_clock::now();
 	};
 	
 	//---------------- SIMULATION FOR INPUT MODEL
 	
-	int M;
-	auto prefix_kernel = [&](auto& alfa){
-		op = alfa.chooseOperator(this->op, this->site);
-		stout << "\n\t\t--> finished generating operator and omega bins for " << info << " - in time : " << tim_s(start) << "s" << std::endl;;	
-	};
 	if(this->m){
 		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
-		prefix_kernel(*alfa);
-		map = alfa->get_mapping();
-		average_over_realisations<Ising_params::h>(*alfa, true, kernel);
+		arma::sp_cx_mat oper = alfa->chooseOperator(this->op, this->site);
+		susc_vec = arma::vec(alfa->get_hilbert_size(), arma::fill::zeros);
+		average_over_realisations<Ising_params::h>(*alfa, true, kernel, oper);
 	} else{
 		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
-		prefix_kernel(*alfa);
-		#ifdef HEISENBERG
-			map = alfa->get_mapping();
-		#elif !defined(ANDERSON)
-			if(this->g == 0 && this->g0 == 0)
-				map = alfa->get_mapping();
-		#endif
-		average_over_realisations<Ising_params::h>(*alfa, true, kernel);
+		arma::sp_cx_mat oper = alfa->chooseOperator(this->op, this->site);
+		susc_vec = arma::vec(alfa->get_hilbert_size(), arma::fill::zeros);
+		average_over_realisations<Ising_params::h>(*alfa, true, kernel, oper);
 	}
 
 	std::string dir_agp = this->saving_dir + "AGP" + kPSep + opName + kPSep + "raw_data" + kPSep;
@@ -912,6 +922,8 @@ void isingUI::ui::calculate_spectrals()
 	printSeparated(file, "\t", 25, true, "'typical fidelity susceptibility'", typ_susc / double(counter));
 	printSeparated(file, "\t", 25, true, "'fidelity susceptibility'", 		 	  susc / double(counter));
 	printSeparated(file, "\t", 25, true, "'diagonal normalisation factor'", 	   LTA);
+
+	susc_vec.save(arma::hdf5_name(dir_agp + info + "_jobid=" + std::to_string(this->jobid) + ".hdf5", "susc"));
 
 	file.close();
 	return;
@@ -941,7 +953,7 @@ void isingUI::ui::combine_spectrals(){
 	std::string dir_agp = this->saving_dir + "AGP" + kPSep + opName + kPSep + "raw_data" + kPSep;
 	createDirs(timeDir, intDir, specDir_der, dir_agp);
 
-	int num_of_points = 1000;
+	int num_of_points = 3000;
 	arma::vec opEvol(num_of_points, arma::fill::zeros);
 	arma::vec opIntSpec(num_of_points, arma::fill::zeros);
 	arma::vec times(num_of_points);
@@ -974,7 +986,6 @@ void isingUI::ui::combine_spectrals(){
 		if(status){
 			int idx = 0;
 			std::string line;
-			bool isnan = false;
 			while(std::getline(file, line)){
 				std::istringstream ss(line);
 				std::vector<std::string> datarow;
@@ -1037,7 +1048,8 @@ void isingUI::ui::combine_spectrals(){
 		printSeparated(file_out, "\t", 25, true, "'adiabatic gauge potential'", 		agps(0));
 		printSeparated(file_out, "\t", 25, true, "'typical fidelity susceptibility'",	agps(1));
 		printSeparated(file_out, "\t", 25, true, "'fidelity susceptibility'", 			agps(2));
-		printSeparated(file_out, "\t", 25, true, "'diagonal normalisation factor'", 	agps(3));
+		printSeparated(file_out, "\t", 25, true, "'perturbation 2nd order'", 			agps(3));
+		
 		file_out.close();
 	}
 	
@@ -1068,8 +1080,8 @@ void isingUI::ui::combine_spectrals(){
 		statistics::probability_distribution(HybridDir, filename, hybrid, -1, arma::mean(hybrid), arma::var(hybrid));
 		statistics::probability_distribution(HybridDir, filename + "_log", 0.5 * arma::log(hybrid), -1, arma::mean(hybrid), arma::var(hybrid));
 
-		std::vector<int> numss = {500, 2000, 6000, 10000};
-		const long num = (this->realisations == 1)? numss[ (this->L - 12) / 2] : ULLPOW(this->L / 2) * std::sqrt(counter_int);
+		std::vector<int> numss = {150, 500, 2000, 5000, 10000};
+		const long num = (this->realisations == 1)? numss[ (this->L - 10) / 2] : ULLPOW(this->L / 2) * std::sqrt(counter_int);
 		spectrals::spectralFunction(omegas_spec, mat_elem, specDir + filename, num);	smoothen_data(specDir, filename + ".dat");
 	}
 }
@@ -1177,11 +1189,23 @@ void isingUI::ui::entropy_evolution(){
 	}
 	
 }
-	
+
+template <typename _ty>
+arma::Col<_ty> cast_state_to_full(const arma::Col<_ty>& state, const std::vector<u64>& map, size_t dim_max){
+	if(map.empty())
+		return state;
+	else{
+		arma::Col<_ty> full_state(dim_max, arma::fill::zeros);
+		for(int i = 0; i < map.size(); i++)
+			full_state(map[i]) = state(i);
+		return full_state;
+	}
+};
 //<! calculate entaglement in eigenstates and saves to file
 //<! -s sets the subsystem size, if-s=0 the L/2 is assumed 
 void isingUI::ui::eigenstate_entropy(){
 
+	clk::time_point start = std::chrono::system_clock::now();
 	//---- KERNEL LAMBDA
 	std::vector<u64> map;
 	std::string dir = this->saving_dir + "Entropy" + kPSep + "Eigenstate" + kPSep;
@@ -1198,20 +1222,43 @@ void isingUI::ui::eigenstate_entropy(){
 	{
 		realis += this->jobid;
 		const int size = this->ch? 500 : N;
-		if(this->ch)
-			alfa.diag_sparse(true);
+		#ifdef ARMA_USE_SUPERLU
+			if(this->ch){
+				alfa.hamiltonian();
+				alfa.diag_sparse(true);
+			}
+		#endif
+		std::cout << " - - - - - - FINISHED DIAGONALIZATION IN : " << tim_s(start) << " seconds - - - - - - " << std::endl; // simulation end
+		
+		start = std::chrono::system_clock::now();
 		const arma::vec E = alfa.get_eigenvalues();
 		const arma::sp_cx_mat U = alfa.symmetryRotation();
+		std::cout << " - - - - - - FINISHED CREATING SYMMETRY TRANSFORMATION IN : " << tim_s(start) << " seconds - - - - - - " << std::endl; // simulation end
+
 		arma::vec S(size, arma::fill::zeros);
-
-	//#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
+		
+		int th_num = this->thread_number;
+		omp_set_num_threads(1);
+		std::cout << th_num << "\t\t" << omp_get_num_threads() << std::endl;
+		size_t dim_max = ULLPOW(this->L);
+		
+		start = std::chrono::system_clock::now();
+	#pragma omp parallel for num_threads(th_num) schedule(dynamic)
 		for(int n = 0; n < size; n++){
-			arma::Col<decltype(alfa.type_var)> eigenstate = alfa.get_eigenState(n);
-			arma::cx_vec state = U * eigenstate;
-			double S_tmp = entropy::vonNeumann(state, LA, this->L, map);
-			S(n) = S_tmp;
+			if(alfa.use_real_matrix){
+				arma::vec state = arma::real(U * alfa.get_real_state(n));
+				auto state_full = cast_state_to_full(state, map, dim_max);
+				S(n) = entropy::schmidt_decomposition(state_full, LA, this->L);
+			} else {
+				auto eigenstate = alfa.get_eigenState(n);
+				arma::cx_vec state = U * eigenstate;
+				auto state_full = cast_state_to_full(state, map, dim_max);
+				S(n) = entropy::schmidt_decomposition(state_full, LA, this->L);
+			}
 		}
-
+		std::cout << " - - - - - - FINISHED ENTROPY CALCULATION IN : " << tim_s(start) << " seconds - - - - - - " << std::endl; // simulation end
+		
+		
 		if( this-> realisations > 1){
 			std::string dir_realis = this->saving_dir + "Entropy" + kPSep + "Eigenstate" + kPSep + "realisation=" + std::to_string(realis) + kPSep;
 			createDirs(dir_realis);
@@ -1219,7 +1266,7 @@ void isingUI::ui::eigenstate_entropy(){
 			S.save(arma::hdf5_name(dir_realis + filename + ".hdf5", "entropy", arma::hdf5_opts::append));
 			if(this->ch || false)
 			{
-				arma::Mat<decltype(alfa.type_var)> V = alfa.get_eigenvectors().submat(0, alfa.E_av_idx - 250, N, alfa.E_av_idx + 250);
+				arma::Mat<decltype(alfa.type_var)> V = alfa.get_eigenvectors().submat(0, alfa.E_av_idx - 250, N - 1, alfa.E_av_idx + 250);
 				V.save(arma::hdf5_name(dir_realis + filename + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
 			}
 			//save_to_file(filename + ".dat", E, entropies);
@@ -1238,39 +1285,59 @@ void isingUI::ui::eigenstate_entropy(){
 			map = generate_full_map(this->L, alfa->using_Sz_symmetry());
 		}
 		N = alfa->get_hilbert_size();
-		const int size = this->ch? 500 : N;
+		const int size = this->ch? 100 : N;
 	 	energies = arma::vec(size, arma::fill::zeros);
 		entropies = arma::vec(size, arma::fill::zeros);
-
-		average_over_realisations<Ising_params::J>(*alfa, !(this->ch), kernel);
+		#ifdef ARMA_USE_SUPERLU
+			average_over_realisations<Ising_params::J>(*alfa, !(this->ch), kernel);
+		#else
+			average_over_realisations<Ising_params::J>(*alfa, true, kernel);
+		#endif
 		energies /= double(counter);
 		entropies /= double(counter);
 
 		std::string suffix = this->realisations > 1? "_jobid=" + std::to_string(this->jobid) : "";
 		energies.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "energies"));
 		entropies.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "entropy", arma::hdf5_opts::append));
-		if(true || this->ch){
-			auto V = alfa->get_eigenvectors();
-			V.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
+		if(this->ch){
+			if(alfa->use_real_matrix){
+				arma::mat V;
+				if(this->ch) V = alfa->get_real_eigenvectors();
+				else V = alfa->get_real_eigenvectors().submat(0, alfa->E_av_idx - 100, N - 1, alfa->E_av_idx + 100);
+				V.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
+			} else {
+				arma::Mat<decltype(alfa->type_var)> V;
+				if(this->ch) V = alfa->get_eigenvectors();
+				else V = alfa->get_eigenvectors().submat(0, alfa->E_av_idx - 100, N - 1, alfa->E_av_idx + 100);
+				V.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
+			}
 		}
 	} else{
 		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 		N = alfa->get_hilbert_size();
-		const int size = this->ch? 500 : N;
+		const int size = this->ch? 100 : N;
 	 	energies = arma::vec(size, arma::fill::zeros);
 		entropies = arma::vec(size, arma::fill::zeros);
 
-		if(alfa->using_Sz_symmetry())
+		if(alfa->using_Sz_symmetry()){
+			std::cout << "Using Sz symmetry!!" << std::endl;
 			map = alfa->get_mapping();
-		average_over_realisations<Ising_params::J>(*alfa, !(this->ch), kernel);
+		}
+		#ifdef ARMA_USE_SUPERLU
+			average_over_realisations<Ising_params::J>(*alfa, !(this->ch), kernel);
+		#else
+			average_over_realisations<Ising_params::J>(*alfa, true, kernel);
+		#endif
 		energies /= double(counter);
 		entropies /= double(counter);
 
 		std::string suffix = this->realisations > 1? "_jobid=" + std::to_string(this->jobid) : "";
 		energies.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "energies"));
 		entropies.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "entropy", arma::hdf5_opts::append));
-		if(true || this->ch){
-			auto V = alfa->get_eigenvectors();
+		if(this->ch){
+			arma::Mat<decltype(alfa->type_var)> V;
+			if(this->ch) V = alfa->get_eigenvectors();
+			else V = alfa->get_eigenvectors().submat(0, alfa->E_av_idx - 100, N - 1, alfa->E_av_idx + 100);
 			V.save(arma::hdf5_name(dir + filename + suffix + ".hdf5", "eigenvectors",arma::hdf5_opts::append));
 		}
 	}
@@ -1425,7 +1492,7 @@ void isingUI::ui::analyze_spectra(){
 							 || energies_all.is_zero() || energies_unfolded_all.is_zero()) return;
 
 	wH /= norm;	wH_typ /= norm;	wH_typ_unfolded /= norm;
-	std:string prefix = this->ch ? "_500_states" : "";
+	std::string prefix = this->ch ? "_500_states" : "";
 	statistics::probability_distribution(dir_spacing, prefix + info, spacing, -1, exp(wH_typ_unfolded), wH, exp(wH_typ));
 	statistics::probability_distribution(dir_spacing, prefix + "_log" + info, spacing_log, -1, wH_typ_unfolded, wH, wH_typ);
 	statistics::probability_distribution(dir_spacing, prefix + "unfolded" + info, spacing_unfolded, -1, exp(wH_typ_unfolded), wH, exp(wH_typ));
@@ -1454,16 +1521,29 @@ void isingUI::ui::adiabatic_gauge_potential(){
 	   gap_ratio = 0.0,	//<! gap ratio
 	   		  wH = 0.0,	//<! mean level spacing
 	   	  wH_typ = 0.0;	//<! typical level spacing
+	double pert_2nd_term = 0;
 	std::string info;
 	const long num_ent = L >= 10? 100 : 20;
 	
 
+	auto [opName, str] = IsingModel_disorder::opName(this->op, this->site);
+	std::string dir = this->saving_dir + "STATISTICS" + kPSep + "raw_data" + kPSep;
+	std::string dir_agp = this->saving_dir + "AGP" + kPSep + opName + kPSep + "raw_data" + kPSep;
+
+	createDirs(dir, dir_agp);
 	//---- KERNEL LAMBDA
+	auto start = std::chrono::system_clock::now();
+	auto start_diag = std::chrono::system_clock::now();
+	arma::vec susc_vec;
 	auto kernel = [&](auto& alfa, int realis, const arma::sp_cx_mat& opMat)
 	{
+		realis += this->jobid;
+		auto start_loop = std::chrono::system_clock::now();
+		stout << "\t\t	--> finished diagonalizing for " << info << " - in time : " << tim_s(start_diag) << "s" << std::endl;
+		std::string dir_agp_realisation = dir_agp + "realisation=" + std::to_string(realis) + kPSep;
+		createDirs(dir_agp_realisation);
+
 		const u64 N = alfa.get_hilbert_size();
-		const double omegaH = alfa.mean_level_spacing_analytical();
-		const double rescale = (double)N * omegaH * omegaH / (double)L;
 		this->mu = long(0.5 * N);
 		info = alfa.get_info();
 
@@ -1471,41 +1551,92 @@ void isingUI::ui::adiabatic_gauge_potential(){
 		long int E_max = alfa.E_av_idx + long(mu / 2);
 		const arma::Mat<decltype(alfa.type_var)> U = alfa.get_eigenvectors();
 		const arma::vec E = alfa.get_eigenvalues();
-		arma::cx_mat mat_elem = U.t() * opMat * U;
 
-		auto [AGP_local, typ_susc_local, susc_local] = adiabatics::gauge_potential(mat_elem, E, this->L);
-		typ_susc += typ_susc_local;
-		AGP += AGP_local;
-		susc += susc_local;
+		auto kernel_agp = [&](auto& mat_elem, auto dummy){
+			normaliseMat(mat_elem);
+			std::cout << "\t\t	--> set matrix elements for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 
-		double wH_typ_local = 0.0;
-		for(int i = 0; i < N; i++){
-			diag_norm += abs(mat_elem(i,i) * conj(mat_elem(i,i)));
-			if(i >= E_min && i < E_max){
-				const double gap1 = E(i) - E(i - 1);
-				const double gap2 = E(i + 1) - E(i);
-				const double min = std::min(gap1, gap2);
-				const double max = std::max(gap1, gap2);
-				wH += gap2;
-				wH_typ_local += std::log(gap2);
-        		if (abs(gap1) <= 1e-15 || abs(gap2) <= 1e-15){ 
-        		    std::cout << "Index: " << i << std::endl;
-        		    assert(false && "Degeneracy!!!\n");
-        		}
-				gap_ratio += min / max;
-	
-				const arma::Col<decltype(alfa.type_var)> state = U.col(i);
-				ipr += statistics::inverse_participation_ratio(state) / double(N);
-				info_entropy += statistics::information_entropy(state);
-				if(i >= alfa.E_av_idx - num_ent / 2. && i <= alfa.E_av_idx + num_ent / 2.)
-					entropy += entropy::vonNeumann(cast_cx_vec(state), this->L / 2, this->L);
+			std::cout << "\t\t MATRIX-ELEMENTS TYPE: " + type_name(dummy)
+				+ "\n\t\tdense - dim(H) = " + matrix_size(mat_elem.n_cols * mat_elem.n_rows * sizeof(mat_elem(0, 0))) << std::endl << std::endl;
+
+
+			auto [AGP_local, typ_susc_local, susc_local, susc_vec_local] = adiabatics::gauge_potential(mat_elem, E, this->L);
+		
+			std::cout << "\t\t	--> finished adiabatic gauge potential for " << info
+				  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
+
+			typ_susc += typ_susc_local;
+			AGP += AGP_local;
+			susc += susc_local;
+			susc_vec += susc_vec_local;
+
+			double wH_typ_local = 0.0;
+
+			int th_num = 1;
+			if(this->thread_number > 1){
+				th_num = this->thread_number / 2;
+				omp_set_num_threads(2);
 			}
-		}
-		wH_typ += std::exp(wH_typ_local / double(this->mu));
 
-		auto state = this->set_init_state(N, 0);
-		info_ent_rnd += statistics::information_entropy(state);
-		counter++;
+		#pragma omp parallel for num_threads(th_num) schedule(dynamic)
+			for(long int i = 0; i < N; i++){
+				diag_norm += abs(mat_elem(i,i) * conj(mat_elem(i,i)));
+				if(i >= E_min && i < E_max){
+					const double gap1 = E(i) - E(i - 1);
+					const double gap2 = E(i + 1) - E(i);
+					const double min = std::min(gap1, gap2);
+					const double max = std::max(gap1, gap2);
+					wH += gap2;
+					wH_typ_local += std::log(gap2);
+					if (abs(gap1) <= 1e-15 || abs(gap2) <= 1e-15){ 
+						std::cout << "Index: " << i << std::endl;
+						assert(false && "Degeneracy!!!\n");
+					}
+					gap_ratio += min / max;
+		
+					const arma::Col<decltype(alfa.type_var)> state = U.col(i);
+					ipr += statistics::inverse_participation_ratio(state) / double(N);
+					info_entropy += statistics::information_entropy(state);
+					//if(i >= alfa.E_av_idx - num_ent / 2. && i <= alfa.E_av_idx + num_ent / 2.)
+					//	entropy += entropy::vonNeumann(cast_cx_vec(state), this->L / 2, this->L);
+				}
+				for (long int j = 0; j < N && j != i; j++)
+					pert_2nd_term += abs(mat_elem(i,j) * conj(mat_elem(i,j))) / (E(j) - E(i));
+			}
+			wH_typ += std::exp(wH_typ_local / double(this->mu));
+
+			std::cout << "\t\t	--> finished statistics for " << info
+				  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "\t\nTotal time : " << tim_s(start) << "s" << std::endl;
+			//auto state = this->set_init_state(N, 0);
+			//info_ent_rnd += statistics::information_entropy(state);
+			counter++;
+
+				
+			omp_set_num_threads(this->thread_number);
+		};
+
+		if(alfa.use_real_matrix){
+			if(arma::imag(opMat).is_zero(1e-15)){
+				arma::mat U = alfa.get_real_eigenvectors();
+				arma::sp_mat oper_re = arma::real(opMat);
+				arma::mat mat_elem = U.t() * oper_re * U;
+				double dummy;
+				kernel_agp(mat_elem, dummy);
+			} else {
+				arma::cx_mat U(N, N, arma::fill::zeros);
+				U.set_real(alfa.get_real_eigenvectors());
+				arma::cx_mat mat_elem = U.t() * opMat * U;
+				cpx dummy;
+				kernel_agp(mat_elem, dummy);
+			}
+		} else {
+			auto U = alfa.get_eigenvectors();
+			arma::cx_mat mat_elem = U.t() * opMat * U;
+			cpx dummy;
+			kernel_agp(mat_elem, dummy);
+		}
+		
+		start_diag = std::chrono::system_clock::now();
 	};
 
 	//---- START COMPUTATION
@@ -1513,17 +1644,15 @@ void isingUI::ui::adiabatic_gauge_potential(){
 		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 		arma::sp_cx_mat opMat = alfa->chooseOperator(this->op, this->site);
+		susc_vec = arma::vec(alfa->get_hilbert_size(), arma::fill::zeros);
 		average_over_realisations<Ising_params::h>(*alfa, true, kernel, opMat);
 	} else{
 		auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 		arma::sp_cx_mat opMat = alfa->chooseOperator(this->op, this->site);
+		susc_vec = arma::vec(alfa->get_hilbert_size(), arma::fill::zeros);
 		average_over_realisations<Ising_params::h>(*alfa, true, kernel, opMat);
 	}
 
-	auto [opName, str] = IsingModel_disorder::opName(this->ch, this->site);
-	std::string dir = this->saving_dir + "STATISTICS" + kPSep + "raw_data" + kPSep;
-	std::string dir_agp = this->saving_dir + "AGP" + kPSep + opName + kPSep + "raw_data" + kPSep;
-	createDirs(dir, dir_agp);
 	std::ofstream file;
 
 	openFile(file, dir + info + "_jobid=" + std::to_string(jobid) + ".dat");
@@ -1540,9 +1669,11 @@ void isingUI::ui::adiabatic_gauge_potential(){
 	printSeparated(file, "\t", 25, true, "'adiabatic gauge potential'", 	 			  AGP / double(counter));
 	printSeparated(file, "\t", 25, true, "'typical fidelity susceptibility'", 	 	 typ_susc / double(counter));
 	printSeparated(file, "\t", 25, true, "'fidelity susceptibility'", 			 	 	 susc / double(counter));
-	printSeparated(file, "\t", 25, true, "'diagonal normalisation factor'", 		diag_norm / double(counter));
+	printSeparated(file, "\t", 25, true, "'perturbation 2nd order term'", 		pert_2nd_term / double(counter));
 
 	file.close();
+
+	susc_vec.save(arma::hdf5_name(dir_agp + info + "_jobid=" + std::to_string(this->jobid) + ".hdf5", "susc"));
 }
 
 
@@ -1597,7 +1728,6 @@ void isingUI::ui::spectral_form_factor(){
 		int realis, double x
 		)
 	{
-		double Jx, gx, hx;
 		switch (par)
 		{
 			case Ising_params::J: this->J = x;	break;
@@ -1651,10 +1781,10 @@ void isingUI::ui::spectral_form_factor(){
 			r2_tmp /= double(num2);
 			if(this->fun == 3) stout << "\t\t	--> finished unfolding for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 			
-			auto [sff_r_folded, Z_r_folded] = statistics::spectral_form_factor(eigenvalues, times_fold, this->beta, 1.5);
+			auto [sff_r_folded, Z_r_folded] = statistics::spectral_form_factor(eigenvalues, times_fold, this->beta, 0.5);
 			eigenvalues = statistics::unfolding(eigenvalues);
 
-			auto [sff_r, Z_r] = statistics::spectral_form_factor(eigenvalues, times,this->beta, 1.5);
+			auto [sff_r, Z_r] = statistics::spectral_form_factor(eigenvalues, times,this->beta, 0.5);
 			#pragma omp critical
 			{
 				r1 += r1_tmp;
@@ -1752,6 +1882,9 @@ void isingUI::ui::average_SFF(){
 	std::string dir = this->saving_dir + "SpectralFormFactor" + kPSep;
 	std::string dir2 = this->saving_dir + "LevelSpacing" + kPSep + "raw_data" + kPSep;
 	
+	//outer_threads = this->thread_number;
+	//omp_set_num_threads(1);
+
 	const Ising_params par = Ising_params::h;
 	//------- PREAMBLE
 	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
@@ -1792,7 +1925,7 @@ void isingUI::ui::average_SFF(){
 		auto data = readFromFile(file, dir_re + info + ".dat");
 		if(data.empty()) return;
 		if(data[0].size() != sff.size()) {
-			std:cout << "Incompatible data dimensions" << std::endl;
+			std::cout << "Incompatible data dimensions" << std::endl;
 			return;
 		}
 		file.close();
@@ -1874,10 +2007,8 @@ void isingUI::ui::average_SFF(){
 		}
 		if(times_fold(i) >= 2.5 * tH) break;
 	}
-	save_to_file(dir + info + ".dat", times, sff, tH, thouless_time, r1, r2, N);	
-	smoothen_data(dir, info + ".dat");
-	save_to_file(dir + "folded" + info + ".dat", times_fold, sff_fold, tH, thouless_time_fold, r1, r2, N);	
-	smoothen_data(dir, "folded" + info + ".dat");
+	save_to_file(dir + info + ".dat", times, sff, tH, thouless_time, r1, r2, N);
+	save_to_file(dir + "folded" + info + ".dat", times_fold, sff_fold, tH, thouless_time_fold, r1, r2, N);
 }
 
 //<! find thouless time with various method as function of h,g,J
@@ -1959,6 +2090,7 @@ void isingUI::ui::thouless_times(Ising_params var)
 	map.close();
 
 	return;
+	/*
 	auto xarr = get_params_array(var); 
 	std::string var_name = get_params_name(var);
 	
@@ -1966,7 +2098,7 @@ void isingUI::ui::thouless_times(Ising_params var)
 	auto K_GOE = [](double t){
 		return t < 1? 2 * t - t * log(1 + 2*t) : 2 - t * log( (2*t + 1) / (2*t - 1) );
 	};
-/*
+
 	std::string dir = this->saving_dir + "ThoulessTime" + kPSep;	createDirs(dir);
 	std::ofstream map;
 	std::string sep = var_name == "L"? "," : "_";
@@ -2022,7 +2154,8 @@ void isingUI::ui::thouless_times(Ising_params var)
 void isingUI::ui::multifractal_analysis(){
 
 	//---- KERNEL LAMBDA
-	std::string dir = this->saving_dir + "MultiFractality" + kPSep + "ParticipationRatio" + kPSep;
+	std::string subdir = this->ch? "ParticipationRatio_PlaneWave" + kPSep : "ParticipationRatio" + kPSep;
+	std::string dir = this->saving_dir + "MultiFractality" + kPSep + subdir;
 	createDirs(dir);
 	std::string info = this->m? IsingModel_sym::set_info(this->L, this->J, this->g, this->h, this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym) 
 					: IsingModel_disorder::set_info(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w);
@@ -2043,11 +2176,11 @@ void isingUI::ui::multifractal_analysis(){
 		for(int n = 0; n < N; n++){
 			arma::Col<decltype(alfa.type_var)> eigenstate = alfa.get_eigenState(n);
 			arma::cx_vec state = U * eigenstate;
-			double pr_tmp = statistics::participation_ratio(state, this->q_ipr);
+			double pr_tmp = this->ch? statistics::participation_ratio_plane_wave(state, this->q_ipr) : statistics::participation_ratio(state, this->q_ipr);
 			pr(n) = pr_tmp;
 		}
 		if( this-> realisations > 1){
-			std::string dir_realis = this->saving_dir + "MultiFractality" + kPSep + "ParticipationRatio" + kPSep + "realisation=" + std::to_string(realis) + kPSep;
+			std::string dir_realis = dir + "realisation=" + std::to_string(realis) + kPSep;
 			createDirs(dir_realis);
 			E.save(arma::hdf5_name(dir_realis + filename + ".hdf5", "energies"));
 			pr.save(arma::hdf5_name(dir_realis + filename + ".hdf5", "participation_ratio", arma::hdf5_opts::append));
@@ -2060,8 +2193,9 @@ void isingUI::ui::multifractal_analysis(){
 	};
 		
 	//---- START COMPUTATION
-	for(double q = 0.0; q < 3.0; q += 0.05){
-		this->q_ipr = q;
+	//for(double q = 0.0; q < 3.0; q += 0.05)
+	{
+	//	this->q_ipr = q;
 		filename = info + "_q=" + to_string_prec(this->q_ipr, 2);
 		counter = 0;
 		if(this->m){
@@ -2370,7 +2504,6 @@ void isingUI::ui::generate_statistic_map(Ising_params varname){
 		bool status = openFile(datafile, dir + "raw_data" + kPSep + info_loc + ".dat");
 		if(!status) continue;
 		std::string line;
-		double value;
 		printSeparated(map, "\t", 25, false, x);
 		while(std::getline(datafile, line)){
 			std::istringstream ss(line);
@@ -2421,7 +2554,6 @@ void isingUI::ui::generate_statistic_map(Ising_params varname1, Ising_params var
 			bool status = openFile(datafile, dir + "raw_data" + kPSep + info_loc + ".dat");
 			if(!status) continue;
 			std::string line;
-			double value;
 			printSeparated(map, "\t", 25, false, x, y);
 			while(std::getline(datafile, line)){
 				std::istringstream ss(line);

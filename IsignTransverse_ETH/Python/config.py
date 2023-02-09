@@ -3,17 +3,17 @@ from os import sep as kPSep
 import utils.plot_settings as ps
 importlib.reload(ps)
 #---------------------------------------------------- MODEL PARAMETERS
-model = 2           # chooses model: 0-disorder / 1-symmetries / 2-local perturbation
-hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
-BC = 0              # boundaary condition: 0 - OBC / 1 - PBC
+model = 0           # chooses model: 0-disorder / 1-symmetries / 2-local perturbation
+hamiltonian = 2     # which hamiltonian?: 0-Ising / 1-Heisenberg
+BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
 
-L = 18                          # system size
+L = 15                          # system size
 J = 1.00                        # spin exchange (Ising-like)
-g = 0.55                       # trasnverse magnetic field (z-axis)
-h = 0.0                        # longitudal magnetic field (x-axis)
+g = 0.79                       # trasnverse magnetic field (z-axis)
+h = 1.0                        # longitudal magnetic field (x-axis)
 #---- DISORDER PARAMETERS
 w = 0.5                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
-J0 = 0.0                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
+J0 = 0.2                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
 g0 = 0.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 #---- SYMETRY PARAMETERS
 k_sym = 0                       # translational symmetry sector
@@ -25,7 +25,7 @@ General settings for all plots
 """
 plot_settings_dict = {
     'vs':             'L',          # set parameter on x-axis
-    'scaling':        'w',          # set scaling parameter (changing in legend)
+    'scaling':        'g',          # set scaling parameter (changing in legend)
 
     'x_scale':      'log',       
     'y_scale':      'log',          
@@ -34,8 +34,8 @@ plot_settings_dict = {
 
 #---- rescaling y-data
     'rescaleY':         0,      
-    'func_y':       'exp',           # rescale function -> function(x, nu) (power-law = x^nu)    
-    'nu_y':             -1,           # power of inversion
+    'func_y':       'power-law',           # rescale function -> function(x, nu) (power-law = x^nu)    
+    'nu_y':             1,           # power of inversion
     
 #---- rescaling x-axis
     'rescaleX':         0,          
@@ -43,9 +43,9 @@ plot_settings_dict = {
     'nu_x':             -1.0,           # power of inversion
 
 #---- operator options
-    'operator':         8,         # chosen operator according to order set in IsingModel.h
+    'operator':         0,         # chosen operator according to order set in IsingModel.h
     'site':            L/2,          # chosen site for local operator
-    'smoothed':        0,          # choose running-smoothed option
+    'smoothed':        1,          # choose running-smoothed option
 
 #---- instances set after
     'vs_idx':          -1,          # idx of vs option set after dict
@@ -144,7 +144,7 @@ operator_names_latex = [
     "H_q",
     "TFIM_LIOM_plus_n=...",
     "TFIM_LIOM_minus_n=...",
-    "\mathcal{J}_{spin}",
+    "\mathcal{J}_{s}",
     "\sigma^x_{tot}",
     "\sigma^z_{tot}",
     "U^x_n",
