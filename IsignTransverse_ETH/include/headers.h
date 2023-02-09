@@ -1,8 +1,12 @@
 #pragma once
+
+//#ifndef 
 #include "config.hpp"
+#include "metaprograming/traits.h"
 #include "commons.h"
-#include "random.h"
+#include "random_and_disorder/disorder.hpp"
 #include "digamma.h"
+
 
 extern int num_of_threads;													// number of threads
 extern int anderson_dim;
@@ -55,7 +59,7 @@ inline
 std::string to_string_prec(const T a_value, int n = -1) {
 	if(n < 0)
 		n = order_of_magnitude(a_value);
-	std::cout << n << std::endl;
+	//std::cout << n << std::endl;
 	std::ostringstream outie;
 	outie.precision(n);
 	outie << std::fixed << a_value;

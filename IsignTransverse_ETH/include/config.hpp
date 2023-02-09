@@ -7,7 +7,7 @@
 3 - XYZ
 4 - Quantum Sun
 */
-	#define MODEL 1
+	#define MODEL 0
 
 	#if !defined(LOCAL_PERT)
 		//#define LOCAL_PERT
@@ -16,7 +16,11 @@
 
 
 #ifdef LOCAL_PERT
-	#pragma message ("Using Heisenberg Model with local perturbation at center")
+	#if MODEL == 3
+		#pragma message ("Using Sz symmetry in XYZ")
+	#else
+		#pragma message ("Using local perturbation at center")
+	#endif
 #endif
 #if !defined(DEGENERACIES)
 	//#define DEGENERACIES

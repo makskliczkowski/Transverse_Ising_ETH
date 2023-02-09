@@ -4,16 +4,16 @@ import utils.plot_settings as ps
 importlib.reload(ps)
 #---------------------------------------------------- MODEL PARAMETERS
 model = 0           # chooses model: 0-disorder / 1-symmetries / 2-local perturbation
-hamiltonian = 1     # which hamiltonian?: 0-Ising / 1-Heisenberg
+hamiltonian = 2     # which hamiltonian?: 0-Ising / 1-Heisenberg
 BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
 
-L = 16                          # system size
+L = 15                          # system size
 J = 1.00                        # spin exchange (Ising-like)
-g = 0.55                       # trasnverse magnetic field (z-axis)
-h = 0.0                        # longitudal magnetic field (x-axis)
+g = 0.79                       # trasnverse magnetic field (z-axis)
+h = 1.0                        # longitudal magnetic field (x-axis)
 #---- DISORDER PARAMETERS
-w = 0.7                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
-J0 = 0.0                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
+w = 0.5                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
+J0 = 0.2                        # disorder on spin exchange ( J_i \in [J-J0, J+J0] )
 g0 = 0.0                        # disorder on longitudonal field ( h_i \in [h-w, h+w] )
 #---- SYMETRY PARAMETERS
 k_sym = 0                       # translational symmetry sector
@@ -25,7 +25,7 @@ General settings for all plots
 """
 plot_settings_dict = {
     'vs':             'L',          # set parameter on x-axis
-    'scaling':        'w',          # set scaling parameter (changing in legend)
+    'scaling':        'g',          # set scaling parameter (changing in legend)
 
     'x_scale':      'log',       
     'y_scale':      'log',          

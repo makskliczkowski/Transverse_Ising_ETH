@@ -1,42 +1,6 @@
 #pragma once
 
-
-//-- SUPPRESS WARNINGS
-#if defined(_MSC_VER)
-	#define DISABLE_WARNING_PUSH           __pragma(warning( push ))
-	#define DISABLE_WARNING_POP            __pragma(warning( pop )) 
-	#define DISABLE_WARNING(warningNumber) __pragma(warning( disable : warningNumber ))
-	
-	#define DISABLE_OVERFLOW								 DISABLE_WARNING(26451)
-	#define DISABLE_WARNING_UNREFERENCED_FORMAL_PARAMETER    DISABLE_WARNING(4100)
-	#define DISABLE_WARNING_UNREFERENCED_FUNCTION            DISABLE_WARNING(4505)
-	// other warnings you want to deactivate...
-
-#elif defined(__GNUC__) || defined(__clang__)
-	#define DO_PRAGMA(X) _Pragma(#X)
-	#define DISABLE_WARNING_PUSH           DO_PRAGMA(GCC diagnostic push)
-	#define DISABLE_WARNING_POP            DO_PRAGMA(GCC diagnostic pop) 
-	#define DISABLE_WARNING(warningName)   DO_PRAGMA(GCC diagnostic ignored #warningName)
-
-	#define DISABLE_OVERFLOW								 DISABLE_WARNING(-Wstrict-overflow)
-	#define DISABLE_WARNING_UNREFERENCED_FORMAL_PARAMETER    DISABLE_WARNING(-Wunused-parameter)
-	#define DISABLE_WARNING_UNREFERENCED_FUNCTION            DISABLE_WARNING(-Wunused-function)
-	// other warnings you want to deactivate... 
-
-#else
-	// another compiler: intel,...
-	#define DISABLE_WARNING_PUSH
-	#define DISABLE_WARNING_POP
-	#define DISABLE_WARNING_UNREFERENCED_FORMAL_PARAMETER
-	#define DISABLE_WARNING_UNREFERENCED_FUNCTION
-	// other warnings you want to deactivate... 
-
-#endif
-#define NO_OVERFLOW(X)\
-	DISABLE_WARNING_PUSH;\
-	DISABLE_OVERFLOW;\
-	X;\
-	DISABLE_WARNING_POP;
+#include "compiler_preprocessor/preprocessor_setup.hpp"
 
 //-----------------------
 #include <stdio.h>
@@ -58,6 +22,7 @@ DISABLE_WARNING_PUSH // include <armadillo> and suppress its warnings, cause dev
 #define ARMA_BLAS_LONG_LONG // using long long inside LAPACK call
 #define ARMA_USE_OPENMP
 #define ARMA_ALLOW_FAKE_GCC
+//#define ARMA_USE_SUPERLU
 //#define ARMA_USE_HDF5
 //#define ARMA_EXTRA_DEBUG
 //-------
@@ -90,11 +55,8 @@ DISABLE_WARNING_POP
 #include <memory> // smart ptr
 #include <thread>
 #include <future>
-#include <mutex>
-#include <bitset>
 //#include <condition_variable>
 #include <functional>
-#include <type_traits>
 #include <concepts>
 //#include <execution>
 #ifdef __has_include
@@ -111,12 +73,8 @@ namespace fs = std::experimental::filesystem;
 #    define have_filesystem 0
 #  endif
 #endif
-#ifdef _MSC_VER
-#include <intrin.h>
-#include <nmmintrin.h>
-#define __builtin_popcount __popcnt
-#define __builtin_popcountll _mm_popcnt_u64
-#endif
+
+#include "compiler_preprocessor/compiler_setup.h"
 
 
 typedef size_t u64;
@@ -173,6 +131,13 @@ using cpx = std::complex<double>;
 using op_type = std::function<std::pair<cpx, u64>(u64, int, std::vector<int>)>;
 using clk = std::chrono::system_clock;
 
+
+//! ------------------------------------------------------ ATTRIBUTES
+#define _noreturn			[[noreturn]]
+#define _maybe_unused		[[maybe_unused]]
+#define _nodiscard			[[nodiscard, gnu::warn_unused_result]]
+#define _no_break			[[fallthrough]]
+#define _no_unique_address	[[no_unique_address]]
 
 // ----------------------------------------------------------------------------- CONSTANTS -----------------------------------------------------------------------------
 
