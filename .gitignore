@@ -13,7 +13,7 @@
 *.sln
 *.vcxproj
 *.vcxproj.filters
-#*.png
+*.png
 *.git
 *.gz
 #*.plt -- keep gnuplot scripts in source control
@@ -25,6 +25,7 @@ slurm-*.out
 *.sh
 *.txt
 *.dat
+*.npy
 # whole folders will be ignored
 
 # User-specific files (MonoDevelop/Xamarin Studio)
@@ -371,5 +372,5 @@ MigrationBackup/
 
 #User folders
 IsignTransverse_ETH/results/
-IsignTransverse_ETH/Python/
+IsignTransverse_ETH/Python/CriticalParameters/
 IsignTransverse_ETH/SPINONsynchro/

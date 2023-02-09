@@ -3,10 +3,23 @@
 // ------------------------------------------------------------------------------------------------ CONSTRUCTORS ------------------------------------------------------------------------------------------------
 IsingModel_sym::IsingModel_sym(int L, double J, double g, double h, int k_sym, bool p_sym, bool x_sym, int _BC) {
 	this->L = L; this->J = J; this->g = g; this->h = h; this->_BC = _BC;
-	symmetries.k_sym = k_sym * two_pi / double(this->L);
+	
 	symmetries.p_sym = (p_sym) ? 1 : -1;
 	symmetries.x_sym = (x_sym) ? 1 : -1;
-	k_sector = abs(this->symmetries.k_sym) < 1e-4 || abs(this->symmetries.k_sym - pi) < 1e-4;
+	this->info = "_L=" + std::to_string(this->L) + \
+		",J=" + to_string_prec(this->J) + \
+		",g=" + to_string_prec(this->g) + \
+		",h=" + to_string_prec(this->h) + \
+		",k=" + std::to_string(k_sym) + \
+		",p=" + std::to_string(symmetries.p_sym) + \
+		",x=" + std::to_string(symmetries.x_sym);
+	if(k_sym == -1)
+		k_sym = this->L / 2;
+	symmetries.k_sym = k_sym * two_pi / double(this->L);
+
+	this->k_sector = abs(this->symmetries.k_sym) < 1e-4 || abs(this->symmetries.k_sym - pi) < 1e-4;
+
+	this->use_real_matrix = this->_BC || this->k_sector;
 	// precalculate the exponents
 	this->k_exponents = v_1d<cpx>(this->L, 0.0);
 #pragma omp parallel for
@@ -14,24 +27,32 @@ IsingModel_sym::IsingModel_sym(int L, double J, double g, double h, int k_sym, b
 		this->k_exponents[l] = std::exp(-im * this->symmetries.k_sym * double(l));
 	this->createSymmetryGroup();
 
-	this->info = "_L=" + std::to_string(this->L) + \
-		",J=" + to_string_prec(this->J, 2) + \
-		",g=" + to_string_prec(this->g, 2) + \
-		",h=" + to_string_prec(this->h, 2) + \
-		",k=" + std::to_string(k_sym) + \
-		",p=" + std::to_string(symmetries.p_sym) + \
-		",x=" + std::to_string(symmetries.x_sym);
 
 	this->mapping = std::vector<u64>();
 	this->normalisation = std::vector<cpx>();
+
+	this->use_Sz_sym = false;
+	#ifdef HEISENBERG		// HEISENBERG
+		this->use_Sz_sym = true;
+	#elif defined(XYZ)		// XYZ
+		#ifdef LOCAL_PERT
+			this->use_Sz_sym = true;
+		#else
+			if(this->g == 0)
+				this->use_Sz_sym = true;
+		#endif
+	#else					//ISING
+		if(this->g == 0)
+			this->use_Sz_sym = true;
+	#endif	
+	
 	this->generate_mapping();
-	if (this->N <= 0) return;
+	if (this->N <= 0) {
+		std::cout << "No states in Hilbert space" << std::endl;
+		return;
+	}
 	this->set_neighbors(); // generate neighbors
-	#ifdef USE_HEISENBERG
-		this->hamiltonian_heisenberg();
-	#else
-		this->hamiltonian();
-	#endif
+	this->hamiltonian();
 }
 
 // ------------------------------------------------------------------------------------------------ BASE GENERATION, SEC CLASSES AND RAPPING ------------------------------------------------------------------------------------------------
@@ -42,24 +63,41 @@ void IsingModel_sym::createSymmetryGroup() {
 	std::function<u64(u64, int)> T = e;											// in 1st iteration is neutral element
 	std::function<u64(u64, int)> Z = static_cast<u64(*)(u64, int)>(&flip);		// spin flip operator (all spins)
 	std::function<u64(u64, int)> P = reverseBits;								// parity operator
-	for (int k = 0; k < this->L; k++) {
-				this->symmetry_group.push_back(T);
-				this->symmetry_eigVal.push_back(this->k_exponents[k]);
+	if(this->_BC){
+		this->symmetry_group.push_back(e);
+		this->symmetry_eigVal.push_back(1.0);
+		this->symmetry_group.push_back(P);
+		this->symmetry_eigVal.push_back(double(this->symmetries.p_sym));
 		if (this->h == 0) {
-				this->symmetry_group.push_back(multiply_operators(Z, T));
-				this->symmetry_eigVal.push_back(this->k_exponents[k] * double(this->symmetries.x_sym));
+				this->symmetry_group.push_back(Z);
+				this->symmetry_eigVal.push_back(double(this->symmetries.x_sym));
+
+				this->symmetry_group.push_back(multiply_operators(P, Z));
+				this->symmetry_eigVal.push_back(double(this->symmetries.p_sym * (long)this->symmetries.x_sym));
 		}
-		if (this->k_sector) {
-				this->symmetry_group.push_back(multiply_operators(P, T));
-				this->symmetry_eigVal.push_back(this->k_exponents[k] * double(this->symmetries.p_sym));
+
+	}
+	else{
+		for (int k = 0; k < this->L; k++) {
+					this->symmetry_group.push_back(T);
+					this->symmetry_eigVal.push_back(this->k_exponents[k]);
 			if (this->h == 0) {
-				this->symmetry_group.push_back(multiply_operators(multiply_operators(P, Z), T));
-				NO_OVERFLOW(this->symmetry_eigVal.push_back(this->k_exponents[k] * double(this->symmetries.p_sym * (long)this->symmetries.x_sym));)
+					this->symmetry_group.push_back(multiply_operators(Z, T));
+					this->symmetry_eigVal.push_back(this->k_exponents[k] * double(this->symmetries.x_sym));
 			}
+			if (this->k_sector) {
+					this->symmetry_group.push_back(multiply_operators(P, T));
+					this->symmetry_eigVal.push_back(this->k_exponents[k] * double(this->symmetries.p_sym));
+				if (this->h == 0) {
+					this->symmetry_group.push_back(multiply_operators(multiply_operators(P, Z), T));
+					NO_OVERFLOW(this->symmetry_eigVal.push_back(this->k_exponents[k] * double(this->symmetries.p_sym * (long)this->symmetries.x_sym));)
+				}
+			}
+			T = multiply_operators(rotate_left, T);
 		}
-		T = multiply_operators(rotate_left, T);
 	}
 }
+
 
 /// <summary>
 /// Takes the state from the index in mapping
@@ -114,10 +152,13 @@ cpx IsingModel_sym::get_symmetry_normalization(u64 base_idx) const {
 /// <param name="_id"> identificator for a given thread </param>
 void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_threaded, std::vector<cpx>& norm_threaded, int _id){
 	for (u64 j = start; j < stop; j++) {
-		if (this->g == 0 && __builtin_popcountll(j) != this->L / 2.) continue;
+		if (this->use_Sz_sym)
+			if (__builtin_popcountll(j) != this->L / 2.) 
+				continue;
+		
 		auto [SEC, some_value] = find_SEC_representative(j);
 		if (SEC == j) {
-			cpx N = get_symmetry_normalization(j);					// normalisation condition -- check wether state in basis
+			cpx N = get_symmetry_normalization(j);					// normalisation condition -- check if state in basis
 			if (std::abs(N) > 1e-6) {
 				map_threaded.push_back(j);
 				norm_threaded.push_back(N);
@@ -133,10 +174,6 @@ void IsingModel_sym::mapping_kernel(u64 start, u64 stop, std::vector<u64>& map_t
 void IsingModel_sym::generate_mapping() {
 	u64 start = 0, stop = static_cast<u64>(std::pow(2, this->L));
 	u64 two_powL = BinaryPowers[L];
-	#ifdef USE_HEISENBERG
-		double g_temp = this->g;
-		this->g = 0;
-	#endif
 	if (num_of_threads == 1)
 		mapping_kernel(start, stop, this->mapping, this->normalisation, 0);
 	else {
@@ -161,9 +198,6 @@ void IsingModel_sym::generate_mapping() {
 			this->normalisation.insert(this->normalisation.end(), std::make_move_iterator(t.begin()), std::make_move_iterator(t.end()));
 	}
 	this->N = this->mapping.size();
-	#ifdef USE_HEISENBERG
-		this->g = g_temp;
-	#endif
 	//assert(mapping.size() > 0 && "Not possible number of electrons - no. of states < 1");
 }
 
@@ -207,6 +241,63 @@ void IsingModel_sym::hamiltonian() {
 		std::cout << "Memory exceeded" << e.what() << "\n";
 		assert(false);
 	}
+	#if MODEL == 0
+		this->hamiltonian_Ising();
+	#elif MODEL == 1
+		this->hamiltonian_heisenberg();
+	#elif MODEL == 3
+		this->hamiltonian_xyz();
+		std::cout << "Using XYZ " << std::endl;
+	#else
+		this->hamiltonian_Ising();
+	#endif
+}
+
+void IsingModel_sym::hamiltonian_xyz(){
+	std::cout << this->N << std::endl;
+	double eta = this->use_Sz_sym? 0.0 : 0.5;
+	double delta = this->use_Sz_sym? this->g : 0.3;
+	double delta2 = 0.3;
+
+	std::vector<std::vector<double>> parameters = {{1.0 * (1 - eta), 1.0 * (1 + eta), delta},
+                                                    {this->J * (1 - eta), this->J * (1 + eta), this->J * delta2}
+                                                };
+    for(auto& x : parameters)
+        std::cout << x << std::endl;
+    std::vector<op_type> XYZoperators = {operators::sigma_x, operators::sigma_y, operators::sigma_z };
+    std::vector<int> neighbor_distance = {1, 2};
+    for (size_t k = 0; k < this->N; k++) {
+		int base_state = map(k);
+	    for (int j = 0; j < this->L; j++) {
+            cpx val = 0.0;
+            u64 op_k;
+            std::tie(val, op_k) = operators::sigma_z(base_state, L, { j });
+            this->setHamiltonianElem(k, this->h * real(val), op_k);
+		
+			if(!this->use_Sz_sym){
+            	std::tie(val, op_k) = operators::sigma_x(base_state, L, { j });
+            	this->setHamiltonianElem(k, this->g * real(val), op_k);
+			}
+            for(int a = 0; a < neighbor_distance.size(); a++){
+                int r = neighbor_distance[a];
+				int nei = j + r;
+				if(nei >= this->L)
+					nei = (this->_BC)? -1 : nei % this->L;
+
+	    	    if (nei >= 0) {
+                    for(int b = 0; b < XYZoperators.size(); b++){
+                        op_type op = XYZoperators[b];
+		                auto [val1, op_k] = op(base_state, L, { j });
+		                auto [val2, opop_k] = op(op_k, L, { nei });
+						this->setHamiltonianElem(k, parameters[a][b] * real(val1 * val2), opop_k);
+                    }
+	    	    }
+            }
+	    }
+	}
+}
+
+void IsingModel_sym::hamiltonian_Ising(){
 	for (long int k = 0; k < this->N; k++) {
 		double s_i;
 		double s_j;
@@ -228,329 +319,254 @@ void IsingModel_sym::hamiltonian() {
 		}
 	}
 }
-
 void IsingModel_sym::hamiltonian_heisenberg() {
-	this->H = arma::sp_cx_mat(this->N, this->N); //hamiltonian
-	for (long int kk = 0; kk < this->N; kk++) {
-		double s_i;
-		double s_j;
-		int k = this->mapping[kk];
-		for (int j = 0; j <= this->L - 1; j++) { 
-			s_i = checkBit(k, L - 1 - j) ? 1.0 : -1.0;	// true - spin up, false - spin down
-			
-			/* longitudal field */
-			H(kk, kk) += (this->h) * s_i;                             // diagonal elements setting
+	for (long int k = 0; k < N; k++) {
+		double s_i, s_j;
+		int base_state = map(k);
+		for (int j = 0; j <= L - 1; j++) {
+			s_i = checkBit(base_state, L - 1 - j) ? 0.5 : -0.5;							 // true - spin up, false - spin down
+			/* disorder */
+			H(k, k) += this->h * s_i;                             // diagonal elements setting
 
-			if (nearest_neighbors[j] >= 0) {
-				auto [value_x, new_idx_x] = IsingModel_disorder::sigma_x(k, this->L, {j, nearest_neighbors[j]});
-				setHamiltonianElem(kk, this->J, new_idx_x);
-				
-				auto [value_y, new_idx_y] = IsingModel_disorder::sigma_y(k, this->L, {j, nearest_neighbors[j]});
-				setHamiltonianElem(kk, real(value_y) * (this->J), new_idx_y);
-
+			int nei = this->nearest_neighbors[j];
+			if (nei >= 0) {
+				s_j = checkBit(base_state, L - 1 - nei) ? 0.5 : -0.5;
+				if(s_i * s_j < 0){
+					u64 new_idx =  flip(base_state, BinaryPowers[this->L - 1 - nei], this->L - 1 - nei);
+					new_idx =  flip(new_idx, BinaryPowers[this->L - 1 - j], this->L - 1 - j);
+					setHamiltonianElem(k, 0.5 * this->J, new_idx);
+				}
 				/* Ising-like spin correlation */
-				auto [value_z, new_idx_z] = IsingModel_disorder::sigma_z(k, this->L, {j, nearest_neighbors[j]});
-				setHamiltonianElem(kk, real(value_z) * (this->g), new_idx_z);
+				H(k, k) += this->g * s_i * s_j;
 			}
 		}
+		//std::cout << std::bitset<4>(base_state) << "\t";
 	}
+	//std::cout << std::endl << arma::mat(this->H) << std::endl;
 }
 
+
+void IsingModel_sym::diagonalization(bool get_eigenvectors, const char* method) {
+	//out << real(H) << endl;
+	arma::mat H_temp;
+	this->H_re = arma::real(this->H);
+	if(this->use_real_matrix){
+		try {
+			H_temp = arma::mat(this->H_re);
+			if (get_eigenvectors) arma::eig_sym(this->eigenvalues, this->eigenvectors_re, H_temp, method);
+			else arma::eig_sym(this->eigenvalues, H_temp);
+		}
+		catch (...) {
+			handle_exception(std::current_exception(), 
+				"sparse - dim(H) = " + matrix_size(this->H_re.n_nonzero * sizeof(this->H_re(0, 0)))
+			+ "\ndense - dim(H) = " + matrix_size(H_temp.n_cols * H_temp.n_rows * sizeof(H_temp(0, 0)))
+			+ "\nspectrum size: " + std::to_string(this->N)
+			);
+		}
+		std::cout << "\tTYPE: DOUBLE\n\tsparse - dim(H) = " + matrix_size(this->H_re.n_nonzero * sizeof(this->H_re(0, 0)))
+			+ "\n\tdense - dim(H) = " + matrix_size(H_temp.n_cols * H_temp.n_rows * sizeof(H_temp(0, 0)))
+			+ "\n\tspectrum size: " + std::to_string(this->N) << std::endl << std::endl;
+	} else{
+		IsingModel<cpx>::diagonalization(get_eigenvectors, method);
+	}
+	//for (long int i = 0; i < N; i++)
+	//	this->eigenvectors.col(i) = arma::normalise(this->eigenvectors.col(i));
+
+	double E_av = arma::trace(eigenvalues) / double(N);
+	auto i = min_element(begin(eigenvalues), end(eigenvalues), [=](double x, double y) {
+		return abs(x - E_av) < abs(y - E_av);
+		});
+	this->E_av_idx = i - begin(eigenvalues);
+	printSeparated(std::cout, "\t", 16, true, "guessed index", "mean energy", "energies close to this value (-1,0,+1 around found index");
+	printSeparated(std::cout, "\t", 16, true, this->E_av_idx, E_av, eigenvalues(this->E_av_idx - 1), eigenvalues(this->E_av_idx),  eigenvalues(this->E_av_idx + 1));
+}
+void IsingModel_sym::diag_sparse(bool get_eigenvectors, int maxiter, double tol, double sigma){
+	arma::uword num = 100;
+	#ifdef ARMA_USE_SUPERLU
+		arma::eigs_opts opts;
+		opts.maxiter = maxiter;
+		opts.tol = tol;
+		opts.subdim = 3 * num;
+		this->H_re = arma::real(this->H);
+		if(this->use_real_matrix){
+			try {
+				if (get_eigenvectors) arma::eigs_sym(this->eigenvalues, this->eigenvectors_re, this->H_re, num, sigma, opts);
+				else arma::eigs_sym(this->eigenvalues, this->H_re, num, sigma, opts);
+			}
+			catch (...) {
+				handle_exception(std::current_exception(), 
+					"sparse - dim(H) = " + matrix_size(this->H_re.n_nonzero * sizeof(this->H_re(0, 0)))
+				+ "\nspectrum size: " + std::to_string(this->N)
+				);
+			}
+			std::cout << "\tTYPE: DOUBLE\n\tsparse - dim(H) = " + matrix_size(this->H_re.n_nonzero * sizeof(this->H_re(0, 0)))
+				+ "\n\tspectrum size: " + std::to_string(this->N) << std::endl << std::endl;
+		} else{
+			arma::cx_vec E;
+			//arma::eigs_gen(E, this->eigenvectors, this->H, num, cpx(sigma), opts);
+			if(!arma::imag(E).is_zero(1e-15))
+				std::cout << E << std::endl;
+			this->eigenvalues = arma::real(E);
+			std::cout << "\tTYPE: COMPLEX\n\tsparse - dim(H) = " + matrix_size(this->H_re.n_nonzero * sizeof(this->H_re(0, 0)))
+				+ "\n\tspectrum size: " + std::to_string(this->N) << std::endl << std::endl;
+		}
+	#else
+		#pragma message ("No SuperLu defined. Ignoring shift-invert possibility.")
+	#endif
+}
 // ------------------------------------------------------------------------------------------------ PHYSICAL QUANTITTIES ------------------------------------------------------------------------------------------------
 
-/// <summary>
-/// <summary>
-/// Calculates the matrix element for sigma_z Pauli matrix
-/// </summary>
-/// <param name="sites">Sites the matrix works on</param>
-/// <param name="alfa">Left state</param>
-/// <param name="beta">Right state</param>
-/// <returns>The matrix element</returns>
-double IsingModel_sym::av_sigma_z(u64 alfa, u64 beta, std::vector<int> sites) {
-	auto sig_z = IsingModel::sigma_z;
-	return real(av_operator(alfa, beta, *this, *this, sig_z, sites));
-}
 
-/// <summary>
-/// Calculates the matrix element for sigma_z extensive
-/// </summary>
-/// <param name="alfa">Left state</param>
-/// <param name="beta">Right state</param>
-/// <returns>The matrix element</returns>
-double IsingModel_sym::av_sigma_z(u64 alfa, u64 beta) {
-	auto sig_z = IsingModel::sigma_z;
-	return real(av_operator(alfa, beta, *this, *this, sig_z));
-}
-
-/// <summary>
-/// Calculates the matrix element for sigma_z extensive correlations
-/// </summary>
-/// <param name="alfa">Left state</param>
-/// <param name="beta">Right state</param>
-/// <param name="corr_length">correlation length</param>
-/// <returns>The matrix element</returns>
-double IsingModel_sym::av_sigma_z(u64 alfa, u64 beta, int corr_length) {
-	auto sig_z = IsingModel::sigma_z;
-	return real(av_operator(alfa, beta, *this, *this, sig_z, corr_length));
-}
-
-/// <summary>
-/// Calculates the matrix element for sigma_x Pauli matrix
-/// </summary>
-/// <param name="sites">Sites the matrix works on</param>
-/// <param name="alfa">Left state</param>
-/// <param name="beta">Right state</param>
-/// <returns>The matrix element</returns>
-double IsingModel_sym::av_sigma_x(u64 alfa, u64 beta, std::vector<int> sites) {
-	auto sig_x = IsingModel::sigma_x;
-	return real(av_operator(alfa, beta, *this, *this, sig_x, sites));
-}
-
-/// <summary>
-/// Calculates the matrix element for sigma_x extensive
-/// </summary>
-/// <param name="alfa">Left state</param>
-/// <param name="beta">Right state</param>
-/// <returns>The matrix element</returns>
-double IsingModel_sym::av_sigma_x(const u64 alfa, const u64 beta) {
-	auto sig_x = IsingModel::sigma_x;
-	return real(av_operator(alfa, beta, *this, *this, sig_x));
-}
-
-/// <summary>
-/// Calculates the matrix element for sigma_x extensive correlations
-/// </summary>
-/// <param name="alfa">Left state</param>
-/// <param name="beta">Right state</param>
-/// <param name="corr_length">correlation length</param>
-/// <returns>The matrix element</returns>
-double IsingModel_sym::av_sigma_x(u64 alfa, u64 beta, int corr_length) {
-	auto sig_x = IsingModel::sigma_x;
-	return real(av_operator(alfa, beta, *this, *this, sig_x, corr_length));
-}
-
-/// <summary>
-///
-/// </summary>
-/// <param name="alfa"></param>
-/// <param name="beta"></param>
-/// <returns></returns>
-double IsingModel_sym::av_spin_flip(u64 alfa, u64 beta) {
-	auto spin_flip = IsingModel::spin_flip;
-	auto value = av_operator(alfa, beta, *this, *this, spin_flip);
-	value += conj(av_operator(beta, alfa, *this, *this, spin_flip));
-	return 0.5 * real(value);
-}
-
-/// <summary>
-///
-/// </summary>
-/// <param name="alfa"></param>
-/// <param name="beta"></param>
-/// <param name="sites"></param>
-/// <returns></returns>
-double IsingModel_sym::av_spin_flip(u64 alfa, u64 beta, std::vector<int> sites) {
-	auto spin_flip = IsingModel::spin_flip;
-	auto value = av_operator(alfa, beta, *this, *this, spin_flip, sites);
-	value += conj(av_operator(beta, alfa, *this, *this, spin_flip, sites));
-	return 0.5 * real(value);
-}
-
-/// <summary>
-///
-/// </summary>
-/// <param name="alfa"></param>
-/// <param name="beta"></param>
-/// <returns></returns>
-cpx IsingModel_sym::av_spin_current(u64 alfa, u64 beta) {
-	auto spin_flip = IsingModel::spin_flip;
-	auto value = im * av_operator(alfa, beta, *this, *this, spin_flip, 1);
-	value -= conj(im * av_operator(beta, alfa, *this, *this, spin_flip, 1));
-	return 0.5i * value;
-}
-
-/// <summary>
-///
-/// </summary>
-/// <param name="alfa"></param>
-/// <param name="beta"></param>
-/// <param name="sites"></param>
-/// <returns></returns>
-cpx IsingModel_sym::av_spin_current(u64 alfa, u64 beta, std::vector<int> sites) {
-	auto spin_flip = IsingModel::spin_flip;
-	auto value = im * av_operator(alfa, beta, *this, *this, spin_flip, sites);
-	value += conj(im * av_operator(beta, alfa, *this, *this, spin_flip, sites));
-	return 0.5i * value;
-}
-
-/// <summary>
-/// calculates spin-spin correlation matrix within a given state
-/// </summary>
-/// <param name="state_idx"> index of eigenstate to calculate correlation matrix </param>
-/// <returns> correlation matrix </returns>
-arma::mat IsingModel_sym::correlation_matrix(u64 state_idx) const {
-	arma::mat corr_mat(this->L, this->L, arma::fill::zeros);
-	arma::sp_cx_mat SigmaZOp = 0.5 * this->create_operator({ IsingModel_sym::sigma_z });
-	for (int i = 0; i < L; i++) {
-		for (int j = i; j < L; j++) {
-			auto kinetic = 0.5 * arma::cdot(this->eigenvectors.col(state_idx), this->create_operator({ IsingModel_sym::spin_flip }, { i, j }) * this->eigenvectors.col(state_idx));
-			kinetic += conj(kinetic);
-			auto corr_zz = arma::cdot(this->eigenvectors.col(state_idx), this->create_operator({ IsingModel_sym::sigma_z }, { i, j }) * this->eigenvectors.col(state_idx));
-			corr_mat(i, j) = real(kinetic + corr_zz);
-		}
-		//for (int j = 0; j < i; j++) {
-		//	corr_mat(i, j) = corr_mat(j, i);
-		//}
+// ----------------------------------------------------------------------------- WRAPPERS FOR SIGMA OPERATORS - creating matrix -----------------------------------------------------------------------------
+arma::sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const {
+	const double G = double(this->symmetry_group.size());
+	//// throwables
+	//for (auto& site : sites)
+	//	if ((site < 0 || site >= this->L)) throw "Site index exceeds chain\n";
+	arma::sp_cx_mat operator_matrix(this->N, this->N);
+	for (int i = 0; i < this->N; i++) {
+		const u64 base_vec = this->mapping[i];
+		set_OperatorElem(operators, 1.0, sites, operator_matrix, base_vec, i);
 	}
-	return corr_mat;
+	return operator_matrix / G;
 }
+arma::sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators, arma::cx_vec prefactors) const {// calculating normalisation for both sector symmetry groups
+	const double G = double(this->symmetry_group.size());
 
-// ----------------------------------------------------------------------------- WRAPPERS FOR SIGMA OPERATORS - getting overlap -----------------------------------------------------------------------------
-
-/// <summary>
-/// This form of average operators takes potentailly two symmetry sectors alfa and beta with
-/// according states and tries to find a matrix element <alfa|op|beta>. Additionally it takes the
-/// list of sites that the operator works on as a multiplication (f.e. op_0 * op_1 |beta> with {0, 1}
-/// </summary>
-cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, std::vector<int> sites) {
-	// throwables
-	for (auto& site : sites)
-		if ((site < 0 || site >= sec_alfa.L) && sec_alfa.L != sec_beta.L) throw "Site index exceeds chain or incompatible chain lengths. Your choice\n";
-	if (sec_alfa.J != sec_beta.J || sec_alfa.h != sec_beta.h || sec_alfa.g != sec_beta.g) throw "incompatible model parameters, sun \\('.')// \n";
-
-	arma::subview_col state_alfa = sec_alfa.eigenvectors.col(alfa);
-	arma::subview_col state_beta = sec_beta.eigenvectors.col(beta);
-
-	// calculating normalisation for both sector symmetry groups
-	double G = 0;
-	double G_alfa = (double)sec_alfa.get_sym_group().size();
-	double G_beta = (double)sec_beta.get_sym_group().size();
-	G = std::sqrt(G_alfa * G_beta);
-
-	// going through all sector beta states
-	double overlap_real = 0;
-	double overlap_imag = 0;
-#pragma omp parallel for reduction(+:overlap_real, overlap_imag)
-	for (int i = 0; i < sec_beta.N; i++) {
-		const u64 base_vec = sec_beta.mapping[i];
-		cpx overlap = apply_sym_overlap(state_alfa, state_beta, base_vec, i, sec_alfa, sec_beta, op, sites);
-		overlap_real += overlap.real();
-		overlap_imag += overlap.imag();
+	arma::cx_vec pre = prefactors.is_empty()? arma::cx_vec(this->L, arma::fill::ones) : prefactors;
+	assert(pre.size() == this->L && "Input array of different size than system size!");
+	
+	arma::sp_cx_mat operator_matrix(this->N, this->N);
+	for (int i = 0; i < this->N; i++) {
+		const u64 base_vec = this->mapping[i];
+		for (int j = 0; j < this->L; j++)
+			set_OperatorElem(operators, pre(j), { j }, operator_matrix, base_vec, i);
 	}
-	return cpx(overlap_real, overlap_imag) / G;
-}
+	return operator_matrix / (G * sqrt(this->L));
+};
+arma::sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators, int corr_len, arma::cx_vec prefactors) const {
+	const double G = double(this->symmetry_group.size());
+	auto neis = get_neigh_vector(this->_BC, this->L, corr_len);
+	arma::sp_cx_mat operator_matrix(this->N, this->N);
+	
+	arma::cx_vec pre = prefactors.is_empty()? arma::cx_vec(this->L, arma::fill::ones) : prefactors;
+	assert(pre.size() == this->L && "Input array of different size than system size!");
 
-/// <summary>
-/// This form of average operators takes potentailly two symmetry sectors alfa and beta with
-/// according states and tries to find a matrix element <alfa|op|beta>. Without taking states it calculates
-/// <alfa| \sum _i = 0 ^N op_i |beta>
-/// </summary>
-cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op) {
-	if (sec_alfa.L != sec_beta.L) throw "Incompatible chain lengths. Your choice\n";
-	if (sec_alfa.J != sec_beta.J || sec_alfa.h != sec_beta.h || sec_alfa.g != sec_beta.g) throw "incompatible model parameters, sun \\('.')// \n";
-
-	arma::subview_col state_alfa = sec_alfa.eigenvectors.col(alfa);
-	arma::subview_col state_beta = sec_beta.eigenvectors.col(beta);
-
-	// calculating normalisation for both sector symmetry groups
-	double G = 0;
-	double G_alfa = (double)sec_alfa.get_sym_group().size();
-	double G_beta = (double)sec_beta.get_sym_group().size();
-	G = std::sqrt(G_alfa * G_beta);
-
-	// going through all sector beta states
-	double overlap_real = 0;
-	double overlap_imag = 0;
-#pragma omp parallel for reduction(+:overlap_real, overlap_imag)
-	for (int i = 0; i < sec_beta.N; i++) {
-		for (int l = 0; l < sec_beta.L; l++) {
-			const u64 base_vec = sec_beta.mapping[i];
-			cpx overlap = apply_sym_overlap(state_alfa, state_beta, base_vec, i, sec_alfa, sec_beta, op, { l });
-			overlap_real += overlap.real();
-			overlap_imag += overlap.imag();
-		}
-	}
-	return cpx(overlap_real, overlap_imag) / (G * sqrt(sec_alfa.L));
-}
-
-/// <summary>
-/// This form of average operators takes potentailly two symmetry sectors alfa and beta with
-/// according states and tries to find a matrix element <alfa|op|beta>. Without taking states it calculates
-/// <alfa| \sum _i = 0 ^N op_i op_{i + corr_len} |beta>
-/// </summary>
-cpx av_operator(u64 alfa, u64 beta, const IsingModel_sym& sec_alfa, const IsingModel_sym& sec_beta, op_type op, int corr_len) {
-	if (sec_alfa.L != sec_beta.L) throw "Incompatible chain lengths. Your choice\n";
-	if (corr_len >= sec_alfa.L) throw "Exceeding correlation length\n";
-	if (sec_alfa.J != sec_beta.J || sec_alfa.h != sec_beta.h || sec_alfa.g != sec_beta.g) throw "incompatible model parameters, sun \\('.')// \n";
-
-	arma::subview_col state_alfa = sec_alfa.eigenvectors.col(alfa);
-	arma::subview_col state_beta = sec_beta.eigenvectors.col(beta);
-
-	// calculating normalisation for both sector symmetry groups
-	double G = 0;
-	double G_alfa = (double)sec_alfa.get_sym_group().size();
-	double G_beta = (double)sec_beta.get_sym_group().size();
-	G = std::sqrt(G_alfa * G_beta);
-
-	auto neis = get_neigh_vector(sec_alfa._BC, sec_alfa.L, corr_len);
-	// going through all sector beta states
-
-	double overlap_real = 0;
-	double overlap_imag = 0;
-#pragma omp parallel for reduction(+:overlap_real, overlap_imag)
-	for (int i = 0; i < sec_beta.N; i++) {
-		for (int l = 0; l < sec_beta.L; l++) {
-			const u64 base_vec = sec_beta.mapping[i];
-			const int nei = neis[l];
+	for (int i = 0; i < this->N; i++) {
+		const u64 base_vec = this->mapping[i];
+		for (int j = 0; j < this->L; j++) {
+			const int nei = neis[j];
 			if (nei >= 0) {
-				cpx overlap = apply_sym_overlap(state_alfa, state_beta, base_vec, i, sec_alfa, sec_beta, op, { l, nei });
-				overlap_real += overlap.real();
-				overlap_imag += overlap.imag();
+				set_OperatorElem(operators, pre(j), { j, nei }, operator_matrix, base_vec, i);
 			}
 		}
 	}
-	return cpx(overlap_real, overlap_imag) / (G * sqrt(sec_alfa.L));
+	return operator_matrix / (G * sqrt(this->L));
 }
 
-/// <summary>
-/// It applies the symmetry overlap for given base vector from sector beta
-/// </summary>
-/// <param name="alfa">sector alfa eigenstate (left) </param>
-/// <param name="beta">sector beta eigenstate (right) </param>
-/// <param name="base_vec">base vector in numerical representation</param>
-/// <param name="k">index in mapping of beta sector</param>
-/// <param name="op">Operator that shall be applied on beta state</param>
-/// <param name="sites">sites that stand for multiplication of operators</param>
-/// <returns> overlap of <alfa| coeff(k) |base_vec> </returns>
-cpx apply_sym_overlap(const arma::subview_col<cpx>& alfa, const arma::subview_col<cpx>& beta, u64 base_vec, u64 k, const IsingModel_sym& sec_alfa, \
-	const IsingModel_sym& sec_beta, op_type op, std::vector<int> sites)
-{
-	const int L = sec_alfa.L;
-	auto get_overlap_sym = [&](u64 vec_sym, cpx sym_eig) {
-		cpx overlap = 0.0;
-		auto [val_sym_beta, vec_sym_tmp] = op(vec_sym, L, sites);
-		if (abs(val_sym_beta) > 1e-14) {
-			auto [idx_sym, val_sym_alfa] = (vec_sym == vec_sym_tmp) ? \
-				std::make_pair(k, sym_eig) : \
-				find_rep_and_sym_eigval(vec_sym_tmp, sec_alfa, sec_beta.normalisation[k]);
-			if (idx_sym < sec_alfa.N)
-				overlap = sym_eig * conj(val_sym_alfa * alfa(idx_sym)) * beta(k) * val_sym_beta;
+void IsingModel_sym::set_OperatorElem(std::vector<op_type> operators, cpx prefactor, std::vector<int> sites, arma::sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx) const{
+	auto set_MatrixElem = [&](u64 vec_sym, cpx sym_eig, op_type op) {
+		auto [op_value, vec_sym_tmp] = op(vec_sym, L, sites);
+		if (abs(op_value) > 1e-14) {
+			auto [idx_sym, sym_eigVal] = (vec_sym == vec_sym_tmp) ? \
+				std::make_pair(cur_idx, conj(sym_eig)) :\
+				find_rep_and_sym_eigval(vec_sym_tmp, *this, this->normalisation[cur_idx]);
+			if (idx_sym < this->N){
+				operator_matrix(idx_sym, cur_idx) += prefactor * conj(sym_eigVal) * op_value * sym_eig;
+			}
 		}
-		return overlap;
 	};
-	cpx overlap = 0.0;
-	auto symmetry_group = sec_beta.get_sym_group();
-	auto symmetry_eigVal = sec_beta.get_sym_eigVal();
-	for (int k = 0; k < symmetry_group.size(); k++) {
-		auto sym_operation	= symmetry_group[k];
-		auto symRepr		= symmetry_eigVal[k];
-		overlap += get_overlap_sym(sym_operation(base_vec, L), symRepr);
+	for (auto& op : operators) {
+		for (int k = 0; k < this->symmetry_group.size(); k++) {
+			auto sym_operation = this->symmetry_group[k];
+			auto symRep = this->symmetry_eigVal[k];
+			set_MatrixElem(sym_operation(base_vec, this->L), symRep, op);
+		}
 	}
-	return overlap;
 }
 
+arma::sp_cx_mat IsingModel_sym::symmetryRotation() const {
+	std::vector<u64> full_map;
+	if (this->use_Sz_sym)
+		full_map = generate_full_map(this->L, true);
+	u64 dim_tot = this->use_Sz_sym? full_map.size() : ULLPOW(this->L);
+	arma::cx_vec output(dim_tot, arma::fill::zeros);
 
-//--------------------------------------------------------- dummy functions
+	auto find_index = [&](u64 index){
+		return this->use_Sz_sym? binary_search(full_map, 0, dim_tot - 1, index) : index;
+	};
+
+	arma::sp_cx_mat U(dim_tot, this->N);
+
+#pragma omp parallel for
+	for (long int k = 0; k < this->N; k++) {
+		for (int i = 0; i < this->symmetry_group.size(); i++) {
+			auto new_idx = this->symmetry_group[i](this->mapping[k], this->L);
+			u64 idx = find_index(new_idx);
+			if(idx < dim_tot) // only if exists in sector
+				U(idx, k) += conj(this->symmetry_eigVal[i] / (this->normalisation[k] * sqrt(this->symmetry_group.size())));
+			// CONJUNGATE YOU MORON CAUSE YOU RETURN TO FULL STATE, I.E. INVERSE MAPPING!!!!!! 
+		}
+	}
+	return U;
+}
+arma::cx_vec IsingModel_sym::symmetryRotation(const arma::cx_vec& state, std::vector<u64> full_map) const {
+	if(full_map.empty() && this->use_Sz_sym)	
+		full_map = generate_full_map(this->L, true);
+	u64 dim_tot = this->use_Sz_sym? full_map.size() : ULLPOW(this->L);
+	arma::cx_vec output(dim_tot, arma::fill::zeros);
+
+	auto find_index = [&](u64 index){
+		return this->use_Sz_sym? binary_search(full_map, 0, dim_tot - 1, index) : index;
+	};
+
+#pragma omp parallel for
+	for (long int k = 0; k < this->N; k++) {
+		for (int i = 0; i < this->symmetry_group.size(); i++) {
+			auto new_idx = this->symmetry_group[i](this->mapping[k], this->L);
+			u64 idx = find_index(new_idx);
+			if(idx < dim_tot) // only if exists in sector
+				output(idx) += conj(this->symmetry_eigVal[i] / (this->normalisation[k] * sqrt(this->symmetry_group.size())) * state(k));
+		}
+	}
+	return output;
+}
+arma::cx_vec IsingModel_sym::symmetryRotation(u64 state_idx, std::vector<u64> full_map) const {
+	if(this->use_Sz_sym || full_map.empty())	
+		full_map = generate_full_map(this->L, true);
+	u64 dim_tot = this->use_Sz_sym? full_map.size() : ULLPOW(this->L);
+	arma::cx_vec output(dim_tot, arma::fill::zeros);
+
+	auto find_index = [&](u64 index){
+		return this->use_Sz_sym? binary_search(full_map, 0, dim_tot - 1, index) : index;
+	};
+#pragma omp parallel for
+	for (long int k = 0; k < this->N; k++) {
+		for (int i = 0; i < this->symmetry_group.size(); i++) {
+			auto new_idx = this->symmetry_group[i](this->mapping[k], this->L);
+			u64 idx = find_index(new_idx);
+			if(idx < dim_tot) // only if exists in sector
+				output(idx) += conj(this->symmetry_eigVal[i] / (this->normalisation[k] * sqrt(this->symmetry_group.size())) * this->eigenvectors(k, state_idx));
+		}
+	}
+	return output;
+}
+arma::sp_cx_mat IsingModel_sym::fourierTransform(op_type op, int k) const {
+	const double q = k * two_pi / double(this->L);
+	arma::cx_vec k_exp(this->L);
+	for (int j = 0; j < this->L; j++) {
+		k_exp(j) = std::exp(im * q * double(j + 1));
+	}
+	return create_operator({op}, k_exp);
+}
+arma::sp_cx_mat IsingModel_sym::spin_current() const {
+	auto beta = std::make_unique<IsingModel_disorder>(this->L, this->J, 0.0, this->g, 0.0, this->h, 0.0, this->_BC);
+	auto op_full = beta->spin_current();
+	auto U = this->symmetryRotation();
+	return U.t() * op_full * U;
+}
+
+// ----------------------------------------------------------------------------- INTEGRABLE SOLUTIONS -----------------------------------------------------------------------------
 arma::vec IsingModel_sym::get_non_interacting_energies(){
 	const u64 dim = ULLPOW(this->L);
 	arma::vec energies(dim);
@@ -564,140 +580,4 @@ arma::vec IsingModel_sym::get_non_interacting_energies(){
 	}
 	return energies;
 }
-arma::vec IsingModel_sym::first_interacting_correction(){
-	const u64 dim = ULLPOW(this->L);
-	arma::vec energies(dim);
-	int counter = 0;
-	const double epsilon = sqrt(this->g * this->g + this->h + this->h);
-	const double lambda = this->h * this->h / (epsilon * epsilon);
-	for(int k = 0; k <= L; k++)
-	{
-		std::vector<int> bitmask(k, 1); 	// string with k-leading 1's
-		bitmask.resize(this->L, 0);			// L-k trailing 0's
 
-		// -------- permute all binary representations to get all combinations of subset of size k
-    	do {
-			double E = 0.0;
-    	    for (int i = 0; i < this->L; i++)  {
-				const int nei = this->nearest_neighbors[i];
-				if(nei >= 0){
-    	        	if (bitmask[i] == bitmask[nei]) E += this->J * lambda;
-					else 							E -= this->J * lambda;
-				}
-    	    }
-			energies(counter++) = E;
-    	} while (std::prev_permutation(bitmask.begin(), bitmask.end()));
-	}
-	auto E = this->get_non_interacting_energies();
-	return E + energies;
-}
-
-// ----------------------------------------------------------------------------------------- entaglement
-auto IsingModel_sym::reduced_density_matrix(const arma::cx_vec& state, int A_size) const -> arma::cx_mat {
-	// set subsytsems size
-	const long long dimA    = ULLPOW(A_size);
-	const long long dimB    = ULLPOW((this->L - A_size));
-	const long long dim_tot = ULLPOW(this->L);
-	arma::cx_mat rho(dimA, dimA, arma::fill::zeros);
-	const arma::cx_vec state_full_hilbert = this->symmetryRotation(state);
-	for (long long n = 0; n < dim_tot; n++) {							// loop over whole configurational basis
-		long long counter = 0;
-		for (long long m = n % dimB; m < dim_tot; m += dimB) {			// pick out state with same B side (last L-A_size bits)
-			long idx = n / dimB;										// find index of state with same B-side (by dividing the last bits are discarded)
-			rho(idx, counter) += conj(state_full_hilbert(n)) * state_full_hilbert(m);
-			counter++;													// increase counter to move along reduced basis
-		}
-	}
-	return rho;
-}
-
-
-
-// ----------------------------------------------------------------------------- WRAPPERS FOR SIGMA OPERATORS - creating matrix -----------------------------------------------------------------------------
-arma::sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators, std::vector<int> sites) const {
-	const double G = double(this->symmetry_group.size());
-	//// throwables
-	//for (auto& site : sites)
-	//	if ((site < 0 || site >= this->L)) throw "Site index exceeds chain\n";
-	arma::sp_cx_mat operator_matrix(this->N, this->N);
-	for (int i = 0; i < this->N; i++) {
-		const u64 base_vec = this->mapping[i];
-		set_OperatorElem(operators, sites, operator_matrix, base_vec, i);
-	}
-	return operator_matrix / G;
-}
-arma::sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators) const {// calculating normalisation for both sector symmetry groups
-	const double G = double(this->symmetry_group.size());
-	arma::sp_cx_mat operator_matrix(this->N, this->N);
-	for (int i = 0; i < this->N; i++) {
-		const u64 base_vec = this->mapping[i];
-		for (int j = 0; j < this->L; j++)
-			set_OperatorElem(operators, { j }, operator_matrix, base_vec, i);
-	}
-	return operator_matrix / (G * sqrt(this->L));
-};
-arma::sp_cx_mat IsingModel_sym::create_operator(std::initializer_list<op_type> operators, int corr_len) const {
-	const double G = double(this->symmetry_group.size());
-	auto neis = get_neigh_vector(this->_BC, this->L, corr_len);
-	arma::sp_cx_mat operator_matrix(this->N, this->N);
-	for (int i = 0; i < this->N; i++) {
-		const u64 base_vec = this->mapping[i];
-		for (int j = 0; j < this->L; j++) {
-			const int nei = neis[j];
-			if (nei >= 0) {
-				set_OperatorElem(operators, { j, nei }, operator_matrix, base_vec, i);
-			}
-		}
-	}
-	return operator_matrix / (G * sqrt(this->L));
-}
-
-void IsingModel_sym::set_OperatorElem(std::vector<op_type> operators, std::vector<int> sites, arma::sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx) const{
-	auto set_MatrixElem = [&](u64 vec_sym, cpx sym_eig, op_type op) {
-		auto [op_value, vec_sym_tmp] = op(vec_sym, L, sites);
-		if (abs(op_value) > 1e-14) {
-			auto [idx_sym, sym_eigVal] = (vec_sym == vec_sym_tmp) ? \
-				std::make_pair(cur_idx, conj(sym_eig)) :\
-				find_rep_and_sym_eigval(vec_sym_tmp, *this, this->normalisation[cur_idx]);
-			if (idx_sym < this->N)
-				operator_matrix(idx_sym, cur_idx) += conj(sym_eigVal) * op_value * sym_eig;
-		}
-	};
-	for (auto& op : operators) {
-		for (int k = 0; k < this->symmetry_group.size(); k++) {
-			auto sym_operation = this->symmetry_group[k];
-			auto symRep = this->symmetry_eigVal[k];
-			set_MatrixElem(sym_operation(base_vec, this->L), symRep, op);
-		}
-	}
-}
-
-arma::sp_cx_mat IsingModel_sym::symmetryRotation() const {
-	u64 dim_tot = ULLPOW(this->L);
-	arma::sp_cx_mat U(dim_tot, this->N);
-#pragma omp parallel for
-	for (long int k = 0; k < this->N; k++) {
-		for (int i = 0; i < this->symmetry_group.size(); i++) {
-			auto idx = this->symmetry_group[i](this->mapping[k], this->L);
-			U(idx, k) += this->symmetry_eigVal[i] / (this->normalisation[k] * sqrt(this->symmetry_group.size()));
-		}
-	}
-	return U;
-}
-arma::cx_vec IsingModel_sym::symmetryRotation(const arma::cx_vec& state) const {
-	arma::cx_vec output(ULLPOW(this->L), arma::fill::zeros);
-#pragma omp parallel for
-	for (long int k = 0; k < this->N; k++) {
-		for (int i = 0; i < this->symmetry_group.size(); i++) {
-			auto idx = this->symmetry_group[i](this->mapping[k], this->L);
-			output(idx) += this->symmetry_eigVal[i] / (this->normalisation[k] * sqrt(this->symmetry_group.size())) * state(k);
-		}
-	}
-	return output;
-}
-arma::sp_cx_mat IsingModel_sym::fourierTransform(op_type op, int q) const {
-	auto beta = std::make_unique<IsingModel_disorder>(this->L, this->J, 0, this->g, 0, this->h, 0, this->_BC);
-	auto fullMatrix = beta->fourierTransform(op, q);
-	auto U = this->symmetryRotation();
-	return U.t() * fullMatrix * U;
-}

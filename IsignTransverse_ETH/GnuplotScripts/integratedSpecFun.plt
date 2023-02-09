@@ -1,4 +1,4 @@
-dir_base='../results/disorder/PBC/'
+dir_base='../results/ISING/disorder/PBC/'
 dir = dir_base.'IntegratedResponseFunction/'
 out_dir = 'Integrated_Spectral_Function/'
 reset 
@@ -39,29 +39,30 @@ NOYTICS = "set format y '';"
 YTICS = "set format y '%g';"
 
 #------------------------------------ PARAMETERS
-L = 13; 
+L = 15;
+J=1.0 
 g = 0.9
 h = 0.8;
 J0 = 0.; g_knot = 0.; 
 w = 0.01;
 
-x_range_min=1e-2
+x_range_min=1e-4
 
 integrated_by_hand = 0 #integrated time evolution?
 if(integrated_by_hand) cd '.\integrated'
 rescale = 0				# rescale the spectral function by f(w, L)?
-site = 5				# site at which the operator acts
-scaling = 2				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
+site = 1				# site at which the operator acts
+scaling = 1				# size scaling=1 or h-scaling=0 or 	g-scaling=2	or 	q/j-scaling=3 or realisation=4 or user=5
 q_vs_j = 1				# =1 - evolution of Sz_q, else ecol of Sz_j
-operator = 1	 		# 1-SigmaZ , 0-Hq :local
+operator = 0	 		# 1-SigmaZ , 0-Hq :local
 
-two_panels = 1			# plot integrated spectral function next to respons function
-smoothed = 1			# smoothed derivative?
+two_panels = 0			# plot integrated spectral function next to respons function
+smoothed = 0			# smoothed derivative?
 #-- IntegratedSpecFun
-plot_normalized = 1		# plot renormalized to 1st peak
+plot_normalized = 1;		# plot renormalized to 1st peak
 plot_exponent = 0;	# plot as integrated response function
 #-- SpectralFun
-plot_derivative = 0		# use derivative as integrated spectal function
+plot_derivative = 1		# use derivative as integrated spectal function
 substract_LTA = 0
 
 rescale = 0
@@ -71,12 +72,12 @@ LIOM = 0				# plot LIOMs?
 local = 0
 
 	h0 = 10;	hend = 150;		dh = 10;
-	g0 = 10;	gend = 150;		dg = 10;
+	g0 = 60;	gend = 100;		dg = 10;
 	L0 = 10;	Lend = 15; 		dL = 1;
 
 use_fit = 0
 which_fit = 1						#=0 - a*exp(-t/b); =1 - a-b*log(t)
-x_min = 1e-5; x_max = 3e-2;
+x_min = 1e-5; x_max = 2e-1;
 
 #------------------------------------------ SET OPERATOR
 op = ""
@@ -103,13 +104,13 @@ if(scaling == 3) { str(x) = _str(x) }
 			if(scaling == 1){
 				_name(x) = op.sprintf("_".str(x)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", x, J0, g, g_knot, h, w);	_key_title(x) = sprintf("L=%d",x);
 				i0 = L0; iend = Lend; di = dL; 	out_dir = out_dir."size_scaling/"
-				output_name = output_name.op.sprintf("_".str(site)."_J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", J0, g, g_knot, h, w);
+				output_name = output_name.op.sprintf("_".str(site)."_J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", J, J0, g, g_knot, h, w);
 			} else{
 				if(scaling == 2){
 					_name(x) = op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, 0.01*x, g_knot, h, w); 
 					_key_title(x) = sprintf("g=%.2f",0.01*x)
 					i0 = g0; iend = gend; di = dg; 	out_dir = out_dir."g_scaling/"
-					output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J0, g_knot, h, w);
+					output_name = output_name.op.sprintf("_".str(site)."_L=%d,J=%.2f,J0=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J0, g_knot, h, w);
 				} else{
 					if(scaling == 3){
 						_name(x) = op."_".str(x).sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);
@@ -121,14 +122,14 @@ if(scaling == 3) { str(x) = _str(x) }
 					} else{
 						if(scaling == 4){
 							_dir(x) = 'realisation='.sprintf("%d/",x);
-							_name(x) = _dir(x).op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);
+							_name(x) = _dir(x).op.sprintf("_".str(site)."_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J, J0, g, g_knot, h, w);
 							_key_title(x) = sprintf("r=%d",x);
 							i0 = 0; iend = 9; di=1; 	out_dir = out_dir."realisation_scaling/"
-							output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J0, g, g_knot, h, w);
+							output_name = output_name.op.sprintf("_".str(site)."_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J, J0, g, g_knot, h, w);
 						} else{
-							_name(x) = op."_".str(site).sprintf("_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J0, g, g_knot, h, w);
+							_name(x) = op."_".str(site).sprintf("_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f.dat", L, J, J0, g, g_knot, h, w);
 							i0=1; iend=1; di=1;
-							output_name = output_name.op.sprintf("_".str(site)."_L=%d,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J0, g, g_knot, h, w);
+							output_name = output_name.op.sprintf("_".str(site)."_L=%d,J=%.2f,J0=%.2f,g=%.2f,g0=%.2f,h=%.2f,w=%.2f", L, J, J, J0, g, g_knot, h, w);
 							_key_title(x) = sprintf("L=%d, g=%.2f, h=%.2f",L,g,h);
 						}
 					}
@@ -192,7 +193,8 @@ if(scaling == 3) { str(x) = _str(x) }
 			if(fileexist(name)){
 				if(use_fit){
 					if(!two_panels){
-						fit[x_min:x_max][*:*] f(x) name u 1:2 via a, b, alfa; a_list[idx] = a; b_list[idx] = b; alfa_list[idx] = alfa;
+						if(plot_normalized == 0){ fit[x_min:x_max][*:*] f(x) name u 1:2 via a, b, alfa; a_list[idx] = a; b_list[idx] = b; alfa_list[idx] = alfa; }
+						else { fit[x_min:x_max][*:*] f(x) name u 1:2 via a, alfa; a_list[idx] = a; alfa_list[idx] = alfa;}
 					} else {
 						if(i <= iend){
 							if(plot_normalized) { fit[1e-5:0.2][*:*] f(x) name u 1:2 via a, alfa; a_list[idx] = a; b_list[idx] = 0.0; alfa_list[idx] = alfa;
@@ -228,7 +230,7 @@ if(scaling == 3) { str(x) = _str(x) }
 		if(!y_log){ y_min = 0.0; }
 		XRANGE = (rescale? "set xrange[15**nu*x_range_min:15**nu*1e2];" : "set xrange[x_range_min:1e1];" );
 		YRANGE = plot_exponent? "set yrange[1e-10:1.5e3];"\
-					: plot_normalized? "set yrange[0.5*y_min:1.0e0];" : "set yrange[0.9*y_min:1e0];"
+					: plot_normalized? "set yrange[0.5*y_min:2.0e0];" : "set yrange[0.9*y_min:2e0];"
 		#if(fit) {set label 1 at 0.02,(y_log? 0.6:0.6) sprintf("%s",label_fit) front }
 		
 

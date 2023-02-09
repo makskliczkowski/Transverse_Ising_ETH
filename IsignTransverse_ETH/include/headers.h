@@ -1,233 +1,26 @@
 #pragma once
-//-- SUPPRESS WARNINGS
-#if defined(_MSC_VER)
-	#define DISABLE_WARNING_PUSH           __pragma(warning( push ))
-	#define DISABLE_WARNING_POP            __pragma(warning( pop )) 
-	#define DISABLE_WARNING(warningNumber) __pragma(warning( disable : warningNumber ))
-	
-	#define DISABLE_OVERFLOW								 DISABLE_WARNING(26451)
-	#define DISABLE_WARNING_UNREFERENCED_FORMAL_PARAMETER    DISABLE_WARNING(4100)
-	#define DISABLE_WARNING_UNREFERENCED_FUNCTION            DISABLE_WARNING(4505)
-	// other warnings you want to deactivate...
 
-#elif defined(__GNUC__) || defined(__clang__)
-	#define DO_PRAGMA(X) _Pragma(#X)
-	#define DISABLE_WARNING_PUSH           DO_PRAGMA(GCC diagnostic push)
-	#define DISABLE_WARNING_POP            DO_PRAGMA(GCC diagnostic pop) 
-	#define DISABLE_WARNING(warningName)   DO_PRAGMA(GCC diagnostic ignored #warningName)
-
-	#define DISABLE_OVERFLOW								 DISABLE_WARNING(-Wstrict-overflow)
-	#define DISABLE_WARNING_UNREFERENCED_FORMAL_PARAMETER    DISABLE_WARNING(-Wunused-parameter)
-	#define DISABLE_WARNING_UNREFERENCED_FUNCTION            DISABLE_WARNING(-Wunused-function)
-	// other warnings you want to deactivate... 
-
-#else
-	// another compiler: intel,...
-	#define DISABLE_WARNING_PUSH
-	#define DISABLE_WARNING_POP
-	#define DISABLE_WARNING_UNREFERENCED_FORMAL_PARAMETER
-	#define DISABLE_WARNING_UNREFERENCED_FUNCTION
-	// other warnings you want to deactivate... 
-
-#endif
-#define NO_OVERFLOW(X)\
-	DISABLE_WARNING_PUSH;\
-	DISABLE_OVERFLOW;\
-	X;\
-	DISABLE_WARNING_POP;
-
-//-----------------------
-#include <stdio.h>
-#include <iostream>
-#include <fstream>
-#include <iomanip>
-#include <string>
-#include <vector>
-#include <sstream>
-#include <complex>
-#include <cmath>
-#include <algorithm>
-#include <unordered_map>
-//#include <hdf5.h>
-//#include <mkl.h>
-DISABLE_WARNING_PUSH // include <armadillo> and suppress its warnings, cause developers suck
-	// armadillo flags:
-#define ARMA_64BIT_WORD // enabling 64 integers in armadillo obbjects
-#define ARMA_BLAS_LONG_LONG // using long long inside LAPACK call
-#define ARMA_USE_OPENMP
-#define ARMA_ALLOW_FAKE_GCC
-//#define ARMA_EXTRA_DEBUG
-//-------
-DISABLE_OVERFLOW;
-#if defined(_MSC_VER)
-	DISABLE_WARNING(26812); // unscoped enum
-	DISABLE_WARNING(26819); // unannotated fallthrough
-	DISABLE_WARNING(26439); // may not throw
-	DISABLE_WARNING(6011);  // dereferencing NULL ptr 
-	DISABLE_WARNING(26495); // unitialized variable
-	DISABLE_WARNING(6993);  // ignore OpenMP: use single-thread
-	DISABLE_WARNING(4849);  // ignor OpenMP:collapse
-#elif defined(__GNUC__) || defined(__clang__)
-	DISABLE_WARNING(-Wenum-compare); // unscoped enum
-	DISABLE_WARNING(-Wimplicit-fallthrough); // unannotated fallthrough
-	DISABLE_WARNING(-Wuninitialized); // unitialized
-	DISABLE_WARNING(-Wopenmp);  // ignore OpenMP warning
-#else 
-	#pragma message ("not recognized compiler to disable armadillo library warnings");
-#endif
-	#include <armadillo>
-	
-DISABLE_WARNING_POP
-
-#include <iterator>
-#include <cassert> // assert terminates program
-#include <omp.h>
-#include <ctime>
-#include <utility> // auto, etc.
-#include <memory> // smart ptr
-#include <thread>
-#include <future>
-#include <mutex>
-//#include <condition_variable>
-#include <functional>
-#include <type_traits>
-//#include <execution>
-#ifdef __has_include
-#  if __has_include(<filesystem>)
-#    include <filesystem>
-#    define have_filesystem 1
-namespace fs = std::filesystem;
-#  elif __has_include(<experimental/filesystem>)
-#    include <experimental/filesystem>
-#    define have_filesystem 1
-#    define experimental_filesystem
-namespace fs = std::experimental::filesystem;
-#  else
-#    define have_filesystem 0
-#  endif
-#endif
-#include "random.h"
+//#ifndef 
+#include "config.hpp"
+#include "metaprograming/traits.h"
+#include "commons.h"
+#include "random_and_disorder/disorder.hpp"
 #include "digamma.h"
-#ifdef _MSC_VER
-#include <intrin.h>
-#include <nmmintrin.h>
-#define __builtin_popcount __popcnt
-#define __builtin_popcountll _mm_popcnt_u64
-#endif
 
-#if !defined(USE_HEISENBERG)
-	//#define USE_HEISENBERG
-#endif
 
-extern std::random_device rd;
+extern int num_of_threads;													// number of threads
+extern int anderson_dim;
 extern std::mt19937::result_type seed_global;
-extern std::mt19937_64 gen;
-typedef size_t u64;
+extern randomGen my_gen;
+
 // ----------------------------------------------------------------------------- namespaces -----------------------------------------------------------------------------
 using namespace std;
-using clk = std::chrono::system_clock;
 //namespace exec = std::execution;
 
-// ----------------------------------------------------------------------------- definitions -----------------------------------------------------------------------------
-static const char* kPathSeparator =
-#ifdef _WIN32
-"\\";
-#else
-"/";
-#endif
-
-using cpx = std::complex<double>;
-using op_type = std::function<std::pair<cpx, u64>(u64, int, std::vector<int>)>;
-
-template<class T>
-using v_3d = std::vector<std::vector<std::vector<T>>>;											// 3d double vector
-template<class T>
-using v_2d = std::vector<std::vector<T>>;														// 2d double vector
-template<class T>
-using v_1d = std::vector<T>;																	// 1d double vector
 
 
 // ----------------------------------------------------------------------------- User compiler macro -----------------------------------------------------------------------------
-#if !defined(OPERATOR)
-	#define OPERATOR
-#endif
-#if !defined(DEGENERACIES)
-	//#define DEGENERACIES
-#endif
-#define im cpx(0.0,1.0)
-#define stout std::cout << std::setprecision(8) << std::fixed								// standard outstream
 
-// ----------------------------------------------------------------------------- Macros to generate the lookup table (at compile-time) -----------------------------------------------------------------------------
-#define R2(n) n, n + 2*64, n + 1*64, n + 3*64
-#define R4(n) R2(n), R2(n + 2*16), R2(n + 1*16), R2(n + 3*16)
-#define R6(n) R4(n), R4(n + 2*4 ), R4(n + 1*4 ), R4(n + 3*4 )
-#define REVERSE_BITS R6(0), R6(2), R6(1), R6(3)
-#define ULLPOW(k) 1ULL << k
-#define RETURNS(...) -> decltype((__VA_ARGS__)) { return (__VA_ARGS__); }
-// ----------------------------------------------------------------------------- lookup table to store the reverse of each index of the table -----------------------------------------------------------------------------
-// The macro `REVERSE_BITS` generates the table
-const u64 lookup[256] = { REVERSE_BITS };
-
-const v_1d<u64> BinaryPowers = { ULLPOW(0), ULLPOW(1), ULLPOW(2), ULLPOW(3),
-								ULLPOW(4), ULLPOW(5), ULLPOW(6), ULLPOW(7),
-								ULLPOW(8), ULLPOW(9), ULLPOW(10), ULLPOW(11),
-								ULLPOW(12), ULLPOW(13), ULLPOW(14), ULLPOW(15),
-								ULLPOW(16), ULLPOW(17), ULLPOW(18), ULLPOW(19),
-								ULLPOW(20), ULLPOW(21), ULLPOW(22), ULLPOW(23),
-								ULLPOW(24), ULLPOW(25), ULLPOW(26), ULLPOW(27),
-								ULLPOW(28), ULLPOW(29), ULLPOW(30), ULLPOW(31) }; // vector containing powers of 2 from 2^0 to 2^(L-1)
-
-// ----------------------------------------------------------------------------- CONSTANTS -----------------------------------------------------------------------------
-extern int num_of_threads;													// number of threads
-constexpr long double pi = 3.141592653589793238462643383279502884L;			// it is me, pi
-constexpr long double two_pi = 2 * 3.141592653589793238462643383279502884L;	// it is me, 2pi
-//const auto global_seed = std::random_device{}();							// global seed for classes
-const std::string kPSep = std::string(kPathSeparator);
-
-
-// ----------------------------------------------------------------------------- TRY-Catch -----------------------------------------------------------------------------
-inline void handle_exception(std::exception_ptr eptr, std::string message) {
-	try {
-		if (eptr) {
-			std::rethrow_exception(eptr);
-		}
-	}
-	catch (const std::runtime_error& err) {
-		stout << "Runtime error:\t" << err.what() << "\n";
-		stout << message << std::endl;
-		assert(false);
-	}
-	catch (const std::bad_alloc& err) {
-		stout << "Bad alloc error:\t" << err.what() << "\n";
-		stout << message << std::endl;
-		assert(false);
-	}
-	catch (const std::exception& err) {
-		stout << "Exception:\t" << err.what() << "\n";
-		stout << message << std::endl;
-		assert(false);
-	}
-	catch (...) {
-		stout << "Unknown error...!" << "\n";
-		stout << message << std::endl;
-		assert(false);
-	}
-}
-#define BEGIN_CATCH_HANDLER try{
-#define END_CATCH_HANDLER(message) } catch(...){ handle_exception(std::current_exception(), message); };
-
-// ----------------------------------------------------------------------------- TIME FUNCTIONS -----------------------------------------------------------------------------
-
-inline double tim_s(clk::time_point start) {
-	return double(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration(\
-		std::chrono::system_clock::now() - start)).count()) / 1000.0;
-}
-// ----------------------------------------------------------------------------- TOOLS -----------------------------------------------------------------------------
-enum class coordinate {
-	x, 
-	y,
-	z
-};
 
 /// <summary>
 /// Calculates the sign of a value
@@ -237,26 +30,7 @@ template <typename T> int sgn(T val) {
 }
 // ----------------------------------------------------------------------------- STRING BASED TOOLS DECLARATIONS -----------------------------------------------------------------------------
 // weird: interfase to enforce same types in variadic templates
-template <typename _baseTy>
-struct types {
-	template<typename... _otherTy>
-	using convertible = typename std::enable_if<std::conjunction<std::is_convertible<_otherTy, _baseTy>...>::value>::type;
-};
-namespace _traits {
-	//<! check if variadic templates have common types (or are inmplicitly convertible) with _baseTy
-	template <class _baseTy, class... _otherTy>
-	struct is_same : std::conjunction<std::is_same<_otherTy, _baseTy>...> {};
 
-	template <class _baseTy, class... _otherTy>
-	inline constexpr bool is_same_v = is_same<_baseTy, _otherTy...>::value;
-
-	//<! check if typename is among other fixed ones struct (STL only has constexpr)
-	template <class _ty, class... fixed>
-	struct is_any_of : std::disjunction<std::is_same<_ty, fixed>...> {};
-
-	template <class _ty, class... fixed>
-	inline constexpr bool is_any_of_v = is_any_of<_ty, fixed...>::value;
-};
 // ---------------------------------- definitions
 bool isNumber(const string& str);
 
@@ -264,18 +38,34 @@ std::vector<std::string> split_str(std::string s, std::string delimiter);
 
 // ---------------------------------- templates
 
+//<! finds the order of magnitude of number +1 (only for <1 numbers to find filename format)
+template <typename T>
+inline
+int order_of_magnitude(const T a_value) {
+	
+	if(a_value < 1.0 && a_value != 0){
+		T m = std::abs(std::log10(std::abs(a_value)));
+		return int(std::max(std::ceil(m) + 1., 2.));
+	}
+	else return 2;
+}
 /// <summary>
 /// Changes a value to a string with a given precison
 /// </summary>
 /// <param name="n">number of decimal places</param>
 /// <returns>string of a number with given precision</returns>
 template <typename T>
-std::string to_string_prec(const T a_value, const int n = 3) {
+inline
+std::string to_string_prec(const T a_value, int n = -1) {
+	if(n < 0)
+		n = order_of_magnitude(a_value);
+	//std::cout << n << std::endl;
 	std::ostringstream outie;
 	outie.precision(n);
 	outie << std::fixed << a_value;
 	return outie.str();
 }
+
 
 // ----------------------------------------------------------------------------- BINARY TOOLS -----------------------------------------------------------------------------
 
@@ -300,6 +90,7 @@ inline u64 binary_search(const std::vector<T>& arr, u64 l_point, u64 r_point, T 
 		else if (arr[middle] < element) return binary_search(arr, middle + 1, r_point, element);
 		else return binary_search(arr, l_point, middle - 1, element);
 	}
+	//std::cout << "Element not found" << std::endl;
 	return -1;
 }
 
@@ -387,81 +178,12 @@ inline std::function<u64(u64, int)> multiply_operators(const std::function<u64(u
 	return result;
 }
 
-/// <summary>
-/// Conversion to binary system
-/// </summary>
-/// <param name="idx"> numner for conversion </param>
-/// <param name="vec"> vector containing the binary string </param>
-inline void int_to_binary(u64 idx, std::vector<bool>& vec) {
-	u64 temp = idx;
-	const u64 size = vec.size();
-	for (int k = 0; k < size; k++) {
-		vec[size - 1 - k] = temp % 2;
-		temp = temp / u64(2);
-	}
+inline u64 binomial(int n, int k) {
+   if (k == 0 || k == n)
+   return 1;
+   return binomial(n - 1, k - 1) + binomial(n - 1, k);
 }
-
-/// <summary>
-/// conversion from binary to integer
-/// </summary>
-/// <param name="vec"> binary string </param>
-/// <returns> unsigned long long integer </returns>
-inline u64 binary_to_int(const vector<bool>& vec) {
-	u64 val = 0;
-	u64 exp = 1;
-	const u64 size = vec.size();
-	for (int k = 0; k < size; k++) {
-		val += static_cast<u64>(vec[size - 1 - k]) * exp;
-		exp *= 2;
-	}
-	return val;
-}
-
-/// <summary>
-/// change vector of bools to int using the vector of powers precalculated
-/// </summary>
-inline u64 binary_to_int(const vector<bool>& vec, const v_1d<u64>& powers) {
-	u64 val = 0;
-	const u64 size = vec.size();
-	for (int k = 0; k < size; k++)
-		val += static_cast<u64>(vec[size - 1 - k]) * powers[k];
-	return val;
-}
-
-// ----------------------------------------------------------------------------- VECTORS HANDLING -----------------------------------------------------------------------------
-
-/// <summary>
-/// Creates a random vector of custom length using the random library and the merson-twister (?) engine
-/// </summary>
-/// <param name="N"> length of the generated random vector </param>
-/// <returns> returns the custom-length random vector </returns>
-inline arma::vec create_random_vec(u64 N, double h = 1.0) {
-	arma::vec random_vec(N, arma::fill::zeros);
-	std::uniform_real_distribution<double> distribute(-h, h);
-	// create random vector from middle to always append new disorder at lattice endpoint
-	for (u64 j = 0; j <= N / 2.; j++) {
-		u64 idx = N / (long)2 - j;
-		random_vec(idx) = distribute(gen);
-		idx += 2 * j;
-		if (idx < N) random_vec(idx) = distribute(gen);
-	}
-	return random_vec;
-}
-
-/// <summary>
-/// Creates a random vector of custom length using the random library and the merson-twister (?) engine
-/// </summary>
-/// <param name="N"> length of the generated random vector </param>
-/// <returns> returns the custom-length random vector </returns>
-inline std::vector<double> create_random_vec_std(u64 N) {
-	std::vector<double> random_vec(N, 0);
-	std::uniform_real_distribution<double> distribute(-1.0, 1.0);
-	for (u64 j = 0; j < N; j++) {
-		random_vec[j] = distribute(gen);
-	}
-	return random_vec;
-}
-
+// ----------------------------------------------------------------------------- VECTORS HANDLING ----------------------------------------------------------------------------- 
 /// <summary>
 /// Calculate the vector that consists of a given site corr_len away for a lattice site provided by the user
 /// </summary>
@@ -631,7 +353,8 @@ inline void save_to_file(std::string name, const arma::vec& x, const arma::vec& 
 /// <summary>
 /// Sorts the vector and saves the permutation with a lambda like function compare
 /// </summary>
-template <typename T, typename Compare> inline std::vector<std::size_t> sort_permutation(const std::vector<T>& vec, Compare compare) {
+template <typename T, typename Compare> 
+inline std::vector<std::size_t> sort_permutation(const T& vec, Compare compare) {
 	std::vector<std::size_t> p(vec.size());
 	std::iota(p.begin(), p.end(), 0);
 	std::sort(p.begin(), p.end(),
@@ -644,7 +367,8 @@ template <typename T, typename Compare> inline std::vector<std::size_t> sort_per
 /// <summary>
 /// Applies permutation on a given vector
 /// </summary>
-template <typename T> inline void apply_permutation(std::vector<T>& vec, const std::vector<std::size_t>& p) {
+template <typename T> 
+inline void apply_permutation(T& vec, const std::vector<std::size_t>& p) {
 	std::vector<bool> done(vec.size());
 	for (std::size_t i = 0; i < vec.size(); ++i) {
 		if (done[i]) continue;
@@ -679,12 +403,11 @@ inline _Ty matrixVariance(const arma::Mat<_Ty>& mat) {
 	return var - mean * mean;
 }
 inline void checkRandom(unsigned int seed) {
-	gen = std::mt19937_64(seed);
-	std::uniform_int_distribution<int> dist;
-	stout << "test randoms \n" << dist(gen) << "\t" << dist(gen) << "\t" << dist(gen) << std::endl;
-	gen = std::mt19937_64(seed);
+	my_gen = randomGen(seed);
+	stout << "test randoms \n" << my_gen.random_uni<double>(0., 1.) << "\t" << my_gen.random_uni<double>(0., 1.) << "\t" << my_gen.random_uni<double>(0., 1.) << std::endl;
+	my_gen = randomGen(seed);
 	stout << "reset seed!" << std::endl;
-	stout << dist(gen) << "\t" << dist(gen) << "\t" << dist(gen) << std::endl;
+	stout << my_gen.random_uni<double>(0., 1.) << "\t" << my_gen.random_uni<double>(0., 1.) << "\t" << my_gen.random_uni<double>(0., 1.) << std::endl;
 	stout << "Same? Good continue!\n\n";
 }
 // ----------------------------------------------------------------------------- DISTRIBUTION AND DATASET RELATED FUNCTIONS -----------------------------------------------------------------------------
@@ -826,6 +549,25 @@ private:
 
 
 //! ----------------------------------------------------------------------------- ARMADILLO HELPERS -----------------------------------------------------------------------------
+//<! calculate commutator of two input matrix types, which have overloaded * operator
+inline std::string matrix_size(u64 dim){
+	 if(dim < 1e3)
+	 	return std::to_string(dim) + " bytes";
+	 else if(dim < 1e6)
+	 	return to_string_prec(dim / 1e3, 2) + " kB";
+	 else if(dim < 1e9)
+	 	return to_string_prec(dim / 1e6, 2) + " MB";
+	 else if(dim < 1e12)
+	 	return to_string_prec(dim / 1e9, 2) + " GB";
+	else 
+	 	return to_string_prec(dim / 1e12, 2) + " TB";
+}
+
+
+template <typename matrix>
+matrix commutator(const matrix& A, const matrix& B)
+	{ return A * B - B * A; }
+
 //! -------------------------------------------------------- cast non-cpx to cpx types
 template <typename _ty>
 arma::Col<std::complex<_ty>> cpx_real_vec(const arma::Col<_ty>& input){ 
@@ -847,6 +589,18 @@ arma::Col<std::complex<_ty>> cpx_imag_vec(const arma::subview_col<_ty>& input) {
 	size_t size = input.n_elem;
 	return arma::Col<std::complex<_ty>>(arma::Col<_ty>(size, arma::fill::zeros), input);
 }
+
+
+template <typename _type>
+inline
+arma::cx_vec cast_cx_vec(const arma::Col<_type>& state);
+
+template <>
+inline arma::cx_vec cast_cx_vec(const arma::vec& state)
+	{ return cpx_real_vec(state); }
+template <>
+inline arma::cx_vec cast_cx_vec(const arma::cx_vec& state)
+	{ return state; }
 //! -------------------------------------------------------- dot product for different input types (cpx and non-cpx)
 
  template <typename _ty, 

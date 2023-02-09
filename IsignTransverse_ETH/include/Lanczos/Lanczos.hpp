@@ -25,7 +25,6 @@ namespace lanczos {
 		arma::cx_vec randVec_inKrylovSpace;		//<! random vector written in lanczos basis (used in FTLM)
 
 		randomGen ran;						//<! random variable generator -- uniform distribution
-		lanczosParams params;				//<! parameters for lanczos procedure: steps, random steps, efficiency etc
 		u64 N;								//<! dimension of hilbert space
 		bool use_krylov;					//<! boolean value whether useing krylov matrix or not
 		//! ----------------------------------------------------- PRIVATE BUILDERS / INITIALISERS
@@ -39,8 +38,12 @@ namespace lanczos {
 		);
 
 	public:
+		lanczosParams params;				//<! parameters for lanczos procedure: steps, random steps, efficiency etc
+		
 		auto get_eigenvalues() 				const { return this->eigenvalues; }
 		auto get_eigenstate(int _id = 0) 	const { return conv_to_hilbert_space(_id); }
+		auto get_krylov()					const { return this->krylov_space; }
+		auto get_lanczos_matrix()			const { return this->H_lanczos; }
 		//friend _returnTy FTLM(Lanczos&);
 		//------------------------------------------------------------------------------------------------ CONSTRUCTOS
 		~Lanczos() = default;

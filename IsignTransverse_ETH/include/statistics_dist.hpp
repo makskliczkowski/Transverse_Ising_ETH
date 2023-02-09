@@ -2,6 +2,7 @@
 
 namespace statistics{
 //! ---------------------------------------------------------------- DISTRIBUTION FUNCTIONS AND PROBABILITIES
+//! ---------------------------------- HISTOGRAM OF COUNTS
 //<! Creates a probabilty distribution of data and saves it in the directory
 template <typename ... _ty>
 inline
@@ -13,7 +14,7 @@ void probability_distribution(
 	_ty... args
     ) {
 	if (n_bins <= 0)
-		n_bins = 1 + 2 * long(3.322 * log(data.size()));
+		n_bins = 1 + long(3.322 * log(data.size()));
 	const double _min = arma::min(data);
 	const double _max = arma::max(data);
 	auto prob_dist = normalise_dist(
@@ -42,7 +43,10 @@ auto probability_distribution(
             arma::hist(data, n_bins)
             ), _min, _max);
     }
+//! ---------------------------------- HISTOGRAM OF COUNTS IN SPECIFIED BINS
 
+
+//! ---------------------------------- FLUCTUATIONS
 //<! data fluctuations around average structure
 inline
 auto remove_fluctuations(
