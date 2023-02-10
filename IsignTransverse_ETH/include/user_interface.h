@@ -9,7 +9,6 @@
 #include "thermodynamics.hpp"
 #include "entaglement.hpp"
 #include "adiabatic_gauges.hpp"
-#include "ThomasAlgorithm.hpp"
 
 
 const arma::vec down = { 0, 1 };
@@ -348,7 +347,7 @@ namespace isingUI
 				}
 			if(this->m){
 				arma::vec _vec = x + my_gen.create_random_vec<double>(this->realisations, x / 50.);
-				//stout << _vec << std::endl;
+				//std::cout << _vec << std::endl;
 				for(int r = 0; r < _vec.size(); r++){
 					if(this->realisations > 1){
 						switch (par)
@@ -398,7 +397,7 @@ namespace isingUI
 				default:				  x = 0.0;		break;
 				}
 				arma::vec _vec = x + my_gen.create_random_vec<double>(this->realisations, 0.05);
-				//stout << _vec << std::endl;
+				//std::cout << _vec << std::endl;
 			if(this->m){
 			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)
 				for(int r = 0; r < _vec.size(); r++){

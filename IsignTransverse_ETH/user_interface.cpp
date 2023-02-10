@@ -125,7 +125,7 @@ void isingUI::ui::make_sim()
 							this->site = this->L / 2.;
 							
 							const auto start_loop = std::chrono::system_clock::now();
-							stout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
+							std::cout << " - - START NEW ITERATION AT : " << tim_s(start) << " s;\t\t par = "; // simulation end
 							printSeparated(std::cout, "\t", 16, true, this->L, this->J, this->g, this->h, this->w);
 							
 							loopSymmetrySectors(kernel); continue;
@@ -140,11 +140,11 @@ void isingUI::ui::make_sim()
 
 							analyze_spectra(); continue;
 							spectral_form_factor(); continue;
-							stout << "\t\t - - - - - - FINISHED ITERATIO IN : " << tim_s(start_loop) << " seconds - - - - - - " << std::endl; // simulation end
+							std::cout << "\t\t - - - - - - FINISHED ITERATIO IN : " << tim_s(start_loop) << " seconds - - - - - - " << std::endl; // simulation end
 
 						}}}}}
 		}
-	stout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - " << std::endl; // simulation end
+	std::cout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - " << std::endl; // simulation end
 }
 
 
@@ -167,7 +167,7 @@ void isingUI::ui::diag_sparse(int num, bool get_eigenvectors, double sigma)
 		auto alfa = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h,
 								 this->symmetries.k_sym, this->symmetries.p_sym, this->symmetries.x_sym, this->boundary_conditions);
 		std::string name = alfa->get_info();
-		stout << "\n\t\t--> finished creating model for " << name << " - in time : " << tim_s(start) << "s" << std::endl; 
+		std::cout << "\n\t\t--> finished creating model for " << name << " - in time : " << tim_s(start) << "s" << std::endl; 
 		start = std::chrono::system_clock::now();
 		arma::eigs_opts opts;
 		opts.maxiter = 5000;
@@ -175,14 +175,14 @@ void isingUI::ui::diag_sparse(int num, bool get_eigenvectors, double sigma)
 		arma::sp_cx_mat H = alfa->get_hamiltonian();
 		//arma::cx_vec E = arma::eigs_gen(H, num, sigma, opts);
 		//save_eigs(E, name);
-		stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
+		std::cout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
 			  << " - in time : " << tim_s(start) << "\t\nTotal time : " << tim_s(start_up) << "s" << std::endl;
 	} else{
 		for(int r = 0; r < this->realisations; r++){
 			auto start = std::chrono::system_clock::now();
 			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 			std::string name = alfa->get_info();
-			stout << "\n\t\t--> finished creating model for " << name << " - in time : " << tim_s(start) << "s" << std::endl;
+			std::cout << "\n\t\t--> finished creating model for " << name << " - in time : " << tim_s(start) << "s" << std::endl;
 			start = std::chrono::system_clock::now();
 			arma::eigs_opts opts;
 			//opts.maxiter = 1000;
@@ -190,7 +190,7 @@ void isingUI::ui::diag_sparse(int num, bool get_eigenvectors, double sigma)
 			arma::sp_mat H = alfa->get_hamiltonian();
 			arma::vec E = arma::eigs_sym(H, num, sigma, opts);
 			save_eigs(E, name + ((r == 0)? "" : "_real=" + std::to_string(r)));
-			stout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
+			std::cout << "\t\t	--> finished diagonalizing for " << alfa->get_info()
 				  << " - in time : " << tim_s(start) << "\t\nTotal time : " << tim_s(start_up) << "s" << std::endl;
 		}
 	}
@@ -206,7 +206,7 @@ void isingUI::ui::diagonalize(){
 		std::string _suffix = ""	//<! suffix, like realisation etc
 		){
 		std::string info = alfa.get_info({});
-		stout << "\n\t\t--> finished creating model for " << info + _suffix << " - in time : " << tim_s(start) << "s" << std::endl;
+		std::cout << "\n\t\t--> finished creating model for " << info + _suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 		arma::vec eigenvalues;
 		if(alfa.g == 0){
 			auto H = alfa.get_hamiltonian();
@@ -223,15 +223,15 @@ void isingUI::ui::diagonalize(){
 			alfa.diagonalization(this->ch);
 			eigenvalues = alfa.get_eigenvalues();
 		}
-		stout << "\t\t	--> finished diagonalizing for " << info + _suffix<< " - in time : " << tim_s(start) << "s" << std::endl;
+		std::cout << "\t\t	--> finished diagonalizing for " << info + _suffix<< " - in time : " << tim_s(start) << "s" << std::endl;
 		
 		std::string name = dir + info + _suffix + ".hdf5";
 		eigenvalues.save(arma::hdf5_name(name, "eigenvalues/", arma::hdf5_opts::append));
-		stout << "\t\t	--> finished saving eigenvalues for " << info + _suffix << " - in time : " << tim_s(start) << "s" << std::endl;
+		std::cout << "\t\t	--> finished saving eigenvalues for " << info + _suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 		//if(this->ch){
 		//	auto V = alfa.get_eigenvectors();
 		//	V.save(arma::hdf5_name(name, "/eigenvectors/" + _suffix, arma::hdf5_opts::append));
-		//	stout << "\t\t	--> finished saving eigenvectors for " << info << " - in time : " << tim_s(start) << "s" << std::endl;
+		//	std::cout << "\t\t	--> finished saving eigenvectors for " << info << " - in time : " << tim_s(start) << "s" << std::endl;
 		//}
 	};
 	//herr_t status;
@@ -287,7 +287,7 @@ auto isingUI::ui::get_eigenvalues(IsingModel<_type>& alfa, std::string _suffix)
 			//	std::cout << "Failed to load energies, returning empty array" << std::endl;
 			//#else
 				alfa.diagonalization(false);
-				//stout << "No energies found, diagonalizing matrix now!" << std::endl;
+				//std::cout << "No energies found, diagonalizing matrix now!" << std::endl;
 				eigenvalues = alfa.get_eigenvalues();
 			//#endif
 		}
@@ -444,16 +444,16 @@ void isingUI::ui::compare_energies()
 				symms.insert(symms.end(), std::make_move_iterator(temp_str.begin()), std::make_move_iterator(temp_str.end()));
 			}
 		}
-		stout << k << endl;
+		std::cout << k << endl;
 	}
 	// face permutation
 	auto permut = sort_permutation(E_sym, [](const double a, const double b)
 								   { return a < b; });
 	apply_permutation(E_sym, permut);
 	apply_permutation(symms, permut);
-	stout << endl
+	std::cout << endl
 		  << E_sym.size() << endl;
-	stout << "symmetry sector\t\tEnergy sym\t\tEnergy total\t\tdifference\t\t <n|X|n>" << endl;
+	std::cout << "symmetry sector\t\tEnergy sym\t\tEnergy total\t\tdifference\t\t <n|X|n>" << endl;
 	printSeparated(std::cout, "\t", 20, true, "symmetry sector", "Energy sym", "Energy total", "difference");
 	for (int k = 0; k < E_dis.size(); k++)
 		printSeparated(std::cout, "\t", 20, true, symms[k], E_sym[k], E_dis(k), E_sym[k] - E_dis(k));
@@ -556,18 +556,18 @@ void isingUI::ui::compare_entaglement()
 	auto alfa1 = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, 1e-4, this->boundary_conditions);
 	auto alfa2 = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, 1e-3, this->boundary_conditions);
 	auto alfa3 = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, 1e-2, this->boundary_conditions);
-	stout << "\n\t\t--> finished creating models for w=1e-4,1e-3,1e-2 and  " << alfa1->get_info({"w"}) << " - in time : " << tim_s(start) << "s" << std::endl;
+	std::cout << "\n\t\t--> finished creating models for w=1e-4,1e-3,1e-2 and  " << alfa1->get_info({"w"}) << " - in time : " << tim_s(start) << "s" << std::endl;
 	alfa1->diagonalization();
 	alfa2->diagonalization();
 	alfa3->diagonalization();
-	stout << "\t\t	--> finished diagonalizing for w=1e-4,1e-3,1e-2 and  " << alfa1->get_info({"w"}) << " - in time : " << tim_s(start) << "s" << std::endl;
+	std::cout << "\t\t	--> finished diagonalizing for w=1e-4,1e-3,1e-2 and  " << alfa1->get_info({"w"}) << " - in time : " << tim_s(start) << "s" << std::endl;
 
 	auto beta1 = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, this->L / 2, 1, 1, this->boundary_conditions);
 	auto beta2 = std::make_unique<IsingModel_sym>(this->L, this->J, this->g, this->h, 1, 1, 1, this->boundary_conditions);
-	stout << "\n\t\t--> finished creating model for k=0,1; p=1,x=1 and " << beta1->get_info({"k", "p", "x"}) << " - in time : " << tim_s(start) << "s" << std::endl;
+	std::cout << "\n\t\t--> finished creating model for k=0,1; p=1,x=1 and " << beta1->get_info({"k", "p", "x"}) << " - in time : " << tim_s(start) << "s" << std::endl;
 	beta1->diagonalization();
 	beta2->diagonalization();
-	stout << "\t\t	--> finished diagonalizing for k=0,1; p=1,x=1 and " << beta1->get_info({"k", "p", "x"}) << " - in time : " << tim_s(start) << "s" << std::endl;
+	std::cout << "\t\t	--> finished diagonalizing for k=0,1; p=1,x=1 and " << beta1->get_info({"k", "p", "x"}) << " - in time : " << tim_s(start) << "s" << std::endl;
 
 	std::ofstream file;
 	std::string dir = this->saving_dir + "Entropy" + kPSep;
@@ -793,7 +793,7 @@ void isingUI::ui::calculate_spectrals()
 	auto kernel = [&](
 		auto& alfa, int r, const arma::sp_cx_mat& oper
 		){
-		stout << "\n\t\t--> finished generating operator for " << info << " - in time : " << tim_s(start) << "s" << std::endl;
+		std::cout << "\n\t\t--> finished generating operator for " << info << " - in time : " << tim_s(start) << "s" << std::endl;
 		r += this->jobid;
 		std::string tdir_realisation = timeDir + "realisation=" + std::to_string(r) + kPSep;
 		std::string intdir_realisation = intDir + "realisation=" + std::to_string(r) + kPSep;
@@ -805,7 +805,7 @@ void isingUI::ui::calculate_spectrals()
 			assert(false && "Something went wrong. No set operator\n\n");
 
 
-		stout << "\t\t	--> finished diagonalizing for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
+		std::cout << "\t\t	--> finished diagonalizing for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 		arma::vec E = alfa.get_eigenvalues();
 
 		N = alfa.get_hilbert_size();
@@ -932,7 +932,7 @@ void isingUI::ui::calculate_spectrals()
 	save_to_file(intDir + filename, omegas, opIntSpec, wH, LTA);		//smoothen_data(intDir,  opName + info + ".dat", 10);
 	//save_to_file(specDir + opName + info + ".dat", omega_spec, opSpecFun, wH, LTA);		smoothen_data(specDir, opName + info + ".dat");
 	
-	stout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - \n"
+	std::cout << " - - - - - - FINISHED CALCULATIONS IN : " << tim_s(start) << " seconds - - - - - - \n"
 			  << std::endl; // simulation end
 }
 
@@ -999,7 +999,7 @@ void isingUI::ui::combine_spectrals(){
 				idx++;
 			}
 			counter_agp++;
-			stout << "\t\t	--> finished AGP for " << info
+			std::cout << "\t\t	--> finished AGP for " << info
 			  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 		}
 		file.close();
@@ -1010,7 +1010,7 @@ void isingUI::ui::combine_spectrals(){
 			times = data[0];
 			opEvol += data[1];
 			counter_time++;
-			stout << "\t\t	--> finished time evolution for " << info
+			std::cout << "\t\t	--> finished time evolution for " << info
 			  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 		}
 		file.close();
@@ -1022,7 +1022,7 @@ void isingUI::ui::combine_spectrals(){
 			opIntSpec += data[1];
 			wH += data[2][0] / double(0.5 * N);
 			counter_int++;
-			stout << "\t\t	--> finished integrated spectral function for " << info
+			std::cout << "\t\t	--> finished integrated spectral function for " << info
 			  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 		}
 		file.close();
@@ -1035,7 +1035,7 @@ void isingUI::ui::combine_spectrals(){
 		if(loaded && loaded2){
 			omegas_spec = arma::join_cols(omegas_spec, omegas);
 			mat_elem = arma::join_cols(mat_elem, mat_elem_r);
-			stout << "\t\t	--> finished spectral function for " << info
+			std::cout << "\t\t	--> finished spectral function for " << info
 			  << " realisation: " << realis << " - in time : " << tim_s(start_loop) << "s" << std::endl;
 		}
 	};
@@ -1094,7 +1094,7 @@ void isingUI::ui::entropy_evolution(){
 	clk::time_point start = std::chrono::system_clock::now();
 	// ----------- generate kernel
 	auto kernel = [this, start](auto& alfa){
-		stout << "\n\t\t--> finished creating model for " << alfa.get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
+		std::cout << "\n\t\t--> finished creating model for " << alfa.get_info() << " - in time : " << tim_s(start) << "s" << std::endl;
 		const size_t N = alfa.get_hilbert_size();
 		const double tH = 1. / alfa.mean_level_spacing_analytical();
 		int t_max = (int)std::ceil(std::log10(tH));
@@ -1108,7 +1108,7 @@ void isingUI::ui::entropy_evolution(){
 		createDirs(dir);
 		my_gen.reset();
 		// ----------- diagonalize
-		stout << "\t\t	--> start diagonalizing for " << alfa.get_info()
+		std::cout << "\t\t	--> start diagonalizing for " << alfa.get_info()
 				<< " - in time : " << tim_s(start) << "s" << std::endl;
 		if(this->ch){
 			dir += "Lanczos" + kPSep;
@@ -1125,7 +1125,7 @@ void isingUI::ui::entropy_evolution(){
 				{	// capture lancz by value to access it outsied the if-else scope, i.e. when the lambda is called
 					// entropy and times are declared outside the if-else scope so they can be passed by reference
 					arma::cx_vec init_state = this->set_init_state(N);
-					stout << "\t\t	-->set initial state for " << alfa.get_info()
+					std::cout << "\t\t	-->set initial state for " << alfa.get_info()
 						<< " - in time : " << tim_s(start) << "s" << std::endl;
 					arma::cx_vec state = init_state;
 					if(this->scale)
@@ -1141,7 +1141,7 @@ void isingUI::ui::entropy_evolution(){
 						entropy(i) += ent;
 						entropy_stddev(i) += ent * ent;
 					}
-					stout << "realisation: " << realis << " - in time : " << tim_s(start) << "s" << std::endl;
+					std::cout << "realisation: " << realis << " - in time : " << tim_s(start) << "s" << std::endl;
 				};
 			average_over_realisations<Ising_params::h>(alfa, false, to_ave_time);
 		} else{
@@ -1162,11 +1162,11 @@ void isingUI::ui::entropy_evolution(){
 						entropy(i) += ent;
 						entropy_stddev(i) += ent * ent;
 					}
-					stout << "realisation: " << realis << " - in time : " << tim_s(start) << "s" << std::endl;
+					std::cout << "realisation: " << realis << " - in time : " << tim_s(start) << "s" << std::endl;
 				};
 			average_over_realisations<Ising_params::h>(alfa, false, to_ave_time);
 		}
-		stout << "\t\t	--> finished diagonalizing for " << alfa.get_info()
+		std::cout << "\t\t	--> finished diagonalizing for " << alfa.get_info()
 					<< " - in time : " << tim_s(start) << "s" << std::endl;
 		entropy /= double(this->realisations);
 		entropy_stddev = arma::sqrt(entropy_stddev / double(this->realisations) - arma::square(entropy));
@@ -1459,13 +1459,13 @@ void isingUI::ui::analyze_spectra(){
 			}
 		}
 		catch (const std::exception& err) {
-			stout << "Exception:\t" << err.what() << "\n";
+			std::cout << "Exception:\t" << err.what() << "\n";
 			exit(1);
 			//std::cout << "Caught some error, but current spectrum is:" << std::endl;
 			//std::cout << eigenvalues.t() << std::endl;
 		}
 		catch (...) {
-			stout << "Unknown error...!" << "\n";
+			std::cout << "Unknown error...!" << "\n";
 			assert(false);
 		}
 	};
@@ -1539,7 +1539,7 @@ void isingUI::ui::adiabatic_gauge_potential(){
 	{
 		realis += this->jobid;
 		auto start_loop = std::chrono::system_clock::now();
-		stout << "\t\t	--> finished diagonalizing for " << info << " - in time : " << tim_s(start_diag) << "s" << std::endl;
+		std::cout << "\t\t	--> finished diagonalizing for " << info << " - in time : " << tim_s(start_diag) << "s" << std::endl;
 		std::string dir_agp_realisation = dir_agp + "realisation=" + std::to_string(realis) + kPSep;
 		createDirs(dir_agp_realisation);
 
@@ -1748,7 +1748,7 @@ void isingUI::ui::spectral_form_factor(){
 			auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
 			eigenvalues = this->get_eigenvalues(*alfa, suffix);
 		}
-		if(this->fun == 3) stout << "\t\t	--> finished loading eigenvalues for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
+		if(this->fun == 3) std::cout << "\t\t	--> finished loading eigenvalues for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 		if(eigenvalues.empty()) return;
 		const u64 N = eigenvalues.size();
 		// ------------------------------------- calculate gap ratio
@@ -1779,7 +1779,7 @@ void isingUI::ui::spectral_form_factor(){
 			wH_typ_r = std::exp(wH_typ_r / double(count));
 			r1_tmp /= double(count);
 			r2_tmp /= double(num2);
-			if(this->fun == 3) stout << "\t\t	--> finished unfolding for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
+			if(this->fun == 3) std::cout << "\t\t	--> finished unfolding for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 			
 			auto [sff_r_folded, Z_r_folded] = statistics::spectral_form_factor(eigenvalues, times_fold, this->beta, 0.5);
 			eigenvalues = statistics::unfolding(eigenvalues);
@@ -1796,7 +1796,7 @@ void isingUI::ui::spectral_form_factor(){
 				wH_mean += wH_mean_r;
 				wH_typ  += wH_typ_r;
 			}
-		if(this->fun == 3) stout << "\t\t	--> finished realisation for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
+		if(this->fun == 3) std::cout << "\t\t	--> finished realisation for " << info + suffix << " - in time : " << tim_s(start) << "s" << std::endl;
 		
 		//--------- SAVE REALISATION TO FILE
 		#if !defined(MY_MAC)
@@ -1805,7 +1805,7 @@ void isingUI::ui::spectral_form_factor(){
 			save_to_file(dir_re + info + ".dat", 			times, 		sff_r, 		  Z_r, 		  r1_tmp, r2_tmp, wH_mean_r, wH_typ_r);
 			save_to_file(dir_re + "folded" + info + ".dat", times_fold, sff_r_folded, Z_r_folded, r1_tmp, r2_tmp, wH_mean_r, wH_typ_r);
 		#else
-			stout << this->jobid + realis << std::endl;
+			std::cout << this->jobid + realis << std::endl;
 		#endif
 	};
 	
@@ -2323,7 +2323,7 @@ void isingUI::ui::level_spacing(){
 		}
 		printSeparated(file, "\t", 14, true, par1, par2, r1, r2);
 		
-		stout << "\t\t	--> finished realisations for " << info << " - in time : " << tim_s(start) << "s" << std::endl;
+		std::cout << "\t\t	--> finished realisations for " << info << " - in time : " << tim_s(start) << "s" << std::endl;
 	};
 
 	std::ofstream file;
@@ -2769,7 +2769,7 @@ void user_interface::set_option(T &value, const v_1d<string> &argv, string choos
 template <typename T>
 void user_interface::set_default_msg(T &value, string option, string message, const unordered_map<string, string> &map) const
 {
-	stout << message;			// print warning
+	std::cout << message;			// print warning
 	std::string value_str = ""; // we will set this to value
 	if (auto it = map.find(option); it != map.end())
 	{
@@ -2785,7 +2785,7 @@ void user_interface::set_default_msg(T &value, string option, string message, co
 /// </summary>
 void isingUI::ui::printAllOptions() const
 {
-	stout << "------------------------------CHOSEN MODEL:" << std::endl;
+	std::cout << "------------------------------CHOSEN MODEL:" << std::endl;
 
 	#if MODEL == 0
 		std::cout << "ISING:\n\t\t" << "H = \u03A3_i J_i \u03C3^z_i \u03C3^z_i+1 + g_i \u03C3^x_i + h_i \u03C3^x_i" << std::endl << std::endl;
@@ -2809,10 +2809,10 @@ void isingUI::ui::printAllOptions() const
 		std::cout << "g_i \u03B5 [g - g0, g + g0]" << std::endl;
 		std::cout << "h_i \u03B5 [h - w, h + w]" << std::endl;
 	#endif
-	stout << "Chosen spin species is S = " << S << std::endl << std::endl;
-	stout << "------------------------------CHOSEN OPTIONS:" << std::endl;
+	std::cout << "Chosen spin species is S = " << S << std::endl << std::endl;
+	std::cout << "------------------------------CHOSEN OPTIONS:" << std::endl;
 	std::string opName = std::get<0>(IsingModel_disorder::opName(this->op, this->site));
-	stout << "DIR = " << this->saving_dir << std::endl
+	std::cout << "DIR = " << this->saving_dir << std::endl
 		  << "model = " << (this->m ? "symmetric" : "disordered") << std::endl
 		  << "BC = " << (this->boundary_conditions ? "OBC" : "PBC") << std::endl
 		  << "L  = " << this->L << std::endl
@@ -2840,7 +2840,7 @@ void isingUI::ui::printAllOptions() const
 		  << "\u03B2 = " << this->beta << std::endl;
 
 	if (this->m == 0)
-		stout << "J0  = " << this->J0 << std::endl
+		std::cout << "J0  = " << this->J0 << std::endl
 			  << "J0n = " << this->J0n << std::endl
 			  << "J0s = " << this->J0s << std::endl
 			  << "w   = " << this->w << std::endl
@@ -2851,15 +2851,15 @@ void isingUI::ui::printAllOptions() const
 			  << "g0n = " << this->g0n << std::endl;
 
 	if (this->m == 1){
-		if(this->symmetries.k_sym == -1) stout << "k-sector = pi" << std::endl;
-		else stout << "k-sector = " << 2 * this->symmetries.k_sym << "/L *pi" << std::endl;
-		stout << "p-sector = " << (this->symmetries.p_sym ? 1 : -1) << std::endl
+		if(this->symmetries.k_sym == -1) std::cout << "k-sector = pi" << std::endl;
+		else std::cout << "k-sector = " << 2 * this->symmetries.k_sym << "/L *pi" << std::endl;
+		std::cout << "p-sector = " << (this->symmetries.p_sym ? 1 : -1) << std::endl
 			  << "x-sector = " << (this->symmetries.x_sym ? 1 : -1) << std::endl;
 	}
-	stout << "---------------------------------------------------------------------------------\n\n";
+	std::cout << "---------------------------------------------------------------------------------\n\n";
 	#ifdef PRINT_HELP
 		print_help();
-		stout << "---------------------------------------------------------------------------------\n\n";
+		std::cout << "---------------------------------------------------------------------------------\n\n";
 	#endif
 }
 // ----------------------------------------------------------------------------- Connected with the parser
@@ -3196,7 +3196,7 @@ std::vector<std::string> user_interface::parseInputFile(std::string filename) co
 	ifstream inputFile(filename);
 	std::string line = "";
 	if (!inputFile.is_open())
-		stout << "Cannot open a file " + filename + " that I could parse. All parameters are default. Sorry :c \n";
+		std::cout << "Cannot open a file " + filename + " that I could parse. All parameters are default. Sorry :c \n";
 	else
 	{
 		if (std::getline(inputFile, line))
@@ -3219,7 +3219,7 @@ std::vector<std::string> user_interface::parseInputFile(std::string filename) co
 	bool state1 = sff_jan1.load(arma::hdf5_name(base + "eigvals_L_16_N_3_pbc_True_disorder_uniform_ham_type_anderson_t_-1.0_W_0.0_dW_" + to_string_prec(W, 2) + ".hdf5", "SFF_spectra_eta_0.1000_filter_gaussian"));
 	bool state2 = sff_jan2.load(arma::hdf5_name(base + "eigvals_L_16_N_3_pbc_True_disorder_uniform_ham_type_anderson_t_-1.0_W_0.0_dW_" + to_string_prec(W, 2) + ".hdf5", "SFF_spectra_eta_0.3000_filter_gaussian"));
 	bool state3 = sff_jan3.load(arma::hdf5_name(base + "eigvals_L_16_N_3_pbc_True_disorder_uniform_ham_type_anderson_t_-1.0_W_0.0_dW_" + to_string_prec(W, 2) + ".hdf5", "SFF_spectra_eta_0.5000_filter_gaussian"));
-	stout << state1 << "\t" << state2 << "\t" << state3 << std::endl;
+	std::cout << state1 << "\t" << state2 << "\t" << state3 << std::endl;
 	printSeparated(std::cout, "\t", 12, true, sff_jan1.n_cols, sff_jan1.n_rows, sff_jan2.n_cols, sff_jan2.n_rows, sff_jan3.n_cols, sff_jan3.n_rows);
 	std::cout << "Data loaded" << std::endl;
 

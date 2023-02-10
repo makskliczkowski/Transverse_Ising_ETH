@@ -29,6 +29,7 @@
 
 #if MODEL == 0
 	#define ISING
+	#pragma message ("Using Ising Model")
 #elif MODEL == 1
 	#if !defined(HEISENBERG)
 		#define HEISENBERG

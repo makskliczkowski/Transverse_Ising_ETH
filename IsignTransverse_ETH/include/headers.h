@@ -2,10 +2,8 @@
 
 //#ifndef 
 #include "config.hpp"
-#include "metaprograming/traits.h"
-#include "commons.h"
+#include "commons.hpp"
 #include "random_and_disorder/disorder.hpp"
-#include "digamma.h"
 
 
 extern int num_of_threads;													// number of threads
@@ -13,58 +11,8 @@ extern int anderson_dim;
 extern std::mt19937::result_type seed_global;
 extern randomGen my_gen;
 
-// ----------------------------------------------------------------------------- namespaces -----------------------------------------------------------------------------
 using namespace std;
-//namespace exec = std::execution;
 
-
-
-// ----------------------------------------------------------------------------- User compiler macro -----------------------------------------------------------------------------
-
-
-/// <summary>
-/// Calculates the sign of a value
-/// </summary>
-template <typename T> int sgn(T val) {
-	return int(T(0) < val) - int(val < T(0));
-}
-// ----------------------------------------------------------------------------- STRING BASED TOOLS DECLARATIONS -----------------------------------------------------------------------------
-// weird: interfase to enforce same types in variadic templates
-
-// ---------------------------------- definitions
-bool isNumber(const string& str);
-
-std::vector<std::string> split_str(std::string s, std::string delimiter);
-
-// ---------------------------------- templates
-
-//<! finds the order of magnitude of number +1 (only for <1 numbers to find filename format)
-template <typename T>
-inline
-int order_of_magnitude(const T a_value) {
-	
-	if(a_value < 1.0 && a_value != 0){
-		T m = std::abs(std::log10(std::abs(a_value)));
-		return int(std::max(std::ceil(m) + 1., 2.));
-	}
-	else return 2;
-}
-/// <summary>
-/// Changes a value to a string with a given precison
-/// </summary>
-/// <param name="n">number of decimal places</param>
-/// <returns>string of a number with given precision</returns>
-template <typename T>
-inline
-std::string to_string_prec(const T a_value, int n = -1) {
-	if(n < 0)
-		n = order_of_magnitude(a_value);
-	//std::cout << n << std::endl;
-	std::ostringstream outie;
-	outie.precision(n);
-	outie << std::fixed << a_value;
-	return outie.str();
-}
 
 
 // ----------------------------------------------------------------------------- BINARY TOOLS -----------------------------------------------------------------------------
@@ -179,9 +127,9 @@ inline std::function<u64(u64, int)> multiply_operators(const std::function<u64(u
 }
 
 inline u64 binomial(int n, int k) {
-   if (k == 0 || k == n)
-   return 1;
-   return binomial(n - 1, k - 1) + binomial(n - 1, k);
+	if (k == 0 || k == n)
+		return 1;
+	return binomial(n - 1, k - 1) + binomial(n - 1, k);
 }
 // ----------------------------------------------------------------------------- VECTORS HANDLING ----------------------------------------------------------------------------- 
 /// <summary>
@@ -207,33 +155,6 @@ inline std::vector<int> get_neigh_vector(int _BC, int L, int corr_len) {
 // ----------------------------------------------------------------------------- PRINTERS -----------------------------------------------------------------------------
 
 /// <summary>
-/// Overriding the ostream operator for pretty printing vectors.
-/// </summary>
-/// <typeparam name="T"> writing out </typeparam>
-/// <param name="os"> designed outstream </param>
-/// <param name="vec"> vector variable to print </param>
-/// <returns></returns>
-template<typename T>
-std::ostream& operator<<(std::ostream& os, std::vector<T> vec) {
-	int counter = 0;
-	if (vec.size() != 0) {
-		std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(os, "\t\t"));
-		os << vec.back() << ' ';
-		//for (int i = 0; i < vec.size(); i++) {
-		//	os << vec[i] << "\t\t";
-		//	//counter++;
-		//	//if (counter % 8 == 0) {
-		//	//	os << "\t\t";
-		//	//	counter = 0;
-		//	//}
-		//}
-	}
-	else
-		os << "Empty container!" << endl;
-	return os;
-}
-
-/// <summary>
 ///
 /// </summary>
 /// <param name="filename"></param>
@@ -243,7 +164,7 @@ template <typename T>
 inline bool openFile(T& file, std::string filename, std::ios_base::openmode mode = std::ios::out) {
 	file.open(filename, mode);
 	if (!file.is_open()) {
-		//stout << "couldn't open a file: " + filename << std::endl;
+		//std::cout << "couldn't open a file: " + filename << std::endl;
 		return false;
 	}
 	return true;
@@ -251,7 +172,7 @@ inline bool openFile(T& file, std::string filename, std::ios_base::openmode mode
 
 inline void crash(bool shouldIstayorshouldIgo, std::string message = "execution terminated") {
 	if (shouldIstayorshouldIgo) {
-		stout << message;
+		std::cout << message;
 		exit(1);
 	}
 }
@@ -313,16 +234,6 @@ inline auto readFromFile(std::ifstream& input, std::string filename) {
 	return data;
 }
 
-inline void createDirs(const std::string& dir) {
-	if (!fs::is_directory(dir) || !fs::exists(dir))
-		fs::create_directories(dir);
-}
-template <typename... _Ty>
-inline void createDirs(const std::string& dir, const _Ty&... dirs) {
-	createDirs(dir);
-	createDirs(dirs...);
-}
-
 
 template <typename ... _ty>
 inline void save_to_file(std::string name, const arma::vec& x, const arma::vec& y, _ty... args) {
@@ -349,40 +260,6 @@ inline void save_to_file(std::string name, const arma::vec& x, const arma::vec& 
 	}
 	file.close();
 }
-// ----------------------------------------------------------------------------- MAKS' IDEAS -----------------------------------------------------------------------------
-/// <summary>
-/// Sorts the vector and saves the permutation with a lambda like function compare
-/// </summary>
-template <typename T, typename Compare> 
-inline std::vector<std::size_t> sort_permutation(const T& vec, Compare compare) {
-	std::vector<std::size_t> p(vec.size());
-	std::iota(p.begin(), p.end(), 0);
-	std::sort(p.begin(), p.end(),
-		[&](std::size_t i, std::size_t j) {
-			return compare(vec[i], vec[j]);
-		});
-	return p;
-}
-
-/// <summary>
-/// Applies permutation on a given vector
-/// </summary>
-template <typename T> 
-inline void apply_permutation(T& vec, const std::vector<std::size_t>& p) {
-	std::vector<bool> done(vec.size());
-	for (std::size_t i = 0; i < vec.size(); ++i) {
-		if (done[i]) continue;
-		done[i] = true;
-		std::size_t prev_j = i;
-		std::size_t j = p[i];
-		while (i != j) {
-			std::swap(vec[prev_j], vec[j]);
-			done[j] = true;
-			prev_j = j;
-			j = p[j];
-		}
-	}
-}
 
 template <typename T>
 inline T variance(T value, T average, int norm) {
@@ -404,11 +281,11 @@ inline _Ty matrixVariance(const arma::Mat<_Ty>& mat) {
 }
 inline void checkRandom(unsigned int seed) {
 	my_gen = randomGen(seed);
-	stout << "test randoms \n" << my_gen.random_uni<double>(0., 1.) << "\t" << my_gen.random_uni<double>(0., 1.) << "\t" << my_gen.random_uni<double>(0., 1.) << std::endl;
+	std::cout << "test randoms \n" << my_gen.random_uni<double>(0., 1.) << "\t" << my_gen.random_uni<double>(0., 1.) << "\t" << my_gen.random_uni<double>(0., 1.) << std::endl;
 	my_gen = randomGen(seed);
-	stout << "reset seed!" << std::endl;
-	stout << my_gen.random_uni<double>(0., 1.) << "\t" << my_gen.random_uni<double>(0., 1.) << "\t" << my_gen.random_uni<double>(0., 1.) << std::endl;
-	stout << "Same? Good continue!\n\n";
+	std::cout << "reset seed!" << std::endl;
+	std::cout << my_gen.random_uni<double>(0., 1.) << "\t" << my_gen.random_uni<double>(0., 1.) << "\t" << my_gen.random_uni<double>(0., 1.) << std::endl;
+	std::cout << "Same? Good continue!\n\n";
 }
 // ----------------------------------------------------------------------------- DISTRIBUTION AND DATASET RELATED FUNCTIONS -----------------------------------------------------------------------------
 
@@ -504,26 +381,26 @@ public:
 	}
 	void print() {
 		currUpdateVal %= pBarUpdater.length();
-		stout << "\r";															// Bring cursor to start of line
-		stout << firstPartOfpBar;												// Print out first part of pBar
+		std::cout << "\r";															// Bring cursor to start of line
+		std::cout << firstPartOfpBar;												// Print out first part of pBar
 		for (int a = 0; a < amountOfFiller; a++) {								// Print out current progress
-			stout << pBarFiller;
+			std::cout << pBarFiller;
 		}
-		stout << pBarUpdater[currUpdateVal];
+		std::cout << pBarUpdater[currUpdateVal];
 		for (int b = 0; b < pBarLength - amountOfFiller; b++) {					// Print out spaces
-			stout << " ";
+			std::cout << " ";
 		}
-		stout << lastPartOfpBar;												// Print out last part of progress bar
-		stout << " (" << (int)(100 * (currentProgress / neededProgress)) << "%)";	// This just prints out the percent
-		stout << std::flush;
+		std::cout << lastPartOfpBar;												// Print out last part of progress bar
+		std::cout << " (" << (int)(100 * (currentProgress / neededProgress)) << "%)";	// This just prints out the percent
+		std::cout << std::flush;
 		currUpdateVal += 1;
 	}
 	void printWithTime(const std::string& message, double percentage) {
 #pragma omp critical
 		{
-			stout << "\t\t\t\t-> time: " << tim_s(timer) << message << " : \n";
+			std::cout << "\t\t\t\t-> time: " << tim_s(timer) << message << " : \n";
 			this->print();
-			stout << std::endl;
+			std::cout << std::endl;
 		}
 		this->update(percentage);
 	}
@@ -548,142 +425,5 @@ private:
 };
 
 
-//! ----------------------------------------------------------------------------- ARMADILLO HELPERS -----------------------------------------------------------------------------
-//<! calculate commutator of two input matrix types, which have overloaded * operator
-inline std::string matrix_size(u64 dim){
-	 if(dim < 1e3)
-	 	return std::to_string(dim) + " bytes";
-	 else if(dim < 1e6)
-	 	return to_string_prec(dim / 1e3, 2) + " kB";
-	 else if(dim < 1e9)
-	 	return to_string_prec(dim / 1e6, 2) + " MB";
-	 else if(dim < 1e12)
-	 	return to_string_prec(dim / 1e9, 2) + " GB";
-	else 
-	 	return to_string_prec(dim / 1e12, 2) + " TB";
-}
-
-
-template <typename matrix>
-matrix commutator(const matrix& A, const matrix& B)
-	{ return A * B - B * A; }
-
-//! -------------------------------------------------------- cast non-cpx to cpx types
-template <typename _ty>
-arma::Col<std::complex<_ty>> cpx_real_vec(const arma::Col<_ty>& input){ 
-	size_t size = input.size();
-	return arma::Col<std::complex<_ty>>(input, arma::Col<_ty>(size, arma::fill::zeros));
-}
-template <typename _ty>
-arma::Col<std::complex<_ty>> cpx_imag_vec(const arma::Col<_ty>& input) {
-	size_t size = input.size();
-	return arma::Col<std::complex<_ty>>(arma::Col<_ty>(size, arma::fill::zeros), input);
-}
-template <typename _ty>
-arma::Col<std::complex<_ty>> cpx_real_vec(const arma::subview_col<_ty>& input) {
-	size_t size = input.n_elem;
-	return arma::Col<std::complex<_ty>>(input, arma::Col<_ty>(size, arma::fill::zeros));
-}
-template <typename _ty>
-arma::Col<std::complex<_ty>> cpx_imag_vec(const arma::subview_col<_ty>& input) {
-	size_t size = input.n_elem;
-	return arma::Col<std::complex<_ty>>(arma::Col<_ty>(size, arma::fill::zeros), input);
-}
-
-
-template <typename _type>
-inline
-arma::cx_vec cast_cx_vec(const arma::Col<_type>& state);
-
-template <>
-inline arma::cx_vec cast_cx_vec(const arma::vec& state)
-	{ return cpx_real_vec(state); }
-template <>
-inline arma::cx_vec cast_cx_vec(const arma::cx_vec& state)
-	{ return state; }
-//! -------------------------------------------------------- dot product for different input types (cpx and non-cpx)
-
- template <typename _ty, 
-	 template <typename> class _COLVEC1,
-	 template <typename> class _COLVEC2 
- >
-_ty dot_prod(const _COLVEC1<_ty>& left, const _COLVEC2<_ty>& right)
-{ 
-	 static_assert(_traits::is_any_of_v<_COLVEC1<_ty>, arma::Col<_ty>, arma::subview_col<_ty>>
-		 && _traits::is_any_of_v<_COLVEC2<_ty>, arma::Col<_ty>, arma::subview_col<_ty>>,
-		 "Dot product only valid for arma::Col and arma::subview classes");
-	return arma::cdot(left, right); 
-}																			
-																											
-template <typename _ty,
-	template <typename> class _COLVEC1,
-	template <typename> class _COLVEC2
->
-std::complex<_ty> dot_prod(const _COLVEC1<_ty>& left, const _COLVEC2<std::complex<_ty>>& right)
-{
-	static_assert(_traits::is_any_of_v<_COLVEC1<_ty>, arma::Col<_ty>, arma::subview_col<_ty>>
-		&& _traits::is_any_of_v<_COLVEC2<std::complex<_ty>>, arma::Col<std::complex<_ty>>, arma::subview_col<std::complex<_ty>>>,
-		"Dot product only valid for arma::Col and arma::subview classes");
-	return arma::cdot(cpx_real_vec(left), right);
-}
-																											
-template <typename _ty,
-	template <typename> class _COLVEC1,
-	template <typename> class _COLVEC2
->
-std::complex<_ty> dot_prod(const _COLVEC1<std::complex<_ty>> & left, const _COLVEC2<_ty> & right)
-{
-	static_assert(_traits::is_any_of_v<_COLVEC1<std::complex<_ty>>, arma::Col<std::complex<_ty>>, arma::subview_col<std::complex<_ty>>>
-		&& _traits::is_any_of_v<_COLVEC2<_ty>, arma::Col<_ty>, arma::subview_col<_ty>>,
-		"Dot product only valid for arma::Col and arma::subview classes"); 
-	return arma::cdot(left, cpx_real_vec(right));
-}															
-											
-template <typename _ty>
-inline arma::Col<_ty> exctract_vector_between_values(
-	const arma::Col<_ty>& input_vec,	//<! input vector to exctract data from (assumed sorted)
-	_ty start, 							//<! first value of new vector (if lower than lowest in input_vec than taking from beggining)
-	_ty end								//<! last element to copy data
-) {
-	arma::Col<_ty> output;
-	for (auto& it : input_vec) {
-		if (it >= start && it <= end) {
-			int size = output.size();
-			output.resize(size + 1);
-			output(size) = it;
-		}
-	}
-	return output;
-}
-inline arma::vec exctract_vector(
-	const arma::vec& input_vec,	//<! input vector to exctract data from (assumed sorted)
-	u64 start, 	//<! first value of new vector (if lower than lowest in input_vec than taking from beggining)
-	u64 end		//<! last element to copy data
-) {
-	arma::vec output(end - start);
-#pragma omp parallel for
-	for (int k = start; k < end; k++) 
-		output(k - start) = input_vec(k);
-	return output;
-}
-
-template <typename _type>
-inline
-arma::sp_cx_mat cast_cx_sparse(const arma::SpMat<_type>& mat);
-
-template <>
-inline arma::sp_cx_mat cast_cx_sparse(const arma::sp_mat& mat)
-{
-	arma::sp_cx_mat ret(mat.n_rows, mat.n_cols);
-	ret.set_real(mat);
-	return ret;
-}
-template <>
-inline arma::sp_cx_mat cast_cx_sparse(const arma::sp_cx_mat& mat)
-	{ return mat; }
-//general_dot_prod(arma::Col,			arma::Col		 );
-//general_dot_prod(arma::subview_col, arma::Col		 );
-//general_dot_prod(arma::Col,			arma::subview_col);
-//general_dot_prod(arma::subview_col, arma::subview_col);
 
 #include "Lanczos/Lanczos.hpp"

@@ -1,4 +1,13 @@
 #pragma once
+
+#ifndef __COMMONS
+	#include "commons.hpp"
+#endif
+
+#ifndef ARMA
+	#include "armadillo_wrapper.hpp"
+#endif
+
 namespace spectrals{
 
 	//<! calculate index of mean energy <E> = Tr(H) / dim

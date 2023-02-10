@@ -133,7 +133,7 @@ public:
 				assert(false && "exceeding chain with open boundary conditions!\n Please choos PBC or go to hell!");
 			return site;
 		}
-		stout << "RETURNING INT_MAX, which should not be possible" << std::endl;
+		std::cout << "RETURNING INT_MAX, which should not be possible" << std::endl;
 		return INT_MAX;
 	}
 	std::vector<int> properSite(std::vector<int> sites) const {
@@ -214,7 +214,7 @@ public:
 			case 14: op = this->create_operator({IsingModel::sigma_z}, int(2)); break;
 			case 15: op = this->spin_imbalance();								break;
 			default:
-				stout << "No operator chosen!\nReturning empty matrix\n\n";
+				std::cout << "No operator chosen!\nReturning empty matrix\n\n";
 		}
 		return op;
 	}
@@ -240,7 +240,7 @@ public:
 		case 14: name = "SigmaZ_next_neigh";						break;
 		case 15: name = "SpinImbalance";							break;
 		default:
-			stout << "Bad input! Operator -op 0-7 only";
+			std::cout << "Bad input! Operator -op 0-7 only";
 			exit(1);
 		}
 		if(choose >=3 && choose < 6) 		subdir = "q=" +  std::to_string(site);
@@ -386,8 +386,8 @@ public:
 	void set_OperatorElem(std::vector<op_type> operators, cpx prefactor, std::vector<int> sites, arma::sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx) const;
 	arma::sp_cx_mat spin_current() const override;
 	
-	arma::sp_cx_mat createHq(int k) const override { stout << "Not implemented yet!!\n\n"; return arma::sp_cx_mat(); };
-	arma::sp_cx_mat createHlocal(int k) const override { stout << "Not implemented yet!!\n\n"; return arma::sp_cx_mat(); };
+	arma::sp_cx_mat createHq(int k) const override { std::cout << "Not implemented yet!!\n\n"; return arma::sp_cx_mat(); };
+	arma::sp_cx_mat createHlocal(int k) const override { std::cout << "Not implemented yet!!\n\n"; return arma::sp_cx_mat(); };
 	arma::sp_cx_mat fourierTransform(op_type op, int q) const override;
 
 	//--------------------------------------------------------- dummy functions

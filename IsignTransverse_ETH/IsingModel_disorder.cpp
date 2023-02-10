@@ -103,8 +103,8 @@ void IsingModel_disorder::setHamiltonianElem(u64 k, double value, u64 new_idx) {
 		#endif
 	} 
 	catch (const std::exception& err) {
-		stout << "Exception:\t" << err.what() << "\n";
-		stout << "SHit ehhh..." << std::endl;
+		std::cout << "Exception:\t" << err.what() << "\n";
+		std::cout << "SHit ehhh..." << std::endl;
 		printSeparated(std::cout, "\t", 14, true, new_idx, idx, map(k), value);
 	}
 

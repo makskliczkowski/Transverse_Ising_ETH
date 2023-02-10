@@ -101,7 +101,7 @@ def load(settings = None, parameter = None, folded = False, beta = 0.0):
 
         if settings['smoothed'] == 1:    
             #sff = savgol_filter(sff, window_length=int(0.01 * sff.size) + int(0.01 * sff.size) % 2 - 1, polyorder=5, mode="mirror")
-            sff = hfun.remove_fluctuations(sff, 50)
+            sff = hfun.remove_fluctuations(sff, int(0.01 * len(sff)))
             #idx = min(range(len(times)), key=lambda i: abs(times[i] - 3.0)); 
             #sff /= sff[idx]
         if wH == 0.0: 
@@ -186,7 +186,7 @@ def plot(axis, settings = None,
             if min(sff) < y_min:  y_min = min(sff)
 
             key_tit = r"$\beta=%.2f$"%beta if len(vals) == 1 else hfun.key_title(x, settings)
-            p = axis.plot(func_x(times, x), sff, label=key_tit, linewidth=int(font / 6), markersize=font-6, zorder=int(10*x))
+            p = axis.plot(func_x(times, x), sff, label=key_tit, linewidth=int(font / 10), markersize=font-6, zorder=int(10*x))
             axis.scatter(tau, sff[idx], marker='o', edgecolor=p[0].get_color(), s=100, facecolors='none', zorder=1000)
             if folded:
                 axis.plot(func_x(times, x), GOE(times / tH), linestyle='--', color='black')
