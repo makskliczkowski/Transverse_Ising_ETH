@@ -35,8 +35,12 @@ IsingModel_sym::IsingModel_sym(int L, double J, double g, double h, int k_sym, b
 	#ifdef HEISENBERG		// HEISENBERG
 		this->use_Sz_sym = true;
 	#elif defined(XYZ)		// XYZ
-		if(this->g == 0)
+		#ifdef LOCAL_PERT
 			this->use_Sz_sym = true;
+		#else
+			if(this->g == 0)
+				this->use_Sz_sym = true;
+		#endif
 	#else					//ISING
 		if(this->g == 0)
 			this->use_Sz_sym = true;
@@ -180,7 +184,7 @@ void IsingModel_sym::generate_mapping() {
 		threads.reserve(num_of_threads);
 		for (int t = 0; t < num_of_threads; t++) {
 			start = (u64)(two_powL / (double)num_of_threads * t);
-			NO_OVERFLOW(stop = ((t + 1) == num_of_threads ? two_powL : u64(two_powL / (double)num_of_threads * (double)(t + 1)));)
+			stop = ((t + 1) == num_of_threads ? two_powL : u64(two_powL / (double)num_of_threads * (double)(t + 1)));
 			map_threaded[t] = v_1d<u64>();
 			norm_threaded[t] = v_1d<cpx>();
 			threads.emplace_back(&IsingModel_sym::mapping_kernel, this, start, stop, ref(map_threaded[t]), ref(norm_threaded[t]), t);
@@ -252,9 +256,11 @@ void IsingModel_sym::hamiltonian() {
 void IsingModel_sym::hamiltonian_xyz(){
 	std::cout << this->N << std::endl;
 	double eta = this->use_Sz_sym? 0.0 : 0.5;
-	double delta = 0.3;
+	double delta = this->use_Sz_sym? this->g : 0.3;
+	double delta2 = 0.3;
+
 	std::vector<std::vector<double>> parameters = {{1.0 * (1 - eta), 1.0 * (1 + eta), delta},
-                                                    {this->J * (1 - eta), this->J * (1 + eta), this->J * delta}
+                                                    {this->J * (1 - eta), this->J * (1 + eta), this->J * delta2}
                                                 };
     for(auto& x : parameters)
         std::cout << x << std::endl;
@@ -267,10 +273,11 @@ void IsingModel_sym::hamiltonian_xyz(){
             u64 op_k;
             std::tie(val, op_k) = operators::sigma_z(base_state, L, { j });
             this->setHamiltonianElem(k, this->h * real(val), op_k);
-
-            std::tie(val, op_k) = operators::sigma_x(base_state, L, { j });
-            this->setHamiltonianElem(k, this->g * real(val), op_k);
-	    	
+		
+			if(!this->use_Sz_sym){
+            	std::tie(val, op_k) = operators::sigma_x(base_state, L, { j });
+            	this->setHamiltonianElem(k, this->g * real(val), op_k);
+			}
             for(int a = 0; a < neighbor_distance.size(); a++){
                 int r = neighbor_distance[a];
 				int nei = j + r;
@@ -374,13 +381,38 @@ void IsingModel_sym::diagonalization(bool get_eigenvectors, const char* method) 
 	printSeparated(std::cout, "\t", 16, true, this->E_av_idx, E_av, eigenvalues(this->E_av_idx - 1), eigenvalues(this->E_av_idx),  eigenvalues(this->E_av_idx + 1));
 }
 void IsingModel_sym::diag_sparse(bool get_eigenvectors, int maxiter, double tol, double sigma){
-	arma::eigs_opts opts;
-	opts.maxiter = maxiter;
-	opts.tol = tol;
-	int num = 500;
-	arma::cx_vec E(num, arma::fill::zeros);
-	//arma::eigs_gen(E, this->eigenvectors, this->H, num, sigma);
-	this->eigenvalues = arma::real(E);
+	arma::uword num = 100;
+	#ifdef ARMA_USE_SUPERLU
+		arma::eigs_opts opts;
+		opts.maxiter = maxiter;
+		opts.tol = tol;
+		opts.subdim = 3 * num;
+		this->H_re = arma::real(this->H);
+		if(this->use_real_matrix){
+			try {
+				if (get_eigenvectors) arma::eigs_sym(this->eigenvalues, this->eigenvectors_re, this->H_re, num, sigma, opts);
+				else arma::eigs_sym(this->eigenvalues, this->H_re, num, sigma, opts);
+			}
+			catch (...) {
+				handle_exception(std::current_exception(), 
+					"sparse - dim(H) = " + matrix_size(this->H_re.n_nonzero * sizeof(this->H_re(0, 0)))
+				+ "\nspectrum size: " + std::to_string(this->N)
+				);
+			}
+			std::cout << "\tTYPE: DOUBLE\n\tsparse - dim(H) = " + matrix_size(this->H_re.n_nonzero * sizeof(this->H_re(0, 0)))
+				+ "\n\tspectrum size: " + std::to_string(this->N) << std::endl << std::endl;
+		} else{
+			arma::cx_vec E;
+			//arma::eigs_gen(E, this->eigenvectors, this->H, num, cpx(sigma), opts);
+			if(!arma::imag(E).is_zero(1e-15))
+				std::cout << E << std::endl;
+			this->eigenvalues = arma::real(E);
+			std::cout << "\tTYPE: COMPLEX\n\tsparse - dim(H) = " + matrix_size(this->H_re.n_nonzero * sizeof(this->H_re(0, 0)))
+				+ "\n\tspectrum size: " + std::to_string(this->N) << std::endl << std::endl;
+		}
+	#else
+		#pragma message ("No SuperLu defined. Ignoring shift-invert possibility.")
+	#endif
 }
 // ------------------------------------------------------------------------------------------------ PHYSICAL QUANTITTIES ------------------------------------------------------------------------------------------------
 

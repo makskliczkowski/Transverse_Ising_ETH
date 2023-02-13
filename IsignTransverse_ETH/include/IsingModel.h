@@ -5,6 +5,7 @@
 #include "lattice.hpp"
 #include "anderson.hpp"
 #include "Hamiltonians.hpp"
+#include "hilbert_space/hilbert_space_base.hpp"
 
 /*-------------------- ISING MODEL WITH TRANSVERSE MAGNETIC FIELD ---------------------*
 * The Ising model with perpendicular magnetic field, known as the quantum Ising model *
@@ -133,7 +134,7 @@ public:
 				assert(false && "exceeding chain with open boundary conditions!\n Please choos PBC or go to hell!");
 			return site;
 		}
-		stout << "RETURNING INT_MAX, which should not be possible" << std::endl;
+		std::cout << "RETURNING INT_MAX, which should not be possible" << std::endl;
 		return INT_MAX;
 	}
 	std::vector<int> properSite(std::vector<int> sites) const {
@@ -214,7 +215,7 @@ public:
 			case 14: op = this->create_operator({IsingModel::sigma_z}, int(2)); break;
 			case 15: op = this->spin_imbalance();								break;
 			default:
-				stout << "No operator chosen!\nReturning empty matrix\n\n";
+				std::cout << "No operator chosen!\nReturning empty matrix\n\n";
 		}
 		return op;
 	}
@@ -240,7 +241,7 @@ public:
 		case 14: name = "SigmaZ_next_neigh";						break;
 		case 15: name = "SpinImbalance";							break;
 		default:
-			stout << "Bad input! Operator -op 0-7 only";
+			std::cout << "Bad input! Operator -op 0-7 only";
 			exit(1);
 		}
 		if(choose >=3 && choose < 6) 		subdir = "q=" +  std::to_string(site);
@@ -386,8 +387,8 @@ public:
 	void set_OperatorElem(std::vector<op_type> operators, cpx prefactor, std::vector<int> sites, arma::sp_cx_mat& operator_matrix, u64 base_vec, u64 cur_idx) const;
 	arma::sp_cx_mat spin_current() const override;
 	
-	arma::sp_cx_mat createHq(int k) const override { stout << "Not implemented yet!!\n\n"; return arma::sp_cx_mat(); };
-	arma::sp_cx_mat createHlocal(int k) const override { stout << "Not implemented yet!!\n\n"; return arma::sp_cx_mat(); };
+	arma::sp_cx_mat createHq(int k) const override { std::cout << "Not implemented yet!!\n\n"; return arma::sp_cx_mat(); };
+	arma::sp_cx_mat createHlocal(int k) const override { std::cout << "Not implemented yet!!\n\n"; return arma::sp_cx_mat(); };
 	arma::sp_cx_mat fourierTransform(op_type op, int q) const override;
 
 	//--------------------------------------------------------- dummy functions
@@ -406,11 +407,11 @@ public:
 class IsingModel_disorder : public IsingModel<double> {
 private:
 
-	arma::vec dh;																		// disorder in the system - deviation from a constant h value
+	disorder::uniform<double> dh;												// disorder in the system - deviation from a constant h value
 	double w;																	// the distorder strength to set dh in (-disorder_strength, disorder_strength)
-	arma::vec dJ;																		// disorder in the system - deviation from a constant J0 value
+	disorder::uniform<double> dJ;												// disorder in the system - deviation from a constant J0 value
 	double J0;																	// spin exchange coefficient
-	arma::vec dg;																		// disorder in the system - deviation from a constant g0 value
+	disorder::uniform<double> dg;												// disorder in the system - deviation from a constant g0 value
 	double g0;																	// transverse magnetic field
 public:
 	/* Constructors */

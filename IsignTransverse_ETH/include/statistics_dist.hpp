@@ -1,5 +1,8 @@
 #pragma once
 
+#ifndef __COMMONS
+	#include "commons.hpp"
+#endif
 namespace statistics{
 //! ---------------------------------------------------------------- DISTRIBUTION FUNCTIONS AND PROBABILITIES
 //! ---------------------------------- HISTOGRAM OF COUNTS

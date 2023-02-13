@@ -84,7 +84,7 @@ def load(settings = None, parameter = None, folded = False, beta = 0.0):
     #--- reset defaults
     cf.params_arr = param_copy
 
-    epsilon = 1e-1
+    epsilon = 5e-2
     if exists(filename):
         data = pd.read_table(filename, sep="\t", header=None)
         times = np.array(data[0])
@@ -101,12 +101,12 @@ def load(settings = None, parameter = None, folded = False, beta = 0.0):
 
         if settings['smoothed'] == 1:    
             #sff = savgol_filter(sff, window_length=int(0.01 * sff.size) + int(0.01 * sff.size) % 2 - 1, polyorder=5, mode="mirror")
-            sff = hfun.remove_fluctuations(sff, 20)
+            sff = hfun.remove_fluctuations(sff, int(0.005 * len(sff)))
             #idx = min(range(len(times)), key=lambda i: abs(times[i] - 3.0)); 
             #sff /= sff[idx]
         if wH == 0.0: 
             tH = data[2][0]
-            print("Not found stats for wH")
+            #print("Not found stats for wH")
         #tau = data[3][0]
         times_for_algorithm = times / tH if folded else times
         sff_dev = np.abs(np.log10(sff / GOE(times_for_algorithm)))
@@ -117,7 +117,7 @@ def load(settings = None, parameter = None, folded = False, beta = 0.0):
 
         if gap_ratio == 0:
             gap_ratio = data[4][0]
-            print("Not found stats for gap ratio")
+            #print("Not found stats for gap ratio")
         return True, times, sff, tH, tau, gap_ratio, dim
     else:
         print(filename, hfun.get_params_from_info(info))
@@ -170,12 +170,13 @@ def plot(axis, settings = None,
         vals = hfun.get_scaling_array(settings=settings)
     taus = [];  val_at_taus = []
     gap_ratio = []; dim = 1;    times = []; y_min = 1e10;
+    timescales_ohyeah = []
     for x in vals:
         Lx = x if settings['scaling_idx'] == 0 else cf.L
         status, times, sff, tH, tau, r, dimensions = load(settings=settings, parameter=x, folded = folded, beta=beta)
 
         if status:
-
+            timescales_ohyeah = times
             dim = dimensions
             gap_ratio.append(r)
             sff = func_y(sff, x)
@@ -185,16 +186,18 @@ def plot(axis, settings = None,
             if min(sff) < y_min:  y_min = min(sff)
 
             key_tit = r"$\beta=%.2f$"%beta if len(vals) == 1 else hfun.key_title(x, settings)
-            p = axis.plot(func_x(times, x), sff, label=key_tit, linewidth=int(font / 6), markersize=font-6, zorder=int(10*x))
+            p = axis.plot(func_x(times, x), sff, label=key_tit, linewidth=int(font / 10), markersize=font-6, zorder=int(10*x))
             axis.scatter(tau, sff[idx], marker='o', edgecolor=p[0].get_color(), s=100, facecolors='none', zorder=1000)
             if folded:
                 axis.plot(func_x(times, x), GOE(times / tH), linestyle='--', color='black')
+            elif func_x(1.0, 1.0) != func_x(1.0, 2.0):
+                axis.plot(func_x(times, x), GOE(times), linestyle='--', color='black')
         else:
             taus.append(np.nan)
             val_at_taus.append(np.nan)
             gap_ratio.append(np.nan)
     print(dim, vals)
-    hfun.set_plot_elements(axis = axis, xlim = (func_x(min(times), min(vals)), func_x(0.6 * max(times), max(vals))),
+    hfun.set_plot_elements(axis = axis, xlim = (func_x(min(timescales_ohyeah), min(vals)), func_x(0.6 * max(timescales_ohyeah), max(vals))),
                                     ylim = (None, None), ylabel = ylab, xlabel = xlab, settings=settings, font_size=font, set_legend=True)
     #axis.legend(loc='lower right')
     axis.set_ylim(0.75 * y_min, None)
@@ -217,7 +220,7 @@ def plot(axis, settings = None,
     
     #axis.scatter(taus, val_at_taus, marker='o', edgecolor='black', s=100, facecolors='none', zorder=1000)
     if folded == False:
-        axis.plot(func_x(times, x), GOE(times), linestyle='--', color='black')
+        axis.plot(func_x(timescales_ohyeah, x), GOE(timescales_ohyeah), linestyle='--', color='black')
         axis.axvline(x=1.0, linestyle='--', color='black', ymin=0, ymax=0.4)
     axis.tick_params(axis="both",which='major',direction="in",length=6)
     axis.tick_params(axis="both",which='minor',direction="in",length=3)
@@ -269,11 +272,13 @@ def plot_deviation(axis, settings = None,
         vals = hfun.get_scaling_array(settings=settings)
     dim = 1;    times = []; y_min = 1e10;
 
+    timescales_ohyeah = []
     for x in vals:
 
         status, times, sff, tH, tau, r, dim = load(settings=settings, parameter=x)
         
         if status:
+            timescales_ohyeah = times
             dim = dim
             sff = np.abs(np.log10(sff / GOE(times)))
             if min(sff) < y_min:  y_min = min(sff)
@@ -281,8 +286,8 @@ def plot_deviation(axis, settings = None,
             axis.plot(func_x(times, x), sff, label=hfun.key_title(x, settings), linewidth=int(font / 6), markersize=font-6, zorder=int(10*x))
     if dim is None: dim = 1e4
     
-    axis.axhline(y=3e-1, linestyle='--', color='black')
-    hfun.set_plot_elements(axis = axis, xlim = (func_x(min(times), min(vals)), func_x(0.6 * max(times), max(vals))),
+    axis.axhline(y=5e-2, linestyle='--', color='black')
+    hfun.set_plot_elements(axis = axis, xlim = (func_x(min(timescales_ohyeah), min(vals)), func_x(0.6 * max(timescales_ohyeah), max(vals))),
                                     ylim = (0.75 * y_min, 10), ylabel = ylab, xlabel = xlab, settings=settings, font_size=font, set_legend=True)
     axis.legend(loc='upper right')
     axis.set_ylim(0.75 * y_min, 10)

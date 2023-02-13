@@ -1,7 +1,7 @@
 
 template <typename _ty>
 inline
-_ty my_conjungate(_ty x) { return arma::conj(x); }
+_ty my_conjungate(_ty x) { return std::conj(x); }
 
 template <>
 inline

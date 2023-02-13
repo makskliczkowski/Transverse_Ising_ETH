@@ -16,7 +16,7 @@ if __name__ == '__main__':
     
     settings = getattr(set_class, 'settings')
     print(base_directory)
-
+    sys.stdout.flush()
     operator = settings['operator']
     site = settings['site']
     sub_dir = ""
@@ -31,7 +31,7 @@ if __name__ == '__main__':
     sizes = []
     collected_pars = []
     realis = []
-
+    sys.stdout.flush()
     ii = settings['scaling_idx']
     info = ""
 
@@ -74,7 +74,8 @@ if __name__ == '__main__':
     print(sizes)
     print(collected_pars)
     print(realis)
-
+    sys.stdout.flush()
+    
     sizes = sizes if ii != 0 else [0];
     for L in sizes:
         new_pars = pars

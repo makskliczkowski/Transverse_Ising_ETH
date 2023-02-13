@@ -50,7 +50,7 @@ def load_sff(L, W, dim = 3, settings = None):
         times = np.array(data[0])
         sff = np.array(data[1])
         if settings['smoothed'] == 1:
-            sff = hfun.remove_fluctuations(sff, 50)
+            sff = hfun.remove_fluctuations(sff, 100 if L == 48 else 50)
             #sff = savgol_filter(sff, window_length=51, polyorder=5, mode="mirror")
         tH = data[2][0]
         tau = data[3][0]

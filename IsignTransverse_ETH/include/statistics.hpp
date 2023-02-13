@@ -1,8 +1,34 @@
 #pragma once
 
+#ifndef __COMMONS
+	#include "commons.hpp"
+#endif
+
 namespace statistics{
 
 //! ---------------------------------------------------------------- IPR
+//<! calculate participation ratio of input state for any q (q=1 is the typically used one)
+template <typename _type> 
+[[nodiscard]]
+inline
+double participation_ratio_plane_wave(
+    const arma::Col<_type>& _state,   //<! input state
+    double q = 1.0
+    ) {
+    double pr = 0;
+    const size_t N = _state.size();
+#pragma omp parallel for reduction(+: pr)
+	for (int n = 0; n < N; n++) {
+        cpx overlap = 0;
+        double k = two_pi * n / double(N);
+        for(int l = 0; l < N; l++)
+            overlap += std::exp(1i * k * double(l)) * _state(l);
+		double value = abs(conj(overlap) * overlap);
+		pr += std::pow(value, q);
+	}
+	return pr  / std::pow(double(N), q);
+}
+
 //<! calculate participation ratio of input state for any q (q=1 is the typically used one)
 template <typename _type> 
 [[nodiscard]]
