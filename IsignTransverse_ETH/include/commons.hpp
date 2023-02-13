@@ -17,6 +17,7 @@
 #include "compiler_setup_headers/preprocessor_setup.hpp"
 #include "compiler_setup_headers/compiler.hpp"
 #include "metaprograming/traits.hpp"
+#include "metaprograming/structures.hpp"
 
 #include "miscaleneous/tools.hpp"
 

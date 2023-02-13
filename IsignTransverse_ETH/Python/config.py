@@ -7,7 +7,7 @@ model = 0           # chooses model: 0-disorder / 1-symmetries / 2-local perturb
 hamiltonian = 2     # which hamiltonian?: 0-Ising / 1-Heisenberg
 BC = 1              # boundaary condition: 0 - OBC / 1 - PBC
 
-L = 12                          # system size
+L = 14                          # system size
 J = 1.0                        # spin exchange (Ising-like)
 g = 0.85                       # trasnverse magnetic field (z-axis)
 h = 1.0                        # longitudal magnetic field (x-axis)
@@ -25,7 +25,7 @@ General settings for all plots
 """
 plot_settings_dict = {
     'vs':             'L',          # set parameter on x-axis
-    'scaling':        'J',          # set scaling parameter (changing in legend)
+    'scaling':        'g',          # set scaling parameter (changing in legend)
 
     'x_scale':      'log',       
     'y_scale':      'log',          

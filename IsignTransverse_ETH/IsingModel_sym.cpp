@@ -184,7 +184,7 @@ void IsingModel_sym::generate_mapping() {
 		threads.reserve(num_of_threads);
 		for (int t = 0; t < num_of_threads; t++) {
 			start = (u64)(two_powL / (double)num_of_threads * t);
-			NO_OVERFLOW(stop = ((t + 1) == num_of_threads ? two_powL : u64(two_powL / (double)num_of_threads * (double)(t + 1)));)
+			stop = ((t + 1) == num_of_threads ? two_powL : u64(two_powL / (double)num_of_threads * (double)(t + 1)));
 			map_threaded[t] = v_1d<u64>();
 			norm_threaded[t] = v_1d<cpx>();
 			threads.emplace_back(&IsingModel_sym::mapping_kernel, this, start, stop, ref(map_threaded[t]), ref(norm_threaded[t]), t);

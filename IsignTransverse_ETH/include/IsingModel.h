@@ -5,6 +5,7 @@
 #include "lattice.hpp"
 #include "anderson.hpp"
 #include "Hamiltonians.hpp"
+#include "hilbert_space/hilbert_space_base.hpp"
 
 /*-------------------- ISING MODEL WITH TRANSVERSE MAGNETIC FIELD ---------------------*
 * The Ising model with perpendicular magnetic field, known as the quantum Ising model *

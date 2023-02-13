@@ -101,7 +101,7 @@ def load(settings = None, parameter = None, folded = False, beta = 0.0):
 
         if settings['smoothed'] == 1:    
             #sff = savgol_filter(sff, window_length=int(0.01 * sff.size) + int(0.01 * sff.size) % 2 - 1, polyorder=5, mode="mirror")
-            sff = hfun.remove_fluctuations(sff, int(0.01 * len(sff)))
+            sff = hfun.remove_fluctuations(sff, int(0.005 * len(sff)))
             #idx = min(range(len(times)), key=lambda i: abs(times[i] - 3.0)); 
             #sff /= sff[idx]
         if wH == 0.0: 
@@ -272,11 +272,13 @@ def plot_deviation(axis, settings = None,
         vals = hfun.get_scaling_array(settings=settings)
     dim = 1;    times = []; y_min = 1e10;
 
+    timescales_ohyeah = []
     for x in vals:
 
         status, times, sff, tH, tau, r, dim = load(settings=settings, parameter=x)
         
         if status:
+            timescales_ohyeah = times
             dim = dim
             sff = np.abs(np.log10(sff / GOE(times)))
             if min(sff) < y_min:  y_min = min(sff)
@@ -284,8 +286,8 @@ def plot_deviation(axis, settings = None,
             axis.plot(func_x(times, x), sff, label=hfun.key_title(x, settings), linewidth=int(font / 6), markersize=font-6, zorder=int(10*x))
     if dim is None: dim = 1e4
     
-    axis.axhline(y=3e-1, linestyle='--', color='black')
-    hfun.set_plot_elements(axis = axis, xlim = (func_x(min(times), min(vals)), func_x(0.6 * max(times), max(vals))),
+    axis.axhline(y=5e-2, linestyle='--', color='black')
+    hfun.set_plot_elements(axis = axis, xlim = (func_x(min(timescales_ohyeah), min(vals)), func_x(0.6 * max(timescales_ohyeah), max(vals))),
                                     ylim = (0.75 * y_min, 10), ylabel = ylab, xlabel = xlab, settings=settings, font_size=font, set_legend=True)
     axis.legend(loc='upper right')
     axis.set_ylim(0.75 * y_min, 10)
