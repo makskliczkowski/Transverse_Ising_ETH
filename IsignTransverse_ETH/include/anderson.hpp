@@ -12,7 +12,7 @@ namespace anderson{
     ){
         const u64 N = lattice.volume;
         //-- set  anderson single-body matrix
-        arma::vec disorder = my_gen.create_random_vec<double>(N, W);
+        arma::vec disorder = my_disorder.uniform(N, W);
         
         arma::sp_mat anderson_hamiltonian(N, N);
         for(int j = 0; j < N; j++){

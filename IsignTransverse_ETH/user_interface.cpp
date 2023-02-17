@@ -1,23 +1,48 @@
 #include "include/user_interface.h"
+#include "include/QhamSolver.hpp"
+
 // set externs
 std::uniform_real_distribution<> theta	= std::uniform_real_distribution<>(0.0, pi);
 std::uniform_real_distribution<> fi		= std::uniform_real_distribution<>(0.0, pi);
 int outer_threads = 1;
 int anderson_dim = 3;
-
 //---------------------------------------------------------------------------------------------------------------- UI main
 void isingUI::ui::make_sim()
 {	
 	#if defined(MY_MAC)
 		this->seed = static_cast<long unsigned int>(time(0));
 	#endif
-	my_gen = randomGen(this->seed);
+	my_disorder = disorder<double>(this->seed);
 	printAllOptions();
 	
 	//check_symmetry_rotation(); return;
 	//compare_energies();	return;
 	
-	//auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+	auto alfa = std::make_unique<IsingModel_disorder>(this->L, this->J, this->J0, this->g, this->g0, this->h, this->w, this->boundary_conditions);
+	auto H = alfa->get_hamiltonian();
+	alfa->diagonalization();
+	auto E1 = alfa->get_eigenvalues();
+	auto V1 = alfa->get_eigenvectors();
+	auto map1 = alfa->get_mapping();
+
+	auto model = QHamSolver<QuantumSun>(this->L, this->J, this->g, this->w, this->h, this->seed, 3, this->J0);
+	auto H2 = model.get_hamiltonian();
+	model.diagonalization();
+	auto E2 = model.get_eigenvalues();
+	auto V2 = model.get_eigenvectors();
+	auto map2 = model.get_mapping();
+	std::cout << "Hamiltonian:" << std::endl; 
+	std::cout << H - H2 << std::endl;
+	std::cout << "\n Energies:" << std::endl;
+	std::cout << E1 - E2 << std::endl;
+	std::cout << "\n Eigenvectors:" << std::endl;
+	arma::mat V = V1 - V2;
+	for(int i =0; i < V.n_rows; i++)
+		for(int j =0; j < V.n_cols; j++)
+			if(std::abs(V(i,j)) > 1e-13)
+				std::cout << i << "\t" << j << "\t" << V(i,j) << std::endl;
+	
+	return;
 	//auto alfa = std::make_unique<IsingModel_disorder>(this->L, 1, 0, 1, 0, 0, 0, this->boundary_conditions);
 	//auto H = alfa->get_hamiltonian();
 	//alfa->diagonalization();
@@ -328,14 +353,14 @@ void isingUI::ui::combine_spectra(){
 //<! generate random product state (random orientation of spins on the bloch sphere)
 arma::cx_vec isingUI::ui::random_product_state(int system_size)
 {
-	auto the = my_gen.random_uni<double>(0.0, pi);
+	auto the = my_disorder.random_uni<double>(0.0, pi);
 	arma::cx_vec init_state = std::cos(the / 2.) * up
-		+ std::exp(im * my_gen.random_uni<double>(0.0, pi)) * std::sin(the / 2.) * down;
+		+ std::exp(im * my_disorder.random_uni<double>(0.0, pi)) * std::sin(the / 2.) * down;
 	for (int j = 1; j < system_size; j++)
 	{
-		the = my_gen.random_uni<double>(0.0, pi);
+		the = my_disorder.random_uni<double>(0.0, pi);
 		init_state = arma::kron(init_state, std::cos(the / 2.) * up
-			+ std::exp(im * my_gen.random_uni<double>(0.0, pi)) * std::sin(the / 2.) * down);
+			+ std::exp(im * my_disorder.random_uni<double>(0.0, pi)) * std::sin(the / 2.) * down);
 	}
 	return init_state;
 }
@@ -802,7 +827,7 @@ void isingUI::ui::calculate_spectrals()
 		createDirs(tdir_realisation, intdir_realisation, specdir_realisation, specdir_real_mat_elem);
 		
 		if(oper.is_zero(1e-15))
-			assert(false && "Something went wrong. No set operator\n\n");
+			_assert_(false, "Something went wrong. No set operator\n\n");
 
 
 		std::cout << "\t\t	--> finished diagonalizing for " << info << " - in time : " << tim_s(start_loop) << "s" << std::endl;
@@ -1106,7 +1131,7 @@ void isingUI::ui::entropy_evolution(){
 		double dt_new = 1e-2;
 		std::string dir = this->saving_dir + "Entropy" + kPSep;
 		createDirs(dir);
-		my_gen.reset();
+		my_disorder.reset();
 		// ----------- diagonalize
 		std::cout << "\t\t	--> start diagonalizing for " << alfa.get_info()
 				<< " - in time : " << tim_s(start) << "s" << std::endl;
@@ -1466,7 +1491,7 @@ void isingUI::ui::analyze_spectra(){
 		}
 		catch (...) {
 			std::cout << "Unknown error...!" << "\n";
-			assert(false);
+			_assert_(false, "Something happend, but what only the wisest of 'em all might know. Or some stupid shit is going on");
 		}
 	};
 
@@ -1768,7 +1793,7 @@ void isingUI::ui::spectral_form_factor(){
 				wH_typ_r += std::log(gap2);
         		if (abs(gap1) <= 1e-15 || abs(gap2) <= 1e-15){ 
         		    std::cout << "Index: " << i << std::endl;
-        		    assert(false && "Degeneracy!!!\n");
+        		    _assert_(false, "Degeneracy!!!\n");
         		}
 				r1_tmp += min / max;
 				if(i >= (E_av_idx - num2 / 2) && i < (E_av_idx + num2 / 2))
@@ -2415,7 +2440,7 @@ void isingUI::ui::calculate_statistics(){
 				wH_typ_local += std::log(gap2);
         		if (abs(gap1) <= 1e-15 || abs(gap2) <= 1e-15){ 
         		    std::cout << "Index: " << i << std::endl;
-        		    assert(false && "Degeneracy!!!\n");
+        		    _assert_(false, "Degeneracy!!!\n");
         		}
 				gap_ratio += min / max;
 	

@@ -124,17 +124,18 @@ void IsingModel_disorder::hamiltonian() {
 	}
 	#pragma omp critical
 	{
-		this->dh = disorder::uniform<double>(this->L, 0);
-		this->dJ = disorder::uniform<double>(this->L, 0);
-		this->dg = disorder::uniform<double>(this->L, 0);
+		this->dh = arma::vec(this->L, arma::fill::zeros);
+		this->dJ = arma::vec(this->L, arma::fill::zeros);
+		this->dg = arma::vec(this->L, arma::fill::zeros);
 		#if defined(LOCAL_PERT)
 			this->dh(this->L / 2.) = this->w;
 			this->dh(0) = 0.1;
 		#else
-			this->dh.reset(this->L, this->w);                               // creates random disorder vector
-			this->dJ.reset(this->L, this->J0);                              // creates random exchange vector
-			this->dg.reset(this->L, this->g0);                              // creates random transverse field vector
+			this->dh = my_disorder.uniform(this->L, this->w);                               // creates random disorder vector
+			this->dJ = my_disorder.uniform(this->L, this->J0);                              // creates random exchange vector
+			this->dg = my_disorder.uniform(this->L, this->g0);                              // creates random transverse field vector
 		#endif
+		// STOP COMPUTATIONS WITH L=16 AND REDO WITH PROPER RANDOM DRAWING AND INPUT SEED!! (SPINON, KEEP DATA ON MAISTER)
 	}
 	#if MODEL == 0
 		this->hamiltonian_Ising();
@@ -161,20 +162,31 @@ void IsingModel_disorder::hamiltonian_qsun()
 	const size_t dim_loc = ULLPOW((L - M));
 	const size_t dim_erg = ULLPOW((M));
 	
+	#ifndef ENSEMBLE
+		#define ENSEMBLE GOE
+		#pragma message ("--> Using implicit random matrix ensemble: i.e., Gaussian Orthogonal Ensemble")
+	#endif
 	/* Create GOE Matrix */
-	arma::mat H_grain = my_gen.create_goe_matrix<double>(dim_erg);
+	auto grain = ENSEMBLE(my_disorder.get_seed());
+	arma::mat H_grain = grain.generate_matrix(dim_erg);
 	
 
 	/* Create Rest of Hamiltonian */
-	arma::Col<int> random_neigh(this->L, arma::fill::zeros);
-	for(int i = 0; i < this->L; i++)
-		random_neigh(i) = i < M? -1 : my_gen.randomInt_uni(0, M - 1);
+    auto neighbor_generator = disorder<int>(my_disorder.get_seed());
 
-	std::cout << random_neigh.t() << std::endl;
+    auto random_neigh = neighbor_generator.uniform(this->L, 0, M - 1);
+	// first coupling =1 (j=0 and no dzeta_j)
+	// add the above inilename to keep track
+	// if alfa =1 keep all dJ=1 (to avoid numerical precision error)
 
 	for (int j = 0; j < L; j++) 
 	 	this->dJ(j) = j < M? 0.0 : std::pow(this->g, j - M + 1 + this->dJ(j));
 
+	std::cout << "disorder: \t\t" << this->h + this->dh.t() << std::endl;   
+	std::cout << "couplings: \t\t" << this->dJ.t() << std::endl;
+	std::cout << "random_neigh: \t\t" << random_neigh.t() << std::endl;
+	std::cout << "Grain matrix: \t\t" << H_grain << std::endl;
+	
 	for (u64 k = 0; k < N; k++) {
 		double s_i, s_j;
 		u64 base_state = map(k);

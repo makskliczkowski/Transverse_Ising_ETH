@@ -11,15 +11,6 @@
 /// Random number generator class
 /// </summary>
 class randomGen {
-private:
-	std::mt19937_64 engine;
-	//XoshiroCpp::Xoshiro256PlusPlus engine;
-	std::uint64_t init_seed;
-public:
-	explicit randomGen(const std::uint64_t seed = std::random_device{}()) {
-		this->init_seed = seed;
-		this->engine = std::mt19937_64(seed);
-	}
 	uint64_t SeedInit(uint64_t n) const
 	{
 		std::vector<uint64_t> s(16, 0);
@@ -32,9 +23,25 @@ public:
 		}
 		return std::accumulate(s.begin(), s.end(), 0.0);
 	}
+protected:
+	std::mt19937_64 engine;
+	//XoshiroCpp::Xoshiro256PlusPlus engine;
+	std::uint64_t init_seed;
+public:
+	~randomGen() { DESTRUCTOR_CALL; };
+	explicit randomGen(const std::uint64_t seed = std::random_device{}()) {
+		this->init_seed = seed;
+		this->engine = std::mt19937_64(seed);
+        CONSTRUCTOR_CALL;
+        #if defined(EXTRA_DEBUG)
+            std::cout << FUN_SIGNATURE << "::\n\t randomGen initialized with: "
+                << var_name_value(this->init_seed, 0) << std::endl;
+        #endif
+	}
 	void reset()
 		{this->engine = std::mt19937_64(this->init_seed);}
-
+	[[nodiscard]] auto get_seed() const { return this->init_seed; }
+	
 	//------------------------------------------------------------------------------ WRAPPERS ON RANDOM FUNCTIONS
 	std::complex<double> randomCpx_uni(double _min = 0, double _max = 1) 
 	{
@@ -76,21 +83,14 @@ public:
 		}
 		return random_vec;
 	}
-	template <typename _type> 
-	arma::Mat<_type> create_goe_matrix(const uint64_t size){
-		arma::Mat<_type> matrix(size, size);
-		std::normal_distribution<_type> diag(0.0, 2.0);
-		std::normal_distribution<_type> offdiag(0.0, 1.0);
-		for(int n = 0; n < size; n++){
-			//matrix(n, n) = diag(engine);
-			for(int m = 0; m < size; m++){
-				matrix(n, m) = offdiag(engine);
-				//matrix(m, n) = matrix(n, m);
-			}
-		}
-		return 0.15 * (matrix + matrix.t());
-	};
 };
+
+template <> 
+inline 
+int 
+	randomGen::random_uni<int>(
+		double _min, double _max)
+	{ return randomInt_uni(_min, _max); }
 
 template <> 
 inline 

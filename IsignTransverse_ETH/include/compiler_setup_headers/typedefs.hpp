@@ -53,8 +53,8 @@ struct sink { template<typename ..._ty> sink(_ty const && ...) {} };
 
 #define _type_name(name) #name
 #define _typeID(name) typeid(name)
-#define var_name(name) std::string(_type_name(name));
-#define var_name_value(name,prec) std::string(_type_name(name))+ "=" + to_string_prec((name), prec);
+#define var_name(name) std::string(_type_name(name))
+#define var_name_value(name,prec) std::string(_type_name(name))+ "=" + to_string_prec((name), prec)
 
 // ------- Macros to generate the lookup table (at compile-time)
 #define generate_1st_sequence(n) n, n + 2*64, n + 1*64, n + 3*64
