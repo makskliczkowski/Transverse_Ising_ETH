@@ -181,7 +181,7 @@ def cost_func_minization(x, y, sizes, bnds,
                     args=(x, y, sizes, scale_func, crit_func, wH),
                     popsize=int(population_size), 
                     maxiter=int(maxiterarions), 
-                    workers=workers, atol=1e-2,
+                    workers=workers, atol=1e-3,
                     seed=seed
             )
     optimal_res = np.array(result.x)
@@ -216,7 +216,7 @@ def prepare_bounds(x, crit_fun, scaling_ansatz, vals):
         for _x_ in a: 
             if x_max is None or _x_ > x_max:   x_max = _x_
             if x_min is None or _x_ < x_min:    x_min = _x_
-
+            
     bounds = [(0.2, 5.)] if scaling_ansatz == 'FGR' or scaling_ansatz == 'spacing' else [(0.1, 10.)]
     #-- number of bounds is number of different scaling parameters
     if crit_fun == 'free':  

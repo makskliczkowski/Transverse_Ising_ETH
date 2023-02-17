@@ -18,6 +18,15 @@ def exp_fit2(x, mu, a):
     """Exponential function to fit and find decay rate"""
     return a * np.exp(x / mu)
 
+def exp_fit_offset(x, mu, a, b):
+    """Exponential function to fit and find decay rate"""
+    return a * np.exp(- x / mu) + b
+
+def exp_fit2_offset(x, mu, a, b):
+    """Exponential function to fit and find decay rate"""
+    return a * np.exp(x / mu) + b
+
+
 def lin_fit(x, mu, a):
     """Linear function to fit and find decay rate from ln( f(t) )"""
     return -x / mu + a

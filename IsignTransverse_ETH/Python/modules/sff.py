@@ -84,7 +84,7 @@ def load(settings = None, parameter = None, folded = False, beta = 0.0):
     #--- reset defaults
     cf.params_arr = param_copy
 
-    epsilon = 5e-2
+    epsilon = 1e-1
     if exists(filename):
         data = pd.read_table(filename, sep="\t", header=None)
         times = np.array(data[0])
