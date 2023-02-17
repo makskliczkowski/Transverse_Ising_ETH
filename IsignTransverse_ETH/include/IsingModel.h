@@ -4,8 +4,8 @@
 #include "headers.h"
 #include "lattice.hpp"
 #include "anderson.hpp"
-#include "Hamiltonians.hpp"
 #include "hilbert_space/hilbert_space_base.hpp"
+#include "SpinOperators.hpp"
 
 /*-------------------- ISING MODEL WITH TRANSVERSE MAGNETIC FIELD ---------------------*
 * The Ising model with perpendicular magnetic field, known as the quantum Ising model *
@@ -407,12 +407,12 @@ public:
 class IsingModel_disorder : public IsingModel<double> {
 private:
 
-	disorder::uniform<double> dh;												// disorder in the system - deviation from a constant h value
-	double w;																	// the distorder strength to set dh in (-disorder_strength, disorder_strength)
-	disorder::uniform<double> dJ;												// disorder in the system - deviation from a constant J0 value
-	double J0;																	// spin exchange coefficient
-	disorder::uniform<double> dg;												// disorder in the system - deviation from a constant g0 value
-	double g0;																	// transverse magnetic field
+	arma::vec dh;												// disorder in the system - deviation from a constant h value
+	double w;													// the distorder strength to set dh in (-disorder_strength, disorder_strength)
+	arma::vec dJ;												// disorder in the system - deviation from a constant J0 value
+	double J0;													// spin exchange coefficient
+	arma::vec dg;												// disorder in the system - deviation from a constant g0 value
+	double g0;													// transverse magnetic field
 public:
 	/* Constructors */
 	IsingModel_disorder() = default;

@@ -9,7 +9,7 @@
 extern int num_of_threads;													// number of threads
 extern int anderson_dim;
 extern std::mt19937::result_type seed_global;
-extern randomGen my_gen;
+extern disorder<double> my_disorder;
 
 using namespace std;
 
@@ -280,9 +280,9 @@ inline _Ty matrixVariance(const arma::Mat<_Ty>& mat) {
 	return var - mean * mean;
 }
 inline void checkRandom(unsigned int seed) {
-	my_gen = randomGen(seed);
+	disorder<double> my_gen(seed);
 	std::cout << "test randoms \n" << my_gen.random_uni<double>(0., 1.) << "\t" << my_gen.random_uni<double>(0., 1.) << "\t" << my_gen.random_uni<double>(0., 1.) << std::endl;
-	my_gen = randomGen(seed);
+	my_gen = disorder<double>(seed);
 	std::cout << "reset seed!" << std::endl;
 	std::cout << my_gen.random_uni<double>(0., 1.) << "\t" << my_gen.random_uni<double>(0., 1.) << "\t" << my_gen.random_uni<double>(0., 1.) << std::endl;
 	std::cout << "Same? Good continue!\n\n";

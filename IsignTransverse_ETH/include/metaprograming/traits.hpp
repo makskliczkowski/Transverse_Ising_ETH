@@ -50,13 +50,15 @@ namespace traits {
 
 template <typename _ty>
 inline
-std::string type_name(_ty a){
+std::string type_name(_ty a = _ty(0)){
 	if(typeid(_ty) == typeid(cpx))			
 		return "COMPLEX";
 	else if(typeid(_ty) == typeid(double))	
 		return "DOUBLE";
 	else if(typeid(_ty) == typeid(float))	
 		return "FLOAT";
+	else if(typeid(_ty) == typeid(int))	
+		return "INT";
 	else 
 		return "UNKNOWN";
 }

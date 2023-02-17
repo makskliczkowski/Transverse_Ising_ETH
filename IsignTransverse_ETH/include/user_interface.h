@@ -346,7 +346,7 @@ namespace isingUI
 				default:				  x = 0.0;		break;
 				}
 			if(this->m){
-				arma::vec _vec = x + my_gen.create_random_vec<double>(this->realisations, x / 50.);
+				arma::vec _vec = x + my_disorder.uniform(this->realisations, x / 50.);
 				//std::cout << _vec << std::endl;
 				for(int r = 0; r < _vec.size(); r++){
 					if(this->realisations > 1){
@@ -396,7 +396,7 @@ namespace isingUI
 					case Ising_params::w: x = this->w;	break;
 				default:				  x = 0.0;		break;
 				}
-				arma::vec _vec = x + my_gen.create_random_vec<double>(this->realisations, 0.05);
+				arma::vec _vec = x + my_disorder.uniform(this->realisations, 0.05);
 				//std::cout << _vec << std::endl;
 			if(this->m){
 			#pragma omp parallel for num_threads(outer_threads) schedule(dynamic)

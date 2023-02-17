@@ -15,6 +15,7 @@ struct variadic_struct {};
 template <typename _ty, typename ... _types>
 struct variadic_struct<_ty, _types ...>
 {
+    variadic_struct() = default;
     variadic_struct(const _ty& first, const _types& ... rest)
         : first(first)
         , rest(rest...)
