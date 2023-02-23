@@ -35,7 +35,7 @@ inline bool isNumber(const std::string& str) {
 inline std::vector<std::string> 
 split_str(
 	std::string s,			//<! string to split
-	std::string delimiter	//<! symbol serving as split value
+	std::string delimiter	//<! symbol serving s split value
 ) {
 	size_t pos_start = 0, pos_end, delim_len = delimiter.length();
 	std::string token;

@@ -2743,7 +2743,7 @@ void print_help(){
 std::vector<std::string> change_input_to_vec_of_str(int argc, char **argv)
 {
 	// -1 because first is the name of the file
-	NO_OVERFLOW(std::vector<std::string> tmp(argc - 1, "");)
+	std::vector<std::string> tmp(argc - 1, "");
 	for (int i = 0; i < argc - 1; i++)
 	{
 		tmp[i] = argv[i + 1];
